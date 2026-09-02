@@ -11,6 +11,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
 )
 
@@ -70,9 +71,9 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 	// because their numeric shortcuts preserve the current sub-mode; palette
 	// commands should always land on the destination named in the result.
 	cmds = append(cmds,
-		paletteMessageCmd("nav.library.all", "nav", "Go to Library: All Tracks", "", navigateLibraryModeMsg{mode: LibraryModeAll}),
-		paletteMessageCmd("nav.library.recent", "nav", "Go to Library: Recently Added", "", navigateLibraryModeMsg{mode: LibraryModeRecent}),
-		paletteMessageCmd("nav.library.history", "nav", "Go to Library: History", "", navigateLibraryModeMsg{mode: LibraryModeHistory}),
+		paletteMessageCmd("nav.library.all", "nav", "Go to Library: All Tracks", "", navigateLibraryModeMsg{mode: libtui.LibraryModeAll}),
+		paletteMessageCmd("nav.library.recent", "nav", "Go to Library: Recently Added", "", navigateLibraryModeMsg{mode: libtui.LibraryModeRecent}),
+		paletteMessageCmd("nav.library.history", "nav", "Go to Library: History", "", navigateLibraryModeMsg{mode: libtui.LibraryModeHistory}),
 		paletteMessageCmd("nav.browse.artists", "nav", "Go to Browse: Artists", "", navigateBrowseModeMsg{mode: BrowseModeArtists}),
 		paletteMessageCmd("nav.browse.albums", "nav", "Go to Browse: Albums", "", navigateBrowseModeMsg{mode: BrowseModeAlbums}),
 		paletteMessageCmd("nav.browse.genres", "nav", "Go to Browse: Genres", "", navigateBrowseModeMsg{mode: BrowseModeGenres}),
@@ -290,7 +291,7 @@ func (m Model) buildPaletteCommands() []palette.PaletteCommand {
 func (m Model) focusedTrackForPalette() (path, artist, title string, found bool) {
 	switch m.activeView {
 	case viewLibrary:
-		if track, ok := m.library.view().FocusedTrack(); ok {
+		if track, ok := m.library.Panel().FocusedTrack(); ok {
 			return track.Path, track.Artist, track.Title, true
 		}
 

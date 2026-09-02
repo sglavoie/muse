@@ -16,7 +16,7 @@ import (
 func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 	idx := buildIndex(sampleTracks)
 	secondaryStyle := styles.NewStyles(true).TextSecondary
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -50,7 +50,7 @@ func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 // replaced by the actual filter text once the user starts typing.
 func TestFilterBarHintDisappearsOnInput(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,

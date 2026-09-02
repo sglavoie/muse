@@ -13,7 +13,7 @@ import (
 
 func TestBulkSelectionToggleExitsVisualMode(t *testing.T) {
 	m := newLibraryModel(5)
-	m.library.cursor = 0
+	m.library.Cursor = 0
 
 	m = doVisual(m)
 	m = doNav(m, keys.ActionCursorDown)
@@ -25,7 +25,7 @@ func TestBulkSelectionToggleExitsVisualMode(t *testing.T) {
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit on bulk-selection toggle")
 	}
-	assertSelectedHashesExact(t, m.library.selectedHashes, "h0")
+	assertSelectedHashesExact(t, m.library.SelectedHashes, "h0")
 }
 
 func TestSortedIntSetKeysOrder(t *testing.T) {

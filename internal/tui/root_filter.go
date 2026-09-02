@@ -89,8 +89,8 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 func (m Model) allFilterOps() *filterOps {
 	switch m.activeView {
 	case viewLibrary:
-		return makeFilterOps(&m, &m.library.filter, &m.library.cursor, &m.library.scrollOffset,
-			func() { m.library = m.library.rebuildFilterCache() })
+		return makeFilterOps(&m, &m.library.Filter, &m.library.Cursor, &m.library.ScrollOffset,
+			func() { m.library = m.library.RebuildFilterCache() })
 	case viewBrowse:
 		switch m.browse.mode {
 		case BrowseModeArtists:
@@ -112,18 +112,18 @@ func (m Model) allFilterOps() *filterOps {
 		if m.mixes.level != 1 {
 			return nil
 		}
-		return makeFilterOps(&m, &m.mixes.trackView.filter,
-			&m.mixes.trackView.cursor,
-			&m.mixes.trackView.scrollOffset,
-			func() { m.mixes.trackView = m.mixes.trackView.rebuildFilterCache() })
+		return makeFilterOps(&m, &m.mixes.trackView.Filter,
+			&m.mixes.trackView.Cursor,
+			&m.mixes.trackView.ScrollOffset,
+			func() { m.mixes.trackView = m.mixes.trackView.RebuildFilterCache() })
 	case viewInsights:
 		if !m.insights.atTracks() {
 			return nil
 		}
-		return makeFilterOps(&m, &m.insights.trackView.filter,
-			&m.insights.trackView.cursor,
-			&m.insights.trackView.scrollOffset,
-			func() { m.insights.trackView = m.insights.trackView.rebuildFilterCache() })
+		return makeFilterOps(&m, &m.insights.trackView.Filter,
+			&m.insights.trackView.Cursor,
+			&m.insights.trackView.ScrollOffset,
+			func() { m.insights.trackView = m.insights.trackView.RebuildFilterCache() })
 	default:
 		return nil
 	}

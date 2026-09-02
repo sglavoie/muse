@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/filter"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -11,43 +12,43 @@ import (
 func TestLibraryViewVisibleReserve(t *testing.T) {
 	tests := []struct {
 		name string
-		view LibraryView
+		view libtui.View
 		want int
 	}{
 		{
 			name: "normal width no filter",
-			view: LibraryView{width: 80},
+			view: libtui.View{Width: 80},
 			want: 2,
 		},
 		{
 			name: "normal width filter active",
-			view: LibraryView{width: 80, filter: filter.State{Active: true}},
+			view: libtui.View{Width: 80, Filter: filter.State{Active: true}},
 			want: 2,
 		},
 		{
 			name: "normal width filter text set but not active",
-			view: LibraryView{width: 80, filter: filter.State{Text: "foo"}},
+			view: libtui.View{Width: 80, Filter: filter.State{Text: "foo"}},
 			want: 2,
 		},
 		{
 			name: "normal width filter active with text",
-			view: LibraryView{width: 80, filter: filter.State{Active: true, Text: "bar"}},
+			view: libtui.View{Width: 80, Filter: filter.State{Active: true, Text: "bar"}},
 			want: 2,
 		},
 		{
 			name: "zero width no filter",
-			view: LibraryView{},
+			view: libtui.View{},
 			want: 0,
 		},
 		{
 			name: "zero width filter active",
-			view: LibraryView{filter: filter.State{Active: true}},
+			view: libtui.View{Filter: filter.State{Active: true}},
 			want: 1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := libraryViewVisibleReserve(tt.view)
+			got := libtui.VisibleReserve(tt.view)
 			if got != tt.want {
 				t.Errorf("libraryViewVisibleReserve() = %d, want %d", got, tt.want)
 			}

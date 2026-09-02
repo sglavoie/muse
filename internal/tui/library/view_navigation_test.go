@@ -12,7 +12,7 @@ import (
 // the cursor index by one.
 func TestCursorDownAdvances(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v := Panel{Index: idx, Width: 80, Height: 0, Cursor: 0}
 	v = v.CursorDown()
 	if v.Cursor != 1 {
 		t.Errorf("CursorDown: expected cursor 1, got %d", v.Cursor)
@@ -23,7 +23,7 @@ func TestCursorDownAdvances(t *testing.T) {
 // cursor index by one.
 func TestCursorUpAdvances(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 0, Cursor: 2}
+	v := Panel{Index: idx, Width: 80, Height: 0, Cursor: 2}
 	v = v.CursorUp()
 	if v.Cursor != 1 {
 		t.Errorf("CursorUp: expected cursor 1, got %d", v.Cursor)
@@ -35,7 +35,7 @@ func TestCursorUpAdvances(t *testing.T) {
 func TestCursorClampAtBottom(t *testing.T) {
 	idx := buildIndex(sampleTracks)
 	last := len(sampleTracks) - 1
-	v := View{Index: idx, Width: 80, Height: 0, Cursor: last}
+	v := Panel{Index: idx, Width: 80, Height: 0, Cursor: last}
 	v = v.CursorDown()
 	if v.Cursor != last {
 		t.Errorf("CursorDown at last: expected cursor %d (clamped), got %d", last, v.Cursor)
@@ -44,7 +44,7 @@ func TestCursorClampAtBottom(t *testing.T) {
 
 func TestCursorDownClampsStaleScrollOffsetWhenListShrank(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 24, Cursor: 0, ScrollOffset: 80}
+	v := Panel{Index: idx, Width: 80, Height: 24, Cursor: 0, ScrollOffset: 80}
 
 	v = v.CursorDown()
 
@@ -58,7 +58,7 @@ func TestCursorDownClampsStaleScrollOffsetWhenListShrank(t *testing.T) {
 
 func TestCursorMovementClampsNegativeStaleState(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 24, Cursor: 1, ScrollOffset: -4}
+	v := Panel{Index: idx, Width: 80, Height: 24, Cursor: 1, ScrollOffset: -4}
 
 	v = v.CursorUp()
 
@@ -72,7 +72,7 @@ func TestCursorMovementClampsNegativeStaleState(t *testing.T) {
 
 func TestCursorDownFromNegativeCursorStartsAtFirstRow(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 24, Cursor: -5, ScrollOffset: -2}
+	v := Panel{Index: idx, Width: 80, Height: 24, Cursor: -5, ScrollOffset: -2}
 
 	v = v.CursorDown()
 
@@ -86,7 +86,7 @@ func TestCursorDownFromNegativeCursorStartsAtFirstRow(t *testing.T) {
 
 func TestCursorDownWithNoVisibleRowsKeepsCursorVisibleForFutureResize(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 1, Cursor: 0, ScrollOffset: 0}
+	v := Panel{Index: idx, Width: 80, Height: 1, Cursor: 0, ScrollOffset: 0}
 
 	v = v.CursorDown()
 
@@ -102,7 +102,7 @@ func TestCursorDownWithNoVisibleRowsKeepsCursorVisibleForFutureResize(t *testing
 // wrapping.
 func TestCursorClampAtTop(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v := Panel{Index: idx, Width: 80, Height: 0, Cursor: 0}
 	v = v.CursorUp()
 	if v.Cursor != 0 {
 		t.Errorf("CursorUp at first: expected cursor 0 (clamped), got %d", v.Cursor)
@@ -113,7 +113,7 @@ func TestCursorClampAtTop(t *testing.T) {
 // View value after multiple moves.
 func TestCursorStoredOnModel(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 0, Cursor: 0}
+	v := Panel{Index: idx, Width: 80, Height: 0, Cursor: 0}
 	v = v.CursorDown()
 	v = v.CursorDown()
 	if v.Cursor != 2 {
@@ -123,7 +123,7 @@ func TestCursorStoredOnModel(t *testing.T) {
 
 func TestGoToTopResetsCursorAndScroll(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 24, Cursor: 2, ScrollOffset: 1}
+	v := Panel{Index: idx, Width: 80, Height: 24, Cursor: 2, ScrollOffset: 1}
 	v = v.GoToTop()
 	if v.Cursor != 0 {
 		t.Errorf("GoToTop: expected Cursor=0, got %d", v.Cursor)
@@ -135,7 +135,7 @@ func TestGoToTopResetsCursorAndScroll(t *testing.T) {
 
 func TestGoToBottomMovesCursorToLast(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 24, Cursor: 0}
+	v := Panel{Index: idx, Width: 80, Height: 24, Cursor: 0}
 	v = v.GoToBottom()
 	want := len(sampleTracks) - 1
 	if v.Cursor != want {
@@ -144,7 +144,7 @@ func TestGoToBottomMovesCursorToLast(t *testing.T) {
 }
 
 func TestGoToBottomEmptyLibrary(t *testing.T) {
-	v := View{Width: 80, Height: 24, Cursor: 0}
+	v := Panel{Width: 80, Height: 24, Cursor: 0}
 	v = v.GoToBottom()
 	if v.Cursor != 0 {
 		t.Errorf("GoToBottom empty: expected Cursor=0, got %d", v.Cursor)
@@ -152,17 +152,17 @@ func TestGoToBottomEmptyLibrary(t *testing.T) {
 }
 
 func TestCursorMovementsResetStaleStateWhenLibraryEmpty(t *testing.T) {
-	base := View{Width: 80, Height: 24, Cursor: 7, ScrollOffset: 5}
+	base := Panel{Width: 80, Height: 24, Cursor: 7, ScrollOffset: 5}
 	tests := []struct {
 		name string
-		move func(View) View
+		move func(Panel) Panel
 	}{
-		{"CursorUp", View.CursorUp},
-		{"CursorDown", View.CursorDown},
-		{"HalfPageUp", View.HalfPageUp},
-		{"HalfPageDown", View.HalfPageDown},
-		{"FullPageUp", View.FullPageUp},
-		{"FullPageDown", View.FullPageDown},
+		{"CursorUp", Panel.CursorUp},
+		{"CursorDown", Panel.CursorDown},
+		{"HalfPageUp", Panel.HalfPageUp},
+		{"HalfPageDown", Panel.HalfPageDown},
+		{"FullPageUp", Panel.FullPageUp},
+		{"FullPageDown", Panel.FullPageDown},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -180,7 +180,7 @@ func TestGoToBottomAdjustsScrollOffset(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 4
+	v := Panel{Index: idx, Width: 80, Height: 6, Cursor: 0} // visibleRows = 4
 	v = v.GoToBottom()
 	if v.Cursor != 19 {
 		t.Errorf("GoToBottom: expected Cursor=19, got %d", v.Cursor)
@@ -202,7 +202,7 @@ func TestGoToBottomClampsScrollOffsetWhenListShrank(t *testing.T) {
 	idx := buildIndex(tracks)
 	// Simulate a state where the user had scrolled far down inside a larger
 	// list (ScrollOffset=80) before a filter shrank the list to 3 tracks.
-	v := View{Index: idx, Width: 80, Height: 20, Cursor: 0, ScrollOffset: 80}
+	v := Panel{Index: idx, Width: 80, Height: 20, Cursor: 0, ScrollOffset: 80}
 	v = v.GoToBottom()
 	if v.Cursor != 2 {
 		t.Errorf("GoToBottom: expected Cursor=2, got %d", v.Cursor)
@@ -221,7 +221,7 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 11
+	v := Panel{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 11
 	v = v.HalfPageDown()
 	if v.Cursor != 5 {
 		t.Errorf("HalfPageDown: expected Cursor=5, got %d", v.Cursor)
@@ -230,7 +230,7 @@ func TestHalfPageDownMovesByHalfVisibleRows(t *testing.T) {
 
 func TestHalfPageDownMovesAtLeastOneVisibleRow(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 3, Cursor: 0} // visibleRows = 1
+	v := Panel{Index: idx, Width: 80, Height: 3, Cursor: 0} // visibleRows = 1
 	v = v.HalfPageDown()
 	if v.Cursor != 1 {
 		t.Errorf("HalfPageDown with one visible row: expected Cursor=1, got %d", v.Cursor)
@@ -243,7 +243,7 @@ func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 12} // visibleRows = 11
+	v := Panel{Index: idx, Width: 80, Height: 13, Cursor: 12} // visibleRows = 11
 	v = v.HalfPageUp()
 	if v.Cursor != 7 {
 		t.Errorf("HalfPageUp: expected Cursor=7, got %d", v.Cursor)
@@ -252,7 +252,7 @@ func TestHalfPageUpMovesByHalfVisibleRows(t *testing.T) {
 
 func TestHalfPageUpMovesAtLeastOneVisibleRow(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 3, Cursor: 1} // visibleRows = 1
+	v := Panel{Index: idx, Width: 80, Height: 3, Cursor: 1} // visibleRows = 1
 	v = v.HalfPageUp()
 	if v.Cursor != 0 {
 		t.Errorf("HalfPageUp with one visible row: expected Cursor=0, got %d", v.Cursor)
@@ -265,7 +265,7 @@ func TestFullPageDownMovesByVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 11
+	v := Panel{Index: idx, Width: 80, Height: 13, Cursor: 0} // visibleRows = 11
 	v = v.FullPageDown()
 	if v.Cursor != 11 {
 		t.Errorf("FullPageDown: expected Cursor=11, got %d", v.Cursor)
@@ -278,7 +278,7 @@ func TestFullPageUpMovesByVisibleRows(t *testing.T) {
 		tracks[i] = musiclib.Track{Artist: "A", Title: strings.Repeat("T", i+1), Hash: strings.Repeat("h", i+1)}
 	}
 	idx := buildIndex(tracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 11
+	v := Panel{Index: idx, Width: 80, Height: 13, Cursor: 15} // visibleRows = 11
 	v = v.FullPageUp()
 	if v.Cursor != 4 {
 		t.Errorf("FullPageUp: expected Cursor=4, got %d", v.Cursor)
@@ -287,7 +287,7 @@ func TestFullPageUpMovesByVisibleRows(t *testing.T) {
 
 func TestPageMovementsClampsToEnd(t *testing.T) {
 	idx := buildIndex(sampleTracks) // 3 tracks
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 2}
+	v := Panel{Index: idx, Width: 80, Height: 13, Cursor: 2}
 	v = v.FullPageDown()
 	if v.Cursor != 2 {
 		t.Errorf("FullPageDown clamp: expected Cursor=2, got %d", v.Cursor)
@@ -296,7 +296,7 @@ func TestPageMovementsClampsToEnd(t *testing.T) {
 
 func TestPageMovementsClampsToStart(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: 80, Height: 13, Cursor: 1}
+	v := Panel{Index: idx, Width: 80, Height: 13, Cursor: 1}
 	v = v.FullPageUp()
 	if v.Cursor != 0 {
 		t.Errorf("FullPageUp clamp: expected Cursor=0, got %d", v.Cursor)
@@ -304,7 +304,7 @@ func TestPageMovementsClampsToStart(t *testing.T) {
 }
 
 func TestMoveCursorEmptyIsNoOp(t *testing.T) {
-	v := View{Width: 80, Height: 24, Cursor: 4, ScrollOffset: 2}
+	v := Panel{Width: 80, Height: 24, Cursor: 4, ScrollOffset: 2}
 	v2 := v.moveCursor(5)
 	if v2.Cursor != 0 || v2.ScrollOffset != 0 {
 		t.Errorf("moveCursor empty: expected cursor=0 scroll=0, got cursor=%d scroll=%d", v2.Cursor, v2.ScrollOffset)
@@ -313,14 +313,14 @@ func TestMoveCursorEmptyIsNoOp(t *testing.T) {
 
 // TestVisibleRowsZeroHeight verifies the default fallback height.
 func TestVisibleRowsZeroHeight(t *testing.T) {
-	v := View{Height: 0}
+	v := Panel{Height: 0}
 	if v.visibleRows() != 50 {
 		t.Errorf("visibleRows Height=0: expected 50, got %d", v.visibleRows())
 	}
 }
 
 func TestVisibleRowsSmallHeight(t *testing.T) {
-	v := View{Width: 80, Height: 4}
+	v := Panel{Width: 80, Height: 4}
 	if v.visibleRows() != 2 {
 		t.Errorf("visibleRows Height=4: expected 2, got %d", v.visibleRows())
 	}
@@ -331,9 +331,9 @@ func TestVisibleRowsSmallHeight(t *testing.T) {
 // strip, so it does not consume another row in columnar mode.
 func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 	h := 24
-	noFilter := View{Width: 80, Height: h}
-	withFilter := View{Width: 80, Height: h, Filter: filter.State{Text: "abc"}}
-	withActiveFilter := View{Width: 80, Height: h, Filter: filter.State{Active: true, Text: "abc"}}
+	noFilter := Panel{Width: 80, Height: h}
+	withFilter := Panel{Width: 80, Height: h, Filter: filter.State{Text: "abc"}}
+	withActiveFilter := Panel{Width: 80, Height: h, Filter: filter.State{Active: true, Text: "abc"}}
 
 	base := noFilter.visibleRows()
 	if got := withFilter.visibleRows(); got != base {
@@ -345,8 +345,8 @@ func TestVisibleRowsSameWithAndWithoutFilter(t *testing.T) {
 }
 
 func TestVisibleRowsZeroWidthAccountsForFallbackFilterLine(t *testing.T) {
-	noFilter := View{Width: 0, Height: 4}
-	withFilter := View{Width: 0, Height: 4, Filter: filter.State{Text: "abc"}}
+	noFilter := Panel{Width: 0, Height: 4}
+	withFilter := Panel{Width: 0, Height: 4, Filter: filter.State{Text: "abc"}}
 
 	if got := noFilter.visibleRows(); got != 4 {
 		t.Errorf("zero-width visibleRows without filter: got %d, want 4", got)

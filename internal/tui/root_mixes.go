@@ -234,14 +234,14 @@ func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
 	tracks := recommendation.FilterSeen(msg.tracks, m.dismissedHashes)
 	m.mixes.cachedMixes[msg.mixID] = tracks
 	if m.activeView == viewMixes && m.mixes.level == 1 && m.mixes.activeMix == msg.mixID {
-		if len(m.mixes.trackView.sourceTracks) == 0 {
+		if len(m.mixes.trackView.SourceTracks) == 0 {
 			// Initial population: no user state to preserve.
 			m.mixes.openMix(msg.mixID)
 		} else {
 			// Re-load while user is already browsing: update tracks
 			// in place to preserve cursor, sort, and filter state.
-			m.mixes.trackView.sourceTracks = tracks
-			m.mixes.trackView = m.mixes.trackView.refreshView().clampCursor()
+			m.mixes.trackView.SourceTracks = tracks
+			m.mixes.trackView = m.mixes.trackView.RefreshView().ClampCursor()
 		}
 	}
 	return m

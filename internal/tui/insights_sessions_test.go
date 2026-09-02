@@ -181,7 +181,7 @@ func TestSessionListHeaderStaysInLockstepWithSizing(t *testing.T) {
 
 func TestRenderSessionListClampsToHeight(t *testing.T) {
 	v := sessionsFixtureView()
-	v.setSize(60, 8)
+	v.SetSize(60, 8)
 	v.openSessionList("All sessions", insightsSessionsMatching(v.sessions, drillSessionsAll, ""))
 
 	if got := len(strings.Split(v.renderSessionList(styles.NewStyles(false)), "\n")); got > 8 {
@@ -219,7 +219,7 @@ func TestSessionsHeaderShowsTheHistogramAndFalseStarts(t *testing.T) {
 
 	// Below the compact width the histogram goes but the prose either side of it
 	// stays, so the panel still answers its question.
-	v.setSize(60, 30)
+	v.SetSize(60, 30)
 	compact := strings.Join(v.sessionsHeaderLines(s), "\n")
 	if strings.Contains(compact, "<15m") {
 		t.Errorf("compact header should drop the histogram, got:\n%s", compact)

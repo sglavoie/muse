@@ -101,7 +101,7 @@ func TestConcentrationHeaderNamesTheRutTheShortcutAvoids(t *testing.T) {
 
 	// Narrow drops the ratio bar and truncates the summary to the width, but the
 	// ladder's far rung still has to reach the reader.
-	v.setSize(60, 30)
+	v.SetSize(60, 30)
 	if compact := strings.Join(v.concentrationHeaderLines(s), "\n"); !strings.Contains(compact, "17 of them cover 90%") {
 		t.Errorf("compact header should keep the summary, got:\n%s", compact)
 	}
@@ -151,7 +151,7 @@ func TestTimeVsPlaysHeaderShrinksRatherThanVanishing(t *testing.T) {
 
 	// Unlike the other panels' chart blocks the table is the panel itself, so a
 	// tight budget shortens it instead of dropping it whole.
-	v.setSize(100, 20)
+	v.SetSize(100, 20)
 	if b := v.headerBudget(); b >= len(full) {
 		t.Fatalf("precondition: budget %d should be tighter than the full header's %d lines", b, len(full))
 	}

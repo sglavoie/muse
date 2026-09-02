@@ -16,8 +16,8 @@ import (
 // recomputes the queue display order when a sort is active.
 func TestWatchBatchPreservesQueueSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
@@ -46,7 +46,7 @@ func TestWatchBatchPreservesQueueSort(t *testing.T) {
 // recomputes the playlist sort when at track level with a sort active.
 func TestWatchBatchPreservesPlaylistSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
@@ -71,7 +71,7 @@ func TestWatchBatchPreservesPlaylistSort(t *testing.T) {
 // recomputes the favorites sort when tracks are displayed with a sort active.
 func TestWatchBatchPreservesFavoritesSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	m.favorites.tracks = []library.Track{
@@ -98,7 +98,7 @@ func TestWatchBatchPreservesFavoritesSort(t *testing.T) {
 // recomputes the tags sort when at track level with a sort active.
 func TestWatchBatchPreservesTagsSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
 	m.tagsView.level = tagtui.TrackLevel
 	m.tagsView.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
@@ -123,8 +123,8 @@ func TestWatchBatchPreservesTagsSort(t *testing.T) {
 // preserves a user-applied sort at ArtistLevel instead of resetting it.
 func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
 	m.browse.artists.artists = []string{"Zara", "Alice"}
@@ -164,8 +164,8 @@ func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 // resetting it.
 func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Album: "Zeta"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Album: "Alpha"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Album: "Zeta"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Album: "Alpha"})
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums
 	m.browse.albums.albums = []string{"Zeta", "Alpha"}
@@ -201,8 +201,8 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 // preserves a user-applied sort at GenreLevel instead of resetting it.
 func TestWatchBatchPreservesGenreLevelSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Genre: "Zydeco"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Genre: "Alternative"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "T1", Genre: "Zydeco"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "T2", Genre: "Alternative"})
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeGenres
 	m.browse.genres.genres = []string{"Zydeco", "Alternative"}

@@ -77,10 +77,10 @@ func TestHandleTagMerged_RepointsActiveTagFilter(t *testing.T) {
 	srcID := srcTag.ID
 	m.activeTagFilter = &srcID
 	m = m.applyTagFilterToViews()
-	if len(m.library.tagFilterHashes) != 1 {
-		t.Fatalf("pre-merge: expected 1 hash in library filter, got %d", len(m.library.tagFilterHashes))
+	if len(m.library.TagFilterHashes) != 1 {
+		t.Fatalf("pre-merge: expected 1 hash in library filter, got %d", len(m.library.TagFilterHashes))
 	}
-	if _, ok := m.library.tagFilterHashes["hash1"]; !ok {
+	if _, ok := m.library.TagFilterHashes["hash1"]; !ok {
 		t.Fatal("pre-merge: hash1 should be in library tagFilterHashes")
 	}
 
@@ -95,8 +95,8 @@ func TestHandleTagMerged_RepointsActiveTagFilter(t *testing.T) {
 	}
 	// After repoint, both hash1 (remapped) and hash2 (already dest) should
 	// match the active filter.
-	if len(m.library.tagFilterHashes) != 2 {
+	if len(m.library.TagFilterHashes) != 2 {
 		t.Errorf("post-merge: expected 2 hashes in library filter, got %d",
-			len(m.library.tagFilterHashes))
+			len(m.library.TagFilterHashes))
 	}
 }

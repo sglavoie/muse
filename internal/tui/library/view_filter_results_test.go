@@ -13,7 +13,7 @@ import (
 // to those matching the filter query after each character is typed.
 func TestFuzzyFilterUpdatesDisplayedTracks(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -50,7 +50,7 @@ func TestProductionFilterRejectsCrossFieldSubsequences(t *testing.T) {
 			Path:   "/music/alaap.flac",
 		},
 	}
-	v := View{
+	v := Panel{
 		Index:  buildIndex(tracks),
 		Width:  120,
 		Height: 24,
@@ -74,7 +74,7 @@ func TestProductionFilterRejectsCrossFieldSubsequences(t *testing.T) {
 // incrementally with each additional character typed.
 func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -101,7 +101,7 @@ func TestFuzzyFilterUpdatesOnEachKeystroke(t *testing.T) {
 
 func TestAppendFilterCharInvalidatesCachedMatches(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:           idx,
 		Width:           80,
 		Height:          24,
@@ -124,7 +124,7 @@ func TestAppendFilterCharInvalidatesCachedMatches(t *testing.T) {
 // in the rendered output when the filter is active.
 func TestFuzzyFilterShowsFilterBar(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -142,7 +142,7 @@ func TestFuzzyFilterShowsFilterBar(t *testing.T) {
 // list is rendered after DeactivateFilter is called.
 func TestDeactivateFilterRestoresFullTrackList(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -167,7 +167,7 @@ func TestDeactivateFilterRestoresFullTrackList(t *testing.T) {
 // area and the filter bar remains visible.
 func TestNoMatchesEmptyStateCenteredInListArea(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -206,7 +206,7 @@ func TestNoMatchesEmptyStateCenteredInListArea(t *testing.T) {
 // "No matches" when the filter produces no results.
 func TestNoMatchesZeroWidthFallback(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  0,
 		Height: 24,

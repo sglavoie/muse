@@ -25,7 +25,7 @@ type goToContext struct {
 func (m Model) focusedGoToContext() goToContext {
 	switch m.activeView {
 	case viewLibrary:
-		if track, ok := m.library.view().FocusedTrack(); ok {
+		if track, ok := m.library.Panel().FocusedTrack(); ok {
 			return goToContext{artist: track.Artist, album: track.Album, genre: track.Genre, found: true}
 		}
 
@@ -34,7 +34,7 @@ func (m Model) focusedGoToContext() goToContext {
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
 			entry := filtered[m.queue.cursor]
 			ctx := goToContext{artist: entry.Artist, album: entry.Album, sourcePlaylist: entry.SourcePlaylist, found: true}
-			if track, ok := m.library.index.FindByHash(entry.Hash); ok {
+			if track, ok := m.library.Index.FindByHash(entry.Hash); ok {
 				ctx.genre = track.Genre
 			}
 			return ctx
@@ -48,7 +48,7 @@ func (m Model) focusedGoToContext() goToContext {
 				if name, ok := m.browse.artists.focusedArtist(); ok {
 					ctx := goToContext{artist: name, found: true}
 					rawArtist := arttui.RawName(name)
-					tracks := arttui.DeriveArtistTracks(m.library.index.Tracks(), rawArtist)
+					tracks := arttui.DeriveArtistTracks(m.library.Index.Tracks(), rawArtist)
 					if len(tracks) > 0 {
 						ctx.genre = tracks[0].Genre
 						ctx.album = tracks[0].Album
@@ -60,7 +60,7 @@ func (m Model) focusedGoToContext() goToContext {
 					ctx := goToContext{artist: m.browse.artists.selectedArtist, album: name, found: true}
 					rawArtist := arttui.RawName(m.browse.artists.selectedArtist)
 					rawAlbum := arttui.RawName(name)
-					tracks := arttui.DeriveTracks(m.library.index.Tracks(), rawArtist, rawAlbum)
+					tracks := arttui.DeriveTracks(m.library.Index.Tracks(), rawArtist, rawAlbum)
 					if len(tracks) > 0 {
 						ctx.genre = tracks[0].Genre
 					}
@@ -80,7 +80,7 @@ func (m Model) focusedGoToContext() goToContext {
 				if name, ok := m.browse.albums.focusedAlbum(); ok {
 					ctx := goToContext{album: name, found: true}
 					rawAlbum := arttui.RawName(name)
-					tracks := albtui.DeriveAlbumTracks(m.library.index.Tracks(), rawAlbum)
+					tracks := albtui.DeriveAlbumTracks(m.library.Index.Tracks(), rawAlbum)
 					if len(tracks) > 0 {
 						ctx.artist = tracks[0].Artist
 						ctx.genre = tracks[0].Genre
@@ -98,7 +98,7 @@ func (m Model) focusedGoToContext() goToContext {
 				if name, ok := m.browse.genres.focusedGenre(); ok {
 					ctx := goToContext{genre: name, found: true}
 					rawGenre := gentui.RawGenre(name)
-					tracks := gentui.DeriveGenreTracks(m.library.index.Tracks(), rawGenre)
+					tracks := gentui.DeriveGenreTracks(m.library.Index.Tracks(), rawGenre)
 					if len(tracks) > 0 {
 						ctx.artist = tracks[0].Artist
 						ctx.album = tracks[0].Album
@@ -110,7 +110,7 @@ func (m Model) focusedGoToContext() goToContext {
 					ctx := goToContext{artist: name, genre: m.browse.genres.selectedGenre, found: true}
 					rawArtist := arttui.RawName(name)
 					rawGenre := gentui.RawGenre(m.browse.genres.selectedGenre)
-					tracks := gentui.DeriveGenreArtistTracks(m.library.index.Tracks(), rawGenre, rawArtist)
+					tracks := gentui.DeriveGenreArtistTracks(m.library.Index.Tracks(), rawGenre, rawArtist)
 					if len(tracks) > 0 {
 						ctx.album = tracks[0].Album
 					}
@@ -126,7 +126,7 @@ func (m Model) focusedGoToContext() goToContext {
 	case viewPlaylists:
 		if track, ok := m.playlists.focusedTrack(); ok {
 			ctx := goToContext{artist: track.Artist, album: track.Album, found: true}
-			if libTrack, ok := m.library.index.FindByHash(track.Hash); ok {
+			if libTrack, ok := m.library.Index.FindByHash(track.Hash); ok {
 				ctx.genre = libTrack.Genre
 			}
 			return ctx
@@ -140,7 +140,7 @@ func (m Model) focusedGoToContext() goToContext {
 				if name, ok := m.favorites.focusedArtist(); ok {
 					ctx := goToContext{artist: name, found: true}
 					rawArtist := arttui.RawName(name)
-					tracks := arttui.DeriveArtistTracks(m.library.index.Tracks(), rawArtist)
+					tracks := arttui.DeriveArtistTracks(m.library.Index.Tracks(), rawArtist)
 					if len(tracks) > 0 {
 						ctx.album = tracks[0].Album
 						ctx.genre = tracks[0].Genre
@@ -151,7 +151,7 @@ func (m Model) focusedGoToContext() goToContext {
 				if name, ok := m.favorites.focusedAlbum(); ok {
 					ctx := goToContext{album: name, found: true}
 					rawAlbum := arttui.RawName(name)
-					tracks := albtui.DeriveAlbumTracks(m.library.index.Tracks(), rawAlbum)
+					tracks := albtui.DeriveAlbumTracks(m.library.Index.Tracks(), rawAlbum)
 					if len(tracks) > 0 {
 						ctx.artist = tracks[0].Artist
 						ctx.genre = tracks[0].Genre
@@ -172,7 +172,7 @@ func (m Model) focusedGoToContext() goToContext {
 	case viewTags:
 		if track, ok := m.tagsView.focusedTrack(); ok {
 			ctx := goToContext{artist: track.Artist, album: track.Album, found: true}
-			if libTrack, found := m.library.index.FindByHash(track.Hash); found {
+			if libTrack, found := m.library.Index.FindByHash(track.Hash); found {
 				ctx.genre = libTrack.Genre
 			}
 			return ctx

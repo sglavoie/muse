@@ -14,6 +14,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -97,12 +98,12 @@ func (m Model) activeOverlayName() string {
 
 func (m Model) fillLibrarySnapshot(snap *UITestSnapshot) {
 	lib := m.library
-	snap.Mode = libraryStripLabel(lib.mode)
-	snap.Cursor = lib.cursor
-	snap.ScrollOffset = lib.scrollOffset
-	snap.VisibleCount = lib.trackCount()
-	snap.SelectionCount = len(lib.selectedHashes)
-	if t, ok := lib.view().FocusedTrack(); ok {
+	snap.Mode = libtui.StripLabel(lib.Mode)
+	snap.Cursor = lib.Cursor
+	snap.ScrollOffset = lib.ScrollOffset
+	snap.VisibleCount = lib.TrackCount()
+	snap.SelectionCount = len(lib.SelectedHashes)
+	if t, ok := lib.Panel().FocusedTrack(); ok {
 		snap.FocusedHash = t.Hash
 		snap.FocusedLabel = trackLabel(t)
 	}
@@ -205,11 +206,11 @@ func (m Model) fillMixesSnapshot(snap *UITestSnapshot) {
 		return
 	}
 	snap.Level = "tracks"
-	snap.Cursor = mx.trackView.cursor
-	snap.ScrollOffset = mx.trackView.scrollOffset
-	snap.VisibleCount = mx.trackView.trackCount()
-	snap.SelectionCount = len(mx.trackView.selectedHashes)
-	if t, ok := mx.trackView.view().FocusedTrack(); ok {
+	snap.Cursor = mx.trackView.Cursor
+	snap.ScrollOffset = mx.trackView.ScrollOffset
+	snap.VisibleCount = mx.trackView.TrackCount()
+	snap.SelectionCount = len(mx.trackView.SelectedHashes)
+	if t, ok := mx.trackView.Panel().FocusedTrack(); ok {
 		snap.FocusedHash = t.Hash
 		snap.FocusedLabel = trackLabel(t)
 	}
@@ -231,11 +232,11 @@ func (m Model) fillInsightsSnapshot(snap *UITestSnapshot) {
 	}
 	snap.Level = "tracks"
 	snap.Mode = iv.drillLabel
-	snap.Cursor = iv.trackView.cursor
-	snap.ScrollOffset = iv.trackView.scrollOffset
-	snap.VisibleCount = iv.trackView.trackCount()
-	snap.SelectionCount = len(iv.trackView.selectedHashes)
-	if t, ok := iv.trackView.view().FocusedTrack(); ok {
+	snap.Cursor = iv.trackView.Cursor
+	snap.ScrollOffset = iv.trackView.ScrollOffset
+	snap.VisibleCount = iv.trackView.TrackCount()
+	snap.SelectionCount = len(iv.trackView.SelectedHashes)
+	if t, ok := iv.trackView.Panel().FocusedTrack(); ok {
 		snap.FocusedHash = t.Hash
 		snap.FocusedLabel = trackLabel(t)
 	}

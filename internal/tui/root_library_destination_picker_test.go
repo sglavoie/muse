@@ -15,7 +15,7 @@ import (
 // for the focused track.
 func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
@@ -36,9 +36,9 @@ func TestRootLibraryAOpensDestinationPickerNoSelection(t *testing.T) {
 // all selected tracks.
 func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
-	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.SelectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
@@ -60,9 +60,9 @@ func TestRootLibraryAOpensDestinationPickerWithSelection(t *testing.T) {
 func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be))
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
-	m.library.selectedHashes = map[string]struct{}{"hash-one": {}}
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.SelectedHashes = map[string]struct{}{"hash-one": {}}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
@@ -91,8 +91,8 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 	if nm3.overlay.destPicker != nil {
 		t.Error("expected destPicker to be nil after confirmation")
 	}
-	if len(nm3.library.selectedHashes) != 0 {
-		t.Errorf("expected selectedHashes to be cleared after confirmation, got %v", nm3.library.selectedHashes)
+	if len(nm3.library.SelectedHashes) != 0 {
+		t.Errorf("expected selectedHashes to be cleared after confirmation, got %v", nm3.library.SelectedHashes)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestRootLibraryAWithSelectionEnqueuesAndClears(t *testing.T) {
 // destination picker is open dismisses the modal without enqueueing.
 func TestRootLibraryAEscDismissesModal(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	nm := next.(Model)
@@ -126,7 +126,7 @@ func TestRootLibraryAEscDismissesModal(t *testing.T) {
 func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	pa := &stubPlaylistAdder{}
 	m := New(context.Background(), WithPlaylistAdder(pa))
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
 	m.playlists.playlists = []db.PlaylistRow{{ID: 7, Name: "Favourites"}}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -161,8 +161,8 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 	if nm3.overlay.destPicker != nil {
 		t.Error("expected destPicker to be nil after confirmation")
 	}
-	if len(nm3.library.selectedHashes) != 0 {
-		t.Errorf("expected selectedHashes to be cleared, got %v", nm3.library.selectedHashes)
+	if len(nm3.library.SelectedHashes) != 0 {
+		t.Errorf("expected selectedHashes to be cleared, got %v", nm3.library.SelectedHashes)
 	}
 }
 
@@ -174,9 +174,9 @@ func TestRootLibraryAConfirmPlaylistAddsToPlaylist(t *testing.T) {
 func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	pa := &stubPlaylistAdder{}
 	m := New(context.Background(), WithPlaylistAdder(pa))
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
-	m.library.selectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "hash-one"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "hash-two"})
+	m.library.SelectedHashes = map[string]struct{}{"hash-one": {}, "hash-two": {}}
 	m.playlists.playlists = []db.PlaylistRow{{ID: 42, Name: "Chill Vibes"}}
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -200,8 +200,8 @@ func TestRootLibraryAConfirmPlaylistClearsSelectionAndNotifies(t *testing.T) {
 	next3, addCmd := nm2.Update(pickedMsg)
 	nm3 := next3.(Model)
 
-	if len(nm3.library.selectedHashes) != 0 {
-		t.Errorf("selectedHashes must be empty after DestinationPickedMsg, got %v", nm3.library.selectedHashes)
+	if len(nm3.library.SelectedHashes) != 0 {
+		t.Errorf("selectedHashes must be empty after DestinationPickedMsg, got %v", nm3.library.SelectedHashes)
 	}
 	if addCmd == nil {
 		t.Fatal("DestinationPickedMsg: expected non-nil add cmd")

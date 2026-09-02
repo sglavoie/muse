@@ -39,8 +39,8 @@ func TestModelSetCurrentTrackHash(t *testing.T) {
 func TestModelSetLibraryTracks(t *testing.T) {
 	tracks := []library.Track{{Artist: "A", Title: "T1", Hash: "h1"}, {Artist: "B", Title: "T2", Hash: "h2"}}
 	m := New(context.Background(), WithLibraryTracks(tracks))
-	if m.library.index.Len() != 2 {
-		t.Errorf("SetLibraryTracks: expected 2 tracks, got %d", m.library.index.Len())
+	if m.library.Index.Len() != 2 {
+		t.Errorf("SetLibraryTracks: expected 2 tracks, got %d", m.library.Index.Len())
 	}
 }
 
@@ -50,7 +50,7 @@ func TestModelRemoveLibraryTrackByPath(t *testing.T) {
 		{Artist: "B", Title: "T2", Hash: "h2", Path: "/b.mp3"},
 	}))
 	m.RemoveLibraryTrackByPath("/a.mp3")
-	if m.library.index.Len() != 1 {
-		t.Errorf("RemoveLibraryTrackByPath: expected 1 track, got %d", m.library.index.Len())
+	if m.library.Index.Len() != 1 {
+		t.Errorf("RemoveLibraryTrackByPath: expected 1 track, got %d", m.library.Index.Len())
 	}
 }

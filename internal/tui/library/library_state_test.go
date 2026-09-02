@@ -1,9 +1,9 @@
-package tui
+package library
 
 import (
 	"testing"
 
-	"github.com/sglavoie/muse/internal/library"
+	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -13,9 +13,9 @@ import (
 // number of visible rows by one when width>0 and no filter was active, leaving
 // the focused row just below the rendered window.
 func TestClampCursorReserveMatchesRenderer(t *testing.T) {
-	tracks := make([]library.Track, 100)
+	tracks := make([]musiclib.Track, 100)
 	for i := range tracks {
-		tracks[i] = library.Track{
+		tracks[i] = musiclib.Track{
 			Hash:   string(rune('a' + (i % 26))),
 			Title:  "t",
 			Artist: "a",
@@ -24,58 +24,58 @@ func TestClampCursorReserveMatchesRenderer(t *testing.T) {
 		// Ensure unique hashes.
 		tracks[i].Hash = tracks[i].Hash + "-" + string(rune('0'+i%10)) + "-" + string(rune('0'+(i/10)%10))
 	}
-	var idx library.LibraryIndex
+	var idx musiclib.LibraryIndex
 	idx.BulkLoad(tracks)
 
-	v := LibraryView{index: idx, width: 80, height: 10}
-	v.cursor = 10
-	v.scrollOffset = 0
-	v = v.clampCursor()
+	v := View{Index: idx, Width: 80, Height: 10}
+	v.Cursor = 10
+	v.ScrollOffset = 0
+	v = v.ClampCursor()
 
 	// Renderer uses reserve=2 when width>0, so visible rows = 8. The cursor at
 	// row 10 must therefore satisfy scrollOffset <= 10 < scrollOffset+8.
-	if v.scrollOffset > v.cursor {
-		t.Fatalf("scrollOffset %d > cursor %d", v.scrollOffset, v.cursor)
+	if v.ScrollOffset > v.Cursor {
+		t.Fatalf("scrollOffset %d > cursor %d", v.ScrollOffset, v.Cursor)
 	}
-	rendererReserve := libraryViewVisibleReserve(v)
-	visibleRows := v.height - rendererReserve
-	if v.cursor >= v.scrollOffset+visibleRows {
+	rendererReserve := VisibleReserve(v)
+	visibleRows := v.Height - rendererReserve
+	if v.Cursor >= v.ScrollOffset+visibleRows {
 		t.Fatalf("cursor %d falls outside rendered window [%d, %d) (visibleRows=%d)",
-			v.cursor, v.scrollOffset, v.scrollOffset+visibleRows, visibleRows)
+			v.Cursor, v.ScrollOffset, v.ScrollOffset+visibleRows, visibleRows)
 	}
 }
 
 // TestClampCursorEmptyResetsScroll verifies that clampCursor resets both
 // cursor and scrollOffset to 0 when the visible track list is empty.
 func TestClampCursorEmptyResetsScroll(t *testing.T) {
-	v := LibraryView{width: 80, height: 24}
-	v.cursor = 5
-	v.scrollOffset = 5
-	v = v.clampCursor()
-	if v.cursor != 0 || v.scrollOffset != 0 {
-		t.Fatalf("empty clamp: want (0,0), got (%d,%d)", v.cursor, v.scrollOffset)
+	v := View{Width: 80, Height: 24}
+	v.Cursor = 5
+	v.ScrollOffset = 5
+	v = v.ClampCursor()
+	if v.Cursor != 0 || v.ScrollOffset != 0 {
+		t.Fatalf("empty clamp: want (0,0), got (%d,%d)", v.Cursor, v.ScrollOffset)
 	}
 }
 
 // TestClampCursorBeyondEndIsClampedToLast verifies cursor past the last index
 // is brought back to count-1 and scrollOffset is adjusted to keep it visible.
 func TestClampCursorBeyondEndIsClampedToLast(t *testing.T) {
-	tracks := make([]library.Track, 5)
+	tracks := make([]musiclib.Track, 5)
 	for i := range tracks {
-		tracks[i] = library.Track{Hash: string(rune('a' + i)), Path: "/p"}
+		tracks[i] = musiclib.Track{Hash: string(rune('a' + i)), Path: "/p"}
 	}
-	var idx library.LibraryIndex
+	var idx musiclib.LibraryIndex
 	idx.BulkLoad(tracks)
 
-	v := LibraryView{index: idx, width: 80, height: 24}
-	v.cursor = 999
-	v.scrollOffset = 999
-	v = v.clampCursor()
-	if v.cursor != 4 {
-		t.Fatalf("cursor: want 4, got %d", v.cursor)
+	v := View{Index: idx, Width: 80, Height: 24}
+	v.Cursor = 999
+	v.ScrollOffset = 999
+	v = v.ClampCursor()
+	if v.Cursor != 4 {
+		t.Fatalf("cursor: want 4, got %d", v.Cursor)
 	}
-	if v.scrollOffset < 0 {
-		t.Fatalf("scrollOffset: want >=0, got %d", v.scrollOffset)
+	if v.ScrollOffset < 0 {
+		t.Fatalf("scrollOffset: want >=0, got %d", v.ScrollOffset)
 	}
 }
 
@@ -83,35 +83,35 @@ func TestClampCursorBeyondEndIsClampedToLast(t *testing.T) {
 // per-mode cursor/scroll/filter snapshots when cycling back to a previously
 // visited mode.
 func TestSwitchModeRestoresSnapshot(t *testing.T) {
-	tracks := make([]library.Track, 50)
+	tracks := make([]musiclib.Track, 50)
 	for i := range tracks {
-		tracks[i] = library.Track{Hash: "h" + string(rune('0'+i%10)) + string(rune('0'+i/10)), Path: "/p"}
+		tracks[i] = musiclib.Track{Hash: "h" + string(rune('0'+i%10)) + string(rune('0'+i/10)), Path: "/p"}
 	}
-	var idx library.LibraryIndex
+	var idx musiclib.LibraryIndex
 	idx.BulkLoad(tracks)
-	v := LibraryView{index: idx, width: 80, height: 24}
+	v := View{Index: idx, Width: 80, Height: 24}
 
 	// Park in All at cursor 7.
-	v.cursor = 7
-	v.scrollOffset = 3
+	v.Cursor = 7
+	v.ScrollOffset = 3
 
 	// Switch to Recent, move cursor, then back to All.
-	v = v.switchMode(LibraryModeRecent)
-	if v.cursor != 0 || v.scrollOffset != 0 {
-		t.Fatalf("recent snapshot start: want (0,0), got (%d,%d)", v.cursor, v.scrollOffset)
+	v = v.SwitchMode(LibraryModeRecent)
+	if v.Cursor != 0 || v.ScrollOffset != 0 {
+		t.Fatalf("recent snapshot start: want (0,0), got (%d,%d)", v.Cursor, v.ScrollOffset)
 	}
-	v.cursor = 12
-	v.scrollOffset = 5
+	v.Cursor = 12
+	v.ScrollOffset = 5
 
-	v = v.switchMode(LibraryModeAll)
-	if v.cursor != 7 || v.scrollOffset != 3 {
-		t.Fatalf("returned to All: want (7,3), got (%d,%d)", v.cursor, v.scrollOffset)
+	v = v.SwitchMode(LibraryModeAll)
+	if v.Cursor != 7 || v.ScrollOffset != 3 {
+		t.Fatalf("returned to All: want (7,3), got (%d,%d)", v.Cursor, v.ScrollOffset)
 	}
 
 	// Back to Recent: snapshot should restore.
-	v = v.switchMode(LibraryModeRecent)
-	if v.cursor != 12 || v.scrollOffset != 5 {
-		t.Fatalf("returned to Recent: want (12,5), got (%d,%d)", v.cursor, v.scrollOffset)
+	v = v.SwitchMode(LibraryModeRecent)
+	if v.Cursor != 12 || v.ScrollOffset != 5 {
+		t.Fatalf("returned to Recent: want (12,5), got (%d,%d)", v.Cursor, v.ScrollOffset)
 	}
 }
 

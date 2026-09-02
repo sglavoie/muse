@@ -9,16 +9,6 @@ import (
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
-func libraryViewVisibleReserve(v LibraryView) int {
-	if v.width == 0 {
-		if v.filter.Active || v.filter.Text != "" {
-			return 1
-		}
-		return 0
-	}
-	return 2
-}
-
 func playlistsVisibleReserve(v PlaylistsView) int {
 	reserve := 1
 	if v.level == pltui.ListLevel && v.sortState.Field != sorting.SortDefault {

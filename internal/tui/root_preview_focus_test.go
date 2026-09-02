@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -160,7 +161,7 @@ func TestFocusedTrackForPreview_TagsEnrichesFromIndex(t *testing.T) {
 	m.tagsView.cursor = 0 // "Tag Track 1", hash "th1"
 
 	// Seed the library index with PlayCount and Genre for the same hash.
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash:      "th1",
 		Path:      "/tag1.flac",
 		Artist:    "A",
@@ -200,9 +201,9 @@ func TestFocusedTrackForPreview_TagsTagLevel(t *testing.T) {
 // focusedTrackForPreview returns the focused track from the Recently Added view.
 func TestFocusedTrackForPreview_RecentlyAdded(t *testing.T) {
 	m := New(context.Background())
-	m.library.mode = LibraryModeRecent
+	m.library.Mode = libtui.LibraryModeRecent
 	m.activeView = viewLibrary
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
 	})
 

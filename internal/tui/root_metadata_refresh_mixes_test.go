@@ -15,7 +15,7 @@ import (
 // app is restarted.
 func TestRefreshDerivedViewsUpdatesAllCachedMixes(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac",
 		Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum",
 		Genre: "OldGenre", Duration: 120,
@@ -33,8 +33,8 @@ func TestRefreshDerivedViewsUpdatesAllCachedMixes(t *testing.T) {
 	m.mixes.activeMix = db.MixRediscover
 	m.mixes.level = 0 // Stay at list level so trackView is not in play.
 
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "NewGenre")
-	m.library.index.UpdateDuration("h1", 200)
+	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "NewGenre")
+	m.library.Index.UpdateDuration("h1", 200)
 	m = m.refreshDerivedViews()
 
 	for id, cached := range m.mixes.cachedMixes {

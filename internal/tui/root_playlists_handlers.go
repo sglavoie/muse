@@ -190,7 +190,7 @@ func (m Model) clearAllSelections() Model {
 	m.browse.genres.selectedHashes = nil
 	m.favorites.selectedItems = nil
 	m.tagsView.selectedHashes = nil
-	m.insights.trackView.selectedHashes = nil
+	m.insights.trackView.SelectedHashes = nil
 	m.playlists.selectedTrackIDs = nil
 	for i := range m.queue.entries {
 		m.queue.entries[i].Selected = false

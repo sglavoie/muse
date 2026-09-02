@@ -9,6 +9,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -21,7 +22,7 @@ import (
 // duration columns stay in sync.
 func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (Model, tea.Cmd) {
 	for _, fix := range msg.Fixes {
-		if m.library.index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000) {
+		if m.library.Index.UpdateDuration(fix.Hash, float64(fix.DurationMs)/1000) {
 			m.auditCorrected++
 		}
 		for i := range m.queue.entries {
@@ -32,7 +33,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 	}
 	m = m.preserveQueueSort()
 	m = m.syncRecentlyAddedFromLibrary()
-	m.library = m.library.refreshView()
+	m.library = m.library.RefreshView()
 	// Propagate corrected durations to all derived views so their
 	// duration columns stay in sync without requiring navigation away
 	// and back.
@@ -40,13 +41,13 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 	for _, fix := range msg.Fixes {
 		fixMap[fix.Hash] = fix.DurationMs
 	}
-	if m.library.mode == LibraryModeHistory && len(m.library.sourceTracks) > 0 {
-		for i := range m.library.sourceTracks {
-			if ms, ok := fixMap[m.library.sourceTracks[i].Hash]; ok {
-				m.library.sourceTracks[i].Duration = float64(ms) / 1000
+	if m.library.Mode == libtui.LibraryModeHistory && len(m.library.SourceTracks) > 0 {
+		for i := range m.library.SourceTracks {
+			if ms, ok := fixMap[m.library.SourceTracks[i].Hash]; ok {
+				m.library.SourceTracks[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.library = m.library.refreshView()
+		m.library = m.library.RefreshView()
 	}
 	if m.playlists.level == pltui.TrackLevel {
 		for i := range m.playlists.tracks {
@@ -115,7 +116,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 		m.mixes.cachedMixes[id] = cached
 	}
 	if m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.refreshView()
+		m.mixes.trackView = m.mixes.trackView.RefreshView()
 	}
 	if m.auditCh != nil {
 		return m, waitForAuditBatch(m.auditCh)

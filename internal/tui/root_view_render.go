@@ -188,7 +188,7 @@ func (m Model) renderPrimaryBody() string {
 func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon string) string {
 	switch m.activeView {
 	case viewLibrary:
-		return m.library.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
+		return m.library.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewPlaylists:
 		return m.playlists.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewQueue:

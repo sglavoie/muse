@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -16,7 +17,7 @@ import (
 // view is at TrackLevel.
 func TestWatchBatchMsgUpdatesPlaylistTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
@@ -45,7 +46,7 @@ func TestWatchBatchMsgUpdatesPlaylistTracks(t *testing.T) {
 // view is at ListLevel with CategoryTracks.
 func TestWatchBatchMsgUpdatesFavoritesTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	m.favorites.tracks = []library.Track{
@@ -72,7 +73,7 @@ func TestWatchBatchMsgUpdatesFavoritesTracks(t *testing.T) {
 // when the favorites view is at TrackLevel.
 func TestWatchBatchMsgUpdatesFavoritesDrilldownTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.favorites.level = favtui.TrackLevel
 	m.favorites.drilldownTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
@@ -97,13 +98,13 @@ func TestWatchBatchMsgUpdatesFavoritesDrilldownTracks(t *testing.T) {
 // refreshes in-memory history track metadata.
 func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"})
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"})
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"},
 	}
-	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
+	m.library.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
@@ -112,18 +113,18 @@ func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.library.sourceTracks[0].TrackNumber != 3 || nm.library.sourceTracks[0].DiscNumber != 2 {
+	if nm.library.SourceTracks[0].TrackNumber != 3 || nm.library.SourceTracks[0].DiscNumber != 2 {
 		t.Errorf("history track position = %d/%d, want 3/2",
-			nm.library.sourceTracks[0].TrackNumber, nm.library.sourceTracks[0].DiscNumber)
+			nm.library.SourceTracks[0].TrackNumber, nm.library.SourceTracks[0].DiscNumber)
 	}
-	if nm.library.sourceTracks[0].Title != "NewTitle" {
-		t.Errorf("history track title = %q, want %q", nm.library.sourceTracks[0].Title, "NewTitle")
+	if nm.library.SourceTracks[0].Title != "NewTitle" {
+		t.Errorf("history track title = %q, want %q", nm.library.SourceTracks[0].Title, "NewTitle")
 	}
-	if nm.library.sourceTracks[0].Artist != "NewArt" {
-		t.Errorf("history track artist = %q, want %q", nm.library.sourceTracks[0].Artist, "NewArt")
+	if nm.library.SourceTracks[0].Artist != "NewArt" {
+		t.Errorf("history track artist = %q, want %q", nm.library.SourceTracks[0].Artist, "NewArt")
 	}
-	if nm.library.sourceTracks[0].Genre != "NewGenre" {
-		t.Errorf("history track genre = %q, want %q", nm.library.sourceTracks[0].Genre, "NewGenre")
+	if nm.library.SourceTracks[0].Genre != "NewGenre" {
+		t.Errorf("history track genre = %q, want %q", nm.library.SourceTracks[0].Genre, "NewGenre")
 	}
 }
 
@@ -142,7 +143,7 @@ func TestWatchBatchUpdatesInsightsDrillTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	got := nm.insights.trackView.sourceTracks[0]
+	got := nm.insights.trackView.SourceTracks[0]
 	if got.Title != "NewTitle" || got.Artist != "NewArt" || got.Album != "NewAlbum" || got.Genre != "NewGenre" {
 		t.Errorf("drill track metadata not refreshed: %+v", got)
 	}

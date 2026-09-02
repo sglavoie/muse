@@ -88,7 +88,7 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 func (m Model) focusedTrackForPreview() (library.Track, bool) {
 	switch m.activeView {
 	case viewLibrary:
-		return m.library.view().FocusedTrack()
+		return m.library.Panel().FocusedTrack()
 	case viewQueue:
 		filtered := m.queue.filteredEntries()
 		if m.queue.cursor >= 0 && m.queue.cursor < len(filtered) {
@@ -104,7 +104,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 				Album:    e.Album,
 				Duration: float64(e.DurationMs) / 1000,
 			}
-			if t, ok := m.library.index.FindByHash(e.Hash); ok {
+			if t, ok := m.library.Index.FindByHash(e.Hash); ok {
 				track.PlayCount = t.PlayCount
 			}
 			return track, true
@@ -112,7 +112,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 	case viewPlaylists:
 		track, ok := m.playlists.focusedTrack()
 		if ok && track.Hash != "" {
-			if t, found := m.library.index.FindByHash(track.Hash); found {
+			if t, found := m.library.Index.FindByHash(track.Hash); found {
 				track.PlayCount = t.PlayCount
 			}
 		}
@@ -131,7 +131,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 	case viewTags:
 		track, ok := m.tagsView.focusedTrackAsLibTrack()
 		if ok && track.Hash != "" {
-			if t, found := m.library.index.FindByHash(track.Hash); found {
+			if t, found := m.library.Index.FindByHash(track.Hash); found {
 				track.PlayCount = t.PlayCount
 				track.Genre = t.Genre
 			}

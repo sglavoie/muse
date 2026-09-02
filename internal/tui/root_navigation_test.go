@@ -222,8 +222,8 @@ func TestVisualModeExitedOnFilterClear(t *testing.T) {
 	m = typeText(m, "Alice")
 	m = pressEnter(m) // commit filter
 
-	if m.library.filter.Text != "Alice" {
-		t.Fatalf("precondition: expected committed filter, got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "Alice" {
+		t.Fatalf("precondition: expected committed filter, got %q", m.library.Filter.Text)
 	}
 
 	// Enter visual mode on the filtered list.
@@ -237,7 +237,7 @@ func TestVisualModeExitedOnFilterClear(t *testing.T) {
 	if m.visual.active {
 		t.Error("expected visual mode exited on filter clear")
 	}
-	if m.library.filter.Text != "" {
-		t.Errorf("expected filter text cleared, got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "" {
+		t.Errorf("expected filter text cleared, got %q", m.library.Filter.Text)
 	}
 }

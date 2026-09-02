@@ -152,7 +152,7 @@ func (m Model) insightsDrillTracks(row insightsRow) []library.Track {
 	}
 
 	var out []library.Track
-	for _, t := range m.library.index.Tracks() {
+	for _, t := range m.library.Index.Tracks() {
 		if match(t) {
 			out = append(out, t)
 		}
@@ -170,7 +170,7 @@ func (m Model) insightsHealthTracks(key string) []library.Track {
 	}
 	var out []library.Track
 	for _, hash := range m.insights.health[i].hashes {
-		if t, ok := m.library.index.FindByHash(hash); ok {
+		if t, ok := m.library.Index.FindByHash(hash); ok {
 			out = append(out, t)
 		}
 	}
@@ -191,7 +191,7 @@ func (m Model) insightsPlayTracks(keep func(insights.PlayRow) bool) []library.Tr
 			continue
 		}
 		seen[p.Hash] = struct{}{}
-		if t, ok := m.library.index.FindByHash(p.Hash); ok {
+		if t, ok := m.library.Index.FindByHash(p.Hash); ok {
 			out = append(out, t)
 		}
 	}
@@ -205,7 +205,7 @@ func (m Model) insightsPlayedTracks(row insightsRow) []library.Track {
 	if row.drill == drillRhythmGenre {
 		want := insightsGenreKey(row.key)
 		return m.insightsPlayTracks(func(p insights.PlayRow) bool {
-			t, ok := m.library.index.FindByHash(p.Hash)
+			t, ok := m.library.Index.FindByHash(p.Hash)
 			if !ok {
 				return false
 			}
@@ -278,7 +278,7 @@ func (m Model) insightsSessionTracks(id string) []library.Track {
 		if p.SessionID != id {
 			continue
 		}
-		if t, ok := m.library.index.FindByHash(p.Hash); ok {
+		if t, ok := m.library.Index.FindByHash(p.Hash); ok {
 			out = append(out, t)
 		}
 	}
@@ -299,7 +299,7 @@ func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
 
 	byArtist := map[string][]library.Track{}
 	plays := map[string]int{}
-	for _, t := range m.library.index.Tracks() {
+	for _, t := range m.library.Index.Tracks() {
 		if _, dominant := top[t.Artist]; dominant {
 			continue
 		}
@@ -327,7 +327,7 @@ func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
 		})
 	}
 
-	out := make([]library.Track, 0, min(limit, len(m.library.index.Tracks())))
+	out := make([]library.Track, 0, min(limit, len(m.library.Index.Tracks())))
 	for round := 0; len(out) < limit; round++ {
 		took := false
 		for _, a := range artists {
@@ -370,7 +370,7 @@ func (m Model) insightsCoverageAntiRutTracks(limit int) []library.Track {
 	byArtist := map[string][]library.Track{}
 	// The index holds only non-missing tracks (db.ReadTracks filters them out),
 	// so never-played is the only condition left to apply here.
-	for _, t := range m.library.index.Tracks() {
+	for _, t := range m.library.Index.Tracks() {
 		if t.PlayCount == 0 {
 			byArtist[t.Artist] = append(byArtist[t.Artist], t)
 		}
@@ -453,7 +453,7 @@ func (m Model) insightsBucketTracks(key string, firstEverOnly bool) []library.Tr
 			continue
 		}
 		seen[r.Hash] = struct{}{}
-		if t, ok := m.library.index.FindByHash(r.Hash); ok {
+		if t, ok := m.library.Index.FindByHash(r.Hash); ok {
 			out = append(out, t)
 		}
 	}

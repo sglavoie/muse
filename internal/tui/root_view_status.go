@@ -47,7 +47,7 @@ func (m Model) renderStatusBar() string {
 func (m Model) activeViewSelectionCount() int {
 	switch m.activeView {
 	case viewLibrary:
-		return len(m.library.selectedHashes)
+		return len(m.library.SelectedHashes)
 	case viewQueue:
 		return len(m.queue.selectedHashes())
 	case viewBrowse:
@@ -62,7 +62,7 @@ func (m Model) activeViewSelectionCount() int {
 	case viewFavorites:
 		return len(m.favorites.selectedItems)
 	case viewInsights:
-		return len(m.insights.trackView.selectedHashes)
+		return len(m.insights.trackView.SelectedHashes)
 	}
 	return 0
 }
@@ -72,11 +72,11 @@ func (m Model) activeViewSelectionCount() int {
 func (m Model) focusedBucketLabel() string {
 	switch m.activeView {
 	case viewLibrary:
-		field := m.library.sortState.Field
+		field := m.library.SortState.Field
 		if !sorting.SortFieldHasBuckets(field) {
 			return ""
 		}
-		track, ok := m.library.view().FocusedTrack()
+		track, ok := m.library.Panel().FocusedTrack()
 		if !ok {
 			return ""
 		}
@@ -102,7 +102,7 @@ func (m Model) hasCommittedFilter() bool {
 	committed := func(text string, active bool) bool { return text != "" && !active }
 	switch m.activeView {
 	case viewLibrary:
-		return committed(m.library.filter.Text, m.library.filter.Active)
+		return committed(m.library.Filter.Text, m.library.Filter.Active)
 	case viewQueue:
 		return committed(m.queue.filter.Text, m.queue.filter.Active)
 	case viewBrowse:
@@ -119,7 +119,7 @@ func (m Model) hasCommittedFilter() bool {
 	case viewTags:
 		return committed(m.tagsView.filter.Text, m.tagsView.filter.Active)
 	case viewInsights:
-		return committed(m.insights.trackView.filter.Text, m.insights.trackView.filter.Active)
+		return committed(m.insights.trackView.Filter.Text, m.insights.trackView.Filter.Active)
 	}
 	return false
 }

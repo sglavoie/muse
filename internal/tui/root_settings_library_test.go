@@ -62,8 +62,8 @@ func TestSettingsSaveLibraryDirsChangedPropagatesRescanState(t *testing.T) {
 	)
 
 	// Seed the library with a fake track so we can verify the index is cleared.
-	m.library.index.Insert(library.Track{Hash: "aaa", Title: "Seed"})
-	if m.library.index.Len() == 0 {
+	m.library.Index.Insert(library.Track{Hash: "aaa", Title: "Seed"})
+	if m.library.Index.Len() == 0 {
 		t.Fatal("precondition: library index should have 1 track")
 	}
 
@@ -92,8 +92,8 @@ func TestSettingsSaveLibraryDirsChangedPropagatesRescanState(t *testing.T) {
 	if !rm.scanning {
 		t.Error("expected scanning=true after settings save triggers rescan")
 	}
-	if rm.library.index.Len() != 0 {
-		t.Errorf("expected library index to be cleared, got %d tracks", rm.library.index.Len())
+	if rm.library.Index.Len() != 0 {
+		t.Errorf("expected library index to be cleared, got %d tracks", rm.library.Index.Len())
 	}
 	if len(rm.libraryRoots) != 2 {
 		t.Errorf("expected 2 library roots, got %d", len(rm.libraryRoots))

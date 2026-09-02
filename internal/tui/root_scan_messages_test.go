@@ -21,8 +21,8 @@ func TestUpdateScanBatchMsgAppendsTracksToLibrary(t *testing.T) {
 	}
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: tracks})
 	nm := next.(Model)
-	if nm.library.index.Len() != 2 {
-		t.Fatalf("expected 2 tracks in index, got %d", nm.library.index.Len())
+	if nm.library.Index.Len() != 2 {
+		t.Fatalf("expected 2 tracks in index, got %d", nm.library.Index.Len())
 	}
 }
 
@@ -160,19 +160,19 @@ func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
 // that TrackIndex values stay consistent with the modified index.
 func TestScanBatchInvalidatesFilterCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.fuzzy = library.FakeFuzzySearcher{}
+	m.library.Fuzzy = library.FakeFuzzySearcher{}
 
 	// Seed two tracks and set up a filter.
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
-	m.library.filter, _ = m.library.filter.Activate()
-	m.library.filter, _ = m.library.filter.Update(tea.KeyPressMsg{Text: "a"})
-	m.library.cursor = 0
-	m.library.scrollOffset = 0
-	m.library = m.library.rebuildFilterCache()
-	m.library.filter = m.library.filter.Commit()
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.Filter, _ = m.library.Filter.Activate()
+	m.library.Filter, _ = m.library.Filter.Update(tea.KeyPressMsg{Text: "a"})
+	m.library.Cursor = 0
+	m.library.ScrollOffset = 0
+	m.library = m.library.RebuildFilterCache()
+	m.library.Filter = m.library.Filter.Commit()
 
-	oldMatches := len(m.library.filteredMatches)
+	oldMatches := len(m.library.FilteredMatches)
 	if oldMatches != 2 {
 		t.Fatalf("setup: expected 2 matches, got %d", oldMatches)
 	}
@@ -184,14 +184,14 @@ func TestScanBatchInvalidatesFilterCache(t *testing.T) {
 	nm := next.(Model)
 
 	// The filter cache must have been rebuilt to include the new track.
-	if len(nm.library.filteredMatches) <= oldMatches {
+	if len(nm.library.FilteredMatches) <= oldMatches {
 		t.Fatalf("expected filteredMatches to grow after ScanBatchMsg; got %d (was %d)",
-			len(nm.library.filteredMatches), oldMatches)
+			len(nm.library.FilteredMatches), oldMatches)
 	}
 
 	// All TrackIndex values must be in range.
-	allTracks := nm.library.index.Tracks()
-	for i, match := range nm.library.filteredMatches {
+	allTracks := nm.library.Index.Tracks()
+	for i, match := range nm.library.FilteredMatches {
 		if match.TrackIndex < 0 || match.TrackIndex >= len(allTracks) {
 			t.Fatalf("match[%d].TrackIndex=%d out of range [0, %d)",
 				i, match.TrackIndex, len(allTracks))
@@ -206,12 +206,12 @@ func TestScanBatchRecomputesSortedTracks(t *testing.T) {
 	m := New(context.Background())
 
 	// Seed two tracks and sort.
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
-	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
-	if len(m.library.sortedTracks) != 2 {
-		t.Fatalf("setup: expected 2 sorted tracks, got %d", len(m.library.sortedTracks))
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
+	if len(m.library.SortedTracks) != 2 {
+		t.Fatalf("setup: expected 2 sorted tracks, got %d", len(m.library.SortedTracks))
 	}
 
 	// Deliver a scan batch with one new track.
@@ -223,7 +223,7 @@ func TestScanBatchRecomputesSortedTracks(t *testing.T) {
 	nm := next.(Model)
 
 	// The sorted cache must include the new track.
-	if len(nm.library.sortedTracks) != 3 {
-		t.Fatalf("expected 3 sorted tracks after scan, got %d", len(nm.library.sortedTracks))
+	if len(nm.library.SortedTracks) != 3 {
+		t.Fatalf("expected 3 sorted tracks after scan, got %d", len(nm.library.SortedTracks))
 	}
 }

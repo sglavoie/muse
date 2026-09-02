@@ -57,7 +57,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 			// only, matching the prior Insert behavior. Real scanned files
 			// always carry a path, so the replacement handling below applies to
 			// every genuine on-disk discovery.
-			m.library.index.Insert(t)
+			m.library.Index.Insert(t)
 			continue
 		}
 		// Detect an in-place content replacement: a *different* hash currently
@@ -66,10 +66,10 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 		// stale index entry via UpsertByPath instead of Insert — Insert dedups
 		// only by hash and would leave both identities at one path, showing the
 		// old and new content for the same file.
-		if old, ok := m.library.index.FindByPath(t.Path); ok && old.Hash != "" && old.Hash != t.Hash {
+		if old, ok := m.library.Index.FindByPath(t.Path); ok && old.Hash != "" && old.Hash != t.Hash {
 			displacedHashes = append(displacedHashes, old.Hash)
 		}
-		m.library.index.UpsertByPath(t.Path, t)
+		m.library.Index.UpsertByPath(t.Path, t)
 	}
 	m.scanned += len(msg.Tracks)
 	m.statusBar.HandleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
@@ -78,8 +78,8 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// includes newly scanned tracks.
-	if m.library.sortState.Field != sorting.SortDefault {
-		m.library = m.library.recomputeSortedTracks()
+	if m.library.SortState.Field != sorting.SortDefault {
+		m.library = m.library.RecomputeSortedTracks()
 	}
 	m = m.syncRecentlyAddedFromLibrary()
 	// Heal path and metadata for every cache holding a playable Path so that
@@ -100,8 +100,8 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	// Invalidate the cached fuzzy-match results so that stale TrackIndex
 	// values from the previous index state cannot cause an out-of-bounds
 	// panic when the filter is active and the user navigates or renders.
-	if m.library.filter.Text != "" {
-		m.library = m.library.rebuildFilterCache()
+	if m.library.Filter.Text != "" {
+		m.library = m.library.RebuildFilterCache()
 	}
 	m = m.refreshBrowseDerivedViews()
 	if m.scanCh != nil {
@@ -160,10 +160,10 @@ func (m Model) reconcileRescanDeletions() (Model, tea.Cmd) {
 	var deletedPaths []string
 	var deletedHashes []string
 	for path, hash := range m.rescanPriorPaths {
-		if _, ok := m.library.index.FindByPath(path); ok {
+		if _, ok := m.library.Index.FindByPath(path); ok {
 			continue // still on disk under the same path
 		}
-		if _, ok := m.library.index.FindByHash(hash); ok {
+		if _, ok := m.library.Index.FindByHash(hash); ok {
 			continue // same content moved to a new path — not a deletion
 		}
 		deletedPaths = append(deletedPaths, path)
@@ -261,7 +261,7 @@ func (m Model) normalizeScannedTrack(track library.Track) library.Track {
 func (m Model) preserveTrackMetadata(track library.Track) library.Track {
 	// Try the live index first (works for watcher-driven inserts where the
 	// index has not been cleared).
-	if existing, ok := m.library.index.FindByHash(track.Hash); ok {
+	if existing, ok := m.library.Index.FindByHash(track.Hash); ok {
 		if existing.CreatedAt != 0 {
 			track.CreatedAt = existing.CreatedAt
 		}
@@ -276,7 +276,7 @@ func (m Model) preserveTrackMetadata(track library.Track) library.Track {
 		}
 		return track
 	}
-	if existing, ok := m.library.index.FindByPath(track.Path); ok {
+	if existing, ok := m.library.Index.FindByPath(track.Path); ok {
 		if existing.CreatedAt != 0 {
 			track.CreatedAt = existing.CreatedAt
 		}

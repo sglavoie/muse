@@ -68,21 +68,21 @@ func (m Model) bulkActionTracks() []library.Track {
 }
 
 func (m Model) bulkLibraryTracks() []library.Track {
-	trackOrder := m.library.baseTracks()
-	if m.library.sortedTracks != nil {
-		trackOrder = m.library.sortedTracks
+	trackOrder := m.library.BaseTracks()
+	if m.library.SortedTracks != nil {
+		trackOrder = m.library.SortedTracks
 	}
-	if len(m.library.selectedHashes) > 0 {
-		return collectSelectedTracks(trackOrder, m.library.selectedHashes)
+	if len(m.library.SelectedHashes) > 0 {
+		return collectSelectedTracks(trackOrder, m.library.SelectedHashes)
 	}
-	if track, ok := m.library.view().FocusedTrack(); ok {
+	if track, ok := m.library.Panel().FocusedTrack(); ok {
 		return []library.Track{track}
 	}
 	return nil
 }
 
 func (m Model) bulkArtistTracks() []library.Track {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
 		if artist, ok := m.browse.artists.focusedArtist(); ok {
@@ -111,7 +111,7 @@ func (m Model) bulkArtistTracks() []library.Track {
 }
 
 func (m Model) bulkAlbumTracks() []library.Track {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.albums.level {
 	case albtui.AlbumLevel:
 		if album, ok := m.browse.albums.focusedAlbum(); ok {
@@ -129,7 +129,7 @@ func (m Model) bulkAlbumTracks() []library.Track {
 }
 
 func (m Model) bulkGenreTracks() []library.Track {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.genres.level {
 	case gentui.GenreLevel:
 		if genre, ok := m.browse.genres.focusedGenre(); ok {

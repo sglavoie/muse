@@ -14,7 +14,7 @@ import (
 // status bar artist and title.
 func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OldArt", Title: "OldTitle", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OldArt", Title: "OldTitle", Album: "A"})
 	m.playback.currentHash = "playing"
 	m.statusBar.Artist = "OldArt"
 	m.statusBar.Title = "OldTitle"
@@ -38,8 +38,8 @@ func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 // tracks is the currently-playing track.
 func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldA", Title: "OldT", Album: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "OldA", Title: "OldT", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldA", Title: "OldT", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "OldA", Title: "OldT", Album: "A"})
 	m.playback.currentHash = "h2"
 	m.statusBar.Artist = "OldA"
 	m.statusBar.Title = "OldT"
@@ -69,7 +69,7 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 // a metadata edit restores the status bar to the original values.
 func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OrigArt", Title: "OrigTitle", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OrigArt", Title: "OrigTitle", Album: "A"})
 	m.playback.currentHash = "playing"
 	m.statusBar.Artist = "OrigArt"
 	m.statusBar.Title = "OrigTitle"
@@ -98,7 +98,7 @@ func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 // a track that is not the currently-playing one does not change the status bar.
 func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "other", Path: "/o.flac", Artist: "X", Title: "Y", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "other", Path: "/o.flac", Artist: "X", Title: "Y", Album: "A"})
 	m.playback.currentHash = "playing"
 	m.statusBar.Artist = "NowArt"
 	m.statusBar.Title = "NowTitle"

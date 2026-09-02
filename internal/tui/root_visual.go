@@ -8,6 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -34,7 +35,7 @@ type selectionSnapshot struct {
 func activeViewCursor(m Model) int {
 	switch m.activeView {
 	case viewLibrary:
-		return m.library.cursor
+		return m.library.Cursor
 	case viewPlaylists:
 		return m.playlists.cursor
 	case viewQueue:
@@ -53,7 +54,7 @@ func activeViewCursor(m Model) int {
 	case viewTags:
 		return m.tagsView.cursor
 	case viewInsights:
-		return m.insights.trackView.cursor
+		return m.insights.trackView.Cursor
 	}
 	return 0
 }
@@ -92,7 +93,7 @@ func enterVisualMode(m Model) Model {
 			return m
 		}
 	case viewInsights:
-		// Only the embedded LibraryView is a range that can be grown. The
+		// Only the embedded library.View is a range that can be grown. The
 		// briefing and the session list are neither, and the view advertises v,
 		// so say what is missing rather than swallowing the key.
 		if !m.insights.atTracks() {
@@ -154,7 +155,7 @@ func updateVisualSelection(m Model) Model {
 func visualListLen(m Model) int {
 	switch m.visual.view {
 	case viewLibrary:
-		return m.library.trackCount()
+		return m.library.TrackCount()
 	case viewQueue:
 		return len(m.queue.filteredEntries())
 	case viewPlaylists:
@@ -189,7 +190,7 @@ func visualListLen(m Model) int {
 		}
 	case viewInsights:
 		if m.insights.atTracks() {
-			return m.insights.trackView.trackCount()
+			return m.insights.trackView.TrackCount()
 		}
 	}
 	return 0
@@ -200,7 +201,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 	var snap selectionSnapshot
 	switch m.activeView {
 	case viewLibrary:
-		snap.hashes = cloneStringSet(m.library.selectedHashes)
+		snap.hashes = cloneStringSet(m.library.SelectedHashes)
 	case viewQueue:
 		for i, e := range m.queue.entries {
 			if e.Selected {
@@ -226,7 +227,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 	case viewTags:
 		snap.hashes = cloneStringSet(m.tagsView.selectedHashes)
 	case viewInsights:
-		snap.hashes = cloneStringSet(m.insights.trackView.selectedHashes)
+		snap.hashes = cloneStringSet(m.insights.trackView.SelectedHashes)
 	}
 	return snap
 }
@@ -235,7 +236,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 func restoreSnapshot(m Model) Model {
 	switch m.visual.view {
 	case viewLibrary:
-		m.library.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		m.library.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewQueue:
 		for i := range m.queue.entries {
 			m.queue.entries[i].Selected = m.visual.snapshot.queueSel[i]
@@ -256,7 +257,7 @@ func restoreSnapshot(m Model) Model {
 	case viewTags:
 		m.tagsView.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewInsights:
-		m.insights.trackView.selectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		m.insights.trackView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	}
 	return m
 }
@@ -343,19 +344,19 @@ func selectRange(m Model, lo, hi int) Model {
 	return m
 }
 
-// libSelectRange selects tracks at display indices [lo, hi] in a LibraryView.
-func libSelectRange(v LibraryView, lo, hi int) LibraryView {
-	tracks := v.sortedTracks
+// libSelectRange selects tracks at display indices [lo, hi] in a library.View.
+func libSelectRange(v libtui.View, lo, hi int) libtui.View {
+	tracks := v.SortedTracks
 	if tracks == nil {
-		tracks = v.baseTracks()
+		tracks = v.BaseTracks()
 	}
 	for i := lo; i <= hi; i++ {
 		var hash string
-		if v.filter.Text != "" && v.filteredMatches != nil {
-			if i < 0 || i >= len(v.filteredMatches) {
+		if v.Filter.Text != "" && v.FilteredMatches != nil {
+			if i < 0 || i >= len(v.FilteredMatches) {
 				continue
 			}
-			m := v.filteredMatches[i]
+			m := v.FilteredMatches[i]
 			if m.TrackIndex < 0 || m.TrackIndex >= len(tracks) {
 				continue
 			}
@@ -369,10 +370,10 @@ func libSelectRange(v LibraryView, lo, hi int) LibraryView {
 		if hash == "" {
 			continue
 		}
-		if v.selectedHashes == nil {
-			v.selectedHashes = make(map[string]struct{})
+		if v.SelectedHashes == nil {
+			v.SelectedHashes = make(map[string]struct{})
 		}
-		v.selectedHashes[hash] = struct{}{}
+		v.SelectedHashes[hash] = struct{}{}
 	}
 	return v
 }

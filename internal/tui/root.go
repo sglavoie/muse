@@ -105,7 +105,7 @@ type Model struct {
 	// pressing enter. It is never set for production models.
 	fixtureSafeCommands bool
 
-	library    LibraryView
+	library    libtui.View
 	playlists  PlaylistsView
 	queue      QueueView
 	queueDirty bool // true when queue has unsaved mutations since last save-as-playlist or clear
@@ -337,7 +337,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		appCtx:          ctx,
 		activeView:      viewLibrary,
 		cfg:             config.Defaults(),
-		library:         LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
+		library:         libtui.View{Fuzzy: library.SahilmFuzzySearcher{}},
 		playback:        playbackInfo{currentIndex: -1},
 		registry:        keys.NewRegistry(),
 		styles:          &initialStyles,
@@ -360,7 +360,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	// Pre-load dismissed track hashes so mixes filter them on first load.
 	m.dismissedHashes = loadDismissedSet(m.dismissalReader)
 	if m.freshLibrary {
-		m.library = m.library.switchMode(LibraryModeRecent)
+		m.library = m.library.SwitchMode(libtui.LibraryModeRecent)
 	}
 	m = m.syncRecentlyAddedFromLibrary()
 	// Footer hint strip default is taken from config (defaults to true).
@@ -427,6 +427,6 @@ func (m Model) SessionTopArtist() string {
 // by its file path. Call this before starting the TUI to evict deleted files
 // discovered during the diff scan setup phase.
 func (m *Model) RemoveLibraryTrackByPath(path string) {
-	m.library.index.RemoveByPath(path)
+	m.library.Index.RemoveByPath(path)
 	*m = m.syncRecentlyAddedFromLibrary()
 }

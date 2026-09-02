@@ -100,7 +100,7 @@ func TestSelectedTrackHashes_Tags(t *testing.T) {
 func TestSelectedTrackHashes_Library(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(sampleLibraryTracks()))
 	m.activeView = viewLibrary
-	m.library.selectedHashes = map[string]struct{}{
+	m.library.SelectedHashes = map[string]struct{}{
 		"h1": {},
 		"h2": {},
 	}
@@ -249,7 +249,7 @@ func TestSelectedTrackHashes_Mixes(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewMixes
 	m.mixes.level = 1
-	m.mixes.trackView.selectedHashes = map[string]struct{}{
+	m.mixes.trackView.SelectedHashes = map[string]struct{}{
 		"mx1": {},
 		"mx2": {},
 	}

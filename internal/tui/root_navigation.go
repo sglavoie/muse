@@ -107,13 +107,13 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 		case viewMixes:
 			if m.mixes.level == 1 {
 				if t := m.mixes.focusedTrack(); t != nil {
-					m.mixes.trackView.selectedHashes = toggleHashInSet(m.mixes.trackView.selectedHashes, t.Hash)
+					m.mixes.trackView.SelectedHashes = toggleHashInSet(m.mixes.trackView.SelectedHashes, t.Hash)
 				}
 			}
 		case viewInsights:
 			if m.insights.atTracks() {
 				if t := m.insights.focusedTrack(); t != nil {
-					m.insights.trackView.selectedHashes = toggleHashInSet(m.insights.trackView.selectedHashes, t.Hash)
+					m.insights.trackView.SelectedHashes = toggleHashInSet(m.insights.trackView.SelectedHashes, t.Hash)
 				}
 			}
 		default:
@@ -157,9 +157,9 @@ func (m Model) clearActiveViewSelection() Model {
 	case viewTags:
 		m.tagsView.selectedHashes = nil
 	case viewMixes:
-		m.mixes.trackView.selectedHashes = nil
+		m.mixes.trackView.SelectedHashes = nil
 	case viewInsights:
-		m.insights.trackView.selectedHashes = nil
+		m.insights.trackView.SelectedHashes = nil
 	}
 	return m
 }

@@ -385,7 +385,7 @@ func WithPlaylists(rows []db.PlaylistRow) Option {
 // WithLibraryTracks pre-populates the library index from cached tracks.
 func WithLibraryTracks(tracks []library.Track) Option {
 	return func(m *Model) {
-		m.library.index.BulkLoad(tracks)
+		m.library.Index.BulkLoad(tracks)
 		m.scanned = len(tracks)
 		m.scanTotal = len(tracks)
 	}

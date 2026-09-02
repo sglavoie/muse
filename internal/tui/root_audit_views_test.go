@@ -9,6 +9,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -16,37 +17,37 @@ import (
 
 func TestDurationAuditBatchSyncsRecentlyAdded(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0, CreatedAt: 100})
-	m.library = m.library.switchMode(LibraryModeRecent)
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0, CreatedAt: 100})
+	m.library = m.library.SwitchMode(libtui.LibraryModeRecent)
 	m = m.syncRecentlyAddedFromLibrary()
-	if len(m.library.sourceTracks) == 0 || m.library.sourceTracks[0].Duration != 120.0 {
-		t.Fatalf("pre-audit library Recent duration: got %+v", m.library.sourceTracks)
+	if len(m.library.SourceTracks) == 0 || m.library.SourceTracks[0].Duration != 120.0 {
+		t.Fatalf("pre-audit library Recent duration: got %+v", m.library.SourceTracks)
 	}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if len(nm.library.sourceTracks) == 0 {
+	if len(nm.library.SourceTracks) == 0 {
 		t.Fatal("library.sourceTracks is empty after audit batch")
 	}
-	if got := nm.library.sourceTracks[0].Duration; got != 240.0 {
+	if got := nm.library.SourceTracks[0].Duration; got != 240.0 {
 		t.Errorf("library Recent duration after audit: got %f, want 240.0", got)
 	}
 }
 
 func TestDurationAuditBatchSyncsHistoryTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.library = m.library.switchMode(LibraryModeHistory)
-	m.library.sourceTracks = []library.Track{{Hash: "h1", Path: "/a.mp3", Duration: 120.0}}
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library = m.library.SwitchMode(libtui.LibraryModeHistory)
+	m.library.SourceTracks = []library.Track{{Hash: "h1", Path: "/a.mp3", Duration: 120.0}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if got := nm.library.sourceTracks[0].Duration; got != 240.0 {
+	if got := nm.library.SourceTracks[0].Duration; got != 240.0 {
 		t.Errorf("library History duration after audit: got %f, want 240.0", got)
 	}
 }
 
 func TestDurationAuditBatchSyncsPlaylistTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
 
@@ -58,7 +59,7 @@ func TestDurationAuditBatchSyncsPlaylistTracks(t *testing.T) {
 
 func TestDurationAuditBatchSyncsFavoritesTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	m.favorites.tracks = []library.Track{{Hash: "h1", Duration: 120.0}}
@@ -71,7 +72,7 @@ func TestDurationAuditBatchSyncsFavoritesTracks(t *testing.T) {
 
 func TestDurationAuditBatchSyncsTagsTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 	m.tagsView.level = tagtui.TrackLevel
 	m.tagsView.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 120000}}
 
@@ -83,26 +84,26 @@ func TestDurationAuditBatchSyncsTagsTracks(t *testing.T) {
 
 func TestDurationAuditBatchRecomputesSortedLibrary(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
-	m.library.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
-	if len(m.library.sortedTracks) != 2 || m.library.sortedTracks[0].Hash != "h2" {
-		t.Fatalf("pre-audit sorted tracks = %+v; want h2 first", m.library.sortedTracks)
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
+	m.library.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
+	if len(m.library.SortedTracks) != 2 || m.library.SortedTracks[0].Hash != "h2" {
+		t.Fatalf("pre-audit sorted tracks = %+v; want h2 first", m.library.SortedTracks)
 	}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h2", DurationMs: 500000})
-	if len(nm.library.sortedTracks) != 2 {
-		t.Fatalf("sorted tracks length after audit: got %d, want 2", len(nm.library.sortedTracks))
+	if len(nm.library.SortedTracks) != 2 {
+		t.Fatalf("sorted tracks length after audit: got %d, want 2", len(nm.library.SortedTracks))
 	}
-	if got := nm.library.sortedTracks[0].Hash; got != "h1" {
+	if got := nm.library.SortedTracks[0].Hash; got != "h1" {
 		t.Errorf("post-audit sorted[0] hash: got %s, want h1", got)
 	}
 }
 
 func TestDurationAuditBatchSyncsArtistsTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
 	m.browse.artists.level = arttui.TrackLevel
 	m.browse.artists.selectedArtist = "A"
 	m.browse.artists.selectedAlbum = "X"
@@ -116,7 +117,7 @@ func TestDurationAuditBatchSyncsArtistsTracks(t *testing.T) {
 
 func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Album: "X", Duration: 120.0})
 	m.browse.albums.level = albtui.TrackLevel
 	m.browse.albums.selectedAlbum = "X"
 	m.browse.albums.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 120.0}}
@@ -129,7 +130,7 @@ func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
 
 func TestDurationAuditBatchSyncsCachedMixTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {{Hash: "h1", Duration: 120.0}}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
@@ -144,7 +145,7 @@ func TestDurationAuditBatchSyncsCachedMixTracks(t *testing.T) {
 
 func TestDurationAuditBatchSyncsActiveMixTrackView(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {{Hash: "h1", Duration: 120.0}}}
 	m.mixes.openMix(db.MixRediscover)
 	if m.mixes.level != 1 {
@@ -152,17 +153,17 @@ func TestDurationAuditBatchSyncsActiveMixTrackView(t *testing.T) {
 	}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if len(nm.mixes.trackView.sourceTracks) == 0 {
+	if len(nm.mixes.trackView.SourceTracks) == 0 {
 		t.Fatal("mixes trackView sourceTracks empty after audit")
 	}
-	if got := nm.mixes.trackView.sourceTracks[0].Duration; got != 240.0 {
+	if got := nm.mixes.trackView.SourceTracks[0].Duration; got != 240.0 {
 		t.Errorf("mixes trackView duration after audit: got %f, want 240.0", got)
 	}
 }
 
 func TestDurationAuditBatchSyncsGenresTracks(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Genre: "Rock", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Artist: "A", Genre: "Rock", Duration: 120.0})
 	m.browse.genres.level = gentui.TrackLevel
 	m.browse.genres.selectedGenre = "Rock"
 	m.browse.genres.selectedArtist = "A"
@@ -176,8 +177,8 @@ func TestDurationAuditBatchSyncsGenresTracks(t *testing.T) {
 
 func TestDurationAuditBatchRecomputesQueueSortCache(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 300000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 100000}}
 	m.queue.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()

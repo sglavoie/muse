@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/sglavoie/muse/internal/tui/keys"
+import (
+	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
+)
 
 // viewID identifies which primary view is active.
 type viewID int
@@ -58,10 +61,10 @@ func viewName(id viewID) string {
 // For the Library view it includes the active sub-mode suffix when not in All mode.
 func (m Model) viewDisplayName(id viewID) string {
 	if id == viewLibrary {
-		switch m.library.mode {
-		case LibraryModeRecent:
+		switch m.library.Mode {
+		case libtui.LibraryModeRecent:
 			return "Library (Recent)"
-		case LibraryModeHistory:
+		case libtui.LibraryModeHistory:
 			return "Library (History)"
 		}
 	}

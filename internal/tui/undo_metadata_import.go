@@ -41,8 +41,8 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	mw := m.metadataWriter
 	pw := m.trackPositionWriter
 	for hash, orig := range a.originals {
-		m.library.index.UpdateMetadata(hash, orig.title, orig.artist, orig.album, orig.genre)
-		m.library.index.UpdateTrackPosition(hash, orig.track, orig.disc)
+		m.library.Index.UpdateMetadata(hash, orig.title, orig.artist, orig.album, orig.genre)
+		m.library.Index.UpdateTrackPosition(hash, orig.track, orig.disc)
 		if m.userEditedOverlay != nil {
 			if orig.hadOverlay {
 				m.userEditedOverlay[hash] = orig.overlay

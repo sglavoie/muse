@@ -269,7 +269,7 @@ func TestModalEnterOnCreateLabelWithPlaylistsDispatchesCreateMsg(t *testing.T) {
 // TestModalReceivesPreSortedPlaylistsFromFakeReader simulates the pattern used
 // by the root model: read playlists from a fake source, construct the modal,
 // and verify that the modal's destinations match the input in the correct order.
-// This mirrors how LibraryView's 'a' handler calls NewDestinationPicker with
+// This mirrors how library.View's 'a' handler calls NewDestinationPicker with
 // db.ReadPlaylists output.
 func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 	// Simulate what db.ReadPlaylists would return: alphabetically sorted rows.

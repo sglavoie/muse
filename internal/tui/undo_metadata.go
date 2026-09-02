@@ -27,9 +27,9 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	mw := m.metadataWriter
 	dw := m.durationWriter
 	for hash, orig := range a.originals {
-		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
+		m.library.Index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
 		origDur, _ := metadata.ParseDuration(orig[4])
-		m.library.index.UpdateDuration(hash, origDur)
+		m.library.Index.UpdateDuration(hash, origDur)
 		display := text.TrackDisplay(orig[1], orig[0], "")
 		origDurMs := int64(origDur * 1000)
 		for i := range m.queue.entries {

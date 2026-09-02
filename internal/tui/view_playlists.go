@@ -34,7 +34,7 @@ type PlaylistsView struct {
 	pendingLoadID    int64                  // playlist ID of a pending async track load; 0 when idle
 }
 
-func (v *PlaylistsView) setSize(w, h int) { v.width = w; v.height = h }
+func (v *PlaylistsView) SetSize(w, h int) { v.width = w; v.height = h }
 
 // effectivePlaylists returns the sorted playlists when sort is active,
 // otherwise the original playlists.

@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -37,13 +38,13 @@ func TestVisibleTracksLibraryHonorsFilterWithoutFocusedFallback(t *testing.T) {
 	var idx library.LibraryIndex
 	idx.BulkLoad(tracks)
 
-	m := Model{activeView: viewLibrary, library: LibraryView{index: idx, cursor: 1}}
+	m := Model{activeView: viewLibrary, library: libtui.View{Index: idx, Cursor: 1}}
 	if got := visibleHashes(t, m); len(got) != 3 {
 		t.Fatalf("no selection must export every visible row, got %v", got)
 	}
 
-	m.library.filter = filter.State{Text: "q"}
-	m.library.filteredMatches = []library.Match{{TrackIndex: 2}, {TrackIndex: 0}}
+	m.library.Filter = filter.State{Text: "q"}
+	m.library.FilteredMatches = []library.Match{{TrackIndex: 2}, {TrackIndex: 0}}
 	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h3", "h1"}) {
 		t.Fatalf("filter must be honored in display order, got %v", got)
 	}
@@ -60,9 +61,9 @@ func TestVisibleTracksLibraryPrefersSelection(t *testing.T) {
 
 	m := Model{
 		activeView: viewLibrary,
-		library: LibraryView{
-			index:          idx,
-			selectedHashes: map[string]struct{}{"h3": {}, "h1": {}},
+		library: libtui.View{
+			Index:          idx,
+			SelectedHashes: map[string]struct{}{"h3": {}, "h1": {}},
 		},
 	}
 	if got := visibleHashes(t, m); !slices.Equal(got, []string{"h1", "h3"}) {

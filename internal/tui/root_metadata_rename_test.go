@@ -49,7 +49,7 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 	}
 
 	for _, h := range []string{"h1", "h2", "h3"} {
-		tr, ok := m.library.index.FindByHash(h)
+		tr, ok := m.library.Index.FindByHash(h)
 		if !ok {
 			t.Fatalf("track %s not found in library", h)
 		}
@@ -120,7 +120,7 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 	}
 
 	for _, h := range []string{"h1", "h2"} {
-		tr, ok := m.library.index.FindByHash(h)
+		tr, ok := m.library.Index.FindByHash(h)
 		if !ok {
 			t.Fatalf("track %s not found", h)
 		}
@@ -182,7 +182,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	m = result.(Model)
 
 	for _, h := range []string{"h1", "h2"} {
-		tr, ok := m.library.index.FindByHash(h)
+		tr, ok := m.library.Index.FindByHash(h)
 		if !ok {
 			t.Fatalf("track %s not found", h)
 		}
@@ -303,7 +303,7 @@ func TestRenameUndo(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	m = result.(Model)
 
-	tr, _ := m.library.index.FindByHash("h1")
+	tr, _ := m.library.Index.FindByHash("h1")
 	if tr.Artist != "Renamed" {
 		t.Fatalf("expected artist='Renamed' after save, got %q", tr.Artist)
 	}
@@ -313,7 +313,7 @@ func TestRenameUndo(t *testing.T) {
 
 	m = m.handleUndo()
 
-	tr, ok := m.library.index.FindByHash("h1")
+	tr, ok := m.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("track h1 not found after undo")
 	}

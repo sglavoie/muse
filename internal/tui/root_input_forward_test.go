@@ -60,8 +60,8 @@ func TestInputForwardingPrefersSettingsOverMetadataEditor(t *testing.T) {
 func TestInputForwardingPrefersMetadataEditorOverViewFilter(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.library.filter = filter.New()
-	m.library.filter, _ = m.library.filter.Activate()
+	m.library.Filter = filter.New()
+	m.library.Filter, _ = m.library.Filter.Activate()
 	editor := metadata.NewEditor("hash", "title", "artist", "album", "genre", 0)
 	m.overlay.metadataEditor = &editor
 
@@ -73,7 +73,7 @@ func TestInputForwardingPrefersMetadataEditorOverViewFilter(t *testing.T) {
 	if got := next.overlay.metadataEditor.Title(); got != "titlem" {
 		t.Fatalf("expected metadata editor title to update, got %q", got)
 	}
-	if got := next.library.filter.Text; got != "" {
+	if got := next.library.Filter.Text; got != "" {
 		t.Fatalf("expected view filter to remain unchanged, got %q", got)
 	}
 }

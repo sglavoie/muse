@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -45,25 +46,25 @@ func TestFavoritePickerBulkSelectionLifecycleAndNormalization(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"track": {"h1"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 	m.activeView = viewLibrary
-	m.library.sourceTracks = []library.Track{
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "One", Artist: "A", Album: "X"},
 		{Hash: "h2", Title: "Two", Artist: "B", Album: "Y"},
 	}
-	m.library = m.library.recomputeSortedTracks()
-	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library = m.library.RecomputeSortedTracks()
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	opened := openFavoritePickerForTest(t, m)
-	if len(opened.library.selectedHashes) != 2 {
+	if len(opened.library.SelectedHashes) != 2 {
 		t.Fatal("opening picker cleared selection")
 	}
 	dismissed := opened
 	dismissed.overlay.favoriteTargetPicker = nil
-	if len(dismissed.library.selectedHashes) != 2 {
+	if len(dismissed.library.SelectedHashes) != 2 {
 		t.Fatal("canceling picker cleared selection")
 	}
 
 	confirmed, result := confirmFavoritePickerForTest(t, opened, "t")
-	if confirmed.overlay.favoriteTargetPicker != nil || len(confirmed.library.selectedHashes) != 0 {
+	if confirmed.overlay.favoriteTargetPicker != nil || len(confirmed.library.SelectedHashes) != 0 {
 		t.Fatal("confirming picker did not close overlay and clear selection")
 	}
 	if result.err != nil || !result.added || result.count != 1 || result.value != "h2" {
@@ -82,12 +83,12 @@ func TestFavoritePickerAllFavoriteBulkRemovesAndUndoRestores(t *testing.T) {
 	store := newUITestFavorites(map[string][]string{"artist": {"A", "B"}})
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 	m.activeView = viewLibrary
-	m.library.sourceTracks = []library.Track{
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "One", Artist: "A", Album: "X"},
 		{Hash: "h2", Title: "Two", Artist: "B", Album: "Y"},
 	}
-	m.library = m.library.recomputeSortedTracks()
-	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library = m.library.RecomputeSortedTracks()
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	opened := openFavoritePickerForTest(t, m)
 	confirmed, result := confirmFavoritePickerForTest(t, opened, "r")
@@ -112,8 +113,8 @@ func TestFavoritePickerMixesTrackLevel(t *testing.T) {
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 	m.activeView = viewMixes
 	m.mixes.level = 1
-	m.mixes.trackView = LibraryView{sourceTracks: []library.Track{{Hash: "mx", Title: "Mix", Artist: "A", Album: "B"}}}
-	m.mixes.trackView = m.mixes.trackView.refreshView()
+	m.mixes.trackView = libtui.View{SourceTracks: []library.Track{{Hash: "mx", Title: "Mix", Artist: "A", Album: "B"}}}
+	m.mixes.trackView = m.mixes.trackView.RefreshView()
 
 	opened := openFavoritePickerForTest(t, m)
 	if got := opened.overlay.favoriteTargetPicker.tracks[0].Hash; got != "mx" {

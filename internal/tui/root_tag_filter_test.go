@@ -15,7 +15,7 @@ import (
 // on all views (library, queue) when a cross-view tag filter is active.
 func TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
 	m = m.syncRecentlyAddedFromLibrary()
 
 	tagID := int64(42)
@@ -26,12 +26,12 @@ func TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes(t *testing.T) {
 
 	// Simulate an active tag filter on all views.
 	hashes := map[string]struct{}{"h1": {}}
-	m.library.tagFilterHashes = copyHashSet(hashes)
+	m.library.TagFilterHashes = copyHashSet(hashes)
 	m.queue.tagFilterHashes = copyHashSet(hashes)
 
 	m, _ = m.handleRemoveAllTagsFromTrack(removeAllTagsFromTrackMsg{hash: "h1"})
 
-	if _, ok := m.library.tagFilterHashes["h1"]; ok {
+	if _, ok := m.library.TagFilterHashes["h1"]; ok {
 		t.Error("h1 should be removed from library.tagFilterHashes")
 	}
 	if _, ok := m.queue.tagFilterHashes["h1"]; ok {
@@ -57,8 +57,8 @@ func TestRemoveAllTagsFromTrack_NoFilterActive(t *testing.T) {
 // effective list to shrink below the current cursor position.
 func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
 	m = m.syncRecentlyAddedFromLibrary()
 
 	tagID := int64(42)
@@ -70,12 +70,12 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 
 	// Both tracks pass the tag filter.
 	hashes := map[string]struct{}{"h1": {}, "h2": {}}
-	m.library.tagFilterHashes = copyHashSet(hashes)
+	m.library.TagFilterHashes = copyHashSet(hashes)
 	m.queue.tagFilterHashes = copyHashSet(hashes)
 	m.queue.entries = []QueueEntry{{Hash: "h1"}, {Hash: "h2"}}
 
 	// Place cursor on the last item (index 1) in all views.
-	m.library.cursor = 1
+	m.library.Cursor = 1
 	m.queue.cursor = 1
 
 	// Remove all tags from h2 — it will be removed from tagFilterHashes,
@@ -83,12 +83,12 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 	m, _ = m.handleRemoveAllTagsFromTrack(removeAllTagsFromTrackMsg{hash: "h2"})
 
 	// Library: effective baseTracks is now 1 item, cursor must be 0.
-	libCount := m.library.trackCount()
+	libCount := m.library.TrackCount()
 	if libCount != 1 {
 		t.Fatalf("expected library trackCount=1 after filter shrink, got %d", libCount)
 	}
-	if m.library.cursor >= libCount {
-		t.Errorf("library cursor=%d out of bounds (count=%d)", m.library.cursor, libCount)
+	if m.library.Cursor >= libCount {
+		t.Errorf("library cursor=%d out of bounds (count=%d)", m.library.Cursor, libCount)
 	}
 
 	// Queue: filteredEntries shrinks because h2 is no longer in tagFilterHashes.
@@ -104,32 +104,32 @@ func TestRemoveAllTagsFromTrack_ClampsCursorsAfterFilterShrink(t *testing.T) {
 // TestLibraryView_TagFilterDefaultSort_FocusedTrack verifies that when a tag
 // filter is active on the library view with default sort (no explicit sort
 // field), FocusedTrack returns the correct filtered track — not a track from
-// the unfiltered index. This was a bug: view() did not propagate
-// tagFilterHashes to the inner libtui.View when sortState was SortDefault and
+// the unfiltered index. This was a bug: Panel() did not propagate
+// TagFilterHashes to the inner libtui.Panel when SortState was SortDefault and
 // sourceTracks was nil.
 func TestLibraryView_TagFilterDefaultSort_FocusedTrack(t *testing.T) {
 	m := New(context.Background())
 	// Insert three tracks; only h2 will pass the tag filter.
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
-	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "C"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "C"})
 
 	// Ensure default sort (zero value).
-	if m.library.sortState.Field != sorting.SortDefault {
+	if m.library.SortState.Field != sorting.SortDefault {
 		t.Fatal("expected library sort to be SortDefault")
 	}
 
 	// Apply a tag filter that only includes h2.
-	m.library.tagFilterHashes = map[string]struct{}{"h2": {}}
+	m.library.TagFilterHashes = map[string]struct{}{"h2": {}}
 
 	// trackCount should reflect the filtered list.
-	if got := m.library.trackCount(); got != 1 {
+	if got := m.library.TrackCount(); got != 1 {
 		t.Fatalf("expected trackCount=1 with tag filter, got %d", got)
 	}
 
 	// Cursor at 0 should focus on the only filtered track (h2).
-	m.library.cursor = 0
-	lv := m.library.view()
+	m.library.Cursor = 0
+	lv := m.library.Panel()
 	track, ok := lv.FocusedTrack()
 	if !ok {
 		t.Fatal("FocusedTrack returned false; expected a track")
@@ -145,20 +145,20 @@ func TestLibraryView_TagFilterDefaultSort_FocusedTrack(t *testing.T) {
 // the last track in the full index.
 func TestLibraryView_TagFilterDefaultSort_GoToBottom(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac"})
-	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac"})
-	m.library.index.Insert(library.Track{Hash: "h4", Path: "/d.flac"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac"})
+	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.flac"})
+	m.library.Index.Insert(library.Track{Hash: "h4", Path: "/d.flac"})
 
 	// Tag filter passes only h1 and h3 (2 tracks).
-	m.library.tagFilterHashes = map[string]struct{}{"h1": {}, "h3": {}}
-	m.library.height = 100 // large enough to show all
+	m.library.TagFilterHashes = map[string]struct{}{"h1": {}, "h3": {}}
+	m.library.Height = 100 // large enough to show all
 
 	m.library = m.library.HandleAction(keys.ActionGoToBottom)
 
 	// Cursor should be at index 1 (last of 2 filtered tracks), not 3.
-	if m.library.cursor != 1 {
-		t.Errorf("cursor after GoToBottom=%d, want 1", m.library.cursor)
+	if m.library.Cursor != 1 {
+		t.Errorf("cursor after GoToBottom=%d, want 1", m.library.Cursor)
 	}
 }
 
@@ -184,7 +184,7 @@ func TestRemoveTagFromCaches_ClearsActiveTagFilterPointer(t *testing.T) {
 	m.tagNames = map[int64]string{tagID: "Chill"}
 	m.tagColors = map[int64]string{tagID: ""}
 	m.activeTagFilter = &tagID
-	m.library.tagFilterHashes = map[string]struct{}{"h1": {}}
+	m.library.TagFilterHashes = map[string]struct{}{"h1": {}}
 	m.queue.tagFilterHashes = map[string]struct{}{"h1": {}}
 
 	m = m.removeTagFromCaches(tagID)
@@ -192,8 +192,8 @@ func TestRemoveTagFromCaches_ClearsActiveTagFilterPointer(t *testing.T) {
 	if m.activeTagFilter != nil {
 		t.Fatalf("expected activeTagFilter to be cleared, got tagID=%d", *m.activeTagFilter)
 	}
-	if m.library.tagFilterHashes != nil {
-		t.Errorf("expected library.tagFilterHashes to be cleared, got %v", m.library.tagFilterHashes)
+	if m.library.TagFilterHashes != nil {
+		t.Errorf("expected library.tagFilterHashes to be cleared, got %v", m.library.TagFilterHashes)
 	}
 	if m.queue.tagFilterHashes != nil {
 		t.Errorf("expected queue.tagFilterHashes to be cleared, got %v", m.queue.tagFilterHashes)
@@ -211,7 +211,7 @@ func TestRemoveTagFromCaches_PreservesUnrelatedActiveTagFilter(t *testing.T) {
 	m.tagNames = map[int64]string{kept: "Keep", removed: "Drop"}
 	m.tagColors = map[int64]string{kept: "", removed: ""}
 	m.activeTagFilter = &kept
-	m.library.tagFilterHashes = map[string]struct{}{"h1": {}}
+	m.library.TagFilterHashes = map[string]struct{}{"h1": {}}
 	m.queue.tagFilterHashes = map[string]struct{}{"h1": {}}
 
 	m = m.removeTagFromCaches(removed)
@@ -219,7 +219,7 @@ func TestRemoveTagFromCaches_PreservesUnrelatedActiveTagFilter(t *testing.T) {
 	if m.activeTagFilter == nil || *m.activeTagFilter != kept {
 		t.Fatalf("expected activeTagFilter to remain pointing at %d, got %v", kept, m.activeTagFilter)
 	}
-	if _, ok := m.library.tagFilterHashes["h1"]; !ok {
+	if _, ok := m.library.TagFilterHashes["h1"]; !ok {
 		t.Errorf("library.tagFilterHashes should be preserved when an unrelated tag is removed")
 	}
 	if _, ok := m.queue.tagFilterHashes["h1"]; !ok {

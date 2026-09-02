@@ -7,6 +7,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -31,7 +32,7 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 // the corresponding queue entries as missing.
 func (m Model) watchApplyDeletes(deleted []string) Model {
 	for _, path := range deleted {
-		m.library.index.RemoveByPath(path)
+		m.library.Index.RemoveByPath(path)
 	}
 	if len(deleted) > 0 {
 		deletedSet := make(map[string]struct{}, len(deleted))
@@ -54,7 +55,7 @@ func (m Model) watchUpsertTracks(tracks []library.Track) (Model, []library.Track
 	for i, t := range tracks {
 		t = m.normalizeScannedTrack(t)
 		tracks[i] = t
-		m.library.index.UpsertByPath(t.Path, t)
+		m.library.Index.UpsertByPath(t.Path, t)
 	}
 	return m, tracks
 }
@@ -103,24 +104,24 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 // watchSyncHistoryMetadata refreshes history track metadata so the library
 // History mode view reflects watcher-detected changes.
 func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
-	if m.library.mode != LibraryModeHistory || len(m.library.sourceTracks) == 0 {
+	if m.library.Mode != libtui.LibraryModeHistory || len(m.library.SourceTracks) == 0 {
 		return m
 	}
 	for _, t := range tracks {
-		for i := range m.library.sourceTracks {
-			if m.library.sourceTracks[i].Hash == t.Hash {
-				m.library.sourceTracks[i].Path = t.Path
-				m.library.sourceTracks[i].Title = t.Title
-				m.library.sourceTracks[i].Artist = t.Artist
-				m.library.sourceTracks[i].Album = t.Album
-				m.library.sourceTracks[i].Genre = t.Genre
-				m.library.sourceTracks[i].Duration = t.Duration
-				m.library.sourceTracks[i].TrackNumber = t.TrackNumber
-				m.library.sourceTracks[i].DiscNumber = t.DiscNumber
+		for i := range m.library.SourceTracks {
+			if m.library.SourceTracks[i].Hash == t.Hash {
+				m.library.SourceTracks[i].Path = t.Path
+				m.library.SourceTracks[i].Title = t.Title
+				m.library.SourceTracks[i].Artist = t.Artist
+				m.library.SourceTracks[i].Album = t.Album
+				m.library.SourceTracks[i].Genre = t.Genre
+				m.library.SourceTracks[i].Duration = t.Duration
+				m.library.SourceTracks[i].TrackNumber = t.TrackNumber
+				m.library.SourceTracks[i].DiscNumber = t.DiscNumber
 			}
 		}
 	}
-	m.library = m.library.refreshView()
+	m.library = m.library.RefreshView()
 	return m
 }
 
@@ -235,7 +236,7 @@ func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
 		}
 	}
 	if updated && m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.refreshView()
+		m.mixes.trackView = m.mixes.trackView.RefreshView()
 	}
 	return m
 }
@@ -245,7 +246,7 @@ func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
 // insightsDrillTracks returned — m.insights.dormant for a dormant drill — so
 // entries are mutated in place and the slice is never appended to or resliced.
 func (m Model) watchSyncInsightsMetadata(tracks []library.Track) Model {
-	src := m.insights.trackView.sourceTracks
+	src := m.insights.trackView.SourceTracks
 	if !m.insights.atTracks() || len(src) == 0 {
 		return m
 	}
@@ -269,7 +270,7 @@ func (m Model) watchSyncInsightsMetadata(tracks []library.Track) Model {
 		}
 	}
 	if updated {
-		m.insights.trackView = m.insights.trackView.refreshView().clampCursor()
+		m.insights.trackView = m.insights.trackView.RefreshView().ClampCursor()
 	}
 	return m
 }
@@ -296,26 +297,26 @@ func (m Model) reconcileTrackCaches(tracks []library.Track) Model {
 // watchRecomputeLibrary recomputes sorted tracks, filter cache, and clamps
 // the library cursor after watcher-driven insertions and deletions.
 func (m Model) watchRecomputeLibrary() Model {
-	m.library = m.library.refreshView()
-	if m.library.filter.Text != "" && m.library.filteredMatches != nil {
-		n := len(m.library.filteredMatches)
+	m.library = m.library.RefreshView()
+	if m.library.Filter.Text != "" && m.library.FilteredMatches != nil {
+		n := len(m.library.FilteredMatches)
 		if n == 0 {
-			m.library.cursor = 0
-			m.library.scrollOffset = 0
-		} else if m.library.cursor >= n {
-			m.library.cursor = n - 1
+			m.library.Cursor = 0
+			m.library.ScrollOffset = 0
+		} else if m.library.Cursor >= n {
+			m.library.Cursor = n - 1
 		}
 	} else {
-		n := m.library.index.Len()
+		n := m.library.Index.Len()
 		if n == 0 {
-			m.library.cursor = 0
-			m.library.scrollOffset = 0
-		} else if m.library.cursor >= n {
-			m.library.cursor = n - 1
+			m.library.Cursor = 0
+			m.library.ScrollOffset = 0
+		} else if m.library.Cursor >= n {
+			m.library.Cursor = n - 1
 		}
 	}
-	if m.library.scrollOffset > m.library.cursor {
-		m.library.scrollOffset = m.library.cursor
+	if m.library.ScrollOffset > m.library.Cursor {
+		m.library.ScrollOffset = m.library.Cursor
 	}
 	return m
 }
@@ -323,7 +324,7 @@ func (m Model) watchRecomputeLibrary() Model {
 // refreshBrowseDerivedViews re-derives and re-sorts artist, album, and genre
 // data at the current drill-down level from the live library index.
 func (m Model) refreshBrowseDerivedViews() Model {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
 		m.browse.artists.artists = arttui.DeriveArtists(allTracks)

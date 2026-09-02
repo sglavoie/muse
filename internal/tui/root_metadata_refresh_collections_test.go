@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -16,13 +17,13 @@ import (
 // view is at TrackLevel.
 func TestRefreshDerivedViewsUpdatesPlaylistTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
+	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
 	if m.playlists.tracks[0].Title != "NewTitle" {
@@ -41,14 +42,14 @@ func TestRefreshDerivedViewsUpdatesPlaylistTracks(t *testing.T) {
 // CategoryTracks.
 func TestRefreshDerivedViewsUpdatesFavoritesTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	m.favorites.tracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
+	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
 	if m.favorites.tracks[0].Title != "NewTitle" {
@@ -66,13 +67,13 @@ func TestRefreshDerivedViewsUpdatesFavoritesTracks(t *testing.T) {
 // refreshDerivedViews updates favorites drilldown track metadata at TrackLevel.
 func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.favorites.level = favtui.TrackLevel
 	m.favorites.drilldownTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
-	m.library.index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
+	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
 	if m.favorites.drilldownTracks[0].Title != "NewTitle" {
@@ -90,13 +91,13 @@ func TestRefreshDerivedViewsUpdatesFavoritesDrilldownTracks(t *testing.T) {
 // refreshDerivedViews updates tags view track metadata at TrackLevel.
 func TestRefreshDerivedViewsUpdatesTagsTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
+	m.library.Index.Insert(library.Track{Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"})
 	m.tagsView.level = tagtui.TrackLevel
 	m.tagsView.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "th1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum"},
 	}
 
-	m.library.index.UpdateMetadata("th1", "NewTitle", "NewArt", "NewAlbum", "")
+	m.library.Index.UpdateMetadata("th1", "NewTitle", "NewArt", "NewAlbum", "")
 	m = m.refreshDerivedViews()
 
 	if m.tagsView.tracks[0].Title != "NewTitle" {
@@ -125,7 +126,7 @@ func TestRefreshDerivedViewsSkipsTagsTracksAtTagLevel(t *testing.T) {
 // ListLevel.
 func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Title", Album: "Alb"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Title", Album: "Alb"})
 	m.playlists.level = pltui.ListLevel
 	m = m.refreshDerivedViews()
 }
@@ -135,10 +136,10 @@ func TestRefreshDerivedViewsSkipsPlaylistTracksAtListLevel(t *testing.T) {
 // favorites, and tags tracks.
 func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 	m.playlists.level = pltui.TrackLevel
@@ -157,11 +158,11 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 
 	// Update the library index duration (simulating a duration audit or
 	// watcher correction).
-	m.library.index.UpdateDuration("h1", 200)
+	m.library.Index.UpdateDuration("h1", 200)
 	m = m.refreshDerivedViews()
 
-	if m.library.sourceTracks[0].Duration != 200 {
-		t.Errorf("library sourceTracks Duration = %v, want 200", m.library.sourceTracks[0].Duration)
+	if m.library.SourceTracks[0].Duration != 200 {
+		t.Errorf("library sourceTracks Duration = %v, want 200", m.library.SourceTracks[0].Duration)
 	}
 	if m.playlists.tracks[0].DurationMs != 200_000 {
 		t.Errorf("playlists DurationMs = %d, want 200000", m.playlists.tracks[0].DurationMs)
@@ -180,21 +181,21 @@ func TestRefreshDerivedViewsUpdatesDuration(t *testing.T) {
 // Mixes showing the pre-import position.
 func TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1})
 
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
 	m.favorites.level = favtui.TrackLevel
 	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}},
 	}
 
-	m.library.index.UpdateTrackPosition("h1", 9, 2)
+	m.library.Index.UpdateTrackPosition("h1", 9, 2)
 	m = m.refreshDerivedViews()
 
 	for name, got := range map[string]library.Track{
-		"history":   m.library.sourceTracks[0],
+		"history":   m.library.SourceTracks[0],
 		"favorites": m.favorites.drilldownTracks[0],
 		"mixes":     m.mixes.cachedMixes[db.MixRediscover][0],
 	} {

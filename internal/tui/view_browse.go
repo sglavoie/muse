@@ -20,7 +20,7 @@ type BrowseView struct {
 	genres  GenresView
 }
 
-func (v *BrowseView) setSize(w, h int) {
+func (v *BrowseView) SetSize(w, h int) {
 	v.artists.setSize(w, h)
 	v.albums.setSize(w, h)
 	v.genres.setSize(w, h)

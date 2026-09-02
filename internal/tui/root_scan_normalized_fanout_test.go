@@ -20,7 +20,7 @@ func TestScanBatchReconcilesCachesWithNormalizedMetadata(t *testing.T) {
 
 	// Existing index entry carries the play stats and a real duration that the
 	// scanner (which reports Duration == 0 here) must not clobber.
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.mp3", Title: "Old", Artist: "Old",
 		CreatedAt: 1000, Duration: 200.0,
 	})
@@ -48,7 +48,7 @@ func TestScanBatchReconcilesCachesWithNormalizedMetadata(t *testing.T) {
 	nm := next.(Model)
 
 	// Index carries the normalized values (sanity check on the reference).
-	idx, ok := nm.library.index.FindByHash("h1")
+	idx, ok := nm.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("h1 not found in index")
 	}

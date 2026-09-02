@@ -29,7 +29,7 @@ type TrackEnqueuedMsg struct {
 	InsertAfter    int    // -1 = append (default enqueue), >= 0 = insert at this index ("play next")
 }
 
-// View renders the music library panel with proportional columnar layout.
+// Panel renders the music library panel with proportional columnar layout.
 // Width and Height must be set from the most recent tea.WindowSizeMsg before
 // calling Render; a zero Width falls back to a simple "artist – title" format.
 // Cursor holds the zero-based index of the focused track row.
@@ -41,11 +41,11 @@ type TrackEnqueuedMsg struct {
 // inject musiclib.FakeFuzzySearcher in tests and musiclib.SahilmFuzzySearcher in production.
 // SelectedHashes holds the set of track hashes that are bulk-selected.
 //
-// Compile-time assertion: Styles must remain a value type on View.
-// This line fails to compile if View.Styles is ever changed to *styles.Styles.
-var _ styles.Styles = View{}.Styles
+// Compile-time assertion: Styles must remain a value type on Panel.
+// This line fails to compile if Panel.Styles is ever changed to *styles.Styles.
+var _ styles.Styles = Panel{}.Styles
 
-type View struct {
+type Panel struct {
 	Index           musiclib.LibraryIndex
 	Width           int
 	Height          int
@@ -82,7 +82,7 @@ type View struct {
 }
 
 // tracks returns the override tracks if set, otherwise the index tracks.
-func (v View) tracks() []musiclib.Track {
+func (v Panel) tracks() []musiclib.Track {
 	if v.OverrideTracks != nil {
 		return v.OverrideTracks
 	}
@@ -93,7 +93,7 @@ func (v View) tracks() []musiclib.Track {
 // searcher is available. The bool is true when FilteredMatches is populated or
 // Fuzzy is non-nil (i.e. a filter can be applied). When the bool is false the
 // caller should fall back to the full unfiltered track list.
-func (v View) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, bool) {
+func (v Panel) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, bool) {
 	if v.FilteredMatches != nil {
 		return validMatches(v.FilteredMatches, len(allTracks)), true
 	}
@@ -116,7 +116,7 @@ func validMatches(matches []musiclib.Match, trackCount int) []musiclib.Match {
 
 // effectiveTrackCount returns the number of tracks currently displayed,
 // accounting for any active fuzzy filter.
-func (v View) effectiveTrackCount() int {
+func (v Panel) effectiveTrackCount() int {
 	if v.Filter.Text != "" {
 		if m, ok := v.filteredMatches(v.tracks()); ok {
 			return len(m)
@@ -129,7 +129,7 @@ func (v View) effectiveTrackCount() int {
 // the active sort and fuzzy filter applied. It walks matches exactly as
 // FocusedTrack does so the cursor and the full list can never disagree about
 // what row N is.
-func (v View) VisibleTracks() []musiclib.Track {
+func (v Panel) VisibleTracks() []musiclib.Track {
 	allTracks := v.tracks()
 	if v.Filter.Text == "" {
 		return allTracks
@@ -148,7 +148,7 @@ func (v View) VisibleTracks() []musiclib.Track {
 // FocusedTrack returns the track currently under the cursor, accounting for
 // any active fuzzy filter. The second return value is false when the library
 // is empty or the cursor is out of range.
-func (v View) FocusedTrack() (musiclib.Track, bool) {
+func (v Panel) FocusedTrack() (musiclib.Track, bool) {
 	allTracks := v.tracks()
 	if v.Filter.Text != "" {
 		if matches, ok := v.filteredMatches(allTracks); ok {

@@ -2,6 +2,8 @@ package tui
 
 import (
 	"testing"
+
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 // TestBulkMetadataEditFromArtistsTrackLevel verifies that bulkSelectedHashes
@@ -75,9 +77,9 @@ func TestBulkSelectedHashesEmptyWhenNoSelection(t *testing.T) {
 // metadata editor.
 func TestBulkMetadataEditFromRecentlyAdded(t *testing.T) {
 	m := newModelWithTracks()
-	m.library.mode = LibraryModeRecent
+	m.library.Mode = libtui.LibraryModeRecent
 	m.activeView = viewLibrary
-	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	m = pressMKey(m)
 	if m.overlay.metadataEditor == nil {

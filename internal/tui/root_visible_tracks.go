@@ -7,6 +7,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -46,20 +47,20 @@ func (m Model) visibleTracks() (tracks []library.Track, label string, ok bool) {
 }
 
 func (m Model) libraryVisibleTracks() ([]library.Track, string, bool) {
-	rows := m.library.view().VisibleTracks()
-	if len(m.library.selectedHashes) > 0 {
-		rows = collectSelectedTracks(rows, m.library.selectedHashes)
+	rows := m.library.Panel().VisibleTracks()
+	if len(m.library.SelectedHashes) > 0 {
+		rows = collectSelectedTracks(rows, m.library.SelectedHashes)
 	}
-	return rows, libraryStripLabel(m.library.mode), true
+	return rows, libtui.StripLabel(m.library.Mode), true
 }
 
 func (m Model) mixesVisibleTracks() ([]library.Track, string, bool) {
 	if m.mixes.level != 1 {
 		return nil, "Open a mix before exporting", false
 	}
-	rows := m.mixes.trackView.view().VisibleTracks()
-	if len(m.mixes.trackView.selectedHashes) > 0 {
-		rows = collectSelectedTracks(rows, m.mixes.trackView.selectedHashes)
+	rows := m.mixes.trackView.Panel().VisibleTracks()
+	if len(m.mixes.trackView.SelectedHashes) > 0 {
+		rows = collectSelectedTracks(rows, m.mixes.trackView.SelectedHashes)
 	}
 	name := "Mix"
 	for _, mix := range m.mixes.mixes {
@@ -75,9 +76,9 @@ func (m Model) insightsVisibleTracks() ([]library.Track, string, bool) {
 	if !m.insights.atTracks() {
 		return nil, "Drill into a track list before exporting", false
 	}
-	rows := m.insights.trackView.view().VisibleTracks()
-	if len(m.insights.trackView.selectedHashes) > 0 {
-		rows = collectSelectedTracks(rows, m.insights.trackView.selectedHashes)
+	rows := m.insights.trackView.Panel().VisibleTracks()
+	if len(m.insights.trackView.SelectedHashes) > 0 {
+		rows = collectSelectedTracks(rows, m.insights.trackView.SelectedHashes)
 	}
 	label := m.insights.drillLabel
 	if m.insights.level == insightsLevelSessionTracks && m.insights.sessionLabel != "" {
@@ -114,14 +115,14 @@ func (m Model) browseArtistsVisibleTracks() ([]library.Track, string, bool) {
 		if !ok {
 			return nil, "No album focused", false
 		}
-		rows := arttui.DeriveTracks(m.library.index.Tracks(), v.selectedArtist, album)
+		rows := arttui.DeriveTracks(m.library.Index.Tracks(), v.selectedArtist, album)
 		return rows, "Browse ▸ Artists ▸ " + v.selectedArtist + " ▸ " + album, true
 	default:
 		artist, ok := v.focusedArtist()
 		if !ok {
 			return nil, "No artist focused", false
 		}
-		rows := arttui.DeriveArtistTracks(m.library.index.Tracks(), artist)
+		rows := arttui.DeriveArtistTracks(m.library.Index.Tracks(), artist)
 		return rows, "Browse ▸ Artists ▸ " + artist, true
 	}
 }
@@ -139,7 +140,7 @@ func (m Model) browseAlbumsVisibleTracks() ([]library.Track, string, bool) {
 	if !ok {
 		return nil, "No album focused", false
 	}
-	return albtui.DeriveAlbumTracks(m.library.index.Tracks(), album), "Browse ▸ Albums ▸ " + album, true
+	return albtui.DeriveAlbumTracks(m.library.Index.Tracks(), album), "Browse ▸ Albums ▸ " + album, true
 }
 
 func (m Model) browseGenresVisibleTracks() ([]library.Track, string, bool) {
@@ -156,14 +157,14 @@ func (m Model) browseGenresVisibleTracks() ([]library.Track, string, bool) {
 		if !ok {
 			return nil, "No artist focused", false
 		}
-		rows := gentui.DeriveGenreArtistTracks(m.library.index.Tracks(), v.selectedGenre, artist)
+		rows := gentui.DeriveGenreArtistTracks(m.library.Index.Tracks(), v.selectedGenre, artist)
 		return rows, "Browse ▸ Genres ▸ " + v.selectedGenre + " ▸ " + artist, true
 	default:
 		genre, ok := v.focusedGenre()
 		if !ok {
 			return nil, "No genre focused", false
 		}
-		return gentui.DeriveGenreTracks(m.library.index.Tracks(), genre), "Browse ▸ Genres ▸ " + genre, true
+		return gentui.DeriveGenreTracks(m.library.Index.Tracks(), genre), "Browse ▸ Genres ▸ " + genre, true
 	}
 }
 

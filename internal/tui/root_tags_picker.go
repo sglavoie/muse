@@ -64,8 +64,8 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 	if m.activeTagFilter != nil && tagID == *m.activeTagFilter {
 		if add {
 			for _, h := range hashes {
-				if m.library.tagFilterHashes != nil {
-					m.library.tagFilterHashes[h] = struct{}{}
+				if m.library.TagFilterHashes != nil {
+					m.library.TagFilterHashes[h] = struct{}{}
 				}
 				if m.queue.tagFilterHashes != nil {
 					m.queue.tagFilterHashes[h] = struct{}{}
@@ -73,17 +73,17 @@ func (m Model) handleTagPickerToggle(msg TagPickerToggleMsg) (Model, tea.Cmd) {
 			}
 		} else {
 			for _, h := range hashes {
-				if m.library.tagFilterHashes != nil {
-					delete(m.library.tagFilterHashes, h)
+				if m.library.TagFilterHashes != nil {
+					delete(m.library.TagFilterHashes, h)
 				}
 				if m.queue.tagFilterHashes != nil {
 					delete(m.queue.tagFilterHashes, h)
 				}
 			}
 		}
-		m.library = m.library.recomputeSortedTracks()
-		m.library = m.library.rebuildFilterCache()
-		m.library = m.library.clampCursor()
+		m.library = m.library.RecomputeSortedTracks()
+		m.library = m.library.RebuildFilterCache()
+		m.library = m.library.ClampCursor()
 		m.clampQueueCursorAndScroll()
 	}
 

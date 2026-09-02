@@ -74,8 +74,8 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 		// cursor position, sort state, filter text, and selection (bug: the
 		// previous openMix call reset all of these).
 		if m.activeView == viewMixes && m.mixes.level == 1 {
-			m.mixes.trackView.sourceTracks = tracks
-			m.mixes.trackView = m.mixes.trackView.refreshView().clampCursor()
+			m.mixes.trackView.SourceTracks = tracks
+			m.mixes.trackView = m.mixes.trackView.RefreshView().ClampCursor()
 		}
 	}
 	m.statusBar.Notify("Dismissed — won't appear in future mixes")

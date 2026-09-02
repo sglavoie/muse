@@ -101,7 +101,7 @@ func newBlockingInsightsModel(t *testing.T, store *blockingInsightsDB, opts ...O
 	base := []Option{WithLibraryTracks(insightsTestTracks()), WithInsightsReader(store)}
 	m := New(context.Background(), append(base, opts...)...)
 	m.termWidth, m.termHeight = 100, 30
-	m.insights.setSize(100, 30)
+	m.insights.SetSize(100, 30)
 	m = m.switchToView(viewInsights)
 
 	cmd := m.insightsMaybeLoadCmd()
@@ -197,7 +197,7 @@ func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
 
 		// What a completed full rescan leaves behind for a file that vanished: the
 		// path is gone from the rebuilt index but still in the pre-rescan snapshot.
-		m.library.index.RemoveByPath("/d1.flac")
+		m.library.Index.RemoveByPath("/d1.flac")
 		m.scanning = true
 		m.rescanPriorPaths = map[string]string{"/d1.flac": "h6"}
 
@@ -259,7 +259,7 @@ func newBrokenInsightsModel(t *testing.T) (Model, *brokenInsightsReader) {
 	reader := &brokenInsightsReader{uitestInsights: &uitestInsights{tracks: tracks}}
 	m := New(context.Background(), WithLibraryTracks(tracks), WithInsightsReader(reader))
 	m.termWidth, m.termHeight = 100, 30
-	m.insights.setSize(100, 30)
+	m.insights.SetSize(100, 30)
 	return m, reader
 }
 
@@ -353,7 +353,7 @@ func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.
 		now := time.Now().Unix()
 		reader.tracks[0].PlayCount++
 		reader.tracks[0].LastPlayedAt = now
-		m.library.index.IncrementPlayCount("h1", now)
+		m.library.Index.IncrementPlayCount("h1", now)
 		m = updateInsightsModel(t, m, playback.PlayRecordedMsg{Hash: "h1", PlayedAt: now})
 
 		reader.fail = dbDown

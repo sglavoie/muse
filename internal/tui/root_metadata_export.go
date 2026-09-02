@@ -145,7 +145,7 @@ func (m Model) metadataExportDocument(tracks []library.Track, label string) (met
 			continue
 		}
 		seen[t.Hash] = struct{}{}
-		if live, ok := m.library.index.FindByHash(t.Hash); ok {
+		if live, ok := m.library.Index.FindByHash(t.Hash); ok {
 			t = live
 		}
 		rootID, rel := roots.Locate(t.Path)

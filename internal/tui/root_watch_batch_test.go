@@ -19,27 +19,27 @@ import (
 func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 	watchCh := make(chan library.WatchEvent, 1)
 	m := New(context.Background(), WithWatchChannel(watchCh))
-	m.library.fuzzy = library.FakeFuzzySearcher{}
+	m.library.Fuzzy = library.FakeFuzzySearcher{}
 
 	// Seed three tracks.
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
-	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
 
 	// Activate and commit a filter that matches all three.
-	m.library.filter, _ = m.library.filter.Activate()
-	m.library.filter, _ = m.library.filter.Update(tea.KeyPressMsg{Text: "a"})
-	m.library.cursor = 0
-	m.library.scrollOffset = 0
-	m.library = m.library.rebuildFilterCache()
-	m.library.filter = m.library.filter.Commit()
+	m.library.Filter, _ = m.library.Filter.Activate()
+	m.library.Filter, _ = m.library.Filter.Update(tea.KeyPressMsg{Text: "a"})
+	m.library.Cursor = 0
+	m.library.ScrollOffset = 0
+	m.library = m.library.RebuildFilterCache()
+	m.library.Filter = m.library.Filter.Commit()
 
 	// Move cursor to the last match.
 	for range 2 {
 		m.library = m.library.HandleAction(keys.ActionCursorDown)
 	}
-	if m.library.cursor != 2 {
-		t.Fatalf("setup: expected cursor=2, got %d", m.library.cursor)
+	if m.library.Cursor != 2 {
+		t.Fatalf("setup: expected cursor=2, got %d", m.library.Cursor)
 	}
 
 	// Deliver a watchBatchMsg that deletes two tracks, leaving only one match.
@@ -50,14 +50,14 @@ func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 
 	// The cursor must be clamped so it does not point past the end of the
 	// new (shorter) match set.
-	if nm.library.cursor >= len(nm.library.filteredMatches) && len(nm.library.filteredMatches) > 0 {
+	if nm.library.Cursor >= len(nm.library.FilteredMatches) && len(nm.library.FilteredMatches) > 0 {
 		t.Fatalf("cursor %d out of range for %d filtered matches",
-			nm.library.cursor, len(nm.library.filteredMatches))
+			nm.library.Cursor, len(nm.library.FilteredMatches))
 	}
 
 	// FocusedTrack must not panic.
-	track, ok := nm.library.view().FocusedTrack()
-	if !ok && nm.library.index.Len() > 0 && len(nm.library.filteredMatches) > 0 {
+	track, ok := nm.library.Panel().FocusedTrack()
+	if !ok && nm.library.Index.Len() > 0 && len(nm.library.FilteredMatches) > 0 {
 		t.Fatal("FocusedTrack returned false despite non-empty filtered matches")
 	}
 	if ok && track.Path == "/b" {
@@ -76,20 +76,20 @@ func TestWatchBatchClampsUnfilteredCursor(t *testing.T) {
 	m := New(context.Background(), WithWatchChannel(watchCh))
 
 	// Seed three tracks.
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
-	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
 
 	// Place cursor at the last track.
-	m.library.cursor = 2
+	m.library.Cursor = 2
 
 	// Delete two tracks, leaving only one.
 	next, _ := m.Update(watchBatchMsg{deleted: []string{"/b", "/c"}})
 	nm := next.(Model)
 
-	if nm.library.cursor >= nm.library.index.Len() {
+	if nm.library.Cursor >= nm.library.Index.Len() {
 		t.Fatalf("cursor %d out of range for %d tracks",
-			nm.library.cursor, nm.library.index.Len())
+			nm.library.Cursor, nm.library.Index.Len())
 	}
 }
 
@@ -101,15 +101,15 @@ func TestWatchBatchInvalidatesSortedTracks(t *testing.T) {
 	m := New(context.Background(), WithWatchChannel(watchCh))
 
 	// Seed three tracks.
-	m.library.index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "C", Title: "Charlie", Path: "/c", Hash: "h3"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
 
 	// Activate sort by artist ascending.
-	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
-	if len(m.library.sortedTracks) != 3 {
-		t.Fatalf("setup: expected 3 sorted tracks, got %d", len(m.library.sortedTracks))
+	m.library.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
+	if len(m.library.SortedTracks) != 3 {
+		t.Fatalf("setup: expected 3 sorted tracks, got %d", len(m.library.SortedTracks))
 	}
 
 	// Delete one track.
@@ -117,10 +117,10 @@ func TestWatchBatchInvalidatesSortedTracks(t *testing.T) {
 	nm := next.(Model)
 
 	// The sorted cache must reflect the deletion.
-	if len(nm.library.sortedTracks) != 2 {
-		t.Fatalf("expected 2 sorted tracks after deletion, got %d", len(nm.library.sortedTracks))
+	if len(nm.library.SortedTracks) != 2 {
+		t.Fatalf("expected 2 sorted tracks after deletion, got %d", len(nm.library.SortedTracks))
 	}
-	for _, sortedTrack := range nm.library.sortedTracks {
+	for _, sortedTrack := range nm.library.SortedTracks {
 		if sortedTrack.Hash == "h2" {
 			t.Fatal("deleted track h2 still present in sortedTracks")
 		}
@@ -132,10 +132,10 @@ func TestWatchBatchInvalidatesSortedTracks(t *testing.T) {
 // marked as Missing so they appear grayed out in the UI.
 func TestWatchBatchMarksQueueEntriesMissing(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "A", Title: "T1", Path: "/a.flac", Hash: "h1",
 	})
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "B", Title: "T2", Path: "/b.flac", Hash: "h2",
 	})
 	m.queue.entries = []QueueEntry{
@@ -160,7 +160,7 @@ func TestWatchBatchMarksQueueEntriesMissing(t *testing.T) {
 // with the new metadata.
 func TestWatchBatchUpdatesQueueMetadata(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
 		Path: "/a.flac", Hash: "h1",
 	})
@@ -199,7 +199,7 @@ func TestWatchBatchUpdatesQueueMetadata(t *testing.T) {
 // status bar is updated.
 func TestWatchBatchUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "OldArtist", Title: "OldTitle",
 		Path: "/a.flac", Hash: "h1",
 	})
@@ -255,7 +255,7 @@ func TestWatchBatchClearsMissingOnReappearance(t *testing.T) {
 func TestWatchBatchSyncsPlayerQueue(t *testing.T) {
 	sp := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(sp))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "Old", Title: "Old", Path: "/a.flac", Hash: "h1",
 	})
 	m.queue.entries = []QueueEntry{
@@ -276,13 +276,13 @@ func TestWatchBatchSyncsPlayerQueue(t *testing.T) {
 
 func TestWatchBatchPreservesCreatedAtForUpdatedPath(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "oldhash", Path: "/a.mp3", Title: "Old", CreatedAt: 123})
+	m.library.Index.Insert(library.Track{Hash: "oldhash", Path: "/a.mp3", Title: "Old", CreatedAt: 123})
 	m = m.syncRecentlyAddedFromLibrary()
 
 	next, _ := m.Update(watchBatchMsg{tracks: []library.Track{{Hash: "newhash", Path: "/a.mp3", Title: "New"}}})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("newhash")
+	track, ok := nm.library.Index.FindByHash("newhash")
 	if !ok {
 		t.Fatal("newhash not found in index")
 	}
@@ -297,7 +297,7 @@ func TestWatchBatchPreservesCreatedAtForUpdatedPath(t *testing.T) {
 // and the preserved CreatedAt/Duration survive into the library index.
 func TestWatchBatchPreservesMetadataWithUserEditedOverlay(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.mp3",
 		Title: "Original", Artist: "OrigArtist", Album: "OrigAlbum",
 		CreatedAt: 42, Duration: 3.5,
@@ -316,7 +316,7 @@ func TestWatchBatchPreservesMetadataWithUserEditedOverlay(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("h1")
+	track, ok := nm.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("h1 not found in index")
 	}
@@ -345,7 +345,7 @@ func TestWatchBatchPreservesMetadataWithUserEditedOverlay(t *testing.T) {
 // track-level view, the tagsView.tracks slice is updated in place.
 func TestWatchBatchUpdatesTagsTrackMetadata(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "OldArtist", Title: "OldTitle", Album: "OldAlbum",
 		Path: "/a.flac", Hash: "h1",
 	})

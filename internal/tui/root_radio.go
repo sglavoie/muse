@@ -84,7 +84,7 @@ func (m Model) radioMaybeEnqueueCmd() tea.Cmd {
 	if m.playback.repeatMode == playback.RepeatAll {
 		return nil
 	}
-	if len(m.library.index.Tracks()) == 0 {
+	if len(m.library.Index.Tracks()) == 0 {
 		return nil
 	}
 	if m.radioRemainingCount() > radioLowWaterMark {
@@ -109,7 +109,7 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 		if seedHash == "" {
 			seedHash = m.playback.currentHash
 		}
-		if t, ok := m.library.index.FindByHash(seedHash); ok {
+		if t, ok := m.library.Index.FindByHash(seedHash); ok {
 			seed.Hash = t.Hash
 			seed.Artist = t.Artist
 			seed.Album = t.Album
@@ -138,7 +138,7 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 	}
 
 	wasEmpty := len(m.queue.entries) == 0
-	allTracks := snapshotTracks(m.library.index.Tracks())
+	allTracks := snapshotTracks(m.library.Index.Tracks())
 	trackTags := snapshotTrackTags(m.trackTags)
 	favoriteHashes := snapshotStringSet(m.favoriteHashes)
 	dismissedHashes := snapshotStringSet(m.dismissedHashes)

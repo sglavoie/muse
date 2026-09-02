@@ -36,7 +36,7 @@ func (m Model) tagPickerHashes() (hashes []string, isBulk bool) {
 func (m Model) selectedTrackHashes() []string {
 	switch m.activeView {
 	case viewLibrary:
-		return hashMapToSlice(m.library.selectedHashes)
+		return hashMapToSlice(m.library.SelectedHashes)
 	case viewQueue:
 		var hashes []string
 		for _, e := range m.queue.entries {
@@ -90,12 +90,12 @@ func (m Model) selectedTrackHashes() []string {
 		return hashMapToSlice(m.tagsView.selectedHashes)
 	case viewMixes:
 		if m.mixes.level == 1 {
-			return hashMapToSlice(m.mixes.trackView.selectedHashes)
+			return hashMapToSlice(m.mixes.trackView.SelectedHashes)
 		}
 		return nil
 	case viewInsights:
 		if m.insights.atTracks() {
-			return hashMapToSlice(m.insights.trackView.selectedHashes)
+			return hashMapToSlice(m.insights.trackView.SelectedHashes)
 		}
 		return nil
 	}
@@ -120,7 +120,7 @@ func hashMapToSlice(m map[string]struct{}) []string {
 func (m Model) focusedTrackHash() string {
 	switch m.activeView {
 	case viewLibrary:
-		if track, ok := m.library.view().FocusedTrack(); ok {
+		if track, ok := m.library.Panel().FocusedTrack(); ok {
 			return track.Hash
 		}
 	case viewQueue:

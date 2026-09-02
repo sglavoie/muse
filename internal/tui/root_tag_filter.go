@@ -70,11 +70,11 @@ func (m Model) applyTagFilterToViews() Model {
 	if m.activeTagFilter != nil {
 		hashes = m.buildTagFilterHashes(*m.activeTagFilter)
 	}
-	m.library.tagFilterHashes = hashes
-	m.library = m.library.recomputeSortedTracks()
-	m.library = m.library.rebuildFilterCache()
-	m.library.cursor = 0
-	m.library.scrollOffset = 0
+	m.library.TagFilterHashes = hashes
+	m.library = m.library.RecomputeSortedTracks()
+	m.library = m.library.RebuildFilterCache()
+	m.library.Cursor = 0
+	m.library.ScrollOffset = 0
 
 	m.queue.tagFilterHashes = hashes
 	m.queue.cursor = 0
@@ -126,8 +126,8 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 
 	// Update activeTagFilter display if the track is now removed from filter.
 	if m.activeTagFilter != nil {
-		if m.library.tagFilterHashes != nil {
-			delete(m.library.tagFilterHashes, hash)
+		if m.library.TagFilterHashes != nil {
+			delete(m.library.TagFilterHashes, hash)
 		}
 		if m.queue.tagFilterHashes != nil {
 			delete(m.queue.tagFilterHashes, hash)
@@ -135,9 +135,9 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 		// Rebuild sort/filter caches and clamp cursors: the effective
 		// track list may have shrunk because baseTracks() re-evaluates
 		// tagFilterHashes, invalidating the cached sortedTracks.
-		m.library = m.library.recomputeSortedTracks()
-		m.library = m.library.rebuildFilterCache()
-		m.library = m.library.clampCursor()
+		m.library = m.library.RecomputeSortedTracks()
+		m.library = m.library.RebuildFilterCache()
+		m.library = m.library.ClampCursor()
 		m.clampQueueCursorAndScroll()
 	}
 

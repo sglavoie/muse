@@ -13,6 +13,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 )
@@ -29,7 +30,7 @@ func exportModel(t *testing.T, dataDir string) Model {
 		activeView: viewLibrary,
 		dataDir:    dataDir,
 		cfg:        config.Config{MusicDirectories: []string{"/music"}},
-		library:    LibraryView{index: idx},
+		library:    libtui.View{Index: idx},
 	}
 }
 

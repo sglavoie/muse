@@ -24,7 +24,7 @@ func setupPlayingModel(t *testing.T) Model {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song"},
 		{ID: 2, Hash: "h2", Path: "/b.flac"},
 	}
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "Test Artist", Title: "Test Song", Album: "Test Album",
 	})
 	return m
@@ -227,7 +227,7 @@ func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 		State:   playback.StatePlaying,
 	}
 	// Insert a second track.
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h2", Path: "/b.flac", Artist: "New Artist", Title: "New Song", Album: "New Album",
 	})
 
@@ -310,7 +310,7 @@ func TestNowPlayingSessionRestore(t *testing.T) {
 	m.playback.elapsedSecs = 10
 	m.playback.totalSecs = 300
 	// statusBar.artist and statusBar.title are intentionally empty (session restore).
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "Restored Artist", Title: "Restored Song", Album: "Restored Album",
 	})
 

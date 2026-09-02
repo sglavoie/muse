@@ -16,36 +16,36 @@ import (
 // values reference the unsorted track list instead of the stale sorted order.
 func TestResetLibrarySortRebuildFilterCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.fuzzy = library.FakeFuzzySearcher{}
+	m.library.Fuzzy = library.FakeFuzzySearcher{}
 
-	m.library.index.Insert(library.Track{Hash: "h1", Title: "Charlie", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Title: "Alpha", Artist: "B"})
-	m.library.index.Insert(library.Track{Hash: "h3", Title: "Beta", Artist: "C"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Title: "Charlie", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Title: "Alpha", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: "h3", Title: "Beta", Artist: "C"})
 
-	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
+	m.library.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
 
-	m.library.filter.Text = "alpha"
-	m.library = m.library.rebuildFilterCache()
-	if len(m.library.filteredMatches) != 1 {
-		t.Fatalf("expected 1 match, got %d", len(m.library.filteredMatches))
+	m.library.Filter.Text = "alpha"
+	m.library = m.library.RebuildFilterCache()
+	if len(m.library.FilteredMatches) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(m.library.FilteredMatches))
 	}
-	sortedIdx := m.library.filteredMatches[0].TrackIndex
-	if m.library.sortedTracks[sortedIdx].Hash != "h2" {
-		t.Fatalf("sorted match should point to h2 (Alpha), got %s", m.library.sortedTracks[sortedIdx].Hash)
+	sortedIdx := m.library.FilteredMatches[0].TrackIndex
+	if m.library.SortedTracks[sortedIdx].Hash != "h2" {
+		t.Fatalf("sorted match should point to h2 (Alpha), got %s", m.library.SortedTracks[sortedIdx].Hash)
 	}
 
 	m = m.resetLibrarySort()
 
-	if m.library.sortedTracks != nil {
+	if m.library.SortedTracks != nil {
 		t.Fatal("sortedTracks should be nil after reset")
 	}
 
-	if len(m.library.filteredMatches) != 1 {
-		t.Fatalf("expected 1 filtered match after sort reset, got %d", len(m.library.filteredMatches))
+	if len(m.library.FilteredMatches) != 1 {
+		t.Fatalf("expected 1 filtered match after sort reset, got %d", len(m.library.FilteredMatches))
 	}
-	unsortedIdx := m.library.filteredMatches[0].TrackIndex
-	tracks := m.library.index.Tracks()
+	unsortedIdx := m.library.FilteredMatches[0].TrackIndex
+	tracks := m.library.Index.Tracks()
 	if unsortedIdx < 0 || unsortedIdx >= len(tracks) {
 		t.Fatalf("TrackIndex %d out of bounds (len=%d)", unsortedIdx, len(tracks))
 	}
@@ -60,12 +60,12 @@ func TestResetLibrarySortRebuildFilterCache(t *testing.T) {
 func TestResetArtistsSortRederivesData(t *testing.T) {
 	m := New(context.Background())
 	// LibraryIndex sorts alphabetically: Alpha, Beta, Charlie.
-	m.library.index.Insert(library.Track{Hash: "h1", Artist: "Charlie", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Artist: "Alpha", Title: "T2"})
-	m.library.index.Insert(library.Track{Hash: "h3", Artist: "Beta", Title: "T3"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Artist: "Charlie", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Artist: "Alpha", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h3", Artist: "Beta", Title: "T3"})
 
 	m.browse.artists.level = arttui.ArtistLevel
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
 	if m.browse.artists.artists[0] != "Alpha" {
 		t.Fatalf("precondition: first artist should be Alpha, got %q", m.browse.artists.artists[0])
 	}
@@ -91,11 +91,11 @@ func TestResetArtistsSortRederivesData(t *testing.T) {
 // albums sort restores the original album order (alphabetical by default).
 func TestResetAlbumsSortRederivesData(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Artist: "A", Album: "Alpha", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Artist: "A", Album: "Zebra", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Artist: "A", Album: "Alpha", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Artist: "A", Album: "Zebra", Title: "T2"})
 
 	m.browse.albums.level = albtui.AlbumLevel
-	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
 	// DeriveAllAlbums sorts alphabetically: Alpha, Zebra.
 	if m.browse.albums.albums[0] != "Alpha" {
 		t.Fatalf("precondition: first album should be Alpha, got %q", m.browse.albums.albums[0])
@@ -121,11 +121,11 @@ func TestResetGenresSortRederivesData(t *testing.T) {
 	m := New(context.Background())
 	// Tracks sorted by (artist, title): both "A", so T1 before T2.
 	// DeriveGenres first-occurrence order: Rock, Jazz.
-	m.library.index.Insert(library.Track{Hash: "h1", Artist: "A", Genre: "Rock", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Artist: "A", Genre: "Jazz", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Artist: "A", Genre: "Rock", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Artist: "A", Genre: "Jazz", Title: "T2"})
 
 	m.browse.genres.level = gentui.GenreLevel
-	m.browse.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+	m.browse.genres.genres = gentui.DeriveGenres(m.library.Index.Tracks())
 	if len(m.browse.genres.genres) < 2 {
 		t.Fatalf("precondition: expected 2 genres, got %d", len(m.browse.genres.genres))
 	}

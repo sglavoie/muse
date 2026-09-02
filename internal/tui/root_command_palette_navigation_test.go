@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -92,48 +93,48 @@ func TestPaletteLibraryNavigationTargetsExactMode(t *testing.T) {
 		{Hash: "played", Path: "/played.flac", LastPlayedAt: 500},
 	}}
 	m := New(context.Background(), WithHistoryReader(reader))
-	m.library.index.Insert(library.Track{Hash: "old", Path: "/old.flac", Artist: "A", CreatedAt: 100})
-	m.library.index.Insert(library.Track{Hash: "new", Path: "/new.flac", Artist: "B", CreatedAt: 300})
+	m.library.Index.Insert(library.Track{Hash: "old", Path: "/old.flac", Artist: "A", CreatedAt: 100})
+	m.library.Index.Insert(library.Track{Hash: "new", Path: "/new.flac", Artist: "B", CreatedAt: 300})
 	m.activeView = viewQueue
 
 	m = runPaletteCommandForTest(t, m, "Go to Library: Recently Added")
-	if m.activeView != viewLibrary || m.library.mode != LibraryModeRecent {
-		t.Fatalf("recent command landed on view=%v mode=%v", m.activeView, m.library.mode)
+	if m.activeView != viewLibrary || m.library.Mode != libtui.LibraryModeRecent {
+		t.Fatalf("recent command landed on view=%v mode=%v", m.activeView, m.library.Mode)
 	}
-	if !m.library.showDateAdded || m.library.showPlayedAt {
-		t.Fatalf("recent columns: showDateAdded=%v showPlayedAt=%v", m.library.showDateAdded, m.library.showPlayedAt)
+	if !m.library.ShowDateAdded || m.library.ShowPlayedAt {
+		t.Fatalf("recent columns: showDateAdded=%v showPlayedAt=%v", m.library.ShowDateAdded, m.library.ShowPlayedAt)
 	}
-	if m.library.sortState != (sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}) {
-		t.Fatalf("recent sort = %+v", m.library.sortState)
+	if m.library.SortState != (sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}) {
+		t.Fatalf("recent sort = %+v", m.library.SortState)
 	}
-	if focused, ok := m.library.view().FocusedTrack(); !ok || focused.Hash != "new" {
+	if focused, ok := m.library.Panel().FocusedTrack(); !ok || focused.Hash != "new" {
 		t.Fatalf("recent focus = %+v, ok=%v; want newest track", focused, ok)
 	}
 
 	// Each Library mode owns its cursor/filter snapshot. Leaving and returning
 	// through exact palette targets must restore that state.
-	m.library.cursor = 1
-	m.library.filter = filter.State{Text: "flac"}
+	m.library.Cursor = 1
+	m.library.Filter = filter.State{Text: "flac"}
 	m = runPaletteCommandForTest(t, m, "Go to Library: All Tracks")
-	if m.library.mode != LibraryModeAll || m.library.showDateAdded || m.library.showPlayedAt {
+	if m.library.Mode != libtui.LibraryModeAll || m.library.ShowDateAdded || m.library.ShowPlayedAt {
 		t.Fatalf("all-tracks command left incorrect mode/columns: mode=%v added=%v played=%v",
-			m.library.mode, m.library.showDateAdded, m.library.showPlayedAt)
+			m.library.Mode, m.library.ShowDateAdded, m.library.ShowPlayedAt)
 	}
 	m = runPaletteCommandForTest(t, m, "Go to Library: Recently Added")
-	if m.library.cursor != 1 || m.library.filter.Text != "flac" {
-		t.Fatalf("recent snapshot not restored: cursor=%d filter=%q", m.library.cursor, m.library.filter.Text)
+	if m.library.Cursor != 1 || m.library.Filter.Text != "flac" {
+		t.Fatalf("recent snapshot not restored: cursor=%d filter=%q", m.library.Cursor, m.library.Filter.Text)
 	}
 
 	m = runPaletteCommandForTest(t, m, "Go to Library: History")
-	if m.library.mode != LibraryModeHistory || !m.library.showPlayedAt || m.library.showDateAdded {
+	if m.library.Mode != libtui.LibraryModeHistory || !m.library.ShowPlayedAt || m.library.ShowDateAdded {
 		t.Fatalf("history command left incorrect mode/columns: mode=%v added=%v played=%v",
-			m.library.mode, m.library.showDateAdded, m.library.showPlayedAt)
+			m.library.Mode, m.library.ShowDateAdded, m.library.ShowPlayedAt)
 	}
-	if reader.calls != 1 || len(m.library.sourceTracks) != 1 || m.library.sourceTracks[0].Hash != "played" {
-		t.Fatalf("history was not loaded: calls=%d tracks=%+v", reader.calls, m.library.sourceTracks)
+	if reader.calls != 1 || len(m.library.SourceTracks) != 1 || m.library.SourceTracks[0].Hash != "played" {
+		t.Fatalf("history was not loaded: calls=%d tracks=%+v", reader.calls, m.library.SourceTracks)
 	}
-	if m.library.sortState != (sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}) {
-		t.Fatalf("history sort = %+v", m.library.sortState)
+	if m.library.SortState != (sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}) {
+		t.Fatalf("history sort = %+v", m.library.SortState)
 	}
 }
 

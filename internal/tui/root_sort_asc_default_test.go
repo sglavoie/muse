@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -22,21 +23,21 @@ func TestSortDirNoopWhenDefault(t *testing.T) {
 
 	tests := []struct {
 		name string
-		mode LibraryMode
+		mode libtui.LibraryMode
 		dir  sorting.SortDir
 	}{
-		{"RecentlyAdded/Asc", LibraryModeRecent, sorting.SortAsc},
-		{"History/Asc", LibraryModeHistory, sorting.SortAsc},
-		{"RecentlyAdded/Desc", LibraryModeRecent, sorting.SortDesc},
-		{"History/Desc", LibraryModeHistory, sorting.SortDesc},
+		{"RecentlyAdded/Asc", libtui.LibraryModeRecent, sorting.SortAsc},
+		{"History/Asc", libtui.LibraryModeHistory, sorting.SortAsc},
+		{"RecentlyAdded/Desc", libtui.LibraryModeRecent, sorting.SortDesc},
+		{"History/Desc", libtui.LibraryModeHistory, sorting.SortDesc},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New(context.Background(), WithLibraryTracks(tracks))
-			m.library.mode = tt.mode
+			m.library.Mode = tt.mode
 			m.activeView = viewLibrary
-			m.library.sortState = sorting.SortState{Field: sorting.SortDefault, Dir: tt.dir}
+			m.library.SortState = sorting.SortState{Field: sorting.SortDefault, Dir: tt.dir}
 
 			_, _, consumed := m.handleSortDir(tt.dir)
 			if consumed {

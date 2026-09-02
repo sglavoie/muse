@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/sglavoie/muse/internal/tui/keys"
+import (
+	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
+)
 
 // commandPaletteActionMsg carries an action to replay through handleKeyAction
 // after the palette has been dismissed. A non-zero view switches to that view
@@ -14,7 +17,7 @@ type commandPaletteActionMsg struct {
 // navigateLibraryModeMsg requests deterministic navigation to one of the
 // Library view's modes. It is separate from the mode-cycle actions because a
 // palette command must land on the requested mode regardless of current state.
-type navigateLibraryModeMsg struct{ mode LibraryMode }
+type navigateLibraryModeMsg struct{ mode libtui.LibraryMode }
 
 // navigateBrowseModeMsg requests deterministic navigation to one of the
 // Browse view's modes.

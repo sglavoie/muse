@@ -49,7 +49,7 @@ func newInsightsModelReader(t *testing.T, opts ...Option) (Model, *uitestInsight
 	}
 	m := New(context.Background(), append(base, opts...)...)
 	m.termWidth, m.termHeight = 100, 30
-	m.insights.setSize(100, 30)
+	m.insights.SetSize(100, 30)
 	m = m.switchToView(viewInsights)
 
 	cmd := m.insightsMaybeLoadCmd()
@@ -177,7 +177,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		now := time.Now().Unix()
 		reader.tracks[0].PlayCount++
 		reader.tracks[0].LastPlayedAt = now
-		m.library.index.IncrementPlayCount("h1", now)
+		m.library.Index.IncrementPlayCount("h1", now)
 
 		m = updateInsightsModel(t, m, playback.PlayRecordedMsg{Hash: "h1", PlayedAt: now})
 		if !m.insights.stale {
@@ -199,7 +199,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 			Hash: "h7", Path: "/e1.flac", Genre: "Drone", Duration: 500,
 		}
 		reader.tracks = append(reader.tracks, found)
-		m.library.index.Insert(found)
+		m.library.Index.Insert(found)
 
 		m = updateInsightsModel(t, m, library.ScanDoneMsg{})
 		if !m.insights.stale {
@@ -223,7 +223,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 
 		// h2 is the only unheard Rock track, so moving it empties the shelf.
 		reader.tracks[1].Genre = "Jazz"
-		m.library.index.UpdateMetadata("h2", "Track A2", "Alice", "Alpha", "Jazz")
+		m.library.Index.UpdateMetadata("h2", "Track A2", "Alice", "Alpha", "Jazz")
 
 		m = updateInsightsModel(t, m, metadataEditedMsg{})
 		if !m.insights.stale {
@@ -387,7 +387,7 @@ func TestInsightsOpenAndBack(t *testing.T) {
 	if m.insights.level != 1 {
 		t.Fatalf("expected level 1 after open, got %d", m.insights.level)
 	}
-	if len(m.insights.trackView.sourceTracks) == 0 {
+	if len(m.insights.trackView.SourceTracks) == 0 {
 		t.Fatal("expected the drill to carry tracks")
 	}
 	if m.insights.drillLabel != row.label {
@@ -406,7 +406,7 @@ func TestInsightsOpenAndBack(t *testing.T) {
 
 func TestInsightsEmptyState(t *testing.T) {
 	m := New(context.Background(), WithInsightsReader(&uitestInsights{}))
-	m.insights.setSize(80, 24)
+	m.insights.SetSize(80, 24)
 	m = m.switchToView(viewInsights)
 	cmd := m.insightsMaybeLoadCmd()
 	if cmd == nil {
@@ -426,7 +426,7 @@ func TestInsightsEmptyState(t *testing.T) {
 func TestInsightsRenderFitsHeight(t *testing.T) {
 	for _, size := range [][2]int{{100, 30}, {80, 24}, {60, 15}, {40, 10}} {
 		m := newInsightsModel(t)
-		m.insights.setSize(size[0], size[1])
+		m.insights.SetSize(size[0], size[1])
 		m.insights.clampCursor()
 
 		lines := strings.Split(m.insights.render(styles.NewStyles(false), nil, nil, nil, "", ""), "\n")

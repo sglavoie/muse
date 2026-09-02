@@ -410,7 +410,7 @@ func TestInsightsCoverageAntiRutWeightsDustyShelves(t *testing.T) {
 
 	t.Run("the draw is not the alphabetical prefix", func(t *testing.T) {
 		var unheard []library.Track
-		for _, tr := range m.library.index.Tracks() {
+		for _, tr := range m.library.Index.Tracks() {
 			if tr.PlayCount == 0 {
 				unheard = append(unheard, tr)
 			}
@@ -480,8 +480,8 @@ func TestInsightsSavePlaylist(t *testing.T) {
 	if msg.playlistName != want {
 		t.Errorf("playlist name: want %q, got %q", want, msg.playlistName)
 	}
-	if msg.count != len(m.insights.trackView.sourceTracks) {
-		t.Errorf("count: want %d, got %d", len(m.insights.trackView.sourceTracks), msg.count)
+	if msg.count != len(m.insights.trackView.SourceTracks) {
+		t.Errorf("count: want %d, got %d", len(m.insights.trackView.SourceTracks), msg.count)
 	}
 	if len(pa.calls) != 1 || len(pa.calls[0].hashes) != msg.count {
 		t.Errorf("expected %d hashes added to the new playlist, got %+v", msg.count, pa.calls)

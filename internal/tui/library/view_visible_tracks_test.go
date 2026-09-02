@@ -9,7 +9,7 @@ import (
 
 func TestVisibleTracksReturnsOverrideOrderUnfiltered(t *testing.T) {
 	tracks := []musiclib.Track{{Hash: "a"}, {Hash: "b"}, {Hash: "c"}}
-	v := View{OverrideTracks: tracks}
+	v := Panel{OverrideTracks: tracks}
 
 	got := v.VisibleTracks()
 	if len(got) != 3 || got[0].Hash != "a" || got[2].Hash != "c" {
@@ -19,7 +19,7 @@ func TestVisibleTracksReturnsOverrideOrderUnfiltered(t *testing.T) {
 
 func TestVisibleTracksAppliesFilterAndAgreesWithFocusedTrack(t *testing.T) {
 	tracks := []musiclib.Track{{Hash: "a"}, {Hash: "b"}, {Hash: "c"}}
-	v := View{
+	v := Panel{
 		OverrideTracks:  tracks,
 		Filter:          filter.State{Text: "q"},
 		FilteredMatches: []musiclib.Match{{TrackIndex: 2}, {TrackIndex: 0}},
@@ -39,7 +39,7 @@ func TestVisibleTracksAppliesFilterAndAgreesWithFocusedTrack(t *testing.T) {
 
 func TestVisibleTracksDropsOutOfRangeMatches(t *testing.T) {
 	tracks := []musiclib.Track{{Hash: "a"}, {Hash: "b"}}
-	v := View{
+	v := Panel{
 		OverrideTracks:  tracks,
 		Filter:          filter.State{Text: "q"},
 		FilteredMatches: []musiclib.Match{{TrackIndex: 1}, {TrackIndex: 7}, {TrackIndex: -1}},

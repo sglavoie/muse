@@ -54,7 +54,7 @@ func TestPreviewTickAutoDismissOnError(t *testing.T) {
 func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 	dw := &stubDurationWriter{}
 	m := New(context.Background(), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
 	})
 	m.queue.entries = []QueueEntry{
@@ -66,7 +66,7 @@ func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 
 	nm, cmd := m.handleTickMsg()
 
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
+	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
 		t.Fatalf("expected library duration 225.0, got %v", t2.Duration)
 	}
 	if nm.queue.entries[0].DurationMs != 225000 {
@@ -107,7 +107,7 @@ func TestPreviewTickAutoFillsDurationWhenZero(t *testing.T) {
 func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 	dw := &stubDurationWriter{}
 	m := New(context.Background(), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.0,
 	})
 	m.queue.entries = []QueueEntry{
@@ -119,7 +119,7 @@ func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 
 	nm, cmd := m.handleTickMsg()
 
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
+	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 225.0 {
 		t.Fatalf("expected library duration 225.0, got %v", t2.Duration)
 	}
 	if nm.queue.entries[0].DurationMs != 225000 {
@@ -159,7 +159,7 @@ func TestPreviewTickCorrectsWrongDuration(t *testing.T) {
 func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
 	dw := &stubDurationWriter{}
 	m := New(context.Background(), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.5,
 	})
 	m.queue.entries = []QueueEntry{
@@ -172,7 +172,7 @@ func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
 
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
+	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
 		t.Fatalf("expected library duration to stay 180.5, got %v", t2.Duration)
 	}
 	if nm.queue.entries[0].DurationMs != 180500 {
@@ -191,7 +191,7 @@ func TestPreviewTickSkipsCloseEnoughDuration(t *testing.T) {
 func TestPreviewTickFlagPreventsRepeatedWrites(t *testing.T) {
 	dw := &stubDurationWriter{}
 	m := New(context.Background(), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
 	})
 	sp := &stubPreviewer{elapsed: 10.0, total: 225.0}

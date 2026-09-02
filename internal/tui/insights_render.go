@@ -102,10 +102,10 @@ func relativeDayLabel(at, ref int64) string {
 // that end in tracks.
 func (v InsightsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	if v.atTracks() {
-		if len(v.trackView.sourceTracks) == 0 {
+		if len(v.trackView.SourceTracks) == 0 {
 			return s.Dim.Render("Nothing behind this row.")
 		}
-		return v.trackView.render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
+		return v.trackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
 	if v.level == insightsLevelSessions {
 		return v.renderSessionList(s)

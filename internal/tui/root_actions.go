@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
@@ -105,10 +106,10 @@ func (m Model) switchToView(id viewID) Model {
 		}
 	}
 	if id == viewLibrary {
-		switch m.library.mode {
-		case LibraryModeRecent:
+		switch m.library.Mode {
+		case libtui.LibraryModeRecent:
 			m = m.syncRecentlyAddedFromLibrary()
-		case LibraryModeHistory:
+		case libtui.LibraryModeHistory:
 			m = m.loadLibraryHistoryData()
 		}
 	}
@@ -130,8 +131,8 @@ func (m Model) loadLibraryHistoryData() Model {
 		return m
 	}
 	tracks, _ := m.historyReader.ReadPlayHistory(500)
-	m.library.sourceTracks = tracks
-	m.library = m.library.refreshView()
+	m.library.SourceTracks = tracks
+	m.library = m.library.RefreshView()
 	return m
 }
 
@@ -144,19 +145,19 @@ func (m Model) handleLibraryModePrev() (Model, tea.Cmd) { return m.shiftLibraryM
 
 // shiftLibraryMode rotates the Library mode by delta steps, loads mode-specific
 // data, and updates the status bar.
-func (m Model) shiftLibraryMode(delta LibraryMode) (Model, tea.Cmd) {
+func (m Model) shiftLibraryMode(delta libtui.LibraryMode) (Model, tea.Cmd) {
 	// Exit visual mode before switching the underlying tracks list. Leaving
 	// visualState.active=true with a snapshot of the previous mode's hashes
 	// would cause updateVisualSelection to restore those old selections on
 	// the next cursor move, contaminating the new mode's selection state.
 	m = exitVisualMode(m)
-	next := (m.library.mode + delta) % 3
-	m.library = m.library.switchMode(next)
+	next := (m.library.Mode + delta) % 3
+	m.library = m.library.SwitchMode(next)
 	switch next {
-	case LibraryModeRecent:
+	case libtui.LibraryModeRecent:
 		m = m.syncRecentlyAddedFromLibrary()
 		m.statusBar.NotifyInfo("Library: Recently Added")
-	case LibraryModeHistory:
+	case libtui.LibraryModeHistory:
 		m = m.loadLibraryHistoryData()
 		m.statusBar.NotifyInfo("Library: History")
 	default:
@@ -198,19 +199,19 @@ func (m Model) deriveCurrentBrowseData() Model {
 	switch m.browse.mode {
 	case BrowseModeArtists:
 		if len(m.browse.artists.artists) == 0 {
-			tracks := m.library.index.Tracks()
+			tracks := m.library.Index.Tracks()
 			m.browse.artists.artists = arttui.DeriveArtists(tracks)
 			m.browse.artists.artistCounts = arttui.DeriveArtistCounts(tracks)
 		}
 	case BrowseModeAlbums:
 		if len(m.browse.albums.albums) == 0 {
-			tracks := m.library.index.Tracks()
+			tracks := m.library.Index.Tracks()
 			m.browse.albums.albums = albtui.DeriveAllAlbums(tracks)
 			m.browse.albums.albumCounts = albtui.DeriveAllAlbumCounts(tracks)
 		}
 	case BrowseModeGenres:
 		if len(m.browse.genres.genres) == 0 {
-			tracks := m.library.index.Tracks()
+			tracks := m.library.Index.Tracks()
 			m.browse.genres.genres = gentui.DeriveGenres(tracks)
 			m.browse.genres.genreCounts = gentui.DeriveGenreCounts(tracks)
 		}

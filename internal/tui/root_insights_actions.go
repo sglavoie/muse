@@ -68,7 +68,7 @@ func (m Model) insightsEnqueueSelection() (Model, tea.Cmd) {
 		return m, nil
 	}
 	m = exitVisualMode(m)
-	m.insights.trackView.selectedHashes = nil
+	m.insights.trackView.SelectedHashes = nil
 	return m, cmd
 }
 
@@ -80,12 +80,12 @@ func (m Model) insightsBulkTracks() []library.Track {
 	if !m.insights.atTracks() {
 		return nil
 	}
-	order := m.insights.trackView.baseTracks()
-	if m.insights.trackView.sortedTracks != nil {
-		order = m.insights.trackView.sortedTracks
+	order := m.insights.trackView.BaseTracks()
+	if m.insights.trackView.SortedTracks != nil {
+		order = m.insights.trackView.SortedTracks
 	}
-	if len(m.insights.trackView.selectedHashes) > 0 {
-		return collectSelectedTracks(order, m.insights.trackView.selectedHashes)
+	if len(m.insights.trackView.SelectedHashes) > 0 {
+		return collectSelectedTracks(order, m.insights.trackView.SelectedHashes)
 	}
 	if t := m.insights.focusedTrack(); t != nil {
 		return []library.Track{*t}
@@ -112,7 +112,7 @@ func (m Model) handleInsightsBack() Model {
 // the playlist name use.
 func (m Model) insightsActionTracks() ([]library.Track, string) {
 	if m.insights.atTracks() {
-		return m.insights.trackView.sourceTracks, m.insights.drillLabel
+		return m.insights.trackView.SourceTracks, m.insights.drillLabel
 	}
 	if m.insights.level == insightsLevelSessions {
 		return m.insightsSessionActionTracks()
@@ -271,7 +271,7 @@ func (m Model) handleInsightsSavePlaylist() (Model, tea.Cmd) {
 	if m.activeView != viewInsights || !m.insights.atTracks() {
 		return m, nil
 	}
-	tracks := m.insights.trackView.sourceTracks
+	tracks := m.insights.trackView.SourceTracks
 	if len(tracks) == 0 {
 		m.statusBar.Notify("No tracks to save")
 		return m, nil

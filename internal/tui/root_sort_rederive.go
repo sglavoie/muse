@@ -13,7 +13,7 @@ import (
 // (pre-sort) order is restored - the in-place sort replaced the slices and
 // clearing sortState alone does not recover the original order.
 func (m Model) rederiveArtistsData() Model {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
 		m.browse.artists.artists = arttui.DeriveArtists(tracks)
@@ -28,7 +28,7 @@ func (m Model) rederiveArtistsData() Model {
 // rederiveAlbumsData rebuilds the albums view's backing data from the library
 // index. See rederiveArtistsData for rationale.
 func (m Model) rederiveAlbumsData() Model {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	switch m.browse.albums.level {
 	case albtui.AlbumLevel:
 		m.browse.albums.albums = albtui.DeriveAllAlbums(tracks)
@@ -44,7 +44,7 @@ func (m Model) rederiveAlbumsData() Model {
 // sort replaces the slice and the original created_at DESC order cannot be
 // recovered from the library index alone.
 func (m Model) rederiveFavoritesData() Model {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	switch m.favorites.level {
 	case favtui.ListLevel:
 		switch m.favorites.category {
@@ -104,7 +104,7 @@ func (m Model) rederiveFavoritesData() Model {
 // rederiveGenresData rebuilds the genres view's backing data from the library
 // index. See rederiveArtistsData for rationale.
 func (m Model) rederiveGenresData() Model {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	switch m.browse.genres.level {
 	case gentui.GenreLevel:
 		m.browse.genres.genres = gentui.DeriveGenres(tracks)

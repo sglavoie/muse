@@ -4,7 +4,7 @@ import tea "charm.land/bubbletea/v2"
 
 // ActivateFilter sets the filter bar to active, ready to accept text input.
 // The existing Filter.Text is preserved so re-activation resumes the last query.
-func (v View) ActivateFilter() View {
+func (v Panel) ActivateFilter() Panel {
 	next, _ := v.Filter.Activate()
 	v.Filter = next
 	return v
@@ -15,7 +15,7 @@ func (v View) ActivateFilter() View {
 // no-op when the filter bar is not active. ScrollOffset is also reset to 0
 // so the cursor remains visible — otherwise a prior scroll position past the
 // filtered result count would silently render "No matches" or hide the cursor.
-func (v View) AppendFilterChar(ch rune) View {
+func (v Panel) AppendFilterChar(ch rune) Panel {
 	if !v.Filter.Active {
 		return v
 	}
@@ -30,7 +30,7 @@ func (v View) AppendFilterChar(ch rune) View {
 // CommitFilter deactivates the filter bar input while keeping the current
 // Filter.Text so the filtered results remain visible. Use this when the user
 // confirms the query (Enter or /) and wants to navigate the filtered list.
-func (v View) CommitFilter() View {
+func (v Panel) CommitFilter() Panel {
 	v.Filter = v.Filter.Commit()
 	return v
 }
@@ -40,7 +40,7 @@ func (v View) CommitFilter() View {
 // ScrollOffset is also reset to 0 to keep the cursor visible — otherwise a
 // stale scroll position from the filtered view could leave the cursor below
 // the visible window after the list expands back.
-func (v View) DeactivateFilter() View {
+func (v Panel) DeactivateFilter() Panel {
 	v.Filter = v.Filter.Deactivate()
 	v.FilteredMatches = nil
 	v.Cursor = 0

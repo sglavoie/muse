@@ -203,8 +203,8 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	tw := &stubTagWriter{}
 	m := New(context.Background(), WithTagWriter(tw))
 
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
 	m = m.syncRecentlyAddedFromLibrary()
 
 	tagID := int64(42)
@@ -217,12 +217,12 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 
 	// Both tracks pass the tag filter.
 	hashes := map[string]struct{}{"h1": {}, "h2": {}}
-	m.library.tagFilterHashes = copyTagHash(hashes)
+	m.library.TagFilterHashes = copyTagHash(hashes)
 	m.queue.tagFilterHashes = copyTagHash(hashes)
 	m.queue.entries = []QueueEntry{{Hash: "h1"}, {Hash: "h2"}}
 
 	// Cursor on last item.
-	m.library.cursor = 1
+	m.library.Cursor = 1
 	m.queue.cursor = 1
 
 	// Remove tag 42 from h2 via the picker.
@@ -233,7 +233,7 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	})
 
 	// h2 should be removed from tagFilterHashes on all views.
-	if _, ok := m.library.tagFilterHashes["h2"]; ok {
+	if _, ok := m.library.TagFilterHashes["h2"]; ok {
 		t.Error("h2 should be removed from library.tagFilterHashes")
 	}
 	if _, ok := m.queue.tagFilterHashes["h2"]; ok {
@@ -241,8 +241,8 @@ func TestTagPickerToggleRemove_UpdatesTagFilterHashes(t *testing.T) {
 	}
 
 	// Cursors must be clamped (only 1 item visible).
-	if m.library.cursor >= m.library.trackCount() {
-		t.Errorf("library cursor=%d out of bounds (count=%d)", m.library.cursor, m.library.trackCount())
+	if m.library.Cursor >= m.library.TrackCount() {
+		t.Errorf("library cursor=%d out of bounds (count=%d)", m.library.Cursor, m.library.TrackCount())
 	}
 	qFiltered := m.queue.filteredEntries()
 	if m.queue.cursor >= len(qFiltered) {
@@ -257,8 +257,8 @@ func TestTagPickerToggleAdd_UpdatesTagFilterHashes(t *testing.T) {
 	tw := &stubTagWriter{}
 	m := New(context.Background(), WithTagWriter(tw))
 
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "B"})
 	m = m.syncRecentlyAddedFromLibrary()
 
 	tagID := int64(42)
@@ -270,7 +270,7 @@ func TestTagPickerToggleAdd_UpdatesTagFilterHashes(t *testing.T) {
 
 	// Only h1 passes the tag filter initially.
 	hashes := map[string]struct{}{"h1": {}}
-	m.library.tagFilterHashes = copyTagHash(hashes)
+	m.library.TagFilterHashes = copyTagHash(hashes)
 
 	// Add tag 42 to h2 via the picker.
 	m, _ = m.handleTagPickerToggle(TagPickerToggleMsg{
@@ -280,7 +280,7 @@ func TestTagPickerToggleAdd_UpdatesTagFilterHashes(t *testing.T) {
 	})
 
 	// h2 should now be in tagFilterHashes on all views.
-	if _, ok := m.library.tagFilterHashes["h2"]; !ok {
+	if _, ok := m.library.TagFilterHashes["h2"]; !ok {
 		t.Error("h2 should be added to library.tagFilterHashes")
 	}
 }

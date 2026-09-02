@@ -50,7 +50,7 @@ type QueueView struct {
 	tagFilterHashes     map[string]struct{} // non-nil when a cross-view tag filter is active
 }
 
-func (v *QueueView) setSize(w, h int) { v.width = w; v.height = h }
+func (v *QueueView) SetSize(w, h int) { v.width = w; v.height = h }
 
 // recomputeDisplayOrder rebuilds the sorted display index mapping.
 func (v QueueView) recomputeDisplayOrder() QueueView {

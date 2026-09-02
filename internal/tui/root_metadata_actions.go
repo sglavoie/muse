@@ -64,7 +64,7 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 		m.statusBar.Notify("No track to edit")
 		return m, nil, true
 	}
-	if full, found := m.library.index.FindByHash(track.Hash); found {
+	if full, found := m.library.Index.FindByHash(track.Hash); found {
 		if track.Album == "" {
 			track.Album = full.Album
 		}
@@ -80,7 +80,7 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 	var titles, artists, albums, genres, durations []string
 	for _, h := range hashes {
-		t, ok := m.library.index.FindByHash(h)
+		t, ok := m.library.Index.FindByHash(h)
 		if !ok {
 			continue
 		}
@@ -97,7 +97,7 @@ func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 // view and level support bulk renaming (Artists/Albums view at ArtistLevel or
 // AlbumLevel). Returns false if the current context is not renameable.
 func (m Model) renameEditorForFocusedEntity() (metadata.Editor, bool) {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	if m.activeView != viewBrowse {
 		return metadata.Editor{}, false
 	}

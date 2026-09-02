@@ -25,7 +25,7 @@ func TestRefreshDerivedViewsUpdatesArtistsTrackLevel(t *testing.T) {
 		t.Fatalf("expected 2 tracks at TrackLevel, got %d", len(m.browse.artists.tracks))
 	}
 
-	m.library.index.UpdateMetadata("h1", "Renamed Track", "Alice", "Alpha", "")
+	m.library.Index.UpdateMetadata("h1", "Renamed Track", "Alice", "Alpha", "")
 	m = m.refreshDerivedViews()
 
 	found := false
@@ -56,7 +56,7 @@ func TestRefreshDerivedViewsUpdatesAlbumsTrackLevel(t *testing.T) {
 		t.Fatalf("expected at least 1 track at TrackLevel, got %d", len(m.browse.albums.tracks))
 	}
 
-	m.library.index.UpdateMetadata("h1", "Renamed Album Track", "Alice", "Alpha", "")
+	m.library.Index.UpdateMetadata("h1", "Renamed Album Track", "Alice", "Alpha", "")
 	m = m.refreshDerivedViews()
 
 	found := false
@@ -77,10 +77,10 @@ func TestRefreshDerivedViewsUpdatesAlbumsTrackLevel(t *testing.T) {
 // sort on the Artists view is re-applied after refreshDerivedViews.
 func TestRefreshDerivedViewsResortsArtistsAfterEdit(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zebra", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "T2"})
-	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Middle", Title: "T3"})
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zebra", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Middle", Title: "T3"})
+	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
 	m.browse.artists.level = arttui.ArtistLevel
 	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
@@ -102,10 +102,10 @@ func TestRefreshDerivedViewsResortsArtistsAfterEdit(t *testing.T) {
 // sort on the Albums view is re-applied after refreshDerivedViews.
 func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Album: "Zen", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Album: "Apex", Title: "T2"})
-	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Art", Album: "Mid", Title: "T3"})
-	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Art", Album: "Zen", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Art", Album: "Apex", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Art", Album: "Mid", Title: "T3"})
+	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
 	m.browse.albums.level = albtui.AlbumLevel
 	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()

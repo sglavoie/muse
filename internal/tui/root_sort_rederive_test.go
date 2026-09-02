@@ -87,13 +87,13 @@ func TestRederiveFavoritesDataArtistsNilReader(t *testing.T) {
 // ListLevel/CategoryTracks still works as before (regression guard).
 func TestRederiveFavoritesDataTracks(t *testing.T) {
 	m := Model{}
-	m.library.index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/a", Hash: "ha"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "T2", Path: "/b", Hash: "hb"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/a", Hash: "ha"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "T2", Path: "/b", Hash: "hb"})
 
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	// Pre-populate favorites.tracks with known hashes so rebuild can find them.
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	m.favorites.tracks = make([]library.Track, len(allTracks))
 	copy(m.favorites.tracks, allTracks)
 

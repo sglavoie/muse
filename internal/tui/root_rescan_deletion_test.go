@@ -72,8 +72,8 @@ func TestRescanReconcilesDeletionAfterWatcherDegraded(t *testing.T) {
 
 	// Seed the pre-rescan library index with a track that will survive and one
 	// that will be deleted off disk.
-	m.library.index.Insert(library.Track{Hash: keptHash, Path: keptPath, Title: "Keep", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: deletedHash, Path: deletedPath, Title: "Gone", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: keptHash, Path: keptPath, Title: "Keep", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: deletedHash, Path: deletedPath, Title: "Gone", Artist: "B"})
 
 	// Queue holds the kept track once and the doomed track twice, so we can prove
 	// EVERY in-memory instance of the deletion becomes unavailable.
@@ -104,8 +104,8 @@ func TestRescanReconcilesDeletionAfterWatcherDegraded(t *testing.T) {
 	if m.rescanPriorPaths[keptPath] != keptHash || m.rescanPriorPaths[deletedPath] != deletedHash {
 		t.Fatalf("rescan: prior-path snapshot mismatch: %v", m.rescanPriorPaths)
 	}
-	if m.library.index.Len() != 0 {
-		t.Fatalf("rescan: index should be cleared, got %d entries", m.library.index.Len())
+	if m.library.Index.Len() != 0 {
+		t.Fatalf("rescan: index should be cleared, got %d entries", m.library.Index.Len())
 	}
 
 	// 3. Only the surviving file is rediscovered by the scan; the deleted file
@@ -174,8 +174,8 @@ func TestRescanCanceledSkipsDeletionReconciliation(t *testing.T) {
 		WithExtractor(stubExtractor{}),
 		WithScanWriter(writer, 500),
 	)
-	m.library.index.Insert(library.Track{Hash: "h1", Path: filepath.Join(root, "a.mp3")})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: filepath.Join(root, "b.mp3")})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: filepath.Join(root, "a.mp3")})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: filepath.Join(root, "b.mp3")})
 
 	// Start the rescan, then cancel it via esc before any batch arrives.
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
@@ -208,7 +208,7 @@ func TestRescanTruncatedByHashPanicSkipsDeletionReconciliation(t *testing.T) {
 		WithExtractor(stubExtractor{}),
 		WithScanWriter(writer, 500),
 	)
-	m.library.index.Insert(library.Track{Hash: "hunhashed", Path: stillOnDisk})
+	m.library.Index.Insert(library.Track{Hash: "hunhashed", Path: stillOnDisk})
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	m = next.(Model)

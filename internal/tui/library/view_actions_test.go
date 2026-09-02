@@ -11,7 +11,7 @@ import (
 // the cursor position when no filter is active.
 func TestFocusedTrackNoFilter(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Cursor: 1}
+	v := Panel{Index: idx, Cursor: 1}
 	track, ok := v.FocusedTrack()
 	if !ok {
 		t.Fatal("FocusedTrack: expected ok=true, got false")
@@ -26,7 +26,7 @@ func TestFocusedTrackNoFilter(t *testing.T) {
 // TestFocusedTrackEmptyLibrary verifies that FocusedTrack returns false when
 // the library has no tracks.
 func TestFocusedTrackEmptyLibrary(t *testing.T) {
-	v := View{}
+	v := Panel{}
 	_, ok := v.FocusedTrack()
 	if ok {
 		t.Error("FocusedTrack: expected ok=false for empty library, got true")
@@ -37,7 +37,7 @@ func TestFocusedTrackEmptyLibrary(t *testing.T) {
 // filtered result set, not the full track list, when a filter is active.
 func TestFocusedTrackWithActiveFilter(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Fuzzy:  musiclib.FakeFuzzySearcher{},
 		Filter: filter.State{Active: true, Text: "Alice"},
@@ -54,7 +54,7 @@ func TestFocusedTrackWithActiveFilter(t *testing.T) {
 
 func TestFocusedTrackIgnoresStaleFilteredMatchIndex(t *testing.T) {
 	idx := buildIndex(sampleTracks[:1])
-	v := View{
+	v := Panel{
 		Index:           idx,
 		Filter:          filter.State{Text: "Alice"},
 		FilteredMatches: []musiclib.Match{{TrackIndex: 99}},
@@ -72,7 +72,7 @@ func TestFocusedTrackIgnoresStaleFilteredMatchIndex(t *testing.T) {
 // TrackEnqueuedMsg containing that track.
 func TestEnqueueFocusedSendsCorrectTrack(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Cursor: 0}
+	v := Panel{Index: idx, Cursor: 0}
 	focused := idx.Tracks()[0]
 
 	qa := &fakeQueueAppender{}
@@ -102,7 +102,7 @@ func TestEnqueueFocusedSendsCorrectTrack(t *testing.T) {
 // twice is accepted without error, so duplicate queue entries are permitted.
 func TestEnqueueFocusedDuplicatesAccepted(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Cursor: 0}
+	v := Panel{Index: idx, Cursor: 0}
 	qa := &fakeQueueAppender{}
 
 	_, cmd1 := v.EnqueueFocused(qa, 0)
@@ -125,7 +125,7 @@ func TestEnqueueFocusedDuplicatesAccepted(t *testing.T) {
 // TrackEnqueuedMsg.WasEmpty is true when prevQueueLen is 0.
 func TestEnqueueFocusedWasEmptyTrueWhenQueueEmpty(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Cursor: 0}
+	v := Panel{Index: idx, Cursor: 0}
 	qa := &fakeQueueAppender{}
 
 	_, cmd := v.EnqueueFocused(qa, 0)
@@ -139,7 +139,7 @@ func TestEnqueueFocusedWasEmptyTrueWhenQueueEmpty(t *testing.T) {
 // TrackEnqueuedMsg.WasEmpty is false when prevQueueLen is greater than zero.
 func TestEnqueueFocusedWasEmptyFalseWhenQueueNonEmpty(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Cursor: 0}
+	v := Panel{Index: idx, Cursor: 0}
 	qa := &fakeQueueAppender{}
 
 	_, cmd := v.EnqueueFocused(qa, 3)
@@ -152,7 +152,7 @@ func TestEnqueueFocusedWasEmptyFalseWhenQueueNonEmpty(t *testing.T) {
 // TestEnqueueFocusedNilCmdOnEmptyLibrary verifies that EnqueueFocused returns
 // a nil Cmd when the library contains no tracks.
 func TestEnqueueFocusedNilCmdOnEmptyLibrary(t *testing.T) {
-	v := View{}
+	v := Panel{}
 	qa := &fakeQueueAppender{}
 	_, cmd := v.EnqueueFocused(qa, 0)
 	if cmd != nil {
@@ -162,7 +162,7 @@ func TestEnqueueFocusedNilCmdOnEmptyLibrary(t *testing.T) {
 
 func TestEnqueueTrackCmdWithNilQueueAppenderReturnsErrorMsg(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Cursor: 0}
+	v := Panel{Index: idx, Cursor: 0}
 	focused, ok := v.FocusedTrack()
 	if !ok {
 		t.Fatal("FocusedTrack: expected focused track")
@@ -196,7 +196,7 @@ func TestEnqueueFocusedWithActiveFilterSelectsFilteredTrack(t *testing.T) {
 	// FakeFuzzySearcher matches "Alice" only against the Alice track (index 0
 	// in the sorted index). Cursor 0 should therefore resolve to Alice, not to
 	// whatever track sits at position 0 in the unfiltered list.
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Fuzzy:  musiclib.FakeFuzzySearcher{},
 		Filter: filter.State{Active: true, Text: "Alice"},

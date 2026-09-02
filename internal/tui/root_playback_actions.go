@@ -28,7 +28,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			return m, nil, true
 		}
 		if track.Path == "" {
-			if t, ok := m.library.index.FindByHash(track.Hash); ok {
+			if t, ok := m.library.Index.FindByHash(track.Hash); ok {
 				track = t
 			}
 		}
@@ -55,7 +55,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			TagsLine: m.buildTagsLine(m.playback.currentHash),
 		}
 		if m.playback.currentHash != "" {
-			if t, ok := m.library.index.FindByHash(m.playback.currentHash); ok {
+			if t, ok := m.library.Index.FindByHash(m.playback.currentHash); ok {
 				if overlay.Artist == "" {
 					overlay.Artist = t.Artist
 				}

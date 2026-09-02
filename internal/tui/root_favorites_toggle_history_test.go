@@ -5,20 +5,21 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 func TestToggleFavorite_HistorySingleOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.library.mode = LibraryModeHistory
+	m.library.Mode = libtui.LibraryModeHistory
 	m.activeView = viewLibrary
-	m.library.sourceTracks = []library.Track{
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 	}
-	m.library = m.library.recomputeSortedTracks()
-	m.library.cursor = 0
+	m.library = m.library.RecomputeSortedTracks()
+	m.library.Cursor = 0
 
 	nm := openFavoritePickerForTest(t, m)
 	if got := nm.overlay.favoriteTargetPicker.tracks[0].Hash; got != "h1" {
@@ -30,17 +31,17 @@ func TestToggleFavorite_HistoryBulkOpensPicker(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	r := &stubFavoriteReader{favorites: map[string][]string{"track": {}}}
 	m := New(context.Background(), WithFavoriteReader(r), WithFavoriteWriter(w))
-	m.library.mode = LibraryModeHistory
+	m.library.Mode = libtui.LibraryModeHistory
 	m.activeView = viewLibrary
-	m.library.sourceTracks = []library.Track{
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "Song A"},
 		{Hash: "h2", Title: "Song B"},
 	}
-	m.library = m.library.recomputeSortedTracks()
-	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library = m.library.RecomputeSortedTracks()
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	nm := openFavoritePickerForTest(t, m)
-	if len(nm.library.selectedHashes) != 2 {
+	if len(nm.library.SelectedHashes) != 2 {
 		t.Fatal("opening picker should preserve selectedHashes")
 	}
 	if got := len(nm.overlay.favoriteTargetPicker.tracks); got != 2 {

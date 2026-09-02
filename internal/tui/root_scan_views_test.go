@@ -13,7 +13,7 @@ import (
 // newly scanned albums appear.
 func TestScanBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
+	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
@@ -38,7 +38,7 @@ func TestScanBatchRefreshesArtistAlbumLevel(t *testing.T) {
 // is drilled into TrackLevel, a ScanBatchMsg re-derives the track list.
 func TestScanBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
+	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
@@ -67,7 +67,7 @@ func TestScanBatchRefreshesArtistTrackLevel(t *testing.T) {
 // is drilled into TrackLevel, a ScanBatchMsg re-derives the track list.
 func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
+	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums
@@ -94,8 +94,8 @@ func TestScanBatchRefreshesAlbumTrackLevel(t *testing.T) {
 // artists view at ArtistLevel is preserved across scan batches.
 func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
 	m.browse.artists.artists = []string{"Zara", "Alice"}
@@ -126,8 +126,8 @@ func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 // albums view at AlbumLevel is preserved across scan batches.
 func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "Zebra", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "Alpha", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "Zebra", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "Alpha", Title: "T2"})
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums
 	m.browse.albums.albums = []string{"Zebra", "Alpha"}
@@ -157,8 +157,8 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 // genres view at GenreLevel is preserved across scan batches.
 func TestScanBatchPreservesGenreLevelSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Genre: "Rock", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Genre: "Jazz", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Genre: "Rock", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Genre: "Jazz", Title: "T2"})
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeGenres
 	m.browse.genres.genres = []string{"Rock", "Jazz"}

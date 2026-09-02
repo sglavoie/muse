@@ -24,7 +24,7 @@ func makeNTracks(n int) []library.Track {
 func newLibraryModel(n int) Model {
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.library.sourceTracks = makeNTracks(n)
+	m.library.SourceTracks = makeNTracks(n)
 	return m
 }
 

@@ -50,7 +50,7 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	}
 	m.insights.openDrill("Never played", tracks)
 	// A selection made before v must survive every restore of the range.
-	m.insights.trackView.selectedHashes = map[string]struct{}{"h5": {}}
+	m.insights.trackView.SelectedHashes = map[string]struct{}{"h5": {}}
 
 	m = doVisual(m)
 	if !m.visual.active {
@@ -62,14 +62,14 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	if m.visual.anchor != 0 {
 		t.Errorf("anchor: want the cursor position 0, got %d", m.visual.anchor)
 	}
-	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
+	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h5")
 
 	m = doNav(m, keys.ActionCursorDown)
-	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h3", "h5")
+	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h3", "h5")
 
 	// Shrinking the range restores the snapshot rather than leaving h3 behind.
 	m = doNav(m, keys.ActionCursorUp)
-	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
+	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h5")
 
 	m.showFooterHints = true
 	m.termWidth = 200
@@ -85,7 +85,7 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	if m.visual.active {
 		t.Fatal("expected a second v to exit visual mode")
 	}
-	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
+	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h5")
 
 	// esc leaves the drill, which is the list the anchor pointed into.
 	m = doVisual(m)
@@ -169,7 +169,7 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			m = doVisual(m)
 			m = doNav(m, keys.ActionCursorDown)
 			m = doVisual(m)
-			assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, tc.wantSelected...)
+			assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, tc.wantSelected...)
 
 			hint := ansi.Strip(m.renderFooterHint())
 			for _, want := range []string{"enter enqueue", "a bulk action", "t tag", "X clear"} {
@@ -195,8 +195,8 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			}
 
 			cleared, _ := pressInsightsKey(t, m, tea.KeyPressMsg{Code: 'X', Text: "X"})
-			if len(cleared.insights.trackView.selectedHashes) != 0 {
-				t.Errorf("X advertises a clear but left %d rows selected", len(cleared.insights.trackView.selectedHashes))
+			if len(cleared.insights.trackView.SelectedHashes) != 0 {
+				t.Errorf("X advertises a clear but left %d rows selected", len(cleared.insights.trackView.SelectedHashes))
 			}
 
 			// enter enqueues the same set and then drops the selection, so the
@@ -217,7 +217,7 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			if got := be.appendTracksSources[0]; got != m.insights.drillLabel {
 				t.Errorf("source should name the drill: want %q, got %q", m.insights.drillLabel, got)
 			}
-			if n := len(m.insights.trackView.selectedHashes); n != 0 {
+			if n := len(m.insights.trackView.SelectedHashes); n != 0 {
 				t.Errorf("enter left %d rows selected", n)
 			}
 			if got := ansi.Strip(m.renderFooterHint()); strings.Contains(got, "enter enqueue") {

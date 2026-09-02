@@ -31,7 +31,7 @@ func TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := New(context.Background())
-			m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "Old"})
+			m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "Old"})
 			m.queue.entries = []QueueEntry{
 				{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old – Old", Artist: "Old", Title: "Old", Album: "Old"},
 			}
@@ -68,7 +68,7 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	tr, ok := nm.library.index.FindByHash("h1")
+	tr, ok := nm.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("track h1 not found in library after save")
 	}
@@ -91,7 +91,7 @@ func TestSingleTrackMetadataSaveRefreshesDerivedViews(t *testing.T) {
 // single-track metadata edit populates the undo slot.
 func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old Artist – Old Title", Artist: "Old Artist", Title: "Old Title", Album: "Old Album"},
 	}
@@ -111,7 +111,7 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 
 	nm = nm.handleUndo()
 
-	tr, ok := nm.library.index.FindByHash("h1")
+	tr, ok := nm.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("track h1 not found after undo")
 	}
@@ -133,8 +133,8 @@ func TestSingleTrackMetadataSaveCreatesUndoSlot(t *testing.T) {
 // recomputes the queue display order when a sort is active.
 func TestMetadataSavePreservesQueueSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"},
@@ -166,8 +166,8 @@ func TestMetadataSavePreservesQueueSort(t *testing.T) {
 // edit recomputes the queue display order when a sort is active.
 func TestBulkMetadataSavePreservesQueueSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"},
@@ -189,8 +189,8 @@ func TestBulkMetadataSavePreservesQueueSort(t *testing.T) {
 // recomputes playlist sort when at track level with a sort active.
 func TestMetadataSavePreservesPlaylistSort(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"})
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},

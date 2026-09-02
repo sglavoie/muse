@@ -26,7 +26,7 @@ func TestScanBatchPreservesUserEditedOverlay(t *testing.T) {
 	nm := next.(Model)
 
 	// Track with user-edited overlay should have edited metadata.
-	t1, ok := nm.library.index.FindByHash("hash1")
+	t1, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}
@@ -44,7 +44,7 @@ func TestScanBatchPreservesUserEditedOverlay(t *testing.T) {
 	}
 
 	// Track without overlay should have scanned metadata.
-	t2, ok := nm.library.index.FindByHash("hash2")
+	t2, ok := nm.library.Index.FindByHash("hash2")
 	if !ok {
 		t.Fatal("hash2 not found in index")
 	}
@@ -59,9 +59,9 @@ func TestScanBatchPreservesUserEditedOverlay(t *testing.T) {
 // the in-memory index the next time the scanner reported the file's own tags.
 func TestScanBatchPreservesImportedTrackPosition(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "hash1", Path: "/a.mp3", Title: "A", TrackNumber: 1, DiscNumber: 1})
+	m.library.Index.Insert(library.Track{Hash: "hash1", Path: "/a.mp3", Title: "A", TrackNumber: 1, DiscNumber: 1})
 
-	if !m.library.index.UpdateTrackPosition("hash1", 7, 2) {
+	if !m.library.Index.UpdateTrackPosition("hash1", 7, 2) {
 		t.Fatal("UpdateTrackPosition: hash1 not found in index")
 	}
 	m.userEditedOverlay = map[string]db.UserEditedRow{
@@ -74,7 +74,7 @@ func TestScanBatchPreservesImportedTrackPosition(t *testing.T) {
 	}})
 	nm := next.(Model)
 
-	t1, ok := nm.library.index.FindByHash("hash1")
+	t1, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}
@@ -82,7 +82,7 @@ func TestScanBatchPreservesImportedTrackPosition(t *testing.T) {
 		t.Errorf("hash1 track/disc = %d/%d; want 7/2 (imported position must survive a scan)", t1.TrackNumber, t1.DiscNumber)
 	}
 
-	t2, ok := nm.library.index.FindByHash("hash2")
+	t2, ok := nm.library.Index.FindByHash("hash2")
 	if !ok {
 		t.Fatal("hash2 not found in index")
 	}
@@ -97,7 +97,7 @@ func TestScanBatchStampsCreatedAtForNewTrack(t *testing.T) {
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{{Hash: "hash1", Path: "/a.mp3", Title: "A"}}})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("hash1")
+	track, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}
@@ -113,13 +113,13 @@ func TestRescanSnapshotPreservesCreatedAtAndDuration(t *testing.T) {
 	m := New(context.Background())
 
 	// Populate the index with a track that has created_at and duration set.
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "hash1", Path: "/a.mp3", Title: "A",
 		CreatedAt: 1000, Duration: 120.5,
 	})
 
 	// Build snapshot (simulating what actionRescan does before clearing).
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	snap := make(map[string]rescanEntry, len(tracks))
 	for _, track := range tracks {
 		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration, PlayCount: track.PlayCount, LastPlayedAt: track.LastPlayedAt}
@@ -127,7 +127,7 @@ func TestRescanSnapshotPreservesCreatedAtAndDuration(t *testing.T) {
 	m.rescanSnapshot = snap
 
 	// Clear the index (simulating rescan).
-	m.library.index = library.LibraryIndex{}
+	m.library.Index = library.LibraryIndex{}
 
 	// Deliver a scan batch with CreatedAt=0 and Duration=0 (scanner defaults).
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -135,7 +135,7 @@ func TestRescanSnapshotPreservesCreatedAtAndDuration(t *testing.T) {
 	}})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("hash1")
+	track, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}
@@ -152,18 +152,18 @@ func TestRescanSnapshotPreservesCreatedAtAndDuration(t *testing.T) {
 func TestRescanSnapshotAllowsNonZeroDurationUpdate(t *testing.T) {
 	m := New(context.Background())
 
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "hash1", Path: "/a.mp3", Title: "A",
 		CreatedAt: 1000, Duration: 60.0,
 	})
 
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	snap := make(map[string]rescanEntry, len(tracks))
 	for _, track := range tracks {
 		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration, PlayCount: track.PlayCount, LastPlayedAt: track.LastPlayedAt}
 	}
 	m.rescanSnapshot = snap
-	m.library.index = library.LibraryIndex{}
+	m.library.Index = library.LibraryIndex{}
 
 	// Scanner found a new duration.
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
@@ -171,7 +171,7 @@ func TestRescanSnapshotAllowsNonZeroDurationUpdate(t *testing.T) {
 	}})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("hash1")
+	track, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}
@@ -185,7 +185,7 @@ func TestRescanSnapshotAllowsNonZeroDurationUpdate(t *testing.T) {
 // preserved from the existing entry (the scanner does not know about play stats).
 func TestScanBatchPreservesPlayCount(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "hash1", Path: "/a.mp3", Title: "A", Artist: "Art",
 		PlayCount: 5, LastPlayedAt: 1700000000,
 	})
@@ -195,7 +195,7 @@ func TestScanBatchPreservesPlayCount(t *testing.T) {
 	}})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("hash1")
+	track, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}
@@ -211,25 +211,25 @@ func TestScanBatchPreservesPlayCount(t *testing.T) {
 // the index, PlayCount and LastPlayedAt are restored from the snapshot.
 func TestRescanSnapshotPreservesPlayCount(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "hash1", Path: "/a.mp3", Title: "A",
 		CreatedAt: 1000, PlayCount: 3, LastPlayedAt: 1700000000,
 	})
 
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	snap := make(map[string]rescanEntry, len(tracks))
 	for _, track := range tracks {
 		snap[track.Hash] = rescanEntry{CreatedAt: track.CreatedAt, Duration: track.Duration, PlayCount: track.PlayCount, LastPlayedAt: track.LastPlayedAt}
 	}
 	m.rescanSnapshot = snap
-	m.library.index = library.LibraryIndex{}
+	m.library.Index = library.LibraryIndex{}
 
 	next, _ := m.Update(library.ScanBatchMsg{Tracks: []library.Track{
 		{Hash: "hash1", Path: "/a.mp3", Title: "A", CreatedAt: 0},
 	}})
 	nm := next.(Model)
 
-	track, ok := nm.library.index.FindByHash("hash1")
+	track, ok := nm.library.Index.FindByHash("hash1")
 	if !ok {
 		t.Fatal("hash1 not found in index")
 	}

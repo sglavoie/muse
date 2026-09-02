@@ -59,8 +59,8 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 		{Artist: "B", Title: "deleted track"},
 	}})
 	nm := next.(Model)
-	if nm.library.index.Len() != 2 {
-		t.Fatalf("seed: expected 2 tracks, got %d", nm.library.index.Len())
+	if nm.library.Index.Len() != 2 {
+		t.Fatalf("seed: expected 2 tracks, got %d", nm.library.Index.Len())
 	}
 
 	// Trigger rescan — index must be reset immediately.
@@ -69,8 +69,8 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("rescan: expected non-nil cmd")
 	}
-	if nm.library.index.Len() != 0 {
-		t.Fatalf("rescan: expected empty index after reset, got %d", nm.library.index.Len())
+	if nm.library.Index.Len() != 0 {
+		t.Fatalf("rescan: expected empty index after reset, got %d", nm.library.Index.Len())
 	}
 
 	// Only the surviving track arrives; the deleted track is absent.
@@ -78,11 +78,11 @@ func TestRescanResetsIndexAndAddsNewTracks(t *testing.T) {
 		{Artist: "A", Title: "kept track"},
 	}})
 	nm = next.(Model)
-	if nm.library.index.Len() != 1 {
-		t.Fatalf("after rescan batch: expected 1 track, got %d", nm.library.index.Len())
+	if nm.library.Index.Len() != 1 {
+		t.Fatalf("after rescan batch: expected 1 track, got %d", nm.library.Index.Len())
 	}
-	if nm.library.index.Tracks()[0].Title != "kept track" {
-		t.Fatalf("expected 'kept track', got %q", nm.library.index.Tracks()[0].Title)
+	if nm.library.Index.Tracks()[0].Title != "kept track" {
+		t.Fatalf("expected 'kept track', got %q", nm.library.Index.Tracks()[0].Title)
 	}
 }
 
@@ -105,18 +105,18 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	for range 10 {
 		nm.library = nm.library.HandleAction(keys.ActionCursorDown)
 	}
-	if nm.library.cursor != 10 {
-		t.Fatalf("setup: expected cursor=10, got %d", nm.library.cursor)
+	if nm.library.Cursor != 10 {
+		t.Fatalf("setup: expected cursor=10, got %d", nm.library.Cursor)
 	}
 	// Activate a filter.
-	nm.library.filter, _ = nm.library.filter.Activate()
-	nm.library.filter, _ = nm.library.filter.Update(tea.KeyPressMsg{Text: "T"})
-	nm.library.cursor = 0
-	nm.library.scrollOffset = 0
-	nm.library = nm.library.rebuildFilterCache()
-	nm.library.filter = nm.library.filter.Commit()
-	if nm.library.filter.Text != "T" {
-		t.Fatalf("setup: expected filterText='T', got %q", nm.library.filter.Text)
+	nm.library.Filter, _ = nm.library.Filter.Activate()
+	nm.library.Filter, _ = nm.library.Filter.Update(tea.KeyPressMsg{Text: "T"})
+	nm.library.Cursor = 0
+	nm.library.ScrollOffset = 0
+	nm.library = nm.library.RebuildFilterCache()
+	nm.library.Filter = nm.library.Filter.Commit()
+	if nm.library.Filter.Text != "T" {
+		t.Fatalf("setup: expected filterText='T', got %q", nm.library.Filter.Text)
 	}
 
 	// Trigger rescan.
@@ -125,19 +125,19 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("rescan: expected non-nil cmd")
 	}
-	if nm.library.cursor != 0 {
-		t.Fatalf("rescan: expected cursor=0, got %d", nm.library.cursor)
+	if nm.library.Cursor != 0 {
+		t.Fatalf("rescan: expected cursor=0, got %d", nm.library.Cursor)
 	}
-	if nm.library.scrollOffset != 0 {
-		t.Fatalf("rescan: expected scrollOffset=0, got %d", nm.library.scrollOffset)
+	if nm.library.ScrollOffset != 0 {
+		t.Fatalf("rescan: expected scrollOffset=0, got %d", nm.library.ScrollOffset)
 	}
-	if nm.library.filter.Active {
+	if nm.library.Filter.Active {
 		t.Fatal("rescan: expected filterActive=false")
 	}
-	if nm.library.filter.Text != "" {
-		t.Fatalf("rescan: expected filterText='', got %q", nm.library.filter.Text)
+	if nm.library.Filter.Text != "" {
+		t.Fatalf("rescan: expected filterText='', got %q", nm.library.Filter.Text)
 	}
-	if nm.library.filteredMatches != nil {
+	if nm.library.FilteredMatches != nil {
 		t.Fatal("rescan: expected filteredMatches=nil")
 	}
 }
@@ -164,18 +164,18 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 		WithExtractor(&library.ExifToolExtractor{}),
 	)
 	// Seed a track, select it, and activate a sort.
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
 	m.library = m.library.ToggleBulkSelection("h1")
-	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
+	m.library.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
 
-	if len(m.library.selectedHashes) != 1 {
-		t.Fatalf("setup: expected 1 selected hash, got %d", len(m.library.selectedHashes))
+	if len(m.library.SelectedHashes) != 1 {
+		t.Fatalf("setup: expected 1 selected hash, got %d", len(m.library.SelectedHashes))
 	}
-	if m.library.sortState.Field != sorting.SortArtist {
+	if m.library.SortState.Field != sorting.SortArtist {
 		t.Fatal("setup: expected SortArtist sort field")
 	}
-	if m.library.sortedTracks == nil {
+	if m.library.SortedTracks == nil {
 		t.Fatal("setup: expected non-nil sortedTracks")
 	}
 
@@ -185,14 +185,14 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	nm := next.(Model)
 
-	if nm.library.selectedHashes != nil {
-		t.Errorf("selectedHashes should be nil after rescan, got %v", nm.library.selectedHashes)
+	if nm.library.SelectedHashes != nil {
+		t.Errorf("selectedHashes should be nil after rescan, got %v", nm.library.SelectedHashes)
 	}
-	if nm.library.sortState.Field != sorting.SortDefault {
-		t.Errorf("sortState.Field should be SortDefault after rescan, got %v", nm.library.sortState.Field)
+	if nm.library.SortState.Field != sorting.SortDefault {
+		t.Errorf("sortState.Field should be SortDefault after rescan, got %v", nm.library.SortState.Field)
 	}
-	if nm.library.sortedTracks != nil {
-		t.Errorf("sortedTracks should be nil after rescan, got %v", nm.library.sortedTracks)
+	if nm.library.SortedTracks != nil {
+		t.Errorf("sortedTracks should be nil after rescan, got %v", nm.library.SortedTracks)
 	}
 }
 

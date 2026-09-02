@@ -97,8 +97,8 @@ func TestWindowSizeMsgPropagatesWidthToChildViews(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: newWidth, Height: 40})
 	nm := next.(Model)
 
-	if nm.library.width != newWidth {
-		t.Fatalf("library.width: expected %d, got %d", newWidth, nm.library.width)
+	if nm.library.Width != newWidth {
+		t.Fatalf("library.width: expected %d, got %d", newWidth, nm.library.Width)
 	}
 	if nm.playlists.width != newWidth {
 		t.Fatalf("playlists.width: expected %d, got %d", newWidth, nm.playlists.width)
@@ -160,21 +160,21 @@ func TestWindowSizeShrinkClampsRecentlyAddedScroll(t *testing.T) {
 	for i := range tracks {
 		tracks[i] = library.Track{Hash: fmt.Sprintf("h%d", i), Title: fmt.Sprintf("Track %d", i)}
 	}
-	m.library.mode = LibraryModeRecent
-	m.library.sourceTracks = tracks
-	m.library = m.library.recomputeSortedTracks()
-	m.library.cursor = 70
-	m.library.scrollOffset = 60
+	m.library.Mode = libtui.LibraryModeRecent
+	m.library.SourceTracks = tracks
+	m.library = m.library.RecomputeSortedTracks()
+	m.library.Cursor = 70
+	m.library.ScrollOffset = 60
 	m.activeView = viewLibrary
 
 	// Shrink the terminal significantly.
 	next, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
 	nm := next.(Model)
 
-	maxRows := layout.VisibleRows(nm.library.height, 1)
-	if nm.library.cursor < nm.library.scrollOffset ||
-		nm.library.cursor >= nm.library.scrollOffset+maxRows {
+	maxRows := layout.VisibleRows(nm.library.Height, 1)
+	if nm.library.Cursor < nm.library.ScrollOffset ||
+		nm.library.Cursor >= nm.library.ScrollOffset+maxRows {
 		t.Fatalf("after shrink: library cursor %d not visible with scrollOffset=%d maxRows=%d",
-			nm.library.cursor, nm.library.scrollOffset, maxRows)
+			nm.library.Cursor, nm.library.ScrollOffset, maxRows)
 	}
 }

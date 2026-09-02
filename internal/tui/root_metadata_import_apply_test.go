@@ -37,7 +37,7 @@ func TestMetadataImportApplyWritesSixFieldsThroughOneClaim(t *testing.T) {
 		t.Fatal("apply must close the overlay")
 	}
 
-	got, ok := m.library.index.FindByHash("h1")
+	got, ok := m.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("h1 vanished from the index")
 	}
@@ -79,8 +79,8 @@ func TestMetadataImportRefreshesTheOpenInsightsDrill(t *testing.T) {
 	dir := t.TempDir()
 	m := importModel(t, dir)
 	m.activeView = viewInsights
-	m.insights.setSize(100, 30)
-	m.insights.dormant = m.library.index.Tracks()
+	m.insights.SetSize(100, 30)
+	m.insights.dormant = m.library.Index.Tracks()
 	m.insights.openDrill("No artist", m.insightsDrillTracks(insightsRow{drill: drillDormant}))
 	writeImportFile(t, dir, editedExport)
 
@@ -92,7 +92,7 @@ func TestMetadataImportRefreshesTheOpenInsightsDrill(t *testing.T) {
 	m = next
 
 	var drilled library.Track
-	for _, tr := range m.insights.trackView.sourceTracks {
+	for _, tr := range m.insights.trackView.SourceTracks {
 		if tr.Hash == "h1" {
 			drilled = tr
 		}
@@ -164,8 +164,8 @@ func TestMetadataImportApplyRederivesAgainstTheLiveIndex(t *testing.T) {
 	m = m.handleMetadataImportParsedMsg(parseImport(t, m))
 
 	// The user made the same edit by hand between parse and confirm.
-	m.library.index.UpdateMetadata("h1", "Sheep", "Pink Floyd", "Relax", "Classical")
-	m.library.index.UpdateTrackPosition("h1", 1, 0)
+	m.library.Index.UpdateMetadata("h1", "Sheep", "Pink Floyd", "Relax", "Classical")
+	m.library.Index.UpdateTrackPosition("h1", 1, 0)
 
 	next, cmd, _ := m.handleMetadataImportKeyPress(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	if cmd != nil {
@@ -192,7 +192,7 @@ func TestMetadataImportEscapeAppliesNothing(t *testing.T) {
 	if next.overlay.metadataImport != nil {
 		t.Fatal("esc must close the overlay")
 	}
-	if got, _ := next.library.index.FindByHash("h1"); got.Artist != "" {
+	if got, _ := next.library.Index.FindByHash("h1"); got.Artist != "" {
 		t.Fatalf("esc must not touch the index, got %+v", got)
 	}
 	if msg := next.statusBar.TopNotification().Msg; !strings.Contains(msg, "canceled") {
@@ -215,7 +215,7 @@ func TestMetadataImportUndoRestoresAllSixFields(t *testing.T) {
 
 	action := m.undo.slot.action
 	m, _ = action.perform(m)
-	got, _ := m.library.index.FindByHash("h1")
+	got, _ := m.library.Index.FindByHash("h1")
 	if got.Artist != "" || got.Title != "01. Sheep" || got.Album != "Relax" ||
 		got.Genre != "Classical" || got.TrackNumber != 0 || got.DiscNumber != 0 {
 		t.Fatalf("undo must revert all six fields, got %+v", got)
@@ -262,14 +262,14 @@ func TestMetadataImportUndoRestoresTheUserEditedOverlayForTheNextScan(t *testing
 		{Hash: "h2", Path: "/music/a/2.mp3", Artist: "Johann Sebastian Bach", Title: "Two", Album: "Relax", Genre: "Classical", TrackNumber: 2},
 	}})
 
-	got, ok := m.library.index.FindByHash("h1")
+	got, ok := m.library.Index.FindByHash("h1")
 	if !ok {
 		t.Fatal("h1 vanished from the index")
 	}
 	if got.Artist != "" || got.Title != "01. Sheep" || got.TrackNumber != 0 {
 		t.Fatalf("a scan after undo resurrected the imported values: %+v", got)
 	}
-	got, ok = m.library.index.FindByHash("h2")
+	got, ok = m.library.Index.FindByHash("h2")
 	if !ok {
 		t.Fatal("h2 vanished from the index")
 	}

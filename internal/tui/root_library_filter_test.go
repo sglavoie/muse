@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 // TestLibraryEscClearsCommittedFilter verifies that pressing Esc while the
@@ -13,25 +14,25 @@ import (
 // restores the full library listing.
 func TestLibraryEscClearsCommittedFilter(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
-	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
 
 	m = pressSlash(m)
 	m = typeText(m, "ali")
 	m = pressEnter(m)
 
-	if m.library.filter.Text != "ali" {
-		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "ali" {
+		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.Filter.Text)
 	}
-	if m.library.filter.Active {
+	if m.library.Filter.Active {
 		t.Fatal("expected filterActive=false after commit")
 	}
 
 	m = pressEsc(m)
-	if m.library.filter.Text != "" {
-		t.Errorf("expected filterText cleared after Esc, got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "" {
+		t.Errorf("expected filterText cleared after Esc, got %q", m.library.Filter.Text)
 	}
-	if m.library.filter.Active {
+	if m.library.Filter.Active {
 		t.Error("expected filterActive=false after Esc")
 	}
 }
@@ -42,8 +43,8 @@ func TestLibraryEscClearsCommittedFilter(t *testing.T) {
 func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
-	m.library.index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
-	m.library.index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "Bob", Title: "Beta", Hash: "h2"})
 
 	m = pressSlash(m)
 	m = typeText(m, "ali")
@@ -52,10 +53,10 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(Model)
 
-	if m.library.filter.Text != "" {
-		t.Errorf("expected filterText cleared after enqueue Enter, got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "" {
+		t.Errorf("expected filterText cleared after enqueue Enter, got %q", m.library.Filter.Text)
 	}
-	if m.library.filter.Active {
+	if m.library.Filter.Active {
 		t.Error("expected filterActive=false after enqueue Enter")
 	}
 	if cmd == nil {
@@ -71,9 +72,9 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 // History view has a committed filter clears the filter text.
 func TestHistoryEscClearsCommittedFilter(t *testing.T) {
 	m := New(context.Background())
-	m.library.mode = LibraryModeHistory
+	m.library.Mode = libtui.LibraryModeHistory
 	m.activeView = viewLibrary
-	m.library.sourceTracks = []library.Track{
+	m.library.SourceTracks = []library.Track{
 		{Artist: "Alice", Title: "Alpha", Hash: "h1"},
 		{Artist: "Bob", Title: "Beta", Hash: "h2"},
 	}
@@ -82,18 +83,18 @@ func TestHistoryEscClearsCommittedFilter(t *testing.T) {
 	m = typeText(m, "ali")
 	m = pressEnter(m)
 
-	if m.library.filter.Text != "ali" {
-		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "ali" {
+		t.Fatalf("expected committed filterText \"ali\", got %q", m.library.Filter.Text)
 	}
-	if m.library.filter.Active {
+	if m.library.Filter.Active {
 		t.Fatal("expected filterActive=false after commit")
 	}
 
 	m = pressEsc(m)
-	if m.library.filter.Text != "" {
-		t.Errorf("expected filterText cleared after Esc, got %q", m.library.filter.Text)
+	if m.library.Filter.Text != "" {
+		t.Errorf("expected filterText cleared after Esc, got %q", m.library.Filter.Text)
 	}
-	if m.library.filter.Active {
+	if m.library.Filter.Active {
 		t.Error("expected filterActive=false after Esc")
 	}
 }
@@ -113,7 +114,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 
 	next, _ = nm.Update(FilterBarMsg{})
 	nm = next.(Model)
-	if nm.library.filter.Active {
+	if nm.library.Filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on the queue view")
 	}
 	if !nm.queue.filter.Active {
@@ -124,7 +125,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	nm = next.(Model)
 	next, _ = nm.Update(FilterBarMsg{})
 	nm = next.(Model)
-	if nm.library.filter.Active {
+	if nm.library.Filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
 	}
 	if nm.statusBar.TopNotification().Msg == "" {

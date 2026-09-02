@@ -126,7 +126,7 @@ func TestBrowseMode_StatePreservedOnSwitch(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
 	m.browse.artists.cursor = 2
 	m.browse.artists.scrollOffset = 1
 
@@ -170,7 +170,7 @@ func TestBrowseMode_AlbumsCursorPreservedOnSwitch(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums
-	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
+	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
 	m.browse.albums.cursor = 1
 	m.browse.albums.scrollOffset = 0
 
@@ -196,7 +196,7 @@ func TestBrowseMode_GenresCursorPreservedOnSwitch(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeGenres
-	m.browse.genres.genres = gentui.DeriveGenres(m.library.index.Tracks())
+	m.browse.genres.genres = gentui.DeriveGenres(m.library.Index.Tracks())
 	m.browse.genres.cursor = 1
 	m.browse.genres.scrollOffset = 0
 

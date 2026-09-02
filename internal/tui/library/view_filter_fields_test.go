@@ -21,7 +21,7 @@ func TestFieldSpecificAlbumHighlight(t *testing.T) {
 			{TrackIndex: 0, AlbumPositions: []int{0, 1, 2, 3, 4}},
 		},
 	}
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -42,7 +42,7 @@ func TestFieldSpecificAlbumHighlight(t *testing.T) {
 // tracks with "alice" in the artist field.
 func TestFieldSpecificArtistNarrowsResults(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -65,7 +65,7 @@ func TestFieldSpecificArtistNarrowsResults(t *testing.T) {
 // matches album text. This is new behaviour — previously album was excluded.
 func TestGeneralSearchMatchesAlbum(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -98,7 +98,7 @@ func TestFieldSpecificMatchedIndexesNil(t *testing.T) {
 			},
 		},
 	}
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  120,
 		Height: 24,

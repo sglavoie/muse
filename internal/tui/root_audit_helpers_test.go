@@ -39,7 +39,7 @@ func durationAuditDoneUpdate(t *testing.T, m Model) Model {
 
 func requireIndexTrack(t *testing.T, m Model, hash string) library.Track {
 	t.Helper()
-	track, ok := m.library.index.FindByHash(hash)
+	track, ok := m.library.Index.FindByHash(hash)
 	if !ok {
 		t.Fatalf("%s not found in index", hash)
 	}

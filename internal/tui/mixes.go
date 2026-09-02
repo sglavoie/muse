@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -25,14 +26,14 @@ type MixesView struct {
 	selectedMix       int
 	level             int // 0=list, 1=tracks
 	activeMix         db.MixID
-	trackView         LibraryView // reuses sort/filter/select/enqueue logic
+	trackView         libtui.View // reuses sort/filter/select/enqueue logic
 	cachedMixes       map[db.MixID][]library.Track
 	playsSinceRefresh int
 	insufficientData  bool
 	width, height     int
 }
 
-func (v *MixesView) setSize(w, h int) { v.width = w; v.height = h }
+func (v *MixesView) SetSize(w, h int) { v.width = w; v.height = h }
 
 // clampCursor ensures the cursor is within the valid range for the current level.
 func (v *MixesView) clampCursor() {
@@ -65,7 +66,7 @@ func (v *MixesView) focusedTrack() *library.Track {
 	if v.level != 1 {
 		return nil
 	}
-	track, ok := v.trackView.view().FocusedTrack()
+	track, ok := v.trackView.Panel().FocusedTrack()
 	if !ok {
 		return nil
 	}
@@ -78,18 +79,18 @@ func (v *MixesView) openMix(id db.MixID) {
 	v.level = 1
 	v.activeMix = id
 	tracks := v.cachedMixes[id]
-	v.trackView = LibraryView{
-		sourceTracks: tracks,
-		fuzzy:        library.SahilmFuzzySearcher{},
-		width:        v.width,
-		height:       v.height,
+	v.trackView = libtui.View{
+		SourceTracks: tracks,
+		Fuzzy:        library.SahilmFuzzySearcher{},
+		Width:        v.width,
+		Height:       v.height,
 	}
 }
 
 // back returns from the track list to the mix list.
 func (v *MixesView) back() {
 	v.level = 0
-	v.trackView = LibraryView{}
+	v.trackView = libtui.View{}
 }
 
 // handleCursorAction moves the cursor at list level 0 or delegates to the
@@ -131,7 +132,7 @@ func (v MixesView) handleCursorAction(a keys.Action) MixesView {
 // At level 1, it delegates to the embedded trackView.
 func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	if v.level == 1 {
-		if len(v.trackView.sourceTracks) == 0 {
+		if len(v.trackView.SourceTracks) == 0 {
 			for _, mix := range v.mixes {
 				if mix.ID == v.activeMix && mix.Progress != "" {
 					return s.Dim.Render(mix.Progress)
@@ -139,7 +140,7 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 			}
 			return s.Dim.Render("No tracks match yet — keep listening!")
 		}
-		return v.trackView.render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
+		return v.trackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
 
 	if v.insufficientData {

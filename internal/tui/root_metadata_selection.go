@@ -6,6 +6,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -16,7 +17,7 @@ import (
 func (m Model) bulkSelectedHashes() []string {
 	switch m.activeView {
 	case viewLibrary:
-		return hashMapToSlice(m.library.selectedHashes)
+		return hashMapToSlice(m.library.SelectedHashes)
 	case viewQueue:
 		return m.queue.selectedHashes()
 	case viewPlaylists:
@@ -67,12 +68,12 @@ func (m Model) bulkSelectedHashes() []string {
 		return hashMapToSlice(m.tagsView.selectedHashes)
 	case viewMixes:
 		if m.mixes.level == 1 {
-			return hashMapToSlice(m.mixes.trackView.selectedHashes)
+			return hashMapToSlice(m.mixes.trackView.SelectedHashes)
 		}
 		return nil
 	case viewInsights:
 		if m.insights.atTracks() {
-			return hashMapToSlice(m.insights.trackView.selectedHashes)
+			return hashMapToSlice(m.insights.trackView.SelectedHashes)
 		}
 		return nil
 	default:
@@ -110,9 +111,9 @@ func (m Model) syncStatusBarMetadata(hash, artist, title string) Model {
 // artists, albums, or titles. Also rebuilds the library sort/filter caches so
 // that active sort orders and filter matches reflect the updated metadata.
 func (m Model) refreshDerivedViews() Model {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 
-	m.library = m.library.refreshView()
+	m.library = m.library.RefreshView()
 
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
@@ -160,7 +161,7 @@ func (m Model) refreshDerivedViews() Model {
 
 	if m.playlists.level == pltui.TrackLevel {
 		for i := range m.playlists.tracks {
-			if t, ok := m.library.index.FindByHash(m.playlists.tracks[i].Hash); ok {
+			if t, ok := m.library.Index.FindByHash(m.playlists.tracks[i].Hash); ok {
 				m.playlists.tracks[i].Title = t.Title
 				m.playlists.tracks[i].Artist = t.Artist
 				m.playlists.tracks[i].Album = t.Album
@@ -172,7 +173,7 @@ func (m Model) refreshDerivedViews() Model {
 
 	refreshTrackMetadata := func(ts []musiclib.Track) {
 		for i := range ts {
-			if t, ok := m.library.index.FindByHash(ts[i].Hash); ok {
+			if t, ok := m.library.Index.FindByHash(ts[i].Hash); ok {
 				ts[i].Title = t.Title
 				ts[i].Artist = t.Artist
 				ts[i].Album = t.Album
@@ -184,14 +185,14 @@ func (m Model) refreshDerivedViews() Model {
 		}
 	}
 
-	if m.library.mode != LibraryModeAll && len(m.library.sourceTracks) > 0 {
-		refreshTrackMetadata(m.library.sourceTracks)
-		m.library = m.library.refreshView()
+	if m.library.Mode != libtui.LibraryModeAll && len(m.library.SourceTracks) > 0 {
+		refreshTrackMetadata(m.library.SourceTracks)
+		m.library = m.library.RefreshView()
 	}
 
 	if m.tagsView.level == tagtui.TrackLevel {
 		for i := range m.tagsView.tracks {
-			if t, ok := m.library.index.FindByHash(m.tagsView.tracks[i].Hash); ok {
+			if t, ok := m.library.Index.FindByHash(m.tagsView.tracks[i].Hash); ok {
 				m.tagsView.tracks[i].Title = t.Title
 				m.tagsView.tracks[i].Artist = t.Artist
 				m.tagsView.tracks[i].Album = t.Album
@@ -218,15 +219,15 @@ func (m Model) refreshDerivedViews() Model {
 		m.mixes.cachedMixes[id] = cached
 	}
 	if m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.refreshView()
+		m.mixes.trackView = m.mixes.trackView.RefreshView()
 	}
 
 	// An open Insights drill holds a frozen snapshot taken by openDrill, so
 	// without this the list the export/import loop is aimed at keeps rendering
 	// pre-edit values until the drill is reopened.
-	if m.insights.atTracks() && len(m.insights.trackView.sourceTracks) > 0 {
-		refreshTrackMetadata(m.insights.trackView.sourceTracks)
-		m.insights.trackView = m.insights.trackView.refreshView().clampCursor()
+	if m.insights.atTracks() && len(m.insights.trackView.SourceTracks) > 0 {
+		refreshTrackMetadata(m.insights.trackView.SourceTracks)
+		m.insights.trackView = m.insights.trackView.RefreshView().ClampCursor()
 	}
 
 	return m

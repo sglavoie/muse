@@ -4,6 +4,7 @@ import (
 	"charm.land/bubbletea/v2"
 	"context"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"math"
 	"testing"
@@ -17,7 +18,7 @@ func TestMainPlaybackTickCorrectsDuration(t *testing.T) {
 	dw := &stubDurationWriter{}
 	sp := &stubElapsedReader{elapsed: 10.0, total: 180.0}
 	m := New(context.Background(), WithPlayer(sp), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 360.0,
 	})
 	m.queue.entries = []QueueEntry{
@@ -29,7 +30,7 @@ func TestMainPlaybackTickCorrectsDuration(t *testing.T) {
 	nm, cmd := m.handleTickMsg()
 
 	// Library index should be corrected to mpv value.
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
+	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
 		t.Fatalf("expected library duration 180.0, got %v", t2.Duration)
 	}
 	// Queue entry should be corrected.
@@ -73,7 +74,7 @@ func TestMainPlaybackTickSkipsSmallDifference(t *testing.T) {
 	dw := &stubDurationWriter{}
 	sp := &stubElapsedReader{elapsed: 10.0, total: 180.0}
 	m := New(context.Background(), WithPlayer(sp), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 180.5,
 	})
 	m.queue.entries = []QueueEntry{
@@ -85,7 +86,7 @@ func TestMainPlaybackTickSkipsSmallDifference(t *testing.T) {
 	nm, _ := m.handleTickMsg()
 
 	// Library index should NOT be changed.
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
+	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.5 {
 		t.Fatalf("expected library duration to stay 180.5, got %v", t2.Duration)
 	}
 	if nm.queue.entries[0].DurationMs != 180500 {
@@ -105,7 +106,7 @@ func TestMainPlaybackTickFillsZeroDuration(t *testing.T) {
 	dw := &stubDurationWriter{}
 	sp := &stubElapsedReader{elapsed: 5.0, total: 180.0}
 	m := New(context.Background(), WithPlayer(sp), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 0,
 	})
 	m.queue.entries = []QueueEntry{
@@ -116,7 +117,7 @@ func TestMainPlaybackTickFillsZeroDuration(t *testing.T) {
 
 	nm, _ := m.handleTickMsg()
 
-	if t2, ok := nm.library.index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
+	if t2, ok := nm.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
 		t.Fatalf("expected library duration 180.0, got %v", t2.Duration)
 	}
 	if nm.queue.entries[0].DurationMs != 180000 {
@@ -130,7 +131,7 @@ func TestMainPlaybackTickCorrectOnceOnly(t *testing.T) {
 	dw := &stubDurationWriter{}
 	sp := &stubElapsedReader{elapsed: 10.0, total: 180.0}
 	m := New(context.Background(), WithPlayer(sp), WithDurationWriter(dw))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", Duration: 360.0,
 	})
 	m.queue.entries = []QueueEntry{
@@ -150,7 +151,7 @@ func TestMainPlaybackTickCorrectOnceOnly(t *testing.T) {
 	nm2, _ := nm.handleTickMsg()
 
 	// Duration should remain at the first correction (180), not 999.
-	if t2, ok := nm2.library.index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
+	if t2, ok := nm2.library.Index.FindByHash("h1"); !ok || t2.Duration != 180.0 {
 		t.Fatalf("expected duration to remain 180.0, got %v", t2.Duration)
 	}
 }
@@ -259,23 +260,23 @@ func TestTickMsgRejectsNonFiniteElapsedTotal(t *testing.T) {
 // top — the older copy must be dropped so the user sees one row per track.
 func TestHandlePlayRecordedMsgDedupesExistingHash(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Title: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Title: "B"})
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{
+	m.library.Index.Insert(library.Track{Hash: "h1", Title: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Title: "B"})
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Title: "A", LastPlayedAt: 100},
 		{Hash: "h2", Title: "B", LastPlayedAt: 90},
 	}
 
 	nm := m.handlePlayRecordedMsg(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 200, Counted: true})
 
-	if len(nm.library.sourceTracks) != 2 {
-		t.Fatalf("expected 2 tracks in history after dedup, got %d", len(nm.library.sourceTracks))
+	if len(nm.library.SourceTracks) != 2 {
+		t.Fatalf("expected 2 tracks in history after dedup, got %d", len(nm.library.SourceTracks))
 	}
-	if nm.library.sourceTracks[0].Hash != "h1" || nm.library.sourceTracks[0].LastPlayedAt != 200 {
-		t.Errorf("expected h1 at top with PlayedAt=200, got %+v", nm.library.sourceTracks[0])
+	if nm.library.SourceTracks[0].Hash != "h1" || nm.library.SourceTracks[0].LastPlayedAt != 200 {
+		t.Errorf("expected h1 at top with PlayedAt=200, got %+v", nm.library.SourceTracks[0])
 	}
-	if nm.library.sourceTracks[1].Hash != "h2" {
-		t.Errorf("expected h2 second, got %q", nm.library.sourceTracks[1].Hash)
+	if nm.library.SourceTracks[1].Hash != "h2" {
+		t.Errorf("expected h2 second, got %q", nm.library.SourceTracks[1].Hash)
 	}
 }

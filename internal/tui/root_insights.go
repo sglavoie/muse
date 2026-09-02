@@ -134,7 +134,7 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 	res := m.insights.resolution()
 	mx := m.cfg.Mixes
 	// Snapshot the index on the UI goroutine; the closure below runs off it.
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 
 	return func() tea.Msg {
 		now := time.Now()

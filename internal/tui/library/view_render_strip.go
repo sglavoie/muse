@@ -12,7 +12,7 @@ import (
 // the view label, sort, filter, and counts. total is the full track
 // count before filtering; filtered is the count after filtering is
 // applied (equal to total when no filter is active).
-func (v View) renderStateStrip(total, filtered int) string {
+func (v Panel) renderStateStrip(total, filtered int) string {
 	label := v.StripViewLabel
 	if label == "" {
 		label = "Library"
@@ -40,7 +40,7 @@ func (v View) renderStateStrip(total, filtered int) string {
 
 // renderDivider returns a single divider line spanning the visible content
 // width. It is rendered with the dim Divider style and uses U+2500 box-drawing.
-func (v View) renderDivider() string {
+func (v Panel) renderDivider() string {
 	w := v.Width
 	if w <= 0 {
 		w = 1
@@ -50,7 +50,7 @@ func (v View) renderDivider() string {
 
 // renderBucketHeader returns a styled bucket-header line padded to the
 // content width so subsequent lines align cleanly.
-func (v View) renderBucketHeader(label string) string {
+func (v Panel) renderBucketHeader(label string) string {
 	if label == "" {
 		return ""
 	}

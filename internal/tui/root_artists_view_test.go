@@ -178,7 +178,7 @@ func TestArtistsDrillDownPreservesWidthHeight(t *testing.T) {
 // the active filter rather than the raw list length.
 func TestArtistsClampCursor_WithFilter(t *testing.T) {
 	m := newModelWithTracks()
-	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
+	m.browse.artists.artists = arttui.DeriveArtists(m.library.Index.Tracks())
 	m.browse.artists.level = arttui.ArtistLevel
 	m.browse.artists.filter.Text = "ali"
 	m.browse.artists.cursor = 2

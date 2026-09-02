@@ -109,7 +109,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 
 	var writes []insightsMergeWrite
 	for _, hash := range plan.hashes {
-		t, ok := m.library.index.FindByHash(hash)
+		t, ok := m.library.Index.FindByHash(hash)
 		if !ok {
 			continue
 		}
@@ -179,12 +179,12 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 		// The write is durable but this reply is handled later than it ran: an
 		// edit processed in between owns the row now, and the newer write it
 		// queued is what the database converges to.
-		t, ok := m.library.index.FindByHash(w.hash)
+		t, ok := m.library.Index.FindByHash(w.hash)
 		if !ok || !w.planStillHolds(t) {
 			superseded++
 			continue
 		}
-		m.library.index.UpdateMetadata(w.hash, w.title, w.artist, w.album, w.genre)
+		m.library.Index.UpdateMetadata(w.hash, w.title, w.artist, w.album, w.genre)
 		originals[w.hash] = w.original
 		if m.userEditedOverlay != nil {
 			m.userEditedOverlay[w.hash] = db.UserEditedRow{

@@ -4,7 +4,7 @@ import "github.com/sglavoie/muse/internal/tui/layout"
 
 // CursorUp moves the cursor one row up, stopping at the first track.
 // The scroll offset is adjusted so the cursor stays visible.
-func (v View) CursorUp() View {
+func (v Panel) CursorUp() Panel {
 	n := v.effectiveTrackCount()
 	if n == 0 {
 		v.Cursor = 0
@@ -24,7 +24,7 @@ func (v View) CursorUp() View {
 
 // CursorDown moves the cursor one row down, stopping at the last track.
 // The scroll offset is adjusted so the cursor stays visible.
-func (v View) CursorDown() View {
+func (v Panel) CursorDown() Panel {
 	n := v.effectiveTrackCount()
 	if n == 0 {
 		v.Cursor = 0
@@ -43,34 +43,34 @@ func (v View) CursorDown() View {
 }
 
 // HalfPageDown moves the cursor half a visible page down.
-func (v View) HalfPageDown() View {
+func (v Panel) HalfPageDown() Panel {
 	return v.moveCursor(v.halfPageRows())
 }
 
 // HalfPageUp moves the cursor half a visible page up.
-func (v View) HalfPageUp() View {
+func (v Panel) HalfPageUp() Panel {
 	return v.moveCursor(-v.halfPageRows())
 }
 
 // FullPageDown moves the cursor a full visible page down.
-func (v View) FullPageDown() View {
+func (v Panel) FullPageDown() Panel {
 	return v.moveCursor(v.visibleRows())
 }
 
 // FullPageUp moves the cursor a full visible page up.
-func (v View) FullPageUp() View {
+func (v Panel) FullPageUp() Panel {
 	return v.moveCursor(-v.visibleRows())
 }
 
 // GoToTop moves the cursor to the first row.
-func (v View) GoToTop() View {
+func (v Panel) GoToTop() Panel {
 	v.Cursor = 0
 	v.ScrollOffset = 0
 	return v
 }
 
 // GoToBottom moves the cursor to the last row.
-func (v View) GoToBottom() View {
+func (v Panel) GoToBottom() Panel {
 	n := v.effectiveTrackCount()
 	if n == 0 {
 		v.Cursor = 0
@@ -85,7 +85,7 @@ func (v View) GoToBottom() View {
 
 // moveCursor shifts the cursor by delta rows, clamping to [0, trackCount-1],
 // and adjusts the scroll offset so the cursor stays visible.
-func (v View) moveCursor(delta int) View {
+func (v Panel) moveCursor(delta int) Panel {
 	n := v.effectiveTrackCount()
 	if n == 0 {
 		v.Cursor = 0
@@ -97,7 +97,7 @@ func (v View) moveCursor(delta int) View {
 	return v.keepCursorVisible()
 }
 
-func (v View) keepCursorVisible() View {
+func (v Panel) keepCursorVisible() Panel {
 	if v.ScrollOffset < 0 {
 		v.ScrollOffset = 0
 	}
@@ -113,11 +113,11 @@ func (v View) keepCursorVisible() View {
 	return v
 }
 
-func (v View) scrollRows() int {
+func (v Panel) scrollRows() int {
 	return max(1, v.visibleRows())
 }
 
-func (v View) halfPageRows() int {
+func (v Panel) halfPageRows() int {
 	rows := v.visibleRows()
 	if rows <= 0 {
 		return 0
@@ -126,7 +126,7 @@ func (v View) halfPageRows() int {
 }
 
 // visibleRows returns the maximum number of track rows that fit on screen.
-func (v View) visibleRows() int {
+func (v Panel) visibleRows() int {
 	if v.Width == 0 {
 		reserve := 0
 		if v.Filter.Active || v.Filter.Text != "" {

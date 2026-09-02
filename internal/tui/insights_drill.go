@@ -8,9 +8,10 @@ package tui
 import (
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
-// atTracks reports whether the embedded LibraryView is what is on screen — true
+// atTracks reports whether the embedded library.View is what is on screen — true
 // both for a row's track list and for the tracks of one session.
 func (v InsightsView) atTracks() bool {
 	return v.level == insightsLevelTracks || v.level == insightsLevelSessionTracks
@@ -30,7 +31,7 @@ func (v *InsightsView) focusedTrack() *library.Track {
 	if !v.atTracks() {
 		return nil
 	}
-	track, ok := v.trackView.view().FocusedTrack()
+	track, ok := v.trackView.Panel().FocusedTrack()
 	if !ok {
 		return nil
 	}
@@ -54,11 +55,11 @@ func (v *InsightsView) openDrill(label string, tracks []library.Track) {
 		v.level = insightsLevelTracks
 	}
 	v.drillLabel = label
-	v.trackView = LibraryView{
-		sourceTracks: tracks,
-		fuzzy:        library.SahilmFuzzySearcher{},
-		width:        v.width,
-		height:       v.height,
+	v.trackView = libtui.View{
+		SourceTracks: tracks,
+		Fuzzy:        library.SahilmFuzzySearcher{},
+		Width:        v.width,
+		Height:       v.height,
 	}
 }
 
@@ -78,12 +79,12 @@ func (v *InsightsView) back() {
 	if v.level == insightsLevelSessionTracks {
 		v.level = insightsLevelSessions
 		v.drillLabel = ""
-		v.trackView = LibraryView{}
+		v.trackView = libtui.View{}
 		return
 	}
 	v.level = insightsLevelBriefing
 	v.drillLabel = ""
-	v.trackView = LibraryView{}
+	v.trackView = libtui.View{}
 	v.sessionLabel = ""
 	v.sessionList = nil
 	v.sessionCursor = 0

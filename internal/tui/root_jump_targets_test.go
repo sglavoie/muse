@@ -122,7 +122,7 @@ func TestJumpToArtist_EmptyArtistViaAction(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	// Library index sorts unknown artists after named ones, so cursor 1 is
 	// the track with Artist=="".
-	m.library.cursor = 1
+	m.library.Cursor = 1
 
 	ctx := m.focusedGoToContext()
 	if !ctx.found {

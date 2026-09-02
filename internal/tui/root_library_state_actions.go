@@ -9,9 +9,28 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
+
+// syncRecentlyAddedFromLibrary refreshes the library view's source tracks when
+// the Library is in Recent mode. It is a no-op in other modes (data is loaded
+// lazily when the user switches to that mode).
+func (m Model) syncRecentlyAddedFromLibrary() Model {
+	if m.library.Mode != libtui.LibraryModeRecent {
+		return m
+	}
+	m.library.SourceTracks = m.library.Index.Tracks()
+	if m.library.Fuzzy == nil {
+		m.library.Fuzzy = library.SahilmFuzzySearcher{}
+	}
+	if m.library.SortState.Field == sorting.SortDefault {
+		m.library.SortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}
+	}
+	m.library = m.library.RefreshView().ClampCursor()
+	return m
+}
 
 func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
@@ -33,7 +52,7 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 				}
 			}
 
-			tracks := m.library.index.Tracks()
+			tracks := m.library.Index.Tracks()
 			snap := make(map[string]rescanEntry, len(tracks))
 			prior := make(map[string]string, len(tracks))
 			for _, t := range tracks {
@@ -48,14 +67,14 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 			ch := m.bridgeScanChannel(rawCh)
 			m.scanOutcome = scanOutcome
 			m.scanCancel = cancel
-			m.library.index = library.LibraryIndex{}
-			m.library.cursor = 0
-			m.library.scrollOffset = 0
-			m.library.filter = m.library.filter.Deactivate()
-			m.library.filteredMatches = nil
-			m.library.selectedHashes = nil
-			m.library.sortState = sorting.SortState{}
-			m.library.sortedTracks = nil
+			m.library.Index = library.LibraryIndex{}
+			m.library.Cursor = 0
+			m.library.ScrollOffset = 0
+			m.library.Filter = m.library.Filter.Deactivate()
+			m.library.FilteredMatches = nil
+			m.library.SelectedHashes = nil
+			m.library.SortState = sorting.SortState{}
+			m.library.SortedTracks = nil
 			m.scanCh = ch
 			m.scanning = true
 			m.scanned = 0

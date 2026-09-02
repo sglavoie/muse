@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 func TestVisualModeHierarchicalViewGuard(t *testing.T) {
@@ -33,7 +35,7 @@ func TestVisualModeMixesGuardTrackLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewMixes
 	m.mixes.level = 1
-	m.mixes.trackView = LibraryView{sourceTracks: makeNTracks(3)}
+	m.mixes.trackView = libtui.View{SourceTracks: makeNTracks(3)}
 
 	m = doVisual(m)
 

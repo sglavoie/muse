@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -194,7 +195,7 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	}
 	m.statusBar.Artist = msg.Artist
 	m.statusBar.Title = msg.Title
-	if t, ok := m.library.index.FindByHash(msg.Hash); ok {
+	if t, ok := m.library.Index.FindByHash(msg.Hash); ok {
 		m.statusBar.Album = t.Album
 	} else {
 		// Clear the previous track's album so it does not leak into the
@@ -220,7 +221,7 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 		m.overlay.nowPlaying.Total = 0
 		m.overlay.nowPlaying.State = playback.StatePlaying
 		m.overlay.nowPlaying.TagsLine = m.buildTagsLine(msg.Hash)
-		if t, ok := m.library.index.FindByHash(msg.Hash); ok {
+		if t, ok := m.library.Index.FindByHash(msg.Hash); ok {
 			if m.overlay.nowPlaying.Artist == "" {
 				m.overlay.nowPlaying.Artist = t.Artist
 			}
@@ -291,11 +292,11 @@ func (m Model) handlePlayRecordedMsg(msg playback.PlayRecordedMsg) Model {
 	}
 
 	// Only update when History mode is active and has been loaded.
-	if m.library.mode != LibraryModeHistory || len(m.library.sourceTracks) == 0 {
+	if m.library.Mode != libtui.LibraryModeHistory || len(m.library.SourceTracks) == 0 {
 		return m
 	}
 
-	t, ok := m.library.index.FindByHash(msg.Hash)
+	t, ok := m.library.Index.FindByHash(msg.Hash)
 	if !ok {
 		return m
 	}
@@ -305,9 +306,9 @@ func (m Model) handlePlayRecordedMsg(msg playback.PlayRecordedMsg) Model {
 	// same hash so replaying a track in the same session does not produce
 	// stacked duplicates at the top of History.
 	const maxHistory = 500
-	tracks := make([]library.Track, 0, min(len(m.library.sourceTracks)+1, maxHistory))
+	tracks := make([]library.Track, 0, min(len(m.library.SourceTracks)+1, maxHistory))
 	tracks = append(tracks, t)
-	for _, existing := range m.library.sourceTracks {
+	for _, existing := range m.library.SourceTracks {
 		if existing.Hash == msg.Hash {
 			continue
 		}
@@ -316,8 +317,8 @@ func (m Model) handlePlayRecordedMsg(msg playback.PlayRecordedMsg) Model {
 		}
 		tracks = append(tracks, existing)
 	}
-	m.library.sourceTracks = tracks
+	m.library.SourceTracks = tracks
 
-	m.library = m.library.refreshView().clampCursor()
+	m.library = m.library.RefreshView().ClampCursor()
 	return m
 }

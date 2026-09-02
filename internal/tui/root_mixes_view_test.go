@@ -127,7 +127,7 @@ func TestMixesViewBulkSelect(t *testing.T) {
 	m.mixes.selectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
-	m.mixes.trackView.selectedHashes = map[string]struct{}{"mx1": {}, "mx3": {}}
+	m.mixes.trackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx3": {}}
 
 	hashes := m.bulkSelectedHashes()
 
@@ -275,15 +275,15 @@ func TestMixesViewAsyncGuard(t *testing.T) {
 	m.mixes.selectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
-	if len(m.mixes.trackView.sourceTracks) != 3 {
-		t.Fatalf("precondition: expected 3 tracks, got %d", len(m.mixes.trackView.sourceTracks))
+	if len(m.mixes.trackView.SourceTracks) != 3 {
+		t.Fatalf("precondition: expected 3 tracks, got %d", len(m.mixes.trackView.SourceTracks))
 	}
 
 	staleTracks := []library.Track{{Hash: "stale", Title: "Stale Track"}}
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixHiddenGems, tracks: staleTracks})
 
-	if len(m.mixes.trackView.sourceTracks) != 3 {
-		t.Errorf("stale mixLoadedMsg overwrote active track view: got %d tracks", len(m.mixes.trackView.sourceTracks))
+	if len(m.mixes.trackView.SourceTracks) != 3 {
+		t.Errorf("stale mixLoadedMsg overwrote active track view: got %d tracks", len(m.mixes.trackView.SourceTracks))
 	}
 }
 
@@ -314,8 +314,8 @@ func TestMixesViewFilterAtTrackLevel(t *testing.T) {
 	m = pressSlash(m)
 	m = typeText(m, "Alpha")
 
-	if !strings.Contains(m.mixes.trackView.filter.Text, "Alpha") {
-		t.Errorf("expected filter text to contain 'Alpha', got: %q", m.mixes.trackView.filter.Text)
+	if !strings.Contains(m.mixes.trackView.Filter.Text, "Alpha") {
+		t.Errorf("expected filter text to contain 'Alpha', got: %q", m.mixes.trackView.Filter.Text)
 	}
 }
 
@@ -328,9 +328,9 @@ func TestMixesViewSortAtTrackLevel(t *testing.T) {
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
-	before := m.mixes.trackView.sortState.Field
+	before := m.mixes.trackView.SortState.Field
 	m = pressKey(m, "s")
-	after := m.mixes.trackView.sortState.Field
+	after := m.mixes.trackView.SortState.Field
 	if after == before {
 		t.Errorf("expected sort field to change after 's', still %v", after)
 	}
@@ -378,9 +378,9 @@ func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
-	m.mixes.trackView.cursor = 1
-	m.mixes.trackView.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc}
-	m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
+	m.mixes.trackView.Cursor = 1
+	m.mixes.trackView.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc}
+	m.mixes.trackView = m.mixes.trackView.RecomputeSortedTracks()
 
 	reloaded := []library.Track{
 		{Hash: "mx1", Title: "Alpha Reloaded", Artist: "ArtistX", Path: "/mx1.flac", Duration: 180},
@@ -389,19 +389,19 @@ func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
 	}
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: reloaded})
 
-	if m.mixes.trackView.sortState.Field != sorting.SortDuration {
-		t.Errorf("sort field reset: got %v, want SortDuration", m.mixes.trackView.sortState.Field)
+	if m.mixes.trackView.SortState.Field != sorting.SortDuration {
+		t.Errorf("sort field reset: got %v, want SortDuration", m.mixes.trackView.SortState.Field)
 	}
-	if m.mixes.trackView.sortState.Dir != sorting.SortDesc {
-		t.Errorf("sort dir reset: got %v, want SortDesc", m.mixes.trackView.sortState.Dir)
+	if m.mixes.trackView.SortState.Dir != sorting.SortDesc {
+		t.Errorf("sort dir reset: got %v, want SortDesc", m.mixes.trackView.SortState.Dir)
 	}
-	if m.mixes.trackView.cursor != 1 {
-		t.Errorf("cursor changed: got %d, want 1", m.mixes.trackView.cursor)
+	if m.mixes.trackView.Cursor != 1 {
+		t.Errorf("cursor changed: got %d, want 1", m.mixes.trackView.Cursor)
 	}
-	if len(m.mixes.trackView.sourceTracks) != 3 {
-		t.Fatalf("sourceTracks length: got %d, want 3", len(m.mixes.trackView.sourceTracks))
+	if len(m.mixes.trackView.SourceTracks) != 3 {
+		t.Fatalf("sourceTracks length: got %d, want 3", len(m.mixes.trackView.SourceTracks))
 	}
-	if m.mixes.trackView.sourceTracks[0].Title != "Alpha Reloaded" {
-		t.Errorf("expected reloaded title, got %q", m.mixes.trackView.sourceTracks[0].Title)
+	if m.mixes.trackView.SourceTracks[0].Title != "Alpha Reloaded" {
+		t.Errorf("expected reloaded title, got %q", m.mixes.trackView.SourceTracks[0].Title)
 	}
 }

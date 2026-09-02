@@ -60,7 +60,7 @@ func setupLibraryWithTrack(t interface{ Helper() }) Model {
 	t.Helper()
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T",
 	})
 	return m

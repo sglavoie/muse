@@ -91,11 +91,11 @@ func TestMixesViewOpenMixSeedsTrackView(t *testing.T) {
 	if v.activeMix != db.MixID(1) {
 		t.Fatalf("expected activeMix=1, got %d", v.activeMix)
 	}
-	if len(v.trackView.sourceTracks) != 2 {
-		t.Fatalf("expected 2 source tracks, got %d", len(v.trackView.sourceTracks))
+	if len(v.trackView.SourceTracks) != 2 {
+		t.Fatalf("expected 2 source tracks, got %d", len(v.trackView.SourceTracks))
 	}
-	if v.trackView.width != 80 || v.trackView.height != 24 {
-		t.Fatalf("expected trackView to inherit width/height, got %dx%d", v.trackView.width, v.trackView.height)
+	if v.trackView.Width != 80 || v.trackView.Height != 24 {
+		t.Fatalf("expected trackView to inherit width/height, got %dx%d", v.trackView.Width, v.trackView.Height)
 	}
 
 	// Uncached mix: openMix should still transition without panicking.
@@ -104,8 +104,8 @@ func TestMixesViewOpenMixSeedsTrackView(t *testing.T) {
 	if v.level != 1 {
 		t.Fatalf("expected level=1 after openMix with uncached id, got %d", v.level)
 	}
-	if len(v.trackView.sourceTracks) != 0 {
-		t.Fatalf("expected zero source tracks for uncached mix, got %d", len(v.trackView.sourceTracks))
+	if len(v.trackView.SourceTracks) != 0 {
+		t.Fatalf("expected zero source tracks for uncached mix, got %d", len(v.trackView.SourceTracks))
 	}
 }
 
@@ -119,14 +119,14 @@ func TestMixesViewBackResetsTrackView(t *testing.T) {
 		cachedMixes: map[db.MixID][]library.Track{db.MixID(1): tracks},
 	}
 	v.openMix(db.MixID(1))
-	if len(v.trackView.sourceTracks) == 0 {
+	if len(v.trackView.SourceTracks) == 0 {
 		t.Fatalf("setup: expected non-empty trackView after openMix")
 	}
 	v.back()
 	if v.level != 0 {
 		t.Fatalf("expected level=0 after back, got %d", v.level)
 	}
-	if len(v.trackView.sourceTracks) != 0 {
-		t.Fatalf("expected trackView reset after back, got %d tracks", len(v.trackView.sourceTracks))
+	if len(v.trackView.SourceTracks) != 0 {
+		t.Fatalf("expected trackView reset after back, got %d tracks", len(v.trackView.SourceTracks))
 	}
 }

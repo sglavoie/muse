@@ -10,8 +10,8 @@ import (
 // updates the library index and matching queue entries.
 func TestDurationAuditBatchUpdatesIndex(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 120000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 200000}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
@@ -28,7 +28,7 @@ func TestDurationAuditBatchUpdatesIndex(t *testing.T) {
 
 func TestDurationAuditBatchChainsNextRead(t *testing.T) {
 	m, _ := newDurationAuditModelWithChannel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 
 	_, cmd := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
 	if cmd == nil {
@@ -38,7 +38,7 @@ func TestDurationAuditBatchChainsNextRead(t *testing.T) {
 
 func TestDurationAuditBatchNilChannelReturnsNilCmd(t *testing.T) {
 	m := newDurationAuditModel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
 
 	_, cmd := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
 	if cmd != nil {
@@ -48,9 +48,9 @@ func TestDurationAuditBatchNilChannelReturnsNilCmd(t *testing.T) {
 
 func TestDurationAuditDoneShowsNotification(t *testing.T) {
 	m, _ := newDurationAuditModelWithChannel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
-	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.mp3", Duration: 300.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
+	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.mp3", Duration: 300.0})
 
 	m, _ = durationAuditBatchUpdate(t, m,
 		library.DurationFix{Hash: "h1", DurationMs: 240000},
@@ -72,9 +72,9 @@ func TestDurationAuditDoneShowsNotification(t *testing.T) {
 
 func TestDurationAuditCorrectedAccumulatesAcrossBatches(t *testing.T) {
 	m, _ := newDurationAuditModelWithChannel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 100.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
-	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.mp3", Duration: 300.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 200.0})
+	m.library.Index.Insert(library.Track{Hash: "h3", Path: "/c.mp3", Duration: 300.0})
 
 	m, _ = durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 150000})
 	if m.auditCorrected != 1 {
@@ -101,7 +101,7 @@ func TestDurationAuditCorrectedAccumulatesAcrossBatches(t *testing.T) {
 // the batch arrival.
 func TestDurationAuditBatchOnlyCountsAppliedFixes(t *testing.T) {
 	m, _ := newDurationAuditModelWithChannel()
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 100.0})
 	// h2 and h3 are not inserted — fixes targeting them must NOT count.
 
 	m, _ = durationAuditBatchUpdate(t, m,

@@ -14,7 +14,7 @@ import (
 func setupTrackInfoModel(t *testing.T) Model {
 	t.Helper()
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Hash: "h1", Path: "/music/test.flac", Artist: "Test Artist", Title: "Test Song",
 	})
 	// Use the queue view with a focused entry instead — simpler to set up.

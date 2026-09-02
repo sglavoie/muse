@@ -40,7 +40,7 @@ func notifyModel(t *testing.T, notifier trackNotifier, enabled bool) Model {
 	m := New(context.Background(), WithTrackNotifier(notifier))
 	m.notifyOnTrackChange = enabled
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
-	m.library.index.BulkLoad([]library.Track{
+	m.library.Index.BulkLoad([]library.Track{
 		{Hash: "h2", Path: "/b.flac", Title: "T2", Artist: "B", Album: "Album B"},
 	})
 	return m

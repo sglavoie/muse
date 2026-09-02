@@ -23,7 +23,7 @@ type displayTrack struct {
 
 // Render returns the complete library panel string. When Width is zero (before
 // the first terminal size message) it uses a simple single-line format.
-func (v View) Render() string {
+func (v Panel) Render() string {
 	allTracks := v.tracks()
 	n := len(allTracks)
 	if n == 0 {

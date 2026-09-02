@@ -25,7 +25,7 @@ func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 	var cmd tea.Cmd
 	switch m.activeView {
 	case viewLibrary:
-		if len(m.library.selectedHashes) > 0 {
+		if len(m.library.SelectedHashes) > 0 {
 			if m.batchEnqueuer == nil {
 				m.statusBar.Notify("Enqueue not available")
 				return m, nil, true
@@ -109,7 +109,7 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 	var cmd tea.Cmd
 	switch m.activeView {
 	case viewLibrary:
-		if _, ok := m.library.view().FocusedTrack(); ok {
+		if _, ok := m.library.Panel().FocusedTrack(); ok {
 			m = m.clearQueueForReplace()
 			cmd = m.library.EnqueueFocused(m.queueWriter, 0)
 			m.library = m.library.ClearFilter()

@@ -117,7 +117,7 @@ func TestMergeGenreWriteFailureKeepsMemoryAndDatabaseRetryable(t *testing.T) {
 
 	before := make(map[string]string, len(row.hashes))
 	for _, hash := range row.hashes {
-		tr, ok := m.library.index.FindByHash(hash)
+		tr, ok := m.library.Index.FindByHash(hash)
 		if !ok {
 			t.Fatalf("collision track %q is not in the library index", hash)
 		}
@@ -141,7 +141,7 @@ func TestMergeGenreWriteFailureKeepsMemoryAndDatabaseRetryable(t *testing.T) {
 	m = m.applyMergeReply(t, msg)
 
 	for hash, was := range before {
-		tr, _ := m.library.index.FindByHash(hash)
+		tr, _ := m.library.Index.FindByHash(hash)
 		if hash == persisted {
 			if tr.Genre != row.canonical {
 				t.Errorf("track %q persisted but reads %q in memory, want %q", hash, tr.Genre, row.canonical)

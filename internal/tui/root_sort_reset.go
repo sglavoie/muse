@@ -1,30 +1,33 @@
 package tui
 
-import "github.com/sglavoie/muse/internal/tui/sorting"
+import (
+	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
+)
 
 // resetLibrarySort resets the library sort state to the mode's default.
 // For LibraryModeAll this clears any custom sort; for Recent and History modes
 // it restores their fixed sort (Date Added and Last Played respectively).
 func (m Model) resetLibrarySort() Model {
-	switch m.library.mode {
-	case LibraryModeRecent:
-		m.library.sortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}
-		m.library = m.library.recomputeSortedTracks()
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
+	switch m.library.Mode {
+	case libtui.LibraryModeRecent:
+		m.library.SortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}
+		m.library = m.library.RecomputeSortedTracks()
+		if m.library.Filter.Text != "" {
+			m.library = m.library.RebuildFilterCache()
 		}
-	case LibraryModeHistory:
-		m.library.sortState = sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}
-		m.library = m.library.recomputeSortedTracks()
-		if m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
+	case libtui.LibraryModeHistory:
+		m.library.SortState = sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}
+		m.library = m.library.RecomputeSortedTracks()
+		if m.library.Filter.Text != "" {
+			m.library = m.library.RebuildFilterCache()
 		}
 	default: // LibraryModeAll
-		hadSort := m.library.sortState.Field != sorting.SortDefault
-		m.library.sortState = sorting.SortState{}
-		m.library.sortedTracks = nil
-		if hadSort && m.library.filter.Text != "" {
-			m.library = m.library.rebuildFilterCache()
+		hadSort := m.library.SortState.Field != sorting.SortDefault
+		m.library.SortState = sorting.SortState{}
+		m.library.SortedTracks = nil
+		if hadSort && m.library.Filter.Text != "" {
+			m.library = m.library.RebuildFilterCache()
 		}
 	}
 	return m

@@ -19,7 +19,7 @@ func newHealthModel(t *testing.T) Model {
 		t.Fatalf("BuildFixture(health): %v", err)
 	}
 	m.termWidth, m.termHeight = 100, 30
-	m.insights.setSize(100, 30)
+	m.insights.SetSize(100, 30)
 	m = m.switchToView(viewInsights)
 	m = m.loadInsights(t)
 	m.insights.panel = panelDataHealth
@@ -155,7 +155,7 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 
 			var targets []string
 			for _, hash := range row.hashes {
-				tr, ok := m.library.index.FindByHash(hash)
+				tr, ok := m.library.Index.FindByHash(hash)
 				if !ok {
 					t.Fatalf("collision track %q is not in the library index", hash)
 				}
@@ -192,7 +192,7 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 				untouched = targets[1]
 			}
 
-			was, _ := m.library.index.FindByHash(target)
+			was, _ := m.library.Index.FindByHash(target)
 			ed := metadata.NewEditor(target, edited[0], edited[1], edited[2], edited[3], was.Duration)
 			m.overlay.metadataEditor = &ed
 			saved, editCmd := m.handleMetadataSave()
@@ -212,7 +212,7 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 
 			m = m.applyMergeReply(t, reply)
 
-			tr, ok := m.library.index.FindByHash(target)
+			tr, ok := m.library.Index.FindByHash(target)
 			if !ok {
 				t.Fatalf("edited track %q left the library index", target)
 			}
@@ -224,7 +224,7 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 			}
 
 			// The merge still has to do its job on the row nobody touched.
-			other, ok := m.library.index.FindByHash(untouched)
+			other, ok := m.library.Index.FindByHash(untouched)
 			if !ok {
 				t.Fatalf("collision track %q left the library index", untouched)
 			}

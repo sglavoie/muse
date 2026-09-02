@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -169,7 +170,7 @@ func (m Model) renderNarrowTitleBar(chevronWidth int, sep, filterBadge string) s
 
 func (m Model) narrowTitleBarName(id viewID) string {
 	if id == viewLibrary {
-		return libraryStripLabel(m.library.mode)
+		return libtui.StripLabel(m.library.Mode)
 	}
 	return viewName(id)
 }

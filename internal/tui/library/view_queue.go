@@ -33,7 +33,7 @@ func EnqueueTrackCmd(track musiclib.Track, ok bool, qa QueueAppender, prevQueueL
 // this call; it is forwarded in TrackEnqueuedMsg.WasEmpty so the root model
 // can decide whether to trigger immediate playback. Returns nil Cmd when the
 // library is empty or the cursor is out of range.
-func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd) {
+func (v Panel) EnqueueFocused(qa QueueAppender, prevQueueLen int) (Panel, tea.Cmd) {
 	track, ok := v.FocusedTrack()
 	return v, EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
@@ -42,7 +42,7 @@ func (v View) EnqueueFocused(qa QueueAppender, prevQueueLen int) (View, tea.Cmd)
 // play queue at position insertAfter (immediately after the currently playing
 // track). The DB append is identical to EnqueueFocused; the root model handles
 // positional insertion via the InsertAfter field on TrackEnqueuedMsg.
-func (v View) PlayNextFocused(qa QueueAppender, prevQueueLen int, insertAfter int) (View, tea.Cmd) {
+func (v Panel) PlayNextFocused(qa QueueAppender, prevQueueLen int, insertAfter int) (Panel, tea.Cmd) {
 	track, ok := v.FocusedTrack()
 	return v, EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", insertAfter)
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 // TestBulkSelectedHashesFavoritesListLevelTracks verifies that
@@ -79,10 +80,10 @@ func TestBulkSelectedHashesFavoritesArtistLevelReturnsNil(t *testing.T) {
 // in Recently Added mode.
 func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
 	m := newModelWithTracks()
-	m.library.mode = LibraryModeRecent
+	m.library.Mode = libtui.LibraryModeRecent
 	m.activeView = viewLibrary
 
-	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -105,7 +106,7 @@ func TestBulkSelectedHashesRecentlyAdded(t *testing.T) {
 // Recently Added view.
 func TestBulkSelectedHashesRecentlyAddedEmptyReturnsNil(t *testing.T) {
 	m := newModelWithTracks()
-	m.library.mode = LibraryModeRecent
+	m.library.Mode = libtui.LibraryModeRecent
 	m.activeView = viewLibrary
 
 	if hashes := m.bulkSelectedHashes(); hashes != nil {

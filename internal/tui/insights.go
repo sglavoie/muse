@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
 // insightsCompactWidth is the terminal width below which the Insights view
@@ -190,7 +191,7 @@ type insightsRow struct {
 }
 
 // InsightsView renders the Insights briefing (level 0) and the track list a
-// briefing row drills into (level 1, an embedded LibraryView so sort, filter,
+// briefing row drills into (level 1, an embedded library.View so sort, filter,
 // visual select and enqueue all come for free).
 type InsightsView struct {
 	snap  insights.Snapshot
@@ -205,12 +206,12 @@ type InsightsView struct {
 	scrollOffset int
 
 	level      int // one of the insightsLevel* constants
-	trackView  LibraryView
+	trackView  libtui.View
 	drillLabel string
 
 	// sessions is every session in the window; sessionList is the subset a
 	// Sessions row drilled into, with its own cursor because a session list is
-	// not a track list and cannot borrow LibraryView's.
+	// not a track list and cannot borrow library.View's.
 	sessions      []insights.SessionRow
 	sessionList   []insights.SessionRow
 	sessionCursor int
@@ -258,7 +259,7 @@ type InsightsView struct {
 	width, height int
 }
 
-func (v *InsightsView) setSize(w, h int) { v.width = w; v.height = h }
+func (v *InsightsView) SetSize(w, h int) { v.width = w; v.height = h }
 
 func (v InsightsView) window() insightsWindow { return insightsWindows[v.windowIdx] }
 

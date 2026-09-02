@@ -40,7 +40,7 @@ func TestComputeDegenerateWidth(t *testing.T) {
 func columnWidthsFromRender(t *testing.T, width int) (artistW, titleW, albumW int) {
 	t.Helper()
 	idx := buildIndex(sampleTracks)
-	v := View{Index: idx, Width: width, Height: 0}
+	v := Panel{Index: idx, Width: width, Height: 0}
 	rendered := v.Render()
 
 	lines := strings.Split(rendered, "\n")

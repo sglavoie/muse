@@ -264,7 +264,7 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 		idx:   0,
 	}, nil)
 
-	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.library.SortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
@@ -273,8 +273,8 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 
 	nm := m.handleUndo()
 
-	if nm.library.sortState.Field != sorting.SortDefault {
-		t.Errorf("library sort not reset: got field %d", nm.library.sortState.Field)
+	if nm.library.SortState.Field != sorting.SortDefault {
+		t.Errorf("library sort not reset: got field %d", nm.library.SortState.Field)
 	}
 	if nm.queue.sortState.Field != sorting.SortDefault {
 		t.Errorf("queue sort not reset: got field %d", nm.queue.sortState.Field)

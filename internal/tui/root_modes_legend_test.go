@@ -202,7 +202,7 @@ func TestModesLegendKeyIsNoOpInFilterInput(t *testing.T) {
 	m := newModelWithTracks()
 
 	m = pressSlash(m)
-	if !m.library.filter.Active {
+	if !m.library.Filter.Active {
 		t.Fatal("expected the library filter to be active after '/'")
 	}
 
@@ -211,7 +211,7 @@ func TestModesLegendKeyIsNoOpInFilterInput(t *testing.T) {
 	if m.overlay.modesLegend != nil {
 		t.Error("expected ';' not to open the legend while a filter input is active")
 	}
-	if got := m.library.filter.Text; got != "a;b" {
+	if got := m.library.Filter.Text; got != "a;b" {
 		t.Errorf("expected ';' to be typed into the filter, got %q", got)
 	}
 }

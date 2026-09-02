@@ -11,7 +11,7 @@ import (
 // artistName. artist may be an empty string, in which case it is matched
 // against the UnknownArtist sentinel in the derived list.
 func (m Model) jumpToArtist(artistName string) Model {
-	artists := arttui.DeriveArtists(m.library.index.Tracks())
+	artists := arttui.DeriveArtists(m.library.Index.Tracks())
 
 	target := artistName
 	if target == "" {
@@ -51,7 +51,7 @@ func (m Model) jumpToArtist(artistName string) Model {
 // albumName. albumName may be an empty string, in which case it is matched
 // against the UnknownAlbum sentinel in the derived list.
 func (m Model) jumpToAlbum(albumName string) Model {
-	albums := albtui.DeriveAllAlbums(m.library.index.Tracks())
+	albums := albtui.DeriveAllAlbums(m.library.Index.Tracks())
 
 	target := albumName
 	if target == "" {
@@ -91,7 +91,7 @@ func (m Model) jumpToAlbum(albumName string) Model {
 // genreName. genreName may be an empty string, in which case it is matched
 // against the UnknownGenre sentinel in the derived list.
 func (m Model) jumpToGenre(genreName string) Model {
-	genres := gentui.DeriveGenres(m.library.index.Tracks())
+	genres := gentui.DeriveGenres(m.library.Index.Tracks())
 
 	target := genreName
 	if target == "" {

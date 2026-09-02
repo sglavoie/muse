@@ -111,7 +111,7 @@ func collectDebugInfo(m Model) DebugPanel {
 	p.currentIndex = m.playback.currentIndex
 
 	// Library & data.
-	p.trackTotal = m.library.index.Len()
+	p.trackTotal = m.library.Index.Len()
 	p.scanning = m.scanning
 	p.scanned = m.scanned
 	p.scanTotal = m.scanTotal

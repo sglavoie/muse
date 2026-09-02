@@ -122,7 +122,7 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	// Library index sorts unknown albums after named ones within the same
 	// artist. "Alice" (with empty album) sorts before "Bob" alphabetically,
 	// so Alice's track is at index 0.
-	m.library.cursor = 0
+	m.library.Cursor = 0
 
 	ctx := m.focusedGoToContext()
 	if !ctx.found {

@@ -34,7 +34,7 @@ func (m Model) handleLibraryNavigationAction(action keys.Action) (tea.Model, tea
 }
 
 func (m Model) handleArtistOpenAction() (tea.Model, tea.Cmd, bool) {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.artists.level {
 	case arttui.ArtistLevel:
 		artist, ok := m.browse.artists.focusedArtist()
@@ -68,7 +68,7 @@ func (m Model) handleArtistOpenAction() (tea.Model, tea.Cmd, bool) {
 }
 
 func (m Model) handleAlbumOpenAction() (tea.Model, tea.Cmd, bool) {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.albums.level {
 	case albtui.AlbumLevel:
 		album, ok := m.browse.albums.focusedAlbum()
@@ -88,7 +88,7 @@ func (m Model) handleAlbumOpenAction() (tea.Model, tea.Cmd, bool) {
 }
 
 func (m Model) handleGenreOpenAction() (tea.Model, tea.Cmd, bool) {
-	allTracks := m.library.index.Tracks()
+	allTracks := m.library.Index.Tracks()
 	switch m.browse.genres.level {
 	case gentui.GenreLevel:
 		genre, ok := m.browse.genres.focusedGenre()

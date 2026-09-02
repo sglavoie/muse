@@ -12,7 +12,7 @@ import (
 // newly added albums appear and removed albums disappear.
 func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
+	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Album1"})
 	// Drill into "Art" albums.
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
@@ -42,7 +42,7 @@ func TestWatchBatchRefreshesArtistAlbumLevel(t *testing.T) {
 // metadata changes are reflected immediately.
 func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
+	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Art" > "Alb" tracks.
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
@@ -76,7 +76,7 @@ func TestWatchBatchRefreshesArtistTrackLevel(t *testing.T) {
 // new tracks and metadata changes are reflected immediately.
 func TestWatchBatchRefreshesAlbumTrackLevel(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
+	m.library.Index.Insert(library.Track{Artist: "Art", Title: "T1", Path: "/a", Hash: "h1", Album: "Alb"})
 	// Drill into "Alb" tracks.
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums

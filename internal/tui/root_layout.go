@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/layout"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -35,7 +36,7 @@ func (m Model) activeViewContext() keys.Context {
 // resizable is implemented by every primary view that tracks its own
 // terminal dimensions.
 type resizable interface {
-	setSize(w, h int)
+	SetSize(w, h int)
 }
 
 // setViewDimensions updates the width and height on all primary views.
@@ -48,16 +49,16 @@ func (m *Model) setViewDimensions(width, height int) {
 	}
 	viewHeight := max(height-reserve, 0)
 	for _, view := range []resizable{&m.library, &m.playlists, &m.queue, &m.browse, &m.favorites, &m.tagsView, &m.mixes, &m.insights} {
-		view.setSize(width, viewHeight)
+		view.SetSize(width, viewHeight)
 	}
 }
 
 // clampAllScrollOffsets adjusts the scroll offset for every view so that the
 // cursor remains visible after a terminal resize.
 func (m *Model) clampAllScrollOffsets() {
-	libReserve := libraryViewVisibleReserve(m.library)
-	libMaxRows := layout.VisibleRows(m.library.height, libReserve)
-	m.library.scrollOffset = sorting.AdjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
+	libReserve := libtui.VisibleReserve(m.library)
+	libMaxRows := layout.VisibleRows(m.library.Height, libReserve)
+	m.library.ScrollOffset = sorting.AdjustScroll(m.library.Cursor, m.library.ScrollOffset, libMaxRows)
 
 	queueMaxRows := m.queue.visibleRows()
 	m.queue.scrollOffset = sorting.AdjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
@@ -87,17 +88,17 @@ func (m *Model) clampAllScrollOffsets() {
 	m.tagsView.scrollOffset = sorting.AdjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, tagMaxRows)
 
 	if m.mixes.level == 1 {
-		mixReserve := libraryViewVisibleReserve(m.mixes.trackView)
+		mixReserve := libtui.VisibleReserve(m.mixes.trackView)
 		mixMaxRows := layout.VisibleRows(m.mixes.height, mixReserve)
-		m.mixes.trackView.scrollOffset = sorting.AdjustScroll(
-			m.mixes.trackView.cursor, m.mixes.trackView.scrollOffset, mixMaxRows)
+		m.mixes.trackView.ScrollOffset = sorting.AdjustScroll(
+			m.mixes.trackView.Cursor, m.mixes.trackView.ScrollOffset, mixMaxRows)
 	}
 
 	if m.insights.atTracks() {
-		insReserve := libraryViewVisibleReserve(m.insights.trackView)
+		insReserve := libtui.VisibleReserve(m.insights.trackView)
 		insMaxRows := layout.VisibleRows(m.insights.height, insReserve)
-		m.insights.trackView.scrollOffset = sorting.AdjustScroll(
-			m.insights.trackView.cursor, m.insights.trackView.scrollOffset, insMaxRows)
+		m.insights.trackView.ScrollOffset = sorting.AdjustScroll(
+			m.insights.trackView.Cursor, m.insights.trackView.ScrollOffset, insMaxRows)
 	} else {
 		m.insights.clampCursor()
 	}

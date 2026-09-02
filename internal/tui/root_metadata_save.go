@@ -43,7 +43,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	var origTitle, origArtist, origAlbum, origGenre string
 	var origDuration float64
 	var trackNumber, discNumber int
-	if t, ok := m.library.index.FindByHash(hash); ok {
+	if t, ok := m.library.Index.FindByHash(hash); ok {
 		origTitle = t.Title
 		origArtist = t.Artist
 		origAlbum = t.Album
@@ -53,8 +53,8 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		discNumber = t.DiscNumber
 	}
 
-	m.library.index.UpdateMetadata(hash, title, artist, album, genre)
-	m.library.index.UpdateDuration(hash, newDuration)
+	m.library.Index.UpdateMetadata(hash, title, artist, album, genre)
+	m.library.Index.UpdateDuration(hash, newDuration)
 	m = m.syncRecentlyAddedFromLibrary()
 
 	display := text.TrackDisplay(artist, title, "")
@@ -155,7 +155,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	var updates []update
 
 	for _, h := range ed.Hashes() {
-		t, ok := m.library.index.FindByHash(h)
+		t, ok := m.library.Index.FindByHash(h)
 		if !ok {
 			continue
 		}
@@ -179,9 +179,9 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 			trackDuration = newDuration
 		}
 
-		m.library.index.UpdateMetadata(h, newTitle, newArtist, newAlbum, newGenre)
+		m.library.Index.UpdateMetadata(h, newTitle, newArtist, newAlbum, newGenre)
 		if dirtyDuration != nil {
-			m.library.index.UpdateDuration(h, trackDuration)
+			m.library.Index.UpdateDuration(h, trackDuration)
 		}
 
 		durationMs := int64(trackDuration * 1000)

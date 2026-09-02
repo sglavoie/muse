@@ -10,6 +10,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -20,9 +21,9 @@ import (
 // views so they don't show stale values.
 func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", DurationMs: 360000}}
 	m.favorites.level = favtui.ListLevel
@@ -33,8 +34,8 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
-	if nm.library.sourceTracks[0].Duration != 180.0 {
-		t.Errorf("history duration: got %f, want 180.0", nm.library.sourceTracks[0].Duration)
+	if nm.library.SourceTracks[0].Duration != 180.0 {
+		t.Errorf("history duration: got %f, want 180.0", nm.library.SourceTracks[0].Duration)
 	}
 	if nm.playlists.tracks[0].DurationMs != 180000 {
 		t.Errorf("playlist DurationMs: got %d, want 180000", nm.playlists.tracks[0].DurationMs)
@@ -51,7 +52,7 @@ func TestCorrectStoredDurationSyncsDerivedViews(t *testing.T) {
 // correctStoredDuration propagates to favorites drilldown tracks at TrackLevel.
 func TestCorrectStoredDurationSyncsFavoritesDrilldown(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
 	m.favorites.level = favtui.TrackLevel
 	m.favorites.drilldownTracks = []library.Track{{Hash: "h1", Duration: 360.0}}
 
@@ -66,7 +67,7 @@ func TestCorrectStoredDurationSyncsFavoritesDrilldown(t *testing.T) {
 // propagates to artists tracks at TrackLevel.
 func TestCorrectStoredDurationSyncsArtistsTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
 	m.browse.artists.level = arttui.TrackLevel
 	m.browse.artists.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0}}
 
@@ -81,7 +82,7 @@ func TestCorrectStoredDurationSyncsArtistsTracks(t *testing.T) {
 // propagates to albums tracks at TrackLevel.
 func TestCorrectStoredDurationSyncsAlbumsTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
 	m.browse.albums.level = albtui.TrackLevel
 	m.browse.albums.tracks = []library.Track{{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0}}
 
@@ -96,7 +97,7 @@ func TestCorrectStoredDurationSyncsAlbumsTracks(t *testing.T) {
 // propagates to genres tracks at TrackLevel.
 func TestCorrectStoredDurationSyncsGenresTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Genre: "Rock", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Genre: "Rock", Duration: 360.0})
 	m.browse.genres.level = gentui.TrackLevel
 	m.browse.genres.tracks = []library.Track{{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 360.0}}
 
@@ -112,24 +113,24 @@ func TestCorrectStoredDurationSyncsGenresTracks(t *testing.T) {
 // duration sort is active so the cached copy does not show stale values.
 func TestCorrectStoredDurationRebuildsLibrarySortCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Title: "A", Duration: 360.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Title: "B", Duration: 100.0})
-	m.library.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Title: "A", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Title: "B", Duration: 100.0})
+	m.library.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
 
 	// Before correction: h2 (100s) < h1 (360s).
-	if len(m.library.sortedTracks) != 2 || m.library.sortedTracks[0].Hash != "h2" {
+	if len(m.library.SortedTracks) != 2 || m.library.SortedTracks[0].Hash != "h2" {
 		t.Fatal("pre-condition: expected h2 first in duration-asc sort")
 	}
 
 	nm, _ := m.correctStoredDuration("h1", 50.0)
 
 	// After correction h1 is 50s, so h1 (50s) < h2 (100s).
-	if nm.library.sortedTracks == nil {
+	if nm.library.SortedTracks == nil {
 		t.Fatal("expected sortedTracks to be non-nil after correction")
 	}
-	if len(nm.library.sortedTracks) != 2 || nm.library.sortedTracks[0].Hash != "h1" {
-		t.Errorf("expected h1 first after duration correction, got %v", nm.library.sortedTracks[0].Hash)
+	if len(nm.library.SortedTracks) != 2 || nm.library.SortedTracks[0].Hash != "h1" {
+		t.Errorf("expected h1 first after duration correction, got %v", nm.library.SortedTracks[0].Hash)
 	}
 }
 
@@ -138,28 +139,28 @@ func TestCorrectStoredDurationRebuildsLibrarySortCache(t *testing.T) {
 // is active.
 func TestCorrectStoredDurationRebuildsHistorySortCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 360.0},
 		{Hash: "h2", Path: "/b.flac", Duration: 100.0},
 	}
-	m.library.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
-	m.library = m.library.recomputeSortedTracks()
+	m.library.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
+	m.library = m.library.RecomputeSortedTracks()
 
 	// Before: h2 (100s) < h1 (360s).
-	if m.library.sortedTracks[0].Hash != "h2" {
+	if m.library.SortedTracks[0].Hash != "h2" {
 		t.Fatal("pre-condition: expected h2 first")
 	}
 
 	nm, _ := m.correctStoredDuration("h1", 50.0)
 
 	// After: h1 (50s) < h2 (100s).
-	if nm.library.sortedTracks == nil {
+	if nm.library.SortedTracks == nil {
 		t.Fatal("expected history sortedTracks non-nil")
 	}
-	if nm.library.sortedTracks[0].Hash != "h1" {
-		t.Errorf("expected h1 first after correction, got %v", nm.library.sortedTracks[0].Hash)
+	if nm.library.SortedTracks[0].Hash != "h1" {
+		t.Errorf("expected h1 first after correction, got %v", nm.library.SortedTracks[0].Hash)
 	}
 }
 
@@ -168,8 +169,8 @@ func TestCorrectStoredDurationRebuildsHistorySortCache(t *testing.T) {
 // duration sort is active.
 func TestCorrectStoredDurationRebuildsArtistsSortCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Duration: 360.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Duration: 100.0})
 	m.browse.artists.level = arttui.TrackLevel
 	m.browse.artists.tracks = []library.Track{
 		{Hash: "h1", Artist: "A", Duration: 360.0},
@@ -196,8 +197,8 @@ func TestCorrectStoredDurationRebuildsArtistsSortCache(t *testing.T) {
 // duration sort is active.
 func TestCorrectStoredDurationRebuildsAlbumsSortCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "X", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Album: "X", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Album: "X", Duration: 100.0})
 	m.browse.albums.level = albtui.TrackLevel
 	m.browse.albums.tracks = []library.Track{
 		{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0},
@@ -222,8 +223,8 @@ func TestCorrectStoredDurationRebuildsAlbumsSortCache(t *testing.T) {
 // duration sort is active.
 func TestCorrectStoredDurationRebuildsGenresSortCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Genre: "Rock", Duration: 360.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Genre: "Rock", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "A", Genre: "Rock", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "A", Genre: "Rock", Duration: 100.0})
 	m.browse.genres.level = gentui.TrackLevel
 	m.browse.genres.tracks = []library.Track{
 		{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 360.0},
@@ -248,7 +249,7 @@ func TestCorrectStoredDurationRebuildsGenresSortCache(t *testing.T) {
 // stale pre-correction duration value.
 func TestCorrectStoredDurationSyncsCachedMixTracks(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Duration: 360.0}},
 	}
@@ -269,7 +270,7 @@ func TestCorrectStoredDurationSyncsCachedMixTracks(t *testing.T) {
 // reflects the corrected duration immediately.
 func TestCorrectStoredDurationSyncsActiveMixTrackView(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
 	m.mixes.cachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Duration: 360.0}},
 	}
@@ -277,12 +278,12 @@ func TestCorrectStoredDurationSyncsActiveMixTrackView(t *testing.T) {
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
-	if len(nm.mixes.trackView.sourceTracks) == 0 {
+	if len(nm.mixes.trackView.SourceTracks) == 0 {
 		t.Fatal("mixes trackView sourceTracks empty after correction")
 	}
-	if nm.mixes.trackView.sourceTracks[0].Duration != 180.0 {
+	if nm.mixes.trackView.SourceTracks[0].Duration != 180.0 {
 		t.Errorf("mixes trackView duration after correction: got %f, want 180.0",
-			nm.mixes.trackView.sourceTracks[0].Duration)
+			nm.mixes.trackView.SourceTracks[0].Duration)
 	}
 }
 
@@ -293,8 +294,8 @@ func TestCorrectStoredDurationSyncsActiveMixTrackView(t *testing.T) {
 // ordering.
 func TestCorrectStoredDurationRebuildsQueueSortCache(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Duration: 100.0})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Duration: 100.0})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 360000},
 		{ID: 2, Hash: "h2", Path: "/b.flac", DurationMs: 100000},

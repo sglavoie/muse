@@ -52,7 +52,7 @@ type FavoritesView struct {
 	selectedItems map[int]struct{}
 }
 
-func (v *FavoritesView) setSize(w, h int) { v.width = w; v.height = h }
+func (v *FavoritesView) SetSize(w, h int) { v.width = w; v.height = h }
 
 func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	var sortInd string

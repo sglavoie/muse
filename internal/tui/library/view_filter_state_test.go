@@ -11,7 +11,7 @@ import (
 // TestFilterInactiveOnInit verifies that the filter bar is not active when a
 // View is first constructed.
 func TestFilterInactiveOnInit(t *testing.T) {
-	v := View{}
+	v := Panel{}
 	if v.Filter.Active {
 		t.Error("Filter.Active should be false on a zero-value View")
 	}
@@ -23,7 +23,7 @@ func TestFilterInactiveOnInit(t *testing.T) {
 // TestSlashActivatesFilter verifies that calling ActivateFilter sets
 // Filter.Active to true (models the '/' keypress).
 func TestSlashActivatesFilter(t *testing.T) {
-	v := View{}
+	v := Panel{}
 	v = v.ActivateFilter()
 	if !v.Filter.Active {
 		t.Error("Filter.Active should be true after ActivateFilter")
@@ -33,7 +33,7 @@ func TestSlashActivatesFilter(t *testing.T) {
 // TestAppendFilterCharBuildsQuery verifies that key presses after activation
 // accumulate into Filter.Text.
 func TestAppendFilterCharBuildsQuery(t *testing.T) {
-	v := View{}
+	v := Panel{}
 	v = v.ActivateFilter()
 	v = v.AppendFilterChar('r')
 	v = v.AppendFilterChar('o')
@@ -46,7 +46,7 @@ func TestAppendFilterCharBuildsQuery(t *testing.T) {
 // TestAppendFilterCharIgnoredWhenInactive verifies that AppendFilterChar is a
 // no-op when the filter bar has not been activated.
 func TestAppendFilterCharIgnoredWhenInactive(t *testing.T) {
-	v := View{}
+	v := Panel{}
 	v = v.AppendFilterChar('x')
 	if v.Filter.Text != "" {
 		t.Errorf("Filter.Text should remain empty when filter is inactive, got %q", v.Filter.Text)
@@ -57,7 +57,7 @@ func TestAppendFilterCharIgnoredWhenInactive(t *testing.T) {
 // when a character is appended to the filter query.
 func TestFuzzyFilterCursorResetOnKeystroke(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -83,7 +83,7 @@ func TestAppendFilterCharResetsScrollOffset(t *testing.T) {
 	}
 	tracks[0] = musiclib.Track{Artist: "Alice", Title: "Song", Hash: "alice-hash"}
 	idx := buildIndex(tracks)
-	v := View{
+	v := Panel{
 		Index:        idx,
 		Width:        80,
 		Height:       24,
@@ -112,7 +112,7 @@ func TestAppendFilterCharResetsScrollOffset(t *testing.T) {
 // list expands back.
 func TestDeactivateFilterResetsScrollOffset(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:        idx,
 		Width:        80,
 		Height:       24,
@@ -133,7 +133,7 @@ func TestDeactivateFilterResetsScrollOffset(t *testing.T) {
 // cursor to 0.
 func TestDeactivateFilterClearsQueryAndResetsCursor(t *testing.T) {
 	idx := buildIndex(sampleTracks)
-	v := View{
+	v := Panel{
 		Index:  idx,
 		Width:  80,
 		Height: 24,
@@ -156,7 +156,7 @@ func TestDeactivateFilterClearsQueryAndResetsCursor(t *testing.T) {
 }
 
 func TestDeactivateFilterClearsCachedMatches(t *testing.T) {
-	v := View{
+	v := Panel{
 		Filter:          filter.State{Active: true, Text: "Alice"},
 		FilteredMatches: []musiclib.Match{{TrackIndex: 0}},
 	}
@@ -169,7 +169,7 @@ func TestDeactivateFilterClearsCachedMatches(t *testing.T) {
 }
 
 func TestCommitFilterDeactivatesButKeepsText(t *testing.T) {
-	v := View{Filter: filter.State{Active: true, Text: "abc"}}
+	v := Panel{Filter: filter.State{Active: true, Text: "abc"}}
 	v = v.CommitFilter()
 	if v.Filter.Active {
 		t.Error("CommitFilter: expected Filter.Active=false")

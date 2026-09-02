@@ -30,8 +30,8 @@ func TestScanReplacesInPlaceContentAndMarksDisplacedQueueMissing(t *testing.T) {
 
 	// Cached-first startup state: the index holds the old content at the path,
 	// plus an unrelated track that must stay untouched by the replacement.
-	m.library.index.Insert(library.Track{Hash: oldHash, Path: path, Title: "Old", Artist: "A"})
-	m.library.index.Insert(library.Track{Hash: otherHash, Path: otherPath, Title: "Other", Artist: "B"})
+	m.library.Index.Insert(library.Track{Hash: oldHash, Path: path, Title: "Old", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: otherHash, Path: otherPath, Title: "Other", Artist: "B"})
 
 	// The queue holds the doomed content twice and the unrelated track once, so
 	// we prove EVERY instance of the displaced identity becomes unavailable.
@@ -48,16 +48,16 @@ func TestScanReplacesInPlaceContentAndMarksDisplacedQueueMissing(t *testing.T) {
 	m = next.(Model)
 
 	// Index shows only the new identity at the path — not both.
-	if got, ok := m.library.index.FindByPath(path); !ok || got.Hash != newHash {
+	if got, ok := m.library.Index.FindByPath(path); !ok || got.Hash != newHash {
 		t.Fatalf("path %s should resolve to new hash, got (%q, ok=%v)", path, got.Hash, ok)
 	}
-	if _, ok := m.library.index.FindByHash(oldHash); ok {
+	if _, ok := m.library.Index.FindByHash(oldHash); ok {
 		t.Error("displaced old hash must be removed from the index")
 	}
-	if _, ok := m.library.index.FindByHash(newHash); !ok {
+	if _, ok := m.library.Index.FindByHash(newHash); !ok {
 		t.Error("new hash must be present in the index")
 	}
-	if _, ok := m.library.index.FindByHash(otherHash); !ok {
+	if _, ok := m.library.Index.FindByHash(otherHash); !ok {
 		t.Error("unrelated track must remain in the index")
 	}
 
@@ -86,7 +86,7 @@ func TestScanSameHashMoveDoesNotMarkQueueMissing(t *testing.T) {
 		WithLibraryRoots([]string{root}),
 		WithExtractor(stubExtractor{}),
 	)
-	m.library.index.Insert(library.Track{Hash: hash, Path: oldPath, Title: "Song", Artist: "A"})
+	m.library.Index.Insert(library.Track{Hash: hash, Path: oldPath, Title: "Song", Artist: "A"})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: hash, Path: oldPath, Title: "Song", Artist: "A"},
 	}
@@ -98,11 +98,11 @@ func TestScanSameHashMoveDoesNotMarkQueueMissing(t *testing.T) {
 	m = next.(Model)
 
 	// The single index entry is re-pointed at the new path (no duplicate).
-	if got, ok := m.library.index.FindByHash(hash); !ok || got.Path != newPath {
+	if got, ok := m.library.Index.FindByHash(hash); !ok || got.Path != newPath {
 		t.Fatalf("moved track should resolve to new path, got (%q, ok=%v)", got.Path, ok)
 	}
-	if m.library.index.Len() != 1 {
-		t.Fatalf("move must not duplicate the index entry, got %d", m.library.index.Len())
+	if m.library.Index.Len() != 1 {
+		t.Fatalf("move must not duplicate the index entry, got %d", m.library.Index.Len())
 	}
 	// The queue instance is healed to the new path and stays available.
 	if m.queue.entries[0].Missing {

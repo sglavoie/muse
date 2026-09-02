@@ -8,6 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -108,7 +109,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 	if mpvTotal <= 0 || math.IsNaN(mpvTotal) || math.IsInf(mpvTotal, 0) {
 		return m, nil
 	}
-	t, ok := m.library.index.FindByHash(hash)
+	t, ok := m.library.Index.FindByHash(hash)
 	if !ok {
 		return m, nil
 	}
@@ -120,8 +121,8 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 		return m, nil
 	}
 
-	m.library.index.UpdateDuration(hash, mpvTotal)
-	m.library = m.library.refreshView()
+	m.library.Index.UpdateDuration(hash, mpvTotal)
+	m.library = m.library.RefreshView()
 	m = m.syncRecentlyAddedFromLibrary()
 	newDurationMs := int64(mpvTotal * 1000)
 	for i := range m.queue.entries {
@@ -130,13 +131,13 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 		}
 	}
 	m = m.preserveQueueSort()
-	if m.library.mode == LibraryModeHistory {
-		for i := range m.library.sourceTracks {
-			if m.library.sourceTracks[i].Hash == hash {
-				m.library.sourceTracks[i].Duration = mpvTotal
+	if m.library.Mode == libtui.LibraryModeHistory {
+		for i := range m.library.SourceTracks {
+			if m.library.SourceTracks[i].Hash == hash {
+				m.library.SourceTracks[i].Duration = mpvTotal
 			}
 		}
-		m.library = m.library.refreshView()
+		m.library = m.library.RefreshView()
 	}
 	if m.playlists.level == pltui.TrackLevel {
 		for i := range m.playlists.tracks {
@@ -205,7 +206,7 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 		m.mixes.cachedMixes[id] = cached
 	}
 	if m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.refreshView()
+		m.mixes.trackView = m.mixes.trackView.RefreshView()
 	}
 
 	var cmd tea.Cmd

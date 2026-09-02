@@ -25,8 +25,8 @@ func TestUpdateCtrlCQuits(t *testing.T) {
 func TestCtrlCQuitsWhileFilterBarActive(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
-	m.library.filter.Active = true
-	m.library.filter.Text = "test"
+	m.library.Filter.Active = true
+	m.library.Filter.Text = "test"
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if cmd == nil {

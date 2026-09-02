@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -15,7 +16,7 @@ import (
 // propagates duration changes to in-memory queue entries.
 func TestWatchBatchUpdatesQueueDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
 	}
@@ -36,9 +37,9 @@ func TestWatchBatchUpdatesQueueDuration(t *testing.T) {
 // propagates duration changes to in-memory history tracks.
 func TestWatchBatchUpdatesHistoryDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
-	m.library.mode = LibraryModeHistory
-	m.library.sourceTracks = []library.Track{
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Mode = libtui.LibraryModeHistory
+	m.library.SourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
 	}
 
@@ -49,8 +50,8 @@ func TestWatchBatchUpdatesHistoryDuration(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.library.sourceTracks[0].Duration != 200 {
-		t.Errorf("history track Duration = %v, want 200", nm.library.sourceTracks[0].Duration)
+	if nm.library.SourceTracks[0].Duration != 200 {
+		t.Errorf("history track Duration = %v, want 200", nm.library.SourceTracks[0].Duration)
 	}
 }
 
@@ -58,7 +59,7 @@ func TestWatchBatchUpdatesHistoryDuration(t *testing.T) {
 // propagates duration changes to in-memory playlist tracks.
 func TestWatchBatchUpdatesPlaylistDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},
@@ -80,7 +81,7 @@ func TestWatchBatchUpdatesPlaylistDuration(t *testing.T) {
 // propagates duration changes to in-memory favorites tracks.
 func TestWatchBatchUpdatesFavoritesDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 	m.favorites.level = favtui.ListLevel
 	m.favorites.category = favtui.CategoryTracks
 	m.favorites.tracks = []library.Track{
@@ -103,7 +104,7 @@ func TestWatchBatchUpdatesFavoritesDuration(t *testing.T) {
 // metadata update propagates duration changes to favorites drilldown tracks.
 func TestWatchBatchUpdatesFavoritesDrilldownDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 	m.favorites.level = favtui.TrackLevel
 	m.favorites.drilldownTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Duration: 120},
@@ -125,7 +126,7 @@ func TestWatchBatchUpdatesFavoritesDrilldownDuration(t *testing.T) {
 // propagates duration changes to in-memory tags tracks.
 func TestWatchBatchUpdatesTagsDuration(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 120})
 	m.tagsView.level = tagtui.TrackLevel
 	m.tagsView.tracks = []db.PlaylistTrackRow{
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 120_000},

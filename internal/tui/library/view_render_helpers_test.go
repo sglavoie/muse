@@ -8,15 +8,15 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 )
 
-func newRenderView(tracks []musiclib.Track) View {
-	return View{
+func newRenderView(tracks []musiclib.Track) Panel {
+	return Panel{
 		Index:  buildIndex(tracks),
 		Width:  80,
 		Height: 24,
 	}
 }
 
-func activateFilterQuery(v View, query string) View {
+func activateFilterQuery(v Panel, query string) Panel {
 	v = v.ActivateFilter()
 	for _, ch := range query {
 		v = v.AppendFilterChar(ch)
@@ -24,11 +24,11 @@ func activateFilterQuery(v View, query string) View {
 	return v
 }
 
-func renderLines(v View) []string {
+func renderLines(v Panel) []string {
 	return strings.Split(v.Render(), "\n")
 }
 
-func renderTrackRows(t *testing.T, v View, wantRows int) []string {
+func renderTrackRows(t *testing.T, v Panel, wantRows int) []string {
 	t.Helper()
 	lines := renderLines(v)
 	if len(lines) < 2+wantRows {
@@ -37,12 +37,12 @@ func renderTrackRows(t *testing.T, v View, wantRows int) []string {
 	return lines[2:]
 }
 
-func renderTrackRow(t *testing.T, v View, row int) string {
+func renderTrackRow(t *testing.T, v Panel, row int) string {
 	t.Helper()
 	return renderTrackRows(t, v, row+1)[row]
 }
 
-func renderPlain(v View) string {
+func renderPlain(v Panel) string {
 	return ansi.Strip(v.Render())
 }
 

@@ -60,7 +60,7 @@ func (m Model) handleMetadataImportRequest() (tea.Model, tea.Cmd) {
 
 // metadataImportCurrent is the library state the diff compares against.
 func (m Model) metadataImportCurrent() map[string]metaexport.Current {
-	tracks := m.library.index.Tracks()
+	tracks := m.library.Index.Tracks()
 	cur := make(map[string]metaexport.Current, len(tracks))
 	for _, t := range tracks {
 		if t.Hash == "" {
@@ -174,7 +174,7 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 	for _, ch := range o.Plan.Changes {
 		// Re-derived against the live index, not against ch.Current: an edit
 		// between parse and confirm owns the row now.
-		t, ok := m.library.index.FindByHash(ch.Hash)
+		t, ok := m.library.Index.FindByHash(ch.Hash)
 		if !ok {
 			continue
 		}
@@ -212,8 +212,8 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 			track: t.TrackNumber, disc: t.DiscNumber,
 			overlay: prevOverlay, hadOverlay: hadOverlay,
 		}
-		m.library.index.UpdateMetadata(ch.Hash, title, artist, album, genre)
-		m.library.index.UpdateTrackPosition(ch.Hash, track, disc)
+		m.library.Index.UpdateMetadata(ch.Hash, title, artist, album, genre)
+		m.library.Index.UpdateTrackPosition(ch.Hash, track, disc)
 
 		display := text.TrackDisplay(artist, title, "")
 		for i := range m.queue.entries {

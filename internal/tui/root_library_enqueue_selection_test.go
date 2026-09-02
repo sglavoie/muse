@@ -16,12 +16,12 @@ func TestLibraryEnterEnqueuesSelectionAsBatch(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithQueueWriter(qa), WithBatchEnqueuer(be))
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1", Path: "/one.flac"})
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "h2", Path: "/two.flac"})
-	m.library.index.Insert(library.Track{Artist: "C", Title: "Focused", Hash: "h3", Path: "/focused.flac"})
-	m.library.cursor = 2
-	m.library.selectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
-	m.library.filter = filter.State{Text: "selected"}
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1", Path: "/one.flac"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two", Hash: "h2", Path: "/two.flac"})
+	m.library.Index.Insert(library.Track{Artist: "C", Title: "Focused", Hash: "h3", Path: "/focused.flac"})
+	m.library.Cursor = 2
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library.Filter = filter.State{Text: "selected"}
 	m.visual = visualState{active: true, view: viewLibrary}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -32,11 +32,11 @@ func TestLibraryEnterEnqueuesSelectionAsBatch(t *testing.T) {
 	if len(qa.tracks) != 0 {
 		t.Fatalf("single-track appender called %d times; want 0", len(qa.tracks))
 	}
-	if len(nm.library.selectedHashes) != 0 {
-		t.Fatalf("selection must clear when batch is dispatched, got %v", nm.library.selectedHashes)
+	if len(nm.library.SelectedHashes) != 0 {
+		t.Fatalf("selection must clear when batch is dispatched, got %v", nm.library.SelectedHashes)
 	}
-	if nm.library.filter.Text != "" {
-		t.Fatalf("committed filter must clear after enqueue, got %q", nm.library.filter.Text)
+	if nm.library.Filter.Text != "" {
+		t.Fatalf("committed filter must clear after enqueue, got %q", nm.library.Filter.Text)
 	}
 	if nm.visual.active {
 		t.Fatal("batch enqueue must exit visual mode")
@@ -74,11 +74,11 @@ func TestLibraryEnterEnqueuesSelectionAsBatch(t *testing.T) {
 func TestLibraryEnterSelectionRespectsSortOrder(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := New(context.Background(), WithBatchEnqueuer(be))
-	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Hash: "hb"})
-	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Hash: "ha"})
-	m.library.sortedTracks = sorting.SortTracks(m.library.index.Tracks(), sorting.SortTitle, sorting.SortAsc)
-	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.library.selectedHashes = map[string]struct{}{"ha": {}, "hb": {}}
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Beta", Hash: "hb"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Hash: "ha"})
+	m.library.SortedTracks = sorting.SortTracks(m.library.Index.Tracks(), sorting.SortTitle, sorting.SortAsc)
+	m.library.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.library.SelectedHashes = map[string]struct{}{"ha": {}, "hb": {}}
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if cmd == nil {
@@ -96,17 +96,17 @@ func TestLibraryEnterSelectionRespectsSortOrder(t *testing.T) {
 
 func TestLibraryEnterSelectionUnavailablePreservesState(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1"})
-	m.library.selectedHashes = map[string]struct{}{"h1": {}}
-	m.library.filter = filter.State{Text: "one"}
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1"})
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}}
+	m.library.Filter = filter.State{Text: "one"}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	nm := next.(Model)
 	if cmd != nil {
 		t.Fatalf("missing batch enqueuer returned command %T", cmd)
 	}
-	if len(nm.library.selectedHashes) != 1 || nm.library.filter.Text != "one" {
-		t.Fatalf("selection/filter changed when enqueue unavailable: selection=%v filter=%q", nm.library.selectedHashes, nm.library.filter.Text)
+	if len(nm.library.SelectedHashes) != 1 || nm.library.Filter.Text != "one" {
+		t.Fatalf("selection/filter changed when enqueue unavailable: selection=%v filter=%q", nm.library.SelectedHashes, nm.library.Filter.Text)
 	}
 	if got := nm.statusBar.TopNotification().Msg; !strings.Contains(got, "Enqueue not available") {
 		t.Fatalf("notification = %q, want enqueue unavailable", got)
@@ -116,8 +116,8 @@ func TestLibraryEnterSelectionUnavailablePreservesState(t *testing.T) {
 func TestLibraryEnterSelectionBatchFailureLeavesQueueUnchanged(t *testing.T) {
 	be := &stubBatchEnqueuer{appendTracksErr: errors.New("db locked")}
 	m := New(context.Background(), WithBatchEnqueuer(be))
-	m.library.index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1"})
-	m.library.selectedHashes = map[string]struct{}{"h1": {}}
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Hash: "h1"})
+	m.library.SelectedHashes = map[string]struct{}{"h1": {}}
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "existing"}}
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

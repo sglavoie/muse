@@ -18,7 +18,7 @@ import (
 func TestWatchBatchHealsQueuePathOnRename(t *testing.T) {
 	sp := &stubPlayerQueueSyncer{}
 	m := New(context.Background(), WithPlayer(sp))
-	m.library.index.Insert(library.Track{
+	m.library.Index.Insert(library.Track{
 		Artist: "A", Title: "T1", Path: "/old.flac", Hash: "h1",
 	})
 	m.queue.entries = []QueueEntry{
@@ -94,7 +94,7 @@ func TestScanBatchHealsQueuePathOnRename(t *testing.T) {
 // not just the queue.
 func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/old.flac", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/old.flac", Hash: "h1"})
 
 	m.playlists.level = pltui.TrackLevel
 	m.playlists.tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}

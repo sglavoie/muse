@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -136,14 +137,14 @@ func (m Model) atCollectionLevelFor(act keys.Action) Model {
 
 // handleNavigateLibraryModeMsg switches to an exact Library mode while
 // retaining the per-mode cursor, scroll, and filter snapshot maintained by
-// LibraryView. Re-selecting the active mode behaves like ordinary view
+// library.View. Re-selecting the active mode behaves like ordinary view
 // navigation and does not discard its current selection.
 func (m Model) handleNavigateLibraryModeMsg(msg navigateLibraryModeMsg) (Model, tea.Cmd) {
-	if msg.mode > LibraryModeHistory {
+	if msg.mode > libtui.LibraryModeHistory {
 		return m, nil
 	}
-	if m.library.mode != msg.mode {
-		m.library = m.library.switchMode(msg.mode)
+	if m.library.Mode != msg.mode {
+		m.library = m.library.SwitchMode(msg.mode)
 	}
 	m = m.switchToView(viewLibrary)
 	return m, nil
@@ -255,12 +256,12 @@ func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 		m.statusBar.Notify("Nothing playing")
 		return m, nil
 	}
-	m.library.filter = m.library.filter.Deactivate()
-	m.library.filteredMatches = nil
+	m.library.Filter = m.library.Filter.Deactivate()
+	m.library.FilteredMatches = nil
 	m = m.switchToView(viewLibrary)
-	pos := m.library.findTrackPosition(m.playback.currentHash)
-	m.library.cursor = pos
-	m.library = m.library.clampCursor()
+	pos := m.library.FindTrackPosition(m.playback.currentHash)
+	m.library.Cursor = pos
+	m.library = m.library.ClampCursor()
 	return m, nil
 }
 

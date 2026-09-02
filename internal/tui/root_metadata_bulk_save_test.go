@@ -61,8 +61,8 @@ func TestBulkMetadataEditClearsAlbumsSelectionOnSave(t *testing.T) {
 // metadata save also uses the trackDisplay format for queue entry displays.
 func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "A"})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Old", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "Old", Album: "A"})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Old", Album: "A"})
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "Old - Old", Artist: "Old", Title: "Old"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "Old - Old", Artist: "Old", Title: "Old"},
@@ -89,8 +89,8 @@ func TestBulkMetadataSaveUsesTrackDisplayForQueueEntryDisplay(t *testing.T) {
 
 func TestBulkMetadataSaveInvalidDurationKeepsEditorOpen(t *testing.T) {
 	m := New(context.Background())
-	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "One", Duration: 60})
-	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Two", Duration: 90})
+	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "Old", Title: "One", Duration: 60})
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "Old", Title: "Two", Duration: 90})
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Old", "", "", "")
 	ed.Fields[metadata.FieldDuration].SetValue("1:99")
@@ -108,10 +108,10 @@ func TestBulkMetadataSaveInvalidDurationKeepsEditorOpen(t *testing.T) {
 	if got := nm.overlay.metadataEditor.Duration(); got != "1:99" {
 		t.Fatalf("duration input = %q, want %q", got, "1:99")
 	}
-	if tr, _ := nm.library.index.FindByHash("h1"); tr.Duration != 60 {
+	if tr, _ := nm.library.Index.FindByHash("h1"); tr.Duration != 60 {
 		t.Fatalf("h1 duration changed to %v, want 60", tr.Duration)
 	}
-	if tr, _ := nm.library.index.FindByHash("h2"); tr.Duration != 90 {
+	if tr, _ := nm.library.Index.FindByHash("h2"); tr.Duration != 90 {
 		t.Fatalf("h2 duration changed to %v, want 90", tr.Duration)
 	}
 }
@@ -204,7 +204,7 @@ func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewMixes
 	m.mixes.level = 1
-	m.mixes.trackView.selectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
+	m.mixes.trackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
 
 	ed := metadata.NewBulkEditor([]string{"mx1", "mx2"}, "", "ArtX", "", "", "")
 	m.overlay.metadataEditor = &ed
@@ -213,7 +213,7 @@ func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.mixes.trackView.selectedHashes != nil {
-		t.Errorf("expected mixes trackView.selectedHashes to be cleared, got %v", nm.mixes.trackView.selectedHashes)
+	if nm.mixes.trackView.SelectedHashes != nil {
+		t.Errorf("expected mixes trackView.selectedHashes to be cleared, got %v", nm.mixes.trackView.SelectedHashes)
 	}
 }
