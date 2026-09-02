@@ -1,0 +1,27 @@
+# Complexity thresholds only — no debt list, no exclusions. This file exists so
+# `just lint-complexity` can show the unfiltered picture; `--default=none
+# --enable=...` on the CLI does NOT bypass linters.exclusions.rules in
+# .golangci.yml. Keep the four settings blocks in sync with .golangci.yml.
+version: "2"
+run:
+  timeout: 10m
+issues:
+  # funlen/cyclop/gocognit all report at the function declaration line, so the
+  # default uniq-by-line:true drops all but one issue per line (funlen 57 -> 1,
+  # cyclop 245 -> 124). Do not remove this.
+  uniq-by-line: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+linters:
+  default: none
+  enable: [funlen, cyclop, gocognit, nestif]
+  settings:
+    funlen:
+      lines: 100
+      statements: 50
+    cyclop:
+      max-complexity: 10
+    gocognit:
+      min-complexity: 20
+    nestif:
+      min-complexity: 4

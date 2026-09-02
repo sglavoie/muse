@@ -30,6 +30,10 @@ lint:
     go vet ./...
     go run {{golangci_lint}} run
 
+# Show complexity violations ignoring the debt list
+lint-complexity:
+    go run {{golangci_lint}} run -c .golangci-complexity.yml ./...
+
 # Format all Go files
 fmt:
     gofmt -w .
