@@ -259,32 +259,40 @@ func (d *UITestDriver) ApplyAction(a UITestAction, opts ObserveOptions) (UITestO
 	if err != nil {
 		return d.Observe(opts), err
 	}
+	// An assertion is the one action that reads the model rather than driving
+	// it, so it reports the very observation it judged.
+	if kind == actionAssert {
+		obs := d.Observe(opts)
+		return obs, d.evalAssertion(a.Assert, obs)
+	}
+	if err := d.applyOperation(kind, a); err != nil {
+		return d.Observe(opts), err
+	}
+	return d.Observe(opts), nil
+}
 
+// applyOperation drives the model with the one operation a validated non-assert
+// action carries.
+func (d *UITestDriver) applyOperation(kind actionKind, a UITestAction) error {
 	switch kind {
 	case actionKey:
 		if err := d.sendKey(*a.Key); err != nil {
-			return d.Observe(opts), fmt.Errorf("key: %w", err)
+			return fmt.Errorf("key: %w", err)
 		}
 	case actionText:
 		d.sendText(*a.Text)
 	case actionResize:
 		w, h, err := ParseSize(*a.Resize)
 		if err != nil {
-			return d.Observe(opts), fmt.Errorf("resize: %w", err)
+			return fmt.Errorf("resize: %w", err)
 		}
 		d.resize(w, h)
 	case actionWait:
 		d.waitPending(waitDuration(*a.Wait, d.drainTimeout))
 	case actionCommand:
-		if err := d.runCommand(*a.Command); err != nil {
-			return d.Observe(opts), err
-		}
-	case actionAssert:
-		obs := d.Observe(opts)
-		return obs, d.evalAssertion(a.Assert, obs)
+		return d.runCommand(*a.Command)
 	}
-
-	return d.Observe(opts), nil
+	return nil
 }
 
 // waitDuration resolves a wait action's optional duration string, falling back
@@ -308,29 +316,50 @@ func (d *UITestDriver) evalAssertion(a *UITestAssertion, obs UITestObservation) 
 	}
 	switch kind {
 	case assertContains:
-		if !strings.Contains(obs.PlainScreen, *a.Contains) {
-			return fmt.Errorf("expected screen to contain %q", *a.Contains)
-		}
+		return wantContains("screen", obs.PlainScreen, *a.Contains)
 	case assertNotContains:
-		if strings.Contains(obs.PlainScreen, *a.NotContains) {
-			return fmt.Errorf("expected screen not to contain %q", *a.NotContains)
-		}
+		return wantNotContains("screen", obs.PlainScreen, *a.NotContains)
 	case assertView:
-		if !strings.EqualFold(obs.PrimaryView, *a.View) {
-			return fmt.Errorf("expected primary view %q, got %q", *a.View, obs.PrimaryView)
-		}
+		return wantEqualFold("primary view", obs.PrimaryView, *a.View)
 	case assertOverlay:
-		if !strings.EqualFold(obs.Overlay, *a.Overlay) {
-			return fmt.Errorf("expected overlay %q, got %q", *a.Overlay, obs.Overlay)
-		}
+		return wantEqualFold("overlay", obs.Overlay, *a.Overlay)
 	case assertStatusContains:
-		if !strings.Contains(obs.Status, *a.StatusContains) {
-			return fmt.Errorf("expected status to contain %q", *a.StatusContains)
-		}
+		return wantContains("status", obs.Status, *a.StatusContains)
 	case assertNoLayoutIssues:
-		if len(obs.LayoutIssues) > 0 {
-			return fmt.Errorf("expected no layout issues, found %d: %s", len(obs.LayoutIssues), summarizeIssues(obs.LayoutIssues))
-		}
+		return wantNoLayoutIssues(obs.LayoutIssues)
+	}
+	return nil
+}
+
+// wantContains checks that the named part of the observation contains want.
+func wantContains(subject, got, want string) error {
+	if !strings.Contains(got, want) {
+		return fmt.Errorf("expected %s to contain %q", subject, want)
+	}
+	return nil
+}
+
+// wantNotContains checks that the named part of the observation does not
+// contain unwanted.
+func wantNotContains(subject, got, unwanted string) error {
+	if strings.Contains(got, unwanted) {
+		return fmt.Errorf("expected %s not to contain %q", subject, unwanted)
+	}
+	return nil
+}
+
+// wantEqualFold checks a named observation field against want, case-insensitively.
+func wantEqualFold(subject, got, want string) error {
+	if !strings.EqualFold(got, want) {
+		return fmt.Errorf("expected %s %q, got %q", subject, want, got)
+	}
+	return nil
+}
+
+// wantNoLayoutIssues checks that the observation detected no layout problems.
+func wantNoLayoutIssues(issues []UITestIssue) error {
+	if len(issues) > 0 {
+		return fmt.Errorf("expected no layout issues, found %d: %s", len(issues), summarizeIssues(issues))
 	}
 	return nil
 }

@@ -185,29 +185,47 @@ func (l *stripLayout) gap() int {
 	return 1
 }
 
+// applyOverflow surrenders chunks until the strip fits, in the order the hint
+// is least missed and the breadcrumb most: hint, counts, sort, filter (which
+// truncates before it disappears), then selection. The breadcrumb is never
+// dropped, only truncated, and only once nothing else is left to give.
 func (l *stripLayout) applyOverflow() {
-	if l.includeHint && l.totalWidth() > l.width {
-		l.includeHint = false
-		l.hintW = 0
-	}
-	if l.includeCounts && l.totalWidth() > l.width {
-		l.includeCounts = false
-		l.countsW = 0
-	}
-	if l.includeSort && l.totalWidth() > l.width {
-		l.includeSort = false
-		l.sortW = 0
-	}
-	if l.includeFilter && l.totalWidth() > l.width {
-		l.fitFilter()
-	}
-	if l.includeSelection && l.totalWidth() > l.width {
-		l.includeSelection = false
-		l.selectionW = 0
-	}
+	l.dropUntilFits(l.dropHint, l.dropCounts, l.dropSort, l.fitFilter, l.dropSelection)
 	if l.totalWidth() > l.width {
 		l.fitBreadcrumb()
 	}
+}
+
+// dropUntilFits runs each step in turn, stopping as soon as the strip fits.
+// Every step is a no-op for a chunk that is already absent, so a step is never
+// skipped on account of its chunk.
+func (l *stripLayout) dropUntilFits(steps ...func()) {
+	for _, step := range steps {
+		if l.totalWidth() <= l.width {
+			return
+		}
+		step()
+	}
+}
+
+func (l *stripLayout) dropHint() {
+	l.includeHint = false
+	l.hintW = 0
+}
+
+func (l *stripLayout) dropCounts() {
+	l.includeCounts = false
+	l.countsW = 0
+}
+
+func (l *stripLayout) dropSort() {
+	l.includeSort = false
+	l.sortW = 0
+}
+
+func (l *stripLayout) dropSelection() {
+	l.includeSelection = false
+	l.selectionW = 0
 }
 
 func (l *stripLayout) fitFilter() {

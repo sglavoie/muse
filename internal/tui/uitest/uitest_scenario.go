@@ -98,76 +98,116 @@ func (a UITestAction) validate() (actionKind, error) {
 	if err != nil {
 		return "", err
 	}
-	switch kind {
-	case actionKey:
-		if strings.TrimSpace(*a.Key) == "" {
-			return "", errors.New("key must not be empty")
-		}
-		if _, err := parseKey(*a.Key); err != nil {
-			return "", fmt.Errorf("key: %w", err)
-		}
-	case actionText:
-		if *a.Text == "" {
-			return "", errors.New("text must not be empty")
-		}
-	case actionResize:
-		if _, _, err := ParseSize(*a.Resize); err != nil {
-			return "", fmt.Errorf("resize: %w", err)
-		}
-	case actionWait:
-		if strings.TrimSpace(*a.Wait) != "" {
-			if _, err := time.ParseDuration(strings.TrimSpace(*a.Wait)); err != nil {
-				return "", fmt.Errorf("wait: invalid duration %q", *a.Wait)
-			}
-		}
-	case actionCommand:
-		if strings.TrimSpace(*a.Command) == "" {
-			return "", errors.New("command must not be empty")
-		}
-	case actionAssert:
-		if err := a.Assert.validate(); err != nil {
-			return "", err
-		}
+	if err := a.validateOperand(kind); err != nil {
+		return "", err
 	}
 	return kind, nil
+}
+
+// validateOperand checks the value carried by the one operation field the
+// action sets.
+func (a UITestAction) validateOperand(kind actionKind) error {
+	switch kind {
+	case actionKey:
+		return validateKeyOperand(*a.Key)
+	case actionText:
+		return operandPresent(*a.Text, "text")
+	case actionResize:
+		return validateResizeOperand(*a.Resize)
+	case actionWait:
+		return validateWaitOperand(*a.Wait)
+	case actionCommand:
+		return operandPresent(strings.TrimSpace(*a.Command), "command")
+	case actionAssert:
+		return a.Assert.validate()
+	}
+	return nil
+}
+
+// operandPresent rejects an empty operand, naming the field it belongs to.
+func operandPresent(value, field string) error {
+	if value == "" {
+		return fmt.Errorf("%s must not be empty", field)
+	}
+	return nil
+}
+
+// validateKeyOperand rejects a blank key name and one the key parser cannot
+// resolve, so a bad key fails at parse time rather than mid-scenario.
+func validateKeyOperand(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return errors.New("key must not be empty")
+	}
+	if _, err := parseKey(name); err != nil {
+		return fmt.Errorf("key: %w", err)
+	}
+	return nil
+}
+
+func validateResizeOperand(size string) error {
+	if _, _, err := ParseSize(size); err != nil {
+		return fmt.Errorf("resize: %w", err)
+	}
+	return nil
+}
+
+// validateWaitOperand accepts an empty duration, which means "use the driver's
+// drain timeout"; anything else must parse.
+func validateWaitOperand(raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	if _, err := time.ParseDuration(trimmed); err != nil {
+		return fmt.Errorf("wait: invalid duration %q", raw)
+	}
+	return nil
 }
 
 // kind resolves which operation an action performs, requiring exactly one
 // operation field to be present.
 func (a UITestAction) kind() (actionKind, error) {
-	var (
-		kinds []actionKind
-	)
-	if a.Key != nil {
-		kinds = append(kinds, actionKey)
-	}
-	if a.Text != nil {
-		kinds = append(kinds, actionText)
-	}
-	if a.Resize != nil {
-		kinds = append(kinds, actionResize)
-	}
-	if a.Wait != nil {
-		kinds = append(kinds, actionWait)
-	}
-	if a.Assert != nil {
-		kinds = append(kinds, actionAssert)
-	}
-	if a.Command != nil {
-		kinds = append(kinds, actionCommand)
-	}
+	kinds := a.presentKinds()
 	switch len(kinds) {
 	case 0:
 		return "", errors.New("action has no operation (expected one of key, text, resize, wait, assert, command)")
 	case 1:
 		return kinds[0], nil
 	default:
-		names := make([]string, len(kinds))
-		for i, k := range kinds {
-			names[i] = string(k)
-		}
-		return "", fmt.Errorf("action sets multiple operations: %s", strings.Join(names, ", "))
+		return "", fmt.Errorf("action sets multiple operations: %s", joinKinds(kinds))
 	}
+}
+
+// presentKinds lists the operation kinds whose field is set, in the order the
+// "no operation" error names them.
+func (a UITestAction) presentKinds() []actionKind {
+	var kinds []actionKind
+	for _, c := range []struct {
+		set  bool
+		kind actionKind
+	}{
+		{a.Key != nil, actionKey},
+		{a.Text != nil, actionText},
+		{a.Resize != nil, actionResize},
+		{a.Wait != nil, actionWait},
+		{a.Assert != nil, actionAssert},
+		{a.Command != nil, actionCommand},
+	} {
+		if c.set {
+			kinds = append(kinds, c.kind)
+		}
+	}
+	return kinds
+}
+
+// joinKinds renders kind names for the "sets multiple ..." errors, in the order
+// they were collected.
+func joinKinds[T ~string](kinds []T) string {
+	names := make([]string, len(kinds))
+	for i, k := range kinds {
+		names[i] = string(k)
+	}
+	return strings.Join(names, ", ")
 }
 
 // validate checks that the assertion sets exactly one recognized kind and that
@@ -182,63 +222,61 @@ func (a *UITestAssertion) kind() (assertionKind, error) {
 	if a == nil {
 		return "", errors.New("assert must not be null")
 	}
-	var kinds []assertionKind
-	if a.Contains != nil {
-		kinds = append(kinds, assertContains)
-	}
-	if a.NotContains != nil {
-		kinds = append(kinds, assertNotContains)
-	}
-	if a.View != nil {
-		kinds = append(kinds, assertView)
-	}
-	if a.Overlay != nil {
-		kinds = append(kinds, assertOverlay)
-	}
-	if a.StatusContains != nil {
-		kinds = append(kinds, assertStatusContains)
-	}
-	if a.NoLayoutIssues != nil {
-		kinds = append(kinds, assertNoLayoutIssues)
-	}
+	kinds := a.presentKinds()
 	switch len(kinds) {
 	case 0:
 		return "", errors.New("assert has no expectation (expected one of contains, not_contains, view, overlay, status_contains, no_layout_issues)")
 	case 1:
-		// no-op: fall through to per-kind checks below
+		// no-op: fall through to the per-kind value check below
 	default:
-		names := make([]string, len(kinds))
-		for i, k := range kinds {
-			names[i] = string(k)
-		}
-		return "", fmt.Errorf("assert sets multiple expectations: %s", strings.Join(names, ", "))
+		return "", fmt.Errorf("assert sets multiple expectations: %s", joinKinds(kinds))
 	}
-
-	switch kinds[0] {
-	case assertContains:
-		if *a.Contains == "" {
-			return "", errors.New("contains must not be empty")
-		}
-	case assertNotContains:
-		if *a.NotContains == "" {
-			return "", errors.New("not_contains must not be empty")
-		}
-	case assertView:
-		if strings.TrimSpace(*a.View) == "" {
-			return "", errors.New("view must not be empty")
-		}
-	case assertOverlay:
-		if strings.TrimSpace(*a.Overlay) == "" {
-			return "", errors.New("overlay must not be empty")
-		}
-	case assertStatusContains:
-		if *a.StatusContains == "" {
-			return "", errors.New("status_contains must not be empty")
-		}
-	case assertNoLayoutIssues:
-		if !*a.NoLayoutIssues {
-			return "", errors.New("no_layout_issues must be true when set")
-		}
+	if err := a.validateExpectation(kinds[0]); err != nil {
+		return "", err
 	}
 	return kinds[0], nil
+}
+
+// presentKinds lists the assertion kinds whose field is set, in the order the
+// "no expectation" error names them.
+func (a *UITestAssertion) presentKinds() []assertionKind {
+	var kinds []assertionKind
+	for _, c := range []struct {
+		set  bool
+		kind assertionKind
+	}{
+		{a.Contains != nil, assertContains},
+		{a.NotContains != nil, assertNotContains},
+		{a.View != nil, assertView},
+		{a.Overlay != nil, assertOverlay},
+		{a.StatusContains != nil, assertStatusContains},
+		{a.NoLayoutIssues != nil, assertNoLayoutIssues},
+	} {
+		if c.set {
+			kinds = append(kinds, c.kind)
+		}
+	}
+	return kinds
+}
+
+// validateExpectation checks the value carried by the one expectation field the
+// assertion sets.
+func (a *UITestAssertion) validateExpectation(kind assertionKind) error {
+	switch kind {
+	case assertContains:
+		return operandPresent(*a.Contains, "contains")
+	case assertNotContains:
+		return operandPresent(*a.NotContains, "not_contains")
+	case assertView:
+		return operandPresent(strings.TrimSpace(*a.View), "view")
+	case assertOverlay:
+		return operandPresent(strings.TrimSpace(*a.Overlay), "overlay")
+	case assertStatusContains:
+		return operandPresent(*a.StatusContains, "status_contains")
+	case assertNoLayoutIssues:
+		if !*a.NoLayoutIssues {
+			return errors.New("no_layout_issues must be true when set")
+		}
+	}
+	return nil
 }

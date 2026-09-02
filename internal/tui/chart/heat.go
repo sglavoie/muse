@@ -74,68 +74,94 @@ func heatmapSegs(rows []HeatRow, opts HeatmapOptions) [][]seg {
 	if cols == 0 {
 		return nil
 	}
-	// Columns are dropped, never folded: a heat cell stands for one concrete
-	// bucket that enter must be able to open, so averaging two into one would
-	// leave a glyph with no query behind it.
-	from := 0
-	if gridCols > cols {
-		if opts.TrimOldest {
-			from = gridCols - cols
-		}
-		gridCols = from + cols
-	}
-
-	// Only the surviving columns set the scale, so a trimmed grid is measured
-	// against what it shows rather than against a peak scrolled off the left.
-	maxVal := SafeMagnitude(opts.Max)
-	if maxVal <= 0 {
-		for _, r := range rows {
-			for col := from; col < min(gridCols, len(r.Cells)); col++ {
-				if c := r.Cells[col]; c.Present {
-					maxVal = math.Max(maxVal, SafeMagnitude(c.Value))
-				}
-			}
-		}
-	}
+	from, gridCols := heatmapVisibleColumns(gridCols, cols, opts.TrimOldest)
+	maxVal := heatmapMax(rows, opts.Max, from, gridCols)
 
 	out := make([][]seg, 0, len(rows))
 	for i, r := range rows {
-		segs := make([]seg, 0, gridCols-from+3)
-		if labelW > 0 {
-			segs = append(segs,
-				seg{padRight(truncateTo(labels[i], labelW), labelW), roleLabel},
-				seg{" ", rolePlain})
-		}
-		for col := from; col < gridCols; col++ {
-			cell := HeatCell{}
-			if col < len(r.Cells) {
-				cell = r.Cells[col]
-			}
-			glyph, role := heatGlyph(cell, maxVal)
-			segs = append(segs, seg{SafeRepeat(glyph, cellW), role})
-		}
-		used := labelW + (gridCols-from)*cellW
-		if labelW > 0 {
-			used++
-		}
-		out = append(out, padSegs(segs, used, width))
+		out = append(out, heatRowSegs(labels[i], r.Cells, maxVal, heatRowLayout{
+			from:     from,
+			gridCols: gridCols,
+			cellW:    cellW,
+			labelW:   labelW,
+			width:    width,
+		}))
 	}
 	return out
+}
+
+// heatmapVisibleColumns narrows a grid of gridCols columns to the cols the
+// layout left room for, returning the half-open column range that survives.
+// Columns are dropped, never folded: a heat cell stands for one concrete bucket
+// that enter must be able to open, so averaging two into one would leave a
+// glyph with no query behind it.
+func heatmapVisibleColumns(gridCols, cols int, trimOldest bool) (from, to int) {
+	if gridCols <= cols {
+		return 0, gridCols
+	}
+	if trimOldest {
+		from = gridCols - cols
+	}
+	return from, from + cols
+}
+
+// heatmapMax resolves the value the heaviest glyph represents. Only the
+// surviving columns set the scale, so a trimmed grid is measured against what
+// it shows rather than against a peak scrolled off the left.
+func heatmapMax(rows []HeatRow, pinned float64, from, gridCols int) float64 {
+	maxVal := SafeMagnitude(pinned)
+	if maxVal > 0 {
+		return maxVal
+	}
+	for _, r := range rows {
+		for col := from; col < min(gridCols, len(r.Cells)); col++ {
+			if c := r.Cells[col]; c.Present {
+				maxVal = math.Max(maxVal, SafeMagnitude(c.Value))
+			}
+		}
+	}
+	return maxVal
+}
+
+// heatRowLayout carries the column allocation heatmapSegs resolved once for the
+// whole grid down to each row.
+type heatRowLayout struct {
+	from     int
+	gridCols int
+	cellW    int
+	labelW   int
+	width    int
+}
+
+// heatRowSegs renders one grid row: the optional label column, one glyph run
+// per surviving cell, and the trailing padding that squares the line off.
+func heatRowSegs(label string, cells []HeatCell, maxVal float64, l heatRowLayout) []seg {
+	segs := make([]seg, 0, l.gridCols-l.from+3)
+	if l.labelW > 0 {
+		segs = append(segs,
+			seg{padRight(truncateTo(label, l.labelW), l.labelW), roleLabel},
+			seg{" ", rolePlain})
+	}
+	for col := l.from; col < l.gridCols; col++ {
+		cell := HeatCell{}
+		if col < len(cells) {
+			cell = cells[col]
+		}
+		glyph, role := heatGlyph(cell, maxVal)
+		segs = append(segs, seg{SafeRepeat(glyph, l.cellW), role})
+	}
+	used := l.labelW + (l.gridCols-l.from)*l.cellW
+	if l.labelW > 0 {
+		used++
+	}
+	return padSegs(segs, used, l.width)
 }
 
 // heatmapLayout divides width between the row-label column and the grid,
 // shrinking the label column a column at a time rather than emitting a grid
 // with no cells in it.
 func heatmapLayout(labels []string, requestedLabelW, cellW, width int) (labelW, cols int) {
-	if requestedLabelW > 0 {
-		labelW = requestedLabelW
-	} else {
-		for _, l := range labels {
-			labelW = max(labelW, displayWidth(l))
-		}
-		labelW = min(labelW, width/3)
-	}
-	labelW = min(labelW, width)
+	labelW = min(derivedLabelWidth(labels, requestedLabelW, width), width)
 
 	for {
 		gap := 0

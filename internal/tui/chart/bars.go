@@ -49,15 +49,7 @@ func barListSegs(rows []BarRow, opts BarListOptions) [][]seg {
 		notes[i] = SafeText(r.Note)
 	}
 	labelW, barW, noteW := barListLayout(labels, notes, opts.LabelWidth, width)
-
-	maxVal := SafeMagnitude(opts.Max)
-	if maxVal <= 0 {
-		for _, r := range rows {
-			if v := SafeMagnitude(r.Value); v > maxVal {
-				maxVal = v
-			}
-		}
-	}
+	maxVal := barListMax(rows, opts.Max)
 
 	out := make([][]seg, 0, len(rows))
 	for i, r := range rows {
@@ -65,22 +57,44 @@ func barListSegs(rows []BarRow, opts BarListOptions) [][]seg {
 		if maxVal > 0 {
 			fraction = SafeMagnitude(r.Value) / maxVal
 		}
-		fill, track := fillSegs(fraction, barW)
-		segs := make([]seg, 0, 6)
-		if labelW > 0 {
-			segs = append(segs,
-				seg{padRight(truncateTo(labels[i], labelW), labelW), roleLabel},
-				seg{" ", rolePlain})
-		}
-		segs = append(segs, seg{fill, roleBar}, seg{track, roleTrack})
-		if noteW > 0 {
-			segs = append(segs,
-				seg{" ", rolePlain},
-				seg{padLeft(truncateTo(notes[i], noteW), noteW), roleValue})
-		}
-		out = append(out, segs)
+		out = append(out, barRowSegs(labels[i], notes[i], fraction, labelW, barW, noteW))
 	}
 	return out
+}
+
+// barListMax resolves the value the longest bar represents: the caller's pin
+// when it is positive, otherwise the largest row value so the longest bar
+// fills its track.
+func barListMax(rows []BarRow, pinned float64) float64 {
+	maxVal := SafeMagnitude(pinned)
+	if maxVal > 0 {
+		return maxVal
+	}
+	for _, r := range rows {
+		if v := SafeMagnitude(r.Value); v > maxVal {
+			maxVal = v
+		}
+	}
+	return maxVal
+}
+
+// barRowSegs lays one row out as "label bar note", omitting a column and its
+// separating space whenever the layout gave that column no width.
+func barRowSegs(label, note string, fraction float64, labelW, barW, noteW int) []seg {
+	fill, track := fillSegs(fraction, barW)
+	segs := make([]seg, 0, 6)
+	if labelW > 0 {
+		segs = append(segs,
+			seg{padRight(truncateTo(label, labelW), labelW), roleLabel},
+			seg{" ", rolePlain})
+	}
+	segs = append(segs, seg{fill, roleBar}, seg{track, roleTrack})
+	if noteW > 0 {
+		segs = append(segs,
+			seg{" ", rolePlain},
+			seg{padLeft(truncateTo(note, noteW), noteW), roleValue})
+	}
+	return segs
 }
 
 // barListLayout divides width between the label column, the bar, and the note
@@ -91,15 +105,7 @@ func barListLayout(labels, notes []string, requestedLabelW, width int) (labelW, 
 	for _, n := range notes {
 		noteW = max(noteW, displayWidth(n))
 	}
-	if requestedLabelW > 0 {
-		labelW = requestedLabelW
-	} else {
-		for _, l := range labels {
-			labelW = max(labelW, displayWidth(l))
-		}
-		labelW = min(labelW, width/3)
-	}
-	labelW = min(labelW, width)
+	labelW = min(derivedLabelWidth(labels, requestedLabelW, width), width)
 	noteW = min(noteW, width)
 
 	for {

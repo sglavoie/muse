@@ -48,28 +48,8 @@ func vbarSegs(bars []VBar, opts VBarOptions) [][]seg {
 		return nil
 	}
 
-	labels := make([]string, len(bars))
-	labelled := false
-	labelW := 0
-	for i, b := range bars {
-		labels[i] = SafeText(b.Label)
-		if labels[i] != "" {
-			labelled = true
-			labelW = max(labelW, displayWidth(labels[i]))
-		}
-	}
-
-	colW := opts.ColWidth
-	if colW <= 0 {
-		colW = 1
-		if labelled {
-			colW = labelW + 1
-		}
-		// A derived width narrows to fit rather than suppressing the chart; a
-		// pinned one is the caller's assertion about the layout and is honoured
-		// even when that leaves no room to draw.
-		colW = min(colW, width)
-	}
+	labels, labelled, labelW := vbarLabels(bars)
+	colW := vbarColWidth(opts.ColWidth, labelled, labelW, width)
 	fit := width / colW
 	if fit == 0 {
 		return nil
@@ -78,52 +58,104 @@ func vbarSegs(bars []VBar, opts VBarOptions) [][]seg {
 		bars, labels = bars[drop:], labels[drop:]
 	}
 
-	// The scale is derived after trimming, so a narrowed chart is scaled to the
-	// columns it actually shows rather than to a peak that is no longer on it.
-	maxVal := SafeMagnitude(opts.Max)
-	if maxVal <= 0 {
-		for _, b := range bars {
-			maxVal = math.Max(maxVal, SafeMagnitude(b.Value))
+	height := max(opts.Height, 0)
+	eighths := vbarEighths(bars, vbarMax(bars, opts.Max), height)
+
+	out := make([][]seg, 0, height+1)
+	for row := range height {
+		// row 0 is the top of the chart, so the level a row represents counts
+		// down from the tallest.
+		out = append(out, vbarBodyRow(bars, eighths, height-1-row, colW, width))
+	}
+	if labelled {
+		out = append(out, vbarLabelRow(labels, colW, width))
+	}
+	return out
+}
+
+// vbarLabels sanitizes each column's label and reports the widest one, plus
+// whether any bar carried a label at all — an all-blank set omits the label
+// row entirely.
+func vbarLabels(bars []VBar) (labels []string, labelled bool, labelW int) {
+	labels = make([]string, len(bars))
+	for i, b := range bars {
+		labels[i] = SafeText(b.Label)
+		if labels[i] != "" {
+			labelled = true
+			labelW = max(labelW, displayWidth(labels[i]))
 		}
 	}
+	return labels, labelled, labelW
+}
 
-	height := max(opts.Height, 0)
+// vbarColWidth resolves the width of one column. A derived width fits the
+// widest label plus a separating column and narrows to fit the line rather than
+// suppressing the chart; a pinned one is the caller's assertion about the
+// layout and is honoured even when that leaves no room to draw.
+func vbarColWidth(requested int, labelled bool, labelW, width int) int {
+	if requested > 0 {
+		return requested
+	}
+	colW := 1
+	if labelled {
+		colW = labelW + 1
+	}
+	return min(colW, width)
+}
+
+// vbarMax resolves the value a full-height column represents. It is derived
+// after trimming, so a narrowed chart is scaled to the columns it actually
+// shows rather than to a peak that is no longer on it.
+func vbarMax(bars []VBar, pinned float64) float64 {
+	maxVal := SafeMagnitude(pinned)
+	if maxVal > 0 {
+		return maxVal
+	}
+	for _, b := range bars {
+		maxVal = math.Max(maxVal, SafeMagnitude(b.Value))
+	}
+	return maxVal
+}
+
+// vbarEighths converts each bar's value into the number of filled eighths of a
+// cell its column occupies. A non-zero value always claims at least one eighth
+// so a small bar is visible rather than silently rounding away.
+func vbarEighths(bars []VBar, maxVal float64, height int) []int {
 	eighths := make([]int, len(bars))
+	if maxVal <= 0 {
+		return eighths
+	}
 	for i, b := range bars {
-		if maxVal <= 0 {
-			continue
-		}
 		e := int(math.Round(SafeFraction(SafeMagnitude(b.Value)/maxVal) * float64(height) * 8))
 		if e == 0 && b.Value > 0 {
 			e = 1
 		}
 		eighths[i] = e
 	}
+	return eighths
+}
 
-	out := make([][]seg, 0, height+1)
-	for row := range height {
-		// row 0 is the top of the chart, so the level a row represents counts
-		// down from the tallest.
-		level := height - 1 - row
-		segs := make([]seg, 0, len(bars)+1)
-		for i, b := range bars {
-			glyph, r := vbarGlyph(eighths[i] - level*8)
-			if b.Muted && r == roleBar {
-				r = roleMuted
-			}
-			segs = append(segs, seg{SafeRepeat(glyph, colW), r})
+// vbarBodyRow renders one chart row, where level is how many whole cells of a
+// column sit below it.
+func vbarBodyRow(bars []VBar, eighths []int, level, colW, width int) []seg {
+	segs := make([]seg, 0, len(bars)+1)
+	for i, b := range bars {
+		glyph, r := vbarGlyph(eighths[i] - level*8)
+		if b.Muted && r == roleBar {
+			r = roleMuted
 		}
-		out = append(out, padSegs(segs, len(bars)*colW, width))
+		segs = append(segs, seg{SafeRepeat(glyph, colW), r})
 	}
+	return padSegs(segs, len(bars)*colW, width)
+}
 
-	if labelled {
-		segs := make([]seg, 0, len(bars)+1)
-		for _, l := range labels {
-			segs = append(segs, seg{padRight(truncateTo(l, colW), colW), roleLabel})
-		}
-		out = append(out, padSegs(segs, len(bars)*colW, width))
+// vbarLabelRow renders the label row drawn under the chart body.
+func vbarLabelRow(labels []string, colW, width int) []seg {
+	segs := make([]seg, 0, len(labels)+1)
+	for _, l := range labels {
+		segs = append(segs, seg{padRight(truncateTo(l, colW), colW), roleLabel})
 	}
-	return out
+	return padSegs(segs, len(labels)*colW, width)
 }
 
 // vbarGlyph picks the glyph for one cell from how many eighths of it are

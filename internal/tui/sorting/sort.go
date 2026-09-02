@@ -73,32 +73,27 @@ func CycleSortField(current SortField, fields []SortField) SortField {
 	return SortDefault
 }
 
+// sortFieldLabels is the display name of every sort field. A field missing
+// from the table renders as "unknown".
+var sortFieldLabels = map[SortField]string{
+	SortDefault:    "default",
+	SortArtist:     "Artist",
+	SortTitle:      "Title",
+	SortAlbum:      "Album",
+	SortDuration:   "Duration",
+	SortDateAdded:  "Date Added",
+	SortName:       "Name",
+	SortTrackCount: "Track Count",
+	SortSource:     "Source",
+	SortLastPlayed: "Last Played",
+}
+
 // SortFieldLabel returns a human-readable label for the field.
 func SortFieldLabel(f SortField) string {
-	switch f {
-	case SortDefault:
-		return "default"
-	case SortArtist:
-		return "Artist"
-	case SortTitle:
-		return "Title"
-	case SortAlbum:
-		return "Album"
-	case SortDuration:
-		return "Duration"
-	case SortDateAdded:
-		return "Date Added"
-	case SortName:
-		return "Name"
-	case SortTrackCount:
-		return "Track Count"
-	case SortSource:
-		return "Source"
-	case SortLastPlayed:
-		return "Last Played"
-	default:
-		return "unknown"
+	if label, ok := sortFieldLabels[f]; ok {
+		return label
 	}
+	return "unknown"
 }
 
 // SortDirIndicator returns an arrow character for the sort direction.
@@ -131,31 +126,40 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 	copy(sorted, tracks)
 
 	sort.SliceStable(sorted, func(i, j int) bool {
-		a, b := sorted[i], sorted[j]
-		switch field {
-		case SortArtist:
-			return CompareStringsUnknownLast(a.Artist, b.Artist, dir)
-		case SortTitle:
-			return CompareStringsUnknownLast(a.Title, b.Title, dir)
-		case SortAlbum:
-			return CompareStringsUnknownLast(a.Album, b.Album, dir)
-		case SortDuration:
-			return CompareNumericZeroLast(a.Duration, b.Duration, dir)
-		case SortDateAdded:
-			if dir == SortAsc {
-				return a.CreatedAt < b.CreatedAt
-			}
-			return a.CreatedAt > b.CreatedAt
-		case SortLastPlayed:
-			if dir == SortAsc {
-				return a.LastPlayedAt < b.LastPlayedAt
-			}
-			return a.LastPlayedAt > b.LastPlayedAt
-		default:
-			return false
-		}
+		return trackLess(sorted[i], sorted[j], field, dir)
 	})
 	return sorted
+}
+
+// trackLess orders two tracks by field. A field this list does not sort on
+// reports false, leaving SliceStable's original order intact.
+func trackLess(a, b library.Track, field SortField, dir SortDir) bool {
+	switch field {
+	case SortArtist:
+		return CompareStringsUnknownLast(a.Artist, b.Artist, dir)
+	case SortTitle:
+		return CompareStringsUnknownLast(a.Title, b.Title, dir)
+	case SortAlbum:
+		return CompareStringsUnknownLast(a.Album, b.Album, dir)
+	case SortDuration:
+		return CompareNumericZeroLast(a.Duration, b.Duration, dir)
+	case SortDateAdded:
+		return compareTimestamps(a.CreatedAt, b.CreatedAt, dir)
+	case SortLastPlayed:
+		return compareTimestamps(a.LastPlayedAt, b.LastPlayedAt, dir)
+	default:
+		return false
+	}
+}
+
+// compareTimestamps orders two Unix timestamps by direction. Unlike the
+// duration and string comparators there is no unknown-last rule here: an unset
+// timestamp is zero and sorts with the other low values.
+func compareTimestamps(a, b int64, dir SortDir) bool {
+	if dir == SortAsc {
+		return a < b
+	}
+	return a > b
 }
 
 // SortPlaylists returns a sorted copy of playlists by the given field and direction.

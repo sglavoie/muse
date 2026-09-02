@@ -51,6 +51,20 @@ func padLeft(s string, w int) string {
 	return SafeRepeat(" ", w-displayWidth(s)) + s
 }
 
+// derivedLabelWidth resolves a label column: a positive request is the caller's
+// assertion and is honoured as-is, otherwise the column fits the longest label
+// but never takes more than a third of the line.
+func derivedLabelWidth(labels []string, requested, width int) int {
+	if requested > 0 {
+		return requested
+	}
+	labelW := 0
+	for _, l := range labels {
+		labelW = max(labelW, displayWidth(l))
+	}
+	return min(labelW, width/3)
+}
+
 // fillSegs splits a bar of width cells into its filled prefix and its track
 // remainder. Partial eighth-blocks keep sub-cell precision, and a non-zero
 // fraction always renders at least one eighth so a small value is visible
@@ -188,10 +202,7 @@ func legendSegs(items []LegendItem, width int) []seg {
 		if glyph == "" && label == "" {
 			continue
 		}
-		need := displayWidth(glyph) + displayWidth(label)
-		if glyph != "" && label != "" {
-			need++
-		}
+		need := legendEntryWidth(glyph, label)
 		sep := 0
 		if cur > 0 {
 			sep = displayWidth(legendSep)
@@ -199,23 +210,41 @@ func legendSegs(items []LegendItem, width int) []seg {
 		if cur+sep+need > width {
 			break
 		}
-		textRole, glyphRole := roleLabel, roleBar
-		if it.Muted {
-			textRole, glyphRole = roleMuted, roleMuted
-		}
 		if sep > 0 {
 			segs = append(segs, seg{legendSep, roleMuted})
 		}
-		if glyph != "" {
-			segs = append(segs, seg{glyph, glyphRole})
-			if label != "" {
-				segs = append(segs, seg{" ", rolePlain})
-			}
-		}
-		if label != "" {
-			segs = append(segs, seg{label, textRole})
-		}
+		segs = append(segs, legendEntrySegs(glyph, label, it.Muted)...)
 		cur += sep + need
+	}
+	return segs
+}
+
+// legendEntryWidth is the display width one entry occupies, including the
+// single space between a swatch and its label.
+func legendEntryWidth(glyph, label string) int {
+	need := displayWidth(glyph) + displayWidth(label)
+	if glyph != "" && label != "" {
+		need++
+	}
+	return need
+}
+
+// legendEntrySegs renders one entry's swatch and label, omitting either half
+// when it is empty. A muted entry draws both halves in the muted role.
+func legendEntrySegs(glyph, label string, muted bool) []seg {
+	textRole, glyphRole := roleLabel, roleBar
+	if muted {
+		textRole, glyphRole = roleMuted, roleMuted
+	}
+	segs := make([]seg, 0, 3)
+	if glyph != "" {
+		segs = append(segs, seg{glyph, glyphRole})
+		if label != "" {
+			segs = append(segs, seg{" ", rolePlain})
+		}
+	}
+	if label != "" {
+		segs = append(segs, seg{label, textRole})
 	}
 	return segs
 }

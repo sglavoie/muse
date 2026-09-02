@@ -44,20 +44,23 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 		return ""
 	}
 
+	styled, rendered := renderHintsWithinBudget(hints, avail, s)
+	if rendered == 0 {
+		// Even the first pair didn't fit — truncate it so something shows.
+		truncated := ansi.Truncate(hintPairText(hints[0]), avail, "…")
+		styled = renderTruncatedHint(truncated, hints[0].Key, s)
+	}
+	return leading + styled
+}
+
+// renderHintsWithinBudget styles as many separated hint pairs as fit in avail
+// columns, dropping the rest from the right, and reports how many it kept.
+func renderHintsWithinBudget(hints []primaryHint, avail int, s styles.Styles) (string, int) {
 	var styled strings.Builder
 	used := 0
 	rendered := 0
 	for i, h := range hints {
-		// renderHintKeyLabel emits the key alone when Label is empty, so the
-		// width budget must match (no trailing space) or label-less hints will
-		// be dropped a column too early.
-		var pair string
-		if h.Label == "" {
-			pair = h.Key
-		} else {
-			pair = h.Key + " " + h.Label
-		}
-		pieceW := ansi.StringWidth(pair)
+		pieceW := ansi.StringWidth(hintPairText(h))
 		if i > 0 {
 			pieceW += ansi.StringWidth(footerHintSep)
 		}
@@ -71,18 +74,18 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 		used += pieceW
 		rendered++
 	}
-	if rendered == 0 {
-		// Even the first pair didn't fit — truncate it so something shows.
-		var first string
-		if hints[0].Label == "" {
-			first = hints[0].Key
-		} else {
-			first = hints[0].Key + " " + hints[0].Label
-		}
-		truncated := ansi.Truncate(first, avail, "…")
-		styled.WriteString(renderTruncatedHint(truncated, hints[0].Key, s))
+	return styled.String(), rendered
+}
+
+// hintPairText is the unstyled "key label" text a hint occupies. It is what
+// the width budget is measured against, so it must track renderHintKeyLabel
+// exactly: a label-less hint is the key alone, with no trailing space, or
+// label-less hints would be dropped a column too early.
+func hintPairText(h primaryHint) string {
+	if h.Label == "" {
+		return h.Key
 	}
-	return leading + styled.String()
+	return h.Key + " " + h.Label
 }
 
 // renderHintKeyLabel styles a single "key label" pair: HelpKey for the key,
