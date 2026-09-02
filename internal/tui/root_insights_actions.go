@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
@@ -24,19 +25,19 @@ func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
 	if m.activeView != viewInsights {
 		return m, nil
 	}
-	switch m.insights.level {
-	case insightsLevelBriefing:
-		row := m.insights.focusedRow()
-		if row == nil || row.drill == drillNone {
+	switch m.insights.Level {
+	case instui.LevelBriefing:
+		row := m.insights.FocusedRow()
+		if row == nil || row.Drill == instui.DrillNone {
 			return m, nil
 		}
-		if row.drill.opensSessions() {
-			sessions := insightsSessionsMatching(m.insights.sessions, row.drill, row.key)
+		if row.Drill.OpensSessions() {
+			sessions := instui.SessionsMatching(m.insights.Sessions, row.Drill, row.Key)
 			if len(sessions) == 0 {
 				m.statusBar.Notify("No sessions behind this row")
 				return m, nil
 			}
-			m.insights.openSessionList(row.label, sessions)
+			m.insights.OpenSessionList(row.Label, sessions)
 			return m, nil
 		}
 		tracks := m.insightsDrillTracks(*row)
@@ -44,15 +45,15 @@ func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
 			m.statusBar.Notify("Nothing behind this row")
 			return m, nil
 		}
-		m.insights.openDrill(row.label, tracks)
-	case insightsLevelSessions:
+		m.insights.OpenDrill(row.Label, tracks)
+	case instui.LevelSessions:
 		tracks, label := m.insightsSessionActionTracks()
 		if len(tracks) == 0 {
 			m.statusBar.Notify("Nothing behind this session")
 			return m, nil
 		}
-		m.insights.openDrill(label, tracks)
-	case insightsLevelTracks, insightsLevelSessionTracks:
+		m.insights.OpenDrill(label, tracks)
+	case instui.LevelTracks, instui.LevelSessionTracks:
 		return m.insightsEnqueueSelection()
 	}
 	return m, nil
@@ -63,12 +64,12 @@ func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
 // Library's enter does. A refused enqueue keeps the selection so the key can be
 // pressed again once a queue is available.
 func (m Model) insightsEnqueueSelection() (Model, tea.Cmd) {
-	m, cmd := m.insightsEnqueue(m.insightsBulkTracks(), m.insights.drillLabel)
+	m, cmd := m.insightsEnqueue(m.insightsBulkTracks(), m.insights.DrillLabel)
 	if cmd == nil {
 		return m, nil
 	}
 	m = exitVisualMode(m)
-	m.insights.trackView.SelectedHashes = nil
+	m.insights.TrackView.SelectedHashes = nil
 	return m, cmd
 }
 
@@ -77,17 +78,17 @@ func (m Model) insightsEnqueueSelection() (Model, tea.Cmd) {
 // focused row when nothing is selected. A session's repeats are kept, since its
 // track list is a replay rather than a set.
 func (m Model) insightsBulkTracks() []library.Track {
-	if !m.insights.atTracks() {
+	if !m.insights.AtTracks() {
 		return nil
 	}
-	order := m.insights.trackView.BaseTracks()
-	if m.insights.trackView.SortedTracks != nil {
-		order = m.insights.trackView.SortedTracks
+	order := m.insights.TrackView.BaseTracks()
+	if m.insights.TrackView.SortedTracks != nil {
+		order = m.insights.TrackView.SortedTracks
 	}
-	if len(m.insights.trackView.SelectedHashes) > 0 {
-		return collectSelectedTracks(order, m.insights.trackView.SelectedHashes)
+	if len(m.insights.TrackView.SelectedHashes) > 0 {
+		return collectSelectedTracks(order, m.insights.TrackView.SelectedHashes)
 	}
-	if t := m.insights.focusedTrack(); t != nil {
+	if t := m.insights.FocusedTrack(); t != nil {
 		return []library.Track{*t}
 	}
 	return nil
@@ -95,14 +96,14 @@ func (m Model) insightsBulkTracks() []library.Track {
 
 // handleInsightsBack steps out one level.
 func (m Model) handleInsightsBack() Model {
-	if m.activeView != viewInsights || m.insights.level == insightsLevelBriefing {
+	if m.activeView != viewInsights || m.insights.Level == instui.LevelBriefing {
 		return m
 	}
 	// Stepping out replaces the list visual mode anchored into, so the range
 	// has nothing left to grow over.
 	m = exitVisualMode(m)
-	m.insights.back()
-	m.insights.clampCursor()
+	m.insights.Back()
+	m.insights.ClampCursor()
 	return m
 }
 
@@ -111,27 +112,27 @@ func (m Model) handleInsightsBack() Model {
 // or the focused row's set on the briefing. The label is what notifications and
 // the playlist name use.
 func (m Model) insightsActionTracks() ([]library.Track, string) {
-	if m.insights.atTracks() {
-		return m.insights.trackView.SourceTracks, m.insights.drillLabel
+	if m.insights.AtTracks() {
+		return m.insights.TrackView.SourceTracks, m.insights.DrillLabel
 	}
-	if m.insights.level == insightsLevelSessions {
+	if m.insights.Level == instui.LevelSessions {
 		return m.insightsSessionActionTracks()
 	}
-	row := m.insights.focusedRow()
-	if row == nil || row.drill == drillNone {
+	row := m.insights.FocusedRow()
+	if row == nil || row.Drill == instui.DrillNone {
 		return nil, ""
 	}
-	return m.insightsDrillTracks(*row), row.label
+	return m.insightsDrillTracks(*row), row.Label
 }
 
 // insightsSessionActionTracks returns the focused session in the order it was
 // heard, so E replays it rather than approximating it.
 func (m Model) insightsSessionActionTracks() ([]library.Track, string) {
-	s := m.insights.focusedSession()
+	s := m.insights.FocusedSession()
 	if s == nil {
 		return nil, ""
 	}
-	label := time.Unix(s.StartedAt, 0).In(m.insights.location()).Format("2 Jan 15:04")
+	label := time.Unix(s.StartedAt, 0).In(m.insights.Location()).Format("2 Jan 15:04")
 	return m.insightsSessionTracks(s.ID), "Session " + label
 }
 
@@ -153,15 +154,15 @@ func (m Model) handleInsightsAntiRut() (Model, tea.Cmd) {
 	if m.activeView != viewInsights {
 		return m, nil
 	}
-	if m.insights.panel == panelConcentration {
+	if m.insights.Panel == instui.PanelConcentration {
 		tracks := m.insightsRutBreakerTracks(insightsAntiRutCount)
 		if len(tracks) == 0 {
 			// A library smaller than the rut has no outside, which is a different
 			// answer from "nothing to enqueue" and worth saying out loud.
-			m.statusBar.Notify(fmt.Sprintf("Your whole library is inside your top %d artists", insightsRutTopArtists))
+			m.statusBar.Notify(fmt.Sprintf("Your whole library is inside your top %d artists", instui.RutTopArtists))
 			return m, nil
 		}
-		return m.insightsEnqueue(tracks, fmt.Sprintf("Outside your top %d artists", insightsRutTopArtists))
+		return m.insightsEnqueue(tracks, fmt.Sprintf("Outside your top %d artists", instui.RutTopArtists))
 	}
 	return m.insightsEnqueue(m.insightsCoverageAntiRutTracks(insightsAntiRutCount), "Never played")
 }
@@ -229,27 +230,27 @@ func (m Model) handleInsightsJumpBrowse() Model {
 	}
 	artist := ""
 	switch {
-	case m.insights.atTracks():
-		if t := m.insights.focusedTrack(); t != nil {
+	case m.insights.AtTracks():
+		if t := m.insights.FocusedTrack(); t != nil {
 			artist = t.Artist
 		}
-	case m.insights.level == insightsLevelSessions:
-		if s := m.insights.focusedSession(); s != nil {
+	case m.insights.Level == instui.LevelSessions:
+		if s := m.insights.FocusedSession(); s != nil {
 			artist = s.OpenerArtist
 		}
 	default:
-		row := m.insights.focusedRow()
+		row := m.insights.FocusedRow()
 		if row == nil {
 			return m
 		}
-		switch row.drill {
-		case drillNone:
+		switch row.Drill {
+		case instui.DrillNone:
 			return m
-		case drillUnheardArtist, drillArtistPlays, drillSessionsOpener, drillSessionsCloser:
-			artist = row.key
-		case drillDormant:
-			if len(m.insights.dormant) > 0 {
-				artist = m.insights.dormant[0].Artist
+		case instui.DrillUnheardArtist, instui.DrillArtistPlays, instui.DrillSessionsOpener, instui.DrillSessionsCloser:
+			artist = row.Key
+		case instui.DrillDormant:
+			if len(m.insights.Dormant) > 0 {
+				artist = m.insights.Dormant[0].Artist
 			}
 		default:
 			// Every remaining row stands for a set rather than for one name, so
@@ -268,10 +269,10 @@ func (m Model) handleInsightsJumpBrowse() Model {
 
 // handleInsightsSavePlaylist saves the drilled-in tracks as a static playlist.
 func (m Model) handleInsightsSavePlaylist() (Model, tea.Cmd) {
-	if m.activeView != viewInsights || !m.insights.atTracks() {
+	if m.activeView != viewInsights || !m.insights.AtTracks() {
 		return m, nil
 	}
-	tracks := m.insights.trackView.SourceTracks
+	tracks := m.insights.TrackView.SourceTracks
 	if len(tracks) == 0 {
 		m.statusBar.Notify("No tracks to save")
 		return m, nil
@@ -282,7 +283,7 @@ func (m Model) handleInsightsSavePlaylist() (Model, tea.Cmd) {
 		return m, nil
 	}
 	pa := m.playlistAdder
-	name := "Insights: " + m.insights.drillLabel
+	name := "Insights: " + m.insights.DrillLabel
 	hashes := make([]string, len(tracks))
 	for i, t := range tracks {
 		hashes[i] = t.Hash

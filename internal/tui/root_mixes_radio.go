@@ -83,7 +83,7 @@ func (m Model) handleMixesRadioSeed() (Model, tea.Cmd) {
 		tm, cmd, _ := m.radioToggle()
 		return tm.(Model), cmd
 	}
-	tracks, ok := m.mixes.cachedMixes[m.mixes.activeMix]
+	tracks, ok := m.mixes.CachedMixes[m.mixes.ActiveMix]
 	if !ok || len(tracks) == 0 {
 		tm, cmd, _ := m.radioToggle()
 		return tm.(Model), cmd
@@ -94,8 +94,8 @@ func (m Model) handleMixesRadioSeed() (Model, tea.Cmd) {
 	m.radio.seedHash = ""
 
 	var mixName string
-	for _, info := range m.mixes.mixes {
-		if info.ID == m.mixes.activeMix {
+	for _, info := range m.mixes.Mixes {
+		if info.ID == m.mixes.ActiveMix {
 			mixName = info.Name
 			break
 		}

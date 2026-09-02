@@ -11,6 +11,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
@@ -19,78 +20,78 @@ import (
 func newSessionsModel(t *testing.T, opts ...Option) Model {
 	t.Helper()
 	m := newInsightsModel(t, opts...)
-	m.insights.loc = panelsTestLoc()
-	m.insights.plays = []insights.PlayRow{
+	m.insights.Loc = panelsTestLoc()
+	m.insights.Plays = []insights.PlayRow{
 		{Hash: "h4", StartAt: at(time.August, 3, 9).Unix(), SessionID: "s-solo", Artist: "Bob"},
 		{Hash: "h1", StartAt: at(time.August, 5, 20).Unix(), SessionID: "s-mixed", Artist: "Alice"},
 		{Hash: "h6", StartAt: at(time.August, 5, 21).Unix(), SessionID: "s-mixed", Artist: "Charlie"},
 		{Hash: "h1", StartAt: at(time.August, 5, 22).Unix(), SessionID: "s-mixed", Artist: "Alice"},
 	}
-	m.insights.sessions = []insights.SessionRow{
+	m.insights.Sessions = []insights.SessionRow{
 		{ID: "s-solo", StartedAt: at(time.August, 3, 9).Unix(), EndedAt: at(time.August, 3, 9).Unix() + 600,
 			Plays: 1, ListenedSecs: 600, DistinctArtists: 1, OpenerArtist: "Bob", CloserArtist: "Bob"},
 		{ID: "s-mixed", StartedAt: at(time.August, 5, 20).Unix(), EndedAt: at(time.August, 5, 22).Unix() + 600,
 			Plays: 3, ListenedSecs: 1800, DistinctArtists: 2, OpenerArtist: "Alice", CloserArtist: "Alice"},
 	}
-	m.insights.snap.SessionStats = insights.SessionStats{
+	m.insights.Snap.SessionStats = insights.SessionStats{
 		Count: 2, SinglePlay: 1, TotalSecs: 2400, LongestSecs: 8400, MedianSecs: 600, AvgPlays: 2,
 		Durations:  []int{600, 8400},
 		TopOpeners: []insights.EntityStat{{Name: "Alice", Plays: 1}, {Name: "Bob", Plays: 1}},
 	}
-	m.insights = m.insights.shiftPanel(int(panelSessions))
-	if m.insights.panel != panelSessions {
-		t.Fatalf("precondition: want the Sessions panel, got %v", m.insights.panel)
+	m.insights = m.insights.ShiftPanel(int(instui.PanelSessions))
+	if m.insights.Panel != instui.PanelSessions {
+		t.Fatalf("precondition: want the Sessions panel, got %v", m.insights.Panel)
 	}
-	m.insights.clampCursor()
+	m.insights.ClampCursor()
 	return m
 }
 
 func TestInsightsSessionRowOpensSessionsThenTracks(t *testing.T) {
 	m := newSessionsModel(t)
-	row := m.insights.focusedRow()
-	if row == nil || row.drill != drillSessionsAll {
+	row := m.insights.FocusedRow()
+	if row == nil || row.Drill != instui.DrillSessionsAll {
 		t.Fatalf("precondition: want the All sessions row focused, got %+v", row)
 	}
 
 	// A Sessions row opens the sessions themselves, because a session is a thing
 	// in its own right rather than a bag of tracks.
 	m, _ = m.handleInsightsOpen()
-	if m.insights.level != insightsLevelSessions {
-		t.Fatalf("want the session level after open, got %d", m.insights.level)
+	if m.insights.Level != instui.LevelSessions {
+		t.Fatalf("want the session level after open, got %d", m.insights.Level)
 	}
-	if len(m.insights.sessionList) != 2 {
-		t.Fatalf("want both sessions listed, got %d", len(m.insights.sessionList))
+	if len(m.insights.SessionList) != 2 {
+		t.Fatalf("want both sessions listed, got %d", len(m.insights.SessionList))
 	}
 	// Newest first, so the mixed session leads.
-	if got := m.insights.focusedSession(); got == nil || got.ID != "s-mixed" {
+	if got := m.insights.FocusedSession(); got == nil || got.ID != "s-mixed" {
 		t.Fatalf("want s-mixed focused, got %+v", got)
 	}
 
 	m, _ = m.handleInsightsOpen()
-	if m.insights.level != insightsLevelSessionTracks {
-		t.Fatalf("want the session's tracks after a second open, got %d", m.insights.level)
+	if m.insights.Level != instui.LevelSessionTracks {
+		t.Fatalf("want the session's tracks after a second open, got %d", m.insights.Level)
 	}
-	if !m.insights.atTracks() {
+	if !m.insights.AtTracks() {
 		t.Error("the session track level should count as a track level")
 	}
-	if !strings.HasPrefix(m.insights.drillLabel, "Session ") {
-		t.Errorf("drill label should name the session, got %q", m.insights.drillLabel)
+	if !strings.HasPrefix(m.insights.DrillLabel, "Session ") {
+		t.Errorf("drill label should name the session, got %q", m.insights.DrillLabel)
 	}
 
 	// esc steps out one level at a time rather than falling straight back to the
 	// briefing, so the session list is not lost on the way.
 	m = m.handleInsightsBack()
-	if m.insights.level != insightsLevelSessions {
-		t.Fatalf("want the session list after one back, got %d", m.insights.level)
+	if m.insights.Level != instui.LevelSessions {
+		t.Fatalf("want the session list after one back, got %d", m.insights.Level)
 	}
-	if len(m.insights.sessionList) != 2 {
-		t.Errorf("back should keep the session list, got %d", len(m.insights.sessionList))
+	if len(m.insights.SessionList) != 2 {
+		t.Errorf("back should keep the session list, got %d", len(m.insights.SessionList))
 	}
 	m = m.handleInsightsBack()
-	if m.insights.level != insightsLevelBriefing {
-		t.Fatalf("want the briefing after two backs, got %d", m.insights.level)
+	if m.insights.Level != instui.LevelBriefing {
+		t.Fatalf("want the briefing after two backs, got %d", m.insights.Level)
 	}
-	if m.insights.sessionList != nil || m.insights.sessionLabel != "" {
+	if m.insights.SessionList != nil || m.insights.SessionLabel != "" {
 		t.Error("returning to the briefing should clear the session list")
 	}
 }
@@ -114,7 +115,7 @@ func TestInsightsSessionTracksKeepRepeatsInPlayOrder(t *testing.T) {
 	// The briefing row above it stands for a set rather than one replay, so there
 	// the repeat folds away.
 	var set []string
-	for _, tr := range m.insightsDrillTracks(insightsRow{drill: drillSessionsAll}) {
+	for _, tr := range m.insightsDrillTracks(instui.Row{Drill: instui.DrillSessionsAll}) {
 		set = append(set, tr.Hash)
 	}
 	if strings.Join(set, ",") != "h4,h1,h6" {
@@ -165,10 +166,10 @@ func TestInsightsJumpBrowseFromASession(t *testing.T) {
 
 func TestInsightsJumpBrowseFromARankingRow(t *testing.T) {
 	m := newInsightsModel(t)
-	m.insights = m.insights.shiftPanel(int(panelTimeVsPlays))
-	m.insights.snap.Rankings = rankingsFixture()
-	m.insights.clampCursor()
-	if row := m.insights.focusedRow(); row == nil || row.key != "Dana" {
+	m.insights = m.insights.ShiftPanel(int(instui.PanelTimeVsPlays))
+	m.insights.Snap.Rankings = rankingsFixture()
+	m.insights.ClampCursor()
+	if row := m.insights.FocusedRow(); row == nil || row.Key != "Dana" {
 		t.Fatalf("precondition: want the biggest mover focused, got %+v", row)
 	}
 
@@ -178,7 +179,7 @@ func TestInsightsJumpBrowseFromARankingRow(t *testing.T) {
 		t.Errorf("an unknown artist should not change view, got %d", got.activeView)
 	}
 
-	m.insights.cursor = 1 // Bob, who does exist
+	m.insights.Cursor = 1 // Bob, who does exist
 	m = m.handleInsightsJumpBrowse()
 	if m.activeView != viewBrowse {
 		t.Fatalf("b should land in Browse, got view %d", m.activeView)
@@ -190,7 +191,7 @@ func TestInsightsJumpBrowseFromARankingRow(t *testing.T) {
 
 func TestInsightsRutBreakerSteersAwayFromTheTopArtists(t *testing.T) {
 	m := newInsightsModel(t)
-	m.insights.snap.Rankings.ArtistsByHours = []insights.EntityStat{{Name: "Alice", ListenedSecs: 9000}}
+	m.insights.Snap.Rankings.ArtistsByHours = []insights.EntityStat{{Name: "Alice", ListenedSecs: 9000}}
 
 	got := m.insightsRutBreakerTracks(10)
 
@@ -215,8 +216,8 @@ func TestInsightsRutBreakerSteersAwayFromTheTopArtists(t *testing.T) {
 func TestInsightsAntiRutOnConcentrationLeavesTheTopArtists(t *testing.T) {
 	be := &stubBatchEnqueuer{}
 	m := newInsightsModel(t, WithBatchEnqueuer(be))
-	m.insights = m.insights.shiftPanel(int(panelConcentration))
-	m.insights.snap.Rankings.ArtistsByHours = []insights.EntityStat{{Name: "Alice", ListenedSecs: 9000}}
+	m.insights = m.insights.ShiftPanel(int(instui.PanelConcentration))
+	m.insights.Snap.Rankings.ArtistsByHours = []insights.EntityStat{{Name: "Alice", ListenedSecs: 9000}}
 
 	_, cmd := m.handleInsightsAntiRut()
 	if cmd == nil {
@@ -246,8 +247,8 @@ func TestInsightsCursorDoesNotFallThroughToQueue(t *testing.T) {
 	m = pressKey(m, "j")
 	m = pressKey(m, "j")
 
-	if m.insights.cursor != 2 {
-		t.Errorf("j should move the Insights cursor: want 2, got %d", m.insights.cursor)
+	if m.insights.Cursor != 2 {
+		t.Errorf("j should move the Insights cursor: want 2, got %d", m.insights.Cursor)
 	}
 	if m.queue.Cursor != 0 {
 		t.Errorf("j leaked into the Queue cursor: got %d", m.queue.Cursor)
@@ -255,8 +256,8 @@ func TestInsightsCursorDoesNotFallThroughToQueue(t *testing.T) {
 
 	m = pressKey(m, "k")
 
-	if m.insights.cursor != 1 {
-		t.Errorf("k should move the Insights cursor: want 1, got %d", m.insights.cursor)
+	if m.insights.Cursor != 1 {
+		t.Errorf("k should move the Insights cursor: want 1, got %d", m.insights.Cursor)
 	}
 	if m.queue.Cursor != 0 {
 		t.Errorf("k leaked into the Queue cursor: got %d", m.queue.Cursor)
@@ -284,7 +285,7 @@ func TestInsightsEnqueueAll(t *testing.T) {
 	if len(be.appendTracksCalls[0]) != 2 {
 		t.Errorf("expected the 2 unheard Alice tracks, got %d", len(be.appendTracksCalls[0]))
 	}
-	if be.appendTracksSources[0] != m.insights.focusedRow().label {
+	if be.appendTracksSources[0] != m.insights.FocusedRow().Label {
 		t.Errorf("source should be the row label, got %q", be.appendTracksSources[0])
 	}
 }
@@ -464,7 +465,7 @@ func TestInsightsSavePlaylist(t *testing.T) {
 	pa := &stubPlaylistAdder{}
 	m := newInsightsModel(t, WithPlaylistWriter(pw), WithPlaylistAdder(pa))
 	m, _ = m.handleInsightsOpen()
-	if m.insights.level != 1 {
+	if m.insights.Level != 1 {
 		t.Fatal("precondition: expected a drill before saving")
 	}
 
@@ -477,12 +478,12 @@ func TestInsightsSavePlaylist(t *testing.T) {
 		t.Fatalf("expected mixSavedAsPlaylistMsg, got %T", cmd())
 	}
 
-	want := "Insights: " + m.insights.drillLabel
+	want := "Insights: " + m.insights.DrillLabel
 	if msg.playlistName != want {
 		t.Errorf("playlist name: want %q, got %q", want, msg.playlistName)
 	}
-	if msg.count != len(m.insights.trackView.SourceTracks) {
-		t.Errorf("count: want %d, got %d", len(m.insights.trackView.SourceTracks), msg.count)
+	if msg.count != len(m.insights.TrackView.SourceTracks) {
+		t.Errorf("count: want %d, got %d", len(m.insights.TrackView.SourceTracks), msg.count)
 	}
 	if len(pa.calls) != 1 || len(pa.calls[0].hashes) != msg.count {
 		t.Errorf("expected %d hashes added to the new playlist, got %+v", msg.count, pa.calls)

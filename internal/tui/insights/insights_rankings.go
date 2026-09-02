@@ -1,4 +1,4 @@
-package tui
+package insights
 
 // Concentration and Time vs Plays: the two panels built on the same ranking of
 // artists. Concentration asks how few names your listening actually comes down
@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -22,20 +22,20 @@ const (
 	// insightsRankTableRows caps the side-by-side ordering, which is a
 	// comparison of the head of two lists rather than a full listing.
 	insightsRankTableRows = 10
-	// insightsRutTopArtists is the size of the rut the ! shortcut steers away
+	// RutTopArtists is the size of the rut the ! shortcut steers away
 	// from: the artists that already hold the top of the time ranking.
-	insightsRutTopArtists = 20
+	RutTopArtists = 20
 )
 
 // --- Concentration -----------------------------------------------------------
 
-func (v InsightsView) concentrationRows() []insightsRow {
-	r := v.snap.Rankings
+func (v View) concentrationRows() []Row {
+	r := v.Snap.Rankings
 	l := r.Ladder
 	if l.TotalArtists == 0 {
 		return nil
 	}
-	rows := make([]insightsRow, 0, 4+insightsLadderArtistRows)
+	rows := make([]Row, 0, 4+insightsLadderArtistRows)
 
 	for _, step := range []struct {
 		share   int
@@ -46,14 +46,14 @@ func (v InsightsView) concentrationRows() []insightsRow {
 		if step.artists == 0 {
 			continue
 		}
-		rows = append(rows, insightsRow{
-			section: "Repertoire ladder",
-			label:   fmt.Sprintf("%d%% of your time", step.share),
+		rows = append(rows, Row{
+			Section: "Repertoire ladder",
+			Label:   fmt.Sprintf("%d%% of your time", step.share),
 			note: fmt.Sprintf("%d of %d %s", step.artists, l.TotalArtists,
 				text.Pluralize(l.TotalArtists, "artist", "artists")),
 			fraction: insightsFraction(step.artists, l.TotalArtists),
-			drill:    drillTopArtists,
-			key:      strconv.Itoa(step.artists),
+			Drill:    DrillTopArtists,
+			Key:      strconv.Itoa(step.artists),
 		})
 	}
 
@@ -65,22 +65,22 @@ func (v InsightsView) concentrationRows() []insightsRow {
 		if i >= insightsLadderArtistRows {
 			break
 		}
-		rows = append(rows, insightsRow{
-			section:  "Top artists by time",
-			label:    e.Name,
+		rows = append(rows, Row{
+			Section:  "Top artists by time",
+			Label:    e.Name,
 			note:     insightsPlaysNote(e.Plays, e.ListenedSecs),
 			fraction: insightsFraction(e.ListenedSecs, peak),
-			drill:    drillArtistPlays,
-			key:      e.Name,
+			Drill:    DrillArtistPlays,
+			Key:      e.Name,
 		})
 	}
 	return rows
 }
 
-func (v InsightsView) concentrationHeaderLines(s styles.Styles) []string {
-	r := v.snap.Rankings
+func (v View) concentrationHeaderLines(s styles.Styles) []string {
+	r := v.Snap.Rankings
 	l := r.Ladder
-	head := []string{"", s.Dim.Render(v.headline(panelConcentration)), ""}
+	head := []string{"", s.Dim.Render(v.headline(PanelConcentration)), ""}
 	if l.TotalArtists == 0 {
 		return head
 	}
@@ -91,7 +91,7 @@ func (v InsightsView) concentrationHeaderLines(s styles.Styles) []string {
 		s.TextSecondary.Render(v.fit(fmt.Sprintf(
 			"%d %s in this window · %d of them cover 90%% of it · ! builds a set from outside the top %d",
 			l.TotalArtists, text.Pluralize(l.TotalArtists, "artist", "artists"),
-			l.Artists90, insightsRutTopArtists))),
+			l.Artists90, RutTopArtists))),
 		"",
 	}
 	if v.compact() {
@@ -108,13 +108,13 @@ func (v InsightsView) concentrationHeaderLines(s styles.Styles) []string {
 
 // --- Time vs Plays -----------------------------------------------------------
 
-func (v InsightsView) timeVsPlaysRows() []insightsRow {
-	r := v.snap.Rankings
+func (v View) timeVsPlaysRows() []Row {
+	r := v.Snap.Rankings
 	if len(r.Deltas) == 0 {
 		return nil
 	}
 
-	byName := make(map[string]insights.EntityStat, len(r.ArtistsByHours))
+	byName := make(map[string]insightsdata.EntityStat, len(r.ArtistsByHours))
 	for _, e := range r.ArtistsByHours {
 		byName[e.Name] = e
 	}
@@ -123,8 +123,8 @@ func (v InsightsView) timeVsPlaysRows() []insightsRow {
 		peak = r.ArtistsByHours[0].ListenedSecs
 	}
 
-	moved := make([]insights.RankDelta, 0, len(r.Deltas))
-	steady := make([]insights.RankDelta, 0, len(r.Deltas))
+	moved := make([]insightsdata.RankDelta, 0, len(r.Deltas))
+	steady := make([]insightsdata.RankDelta, 0, len(r.Deltas))
 	for _, d := range r.Deltas {
 		if d.Delta != 0 {
 			moved = append(moved, d)
@@ -138,18 +138,18 @@ func (v InsightsView) timeVsPlaysRows() []insightsRow {
 		return insightsAbs(moved[i].Delta) > insightsAbs(moved[j].Delta)
 	})
 
-	rows := make([]insightsRow, 0, len(r.Deltas))
-	add := func(section string, deltas []insights.RankDelta) {
+	rows := make([]Row, 0, len(r.Deltas))
+	add := func(section string, deltas []insightsdata.RankDelta) {
 		for _, d := range deltas {
 			e := byName[d.Name]
-			rows = append(rows, insightsRow{
-				section: section,
-				label:   d.Name,
+			rows = append(rows, Row{
+				Section: section,
+				Label:   d.Name,
 				note: fmt.Sprintf("plays #%d · hours #%d · %s",
 					d.PlayRank, d.HoursRank, insightsDeltaText(d.Delta)),
 				fraction: insightsFraction(e.ListenedSecs, peak),
-				drill:    drillArtistPlays,
-				key:      d.Name,
+				Drill:    DrillArtistPlays,
+				Key:      d.Name,
 			})
 		}
 	}
@@ -158,9 +158,9 @@ func (v InsightsView) timeVsPlaysRows() []insightsRow {
 	return rows
 }
 
-func (v InsightsView) timeVsPlaysHeaderLines(s styles.Styles) []string {
-	r := v.snap.Rankings
-	head := []string{"", s.Dim.Render(v.headline(panelTimeVsPlays)), ""}
+func (v View) timeVsPlaysHeaderLines(s styles.Styles) []string {
+	r := v.Snap.Rankings
+	head := []string{"", s.Dim.Render(v.headline(PanelTimeVsPlays)), ""}
 	if len(r.Deltas) == 0 {
 		return head
 	}

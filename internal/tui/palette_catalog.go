@@ -3,6 +3,7 @@ package tui
 import (
 	"slices"
 
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/palette"
 )
@@ -228,8 +229,8 @@ func atPlaylistListLevel(m Model) bool {
 // applies to a focused Data Health collision row, and offering it anywhere else
 // would put a palette row in front of the user that can only notify a refusal.
 func insightsHasGenreCollision(m Model) bool {
-	row := m.insights.focusedHealthRow()
-	return row != nil && row.kind == healthGenreCollision
+	row := m.insights.FocusedHealthRow()
+	return row != nil && row.Kind == instui.HealthGenreCollision
 }
 
 func activeViewIs(views ...viewID) func(Model) bool {

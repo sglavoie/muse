@@ -1,4 +1,4 @@
-package tui
+package insights
 
 // Sessions: the one panel whose rows do not open tracks directly. A session is
 // a thing in its own right — it has a length, a shape, an opener and an order
@@ -13,7 +13,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -64,12 +64,12 @@ func insightsDurationBucketOf(secs int) int {
 
 // insightsSessionSecs is a session's wall-clock length, the same measure
 // insights.computeSessions puts in SessionStats.Durations.
-func insightsSessionSecs(r insights.SessionRow) int {
+func insightsSessionSecs(r insightsdata.SessionRow) int {
 	return max(int(r.EndedAt-r.StartedAt), 0)
 }
 
 // insightsSessionDiet names how wide a session's artist selection was.
-func insightsSessionDiet(r insights.SessionRow) string {
+func insightsSessionDiet(r insightsdata.SessionRow) string {
 	switch {
 	case r.DistinctArtists <= 1:
 		return insightsDietOne
@@ -80,35 +80,35 @@ func insightsSessionDiet(r insights.SessionRow) string {
 	}
 }
 
-// insightsSessionsMatching returns the sessions a Sessions row stands for,
+// SessionsMatching returns the sessions a Sessions row stands for,
 // newest first. The counts in the rows come from here too, so a row's number
 // and the list it opens are always the same set.
-func insightsSessionsMatching(sessions []insights.SessionRow, kind insightsDrillKind, key string) []insights.SessionRow {
+func SessionsMatching(sessions []insightsdata.SessionRow, kind DrillKind, key string) []insightsdata.SessionRow {
 	bucket := -1
-	if kind == drillSessionsBucket {
+	if kind == DrillSessionsBucket {
 		if idx, err := strconv.Atoi(key); err == nil {
 			bucket = idx
 		}
 	}
 
-	out := make([]insights.SessionRow, 0, len(sessions))
+	out := make([]insightsdata.SessionRow, 0, len(sessions))
 	for i := len(sessions) - 1; i >= 0; i-- {
 		r := sessions[i]
 		keep := false
 		switch kind {
-		case drillSessionsAll:
+		case DrillSessionsAll:
 			keep = true
-		case drillSessionsBucket:
+		case DrillSessionsBucket:
 			keep = bucket >= 0 && insightsDurationBucketOf(insightsSessionSecs(r)) == bucket
-		case drillSessionsShape:
+		case DrillSessionsShape:
 			if key == insightsShapeSinglePlay {
 				keep = r.Plays <= 1
 			} else {
 				keep = insightsSessionDiet(r) == key
 			}
-		case drillSessionsOpener:
+		case DrillSessionsOpener:
 			keep = r.OpenerArtist == key
-		case drillSessionsCloser:
+		case DrillSessionsCloser:
 			keep = r.CloserArtist == key
 		}
 		if keep {
@@ -118,24 +118,24 @@ func insightsSessionsMatching(sessions []insights.SessionRow, kind insightsDrill
 	return out
 }
 
-func (v InsightsView) sessionRows() []insightsRow {
-	ss := v.snap.SessionStats
+func (v View) sessionRows() []Row {
+	ss := v.Snap.SessionStats
 	if ss.Count == 0 {
 		return nil
 	}
-	rows := make([]insightsRow, 0, len(insightsDurationBuckets)+len(ss.TopOpeners)+len(ss.TopClosers)+5)
+	rows := make([]Row, 0, len(insightsDurationBuckets)+len(ss.TopOpeners)+len(ss.TopClosers)+5)
 
 	sessionNote := func(n int) string {
 		return fmt.Sprintf("%d %s · %.0f%%", n, text.Pluralize(n, "session", "sessions"),
 			insightsFraction(n, ss.Count)*100)
 	}
 
-	rows = append(rows, insightsRow{
-		section:  "Sessions",
-		label:    "All sessions",
+	rows = append(rows, Row{
+		Section:  "Sessions",
+		Label:    "All sessions",
 		note:     fmt.Sprintf("%d %s · %s", ss.Count, text.Pluralize(ss.Count, "session", "sessions"), text.FormatListeningTime(ss.TotalSecs)),
 		fraction: 1,
-		drill:    drillSessionsAll,
+		Drill:    DrillSessionsAll,
 	})
 
 	counts := insightsDurationCounts(ss.Durations)
@@ -149,31 +149,31 @@ func (v InsightsView) sessionRows() []insightsRow {
 		if counts[i] == 0 {
 			continue
 		}
-		rows = append(rows, insightsRow{
-			section:  "Session length",
-			label:    b.label,
+		rows = append(rows, Row{
+			Section:  "Session length",
+			Label:    b.label,
 			note:     sessionNote(counts[i]),
 			fraction: insightsFraction(counts[i], peak),
-			drill:    drillSessionsBucket,
-			key:      strconv.Itoa(i),
+			Drill:    DrillSessionsBucket,
+			Key:      strconv.Itoa(i),
 		})
 	}
 
 	if ss.SinglePlay > 0 {
-		rows = append(rows, insightsRow{
-			section:  "False starts",
-			label:    "One play and out",
+		rows = append(rows, Row{
+			Section:  "False starts",
+			Label:    "One play and out",
 			note:     sessionNote(ss.SinglePlay),
 			fraction: insightsFraction(ss.SinglePlay, ss.Count),
-			drill:    drillSessionsShape,
-			key:      insightsShapeSinglePlay,
+			Drill:    DrillSessionsShape,
+			Key:      insightsShapeSinglePlay,
 		})
 	}
 
 	// SessionStats counts single-artist sessions but not the split above one, so
 	// the diet comes off the raw rows.
 	diet := map[string]int{}
-	for _, r := range v.sessions {
+	for _, r := range v.Sessions {
 		diet[insightsSessionDiet(r)]++
 	}
 	for _, d := range []struct{ key, label string }{
@@ -184,34 +184,34 @@ func (v InsightsView) sessionRows() []insightsRow {
 		if diet[d.key] == 0 {
 			continue
 		}
-		rows = append(rows, insightsRow{
-			section:  "Session diet",
-			label:    d.label,
+		rows = append(rows, Row{
+			Section:  "Session diet",
+			Label:    d.label,
 			note:     sessionNote(diet[d.key]),
 			fraction: insightsFraction(diet[d.key], ss.Count),
-			drill:    drillSessionsShape,
-			key:      d.key,
+			Drill:    DrillSessionsShape,
+			Key:      d.key,
 		})
 	}
 
-	appendEntities := func(section string, ents []insights.EntityStat, kind insightsDrillKind) {
+	appendEntities := func(section string, ents []insightsdata.EntityStat, kind DrillKind) {
 		top := 0
 		for _, e := range ents {
 			top = max(top, e.Plays)
 		}
 		for _, e := range ents {
-			rows = append(rows, insightsRow{
-				section:  section,
-				label:    e.Name,
+			rows = append(rows, Row{
+				Section:  section,
+				Label:    e.Name,
 				note:     fmt.Sprintf("%d %s · %s", e.Plays, text.Pluralize(e.Plays, "session", "sessions"), text.FormatListeningTime(e.ListenedSecs)),
 				fraction: insightsFraction(e.Plays, top),
-				drill:    kind,
-				key:      e.Name,
+				Drill:    kind,
+				Key:      e.Name,
 			})
 		}
 	}
-	appendEntities("Opens with", ss.TopOpeners, drillSessionsOpener)
-	appendEntities("Ends with", ss.TopClosers, drillSessionsCloser)
+	appendEntities("Opens with", ss.TopOpeners, DrillSessionsOpener)
+	appendEntities("Ends with", ss.TopClosers, DrillSessionsCloser)
 
 	return rows
 }
@@ -224,9 +224,9 @@ func insightsDurationCounts(durations []int) []int {
 	return counts
 }
 
-func (v InsightsView) sessionsHeaderLines(s styles.Styles) []string {
-	ss := v.snap.SessionStats
-	head := []string{"", s.Dim.Render(v.headline(panelSessions)), ""}
+func (v View) sessionsHeaderLines(s styles.Styles) []string {
+	ss := v.Snap.SessionStats
+	head := []string{"", s.Dim.Render(v.headline(PanelSessions)), ""}
 	if ss.Count == 0 {
 		return head
 	}
@@ -262,21 +262,21 @@ func (v InsightsView) sessionsHeaderLines(s styles.Styles) []string {
 // --- the session list (level 2) ----------------------------------------------
 
 // sessionBodyRows is how many sessions fit under the list header.
-func (v InsightsView) sessionBodyRows() int {
-	return max(v.height-len(v.sessionListHeaderLines(styles.Styles{})), 1)
+func (v View) sessionBodyRows() int {
+	return max(v.Height-len(v.sessionListHeaderLines(styles.Styles{})), 1)
 }
 
 // sessionListHeaderLines is the block above the session rows. Rendering it with
 // a zero Styles yields the same line count as the styled render, so the sizing
 // and the drawing can never drift apart.
-func (v InsightsView) sessionListHeaderLines(s styles.Styles) []string {
-	n := len(v.sessionList)
+func (v View) sessionListHeaderLines(s styles.Styles) []string {
+	n := len(v.SessionList)
 	plays, secs := 0, 0
-	for _, r := range v.sessionList {
+	for _, r := range v.SessionList {
 		plays += r.Plays
 		secs += r.ListenedSecs
 	}
-	line := strip.Render(v.width, []string{"Insights", "Sessions", v.sessionLabel},
+	line := strip.Render(v.width, []string{"Insights", "Sessions", v.SessionLabel},
 		strip.SortChunk{}, strip.FilterChunk{},
 		strip.CountsChunk{Filtered: n, Total: n}, nil, "esc ←", s)
 	if line == "" {
@@ -293,23 +293,23 @@ func (v InsightsView) sessionListHeaderLines(s styles.Styles) []string {
 	}
 }
 
-func (v InsightsView) renderSessionList(s styles.Styles) string {
+func (v View) renderSessionList(s styles.Styles) string {
 	lines := v.sessionListHeaderLines(s)
-	if len(v.sessionList) == 0 {
+	if len(v.SessionList) == 0 {
 		lines = append(lines, s.Dim.Render("No sessions behind this row."))
 	}
 	budget := v.sessionBodyRows()
-	for i := v.sessionScroll; i < len(v.sessionList) && budget > 0; i++ {
-		lines = append(lines, v.renderSessionRow(s, v.sessionList[i], i == v.sessionCursor))
+	for i := v.sessionScroll; i < len(v.SessionList) && budget > 0; i++ {
+		lines = append(lines, v.renderSessionRow(s, v.SessionList[i], i == v.sessionCursor))
 		budget--
 	}
-	if v.height > 0 && len(lines) > v.height {
-		lines = lines[:v.height]
+	if v.Height > 0 && len(lines) > v.Height {
+		lines = lines[:v.Height]
 	}
 	return strings.Join(lines, "\n")
 }
 
-func (v InsightsView) renderSessionRow(s styles.Styles, r insights.SessionRow, focused bool) string {
+func (v View) renderSessionRow(s styles.Styles, r insightsdata.SessionRow, focused bool) string {
 	cursor := "  "
 	if focused {
 		cursor = "> "
@@ -320,7 +320,7 @@ func (v InsightsView) renderSessionRow(s styles.Styles, r insights.SessionRow, f
 		r.Plays, text.Pluralize(r.Plays, "play", "plays"),
 		r.DistinctArtists, text.Pluralize(r.DistinctArtists, "artist", "artists"))
 	label := fmt.Sprintf("%s · %s · %s",
-		time.Unix(r.StartedAt, 0).In(v.location()).Format("2 Jan 15:04"),
+		time.Unix(r.StartedAt, 0).In(v.Location()).Format("2 Jan 15:04"),
 		text.FormatListeningTime(insightsSessionSecs(r)),
 		insightsSessionArc(r))
 
@@ -334,7 +334,7 @@ func (v InsightsView) renderSessionRow(s styles.Styles, r insights.SessionRow, f
 
 // insightsSessionArc names where a session started and where it ended up. A
 // session that never left one artist says so once instead of twice.
-func insightsSessionArc(r insights.SessionRow) string {
+func insightsSessionArc(r insightsdata.SessionRow) string {
 	switch {
 	case r.OpenerArtist == "" && r.CloserArtist == "":
 		return "unknown artist"

@@ -55,7 +55,7 @@ func activeViewCursor(m Model) int {
 	case viewTags:
 		return m.tagsView.Cursor
 	case viewInsights:
-		return m.insights.trackView.Cursor
+		return m.insights.TrackView.Cursor
 	}
 	return 0
 }
@@ -97,7 +97,7 @@ func enterVisualMode(m Model) Model {
 		// Only the embedded library.View is a range that can be grown. The
 		// briefing and the session list are neither, and the view advertises v,
 		// so say what is missing rather than swallowing the key.
-		if !m.insights.atTracks() {
+		if !m.insights.AtTracks() {
 			m.statusBar.Notify("Visual selection needs a track list — press enter to drill in")
 			return m
 		}
@@ -190,8 +190,8 @@ func visualListLen(m Model) int {
 			return len(m.tagsView.DisplayTracks())
 		}
 	case viewInsights:
-		if m.insights.atTracks() {
-			return m.insights.trackView.TrackCount()
+		if m.insights.AtTracks() {
+			return m.insights.TrackView.TrackCount()
 		}
 	}
 	return 0
@@ -228,7 +228,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 	case viewTags:
 		snap.hashes = cloneStringSet(m.tagsView.SelectedHashes)
 	case viewInsights:
-		snap.hashes = cloneStringSet(m.insights.trackView.SelectedHashes)
+		snap.hashes = cloneStringSet(m.insights.TrackView.SelectedHashes)
 	}
 	return snap
 }
@@ -258,7 +258,7 @@ func restoreSnapshot(m Model) Model {
 	case viewTags:
 		m.tagsView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewInsights:
-		m.insights.trackView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+		m.insights.TrackView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	}
 	return m
 }
@@ -321,8 +321,8 @@ func selectRange(m Model, lo, hi int) Model {
 			}
 		}
 	case viewInsights:
-		if m.insights.atTracks() {
-			m.insights.trackView = libSelectRange(m.insights.trackView, lo, hi)
+		if m.insights.AtTracks() {
+			m.insights.TrackView = libSelectRange(m.insights.TrackView, lo, hi)
 		}
 	case viewTags:
 		if m.tagsView.Level == tagtui.TrackLevel {

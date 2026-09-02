@@ -143,7 +143,7 @@ func TestWatchBatchUpdatesInsightsDrillTracks(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	got := nm.insights.trackView.SourceTracks[0]
+	got := nm.insights.TrackView.SourceTracks[0]
 	if got.Title != "NewTitle" || got.Artist != "NewArt" || got.Album != "NewAlbum" || got.Genre != "NewGenre" {
 		t.Errorf("drill track metadata not refreshed: %+v", got)
 	}

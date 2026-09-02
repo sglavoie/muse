@@ -92,7 +92,7 @@ func (m Model) drainListenFlushes() (Model, tea.Cmd) {
 func (m Model) recordListenCmd(p pendingListen) (Model, tea.Cmd) {
 	rec := p.record(time.Now().Unix())
 	if rec.Counted {
-		m.mixes.playsSinceRefresh++
+		m.mixes.PlaysSinceRefresh++
 		m.sessionTracksPlayed++
 		m.sessionListenSecs += p.listenedSecs
 		m.bumpSessionArtist(p.artist)

@@ -107,7 +107,7 @@ func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	m.tagsView.Level = tagtui.TrackLevel
 	m.tagsView.Tracks = []db.PlaylistTrackRow{{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}}
 
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}},
 		db.MixHiddenGems: {{Hash: "h1", Path: "/old.flac", Artist: "A", Title: "T1"}},
 	}
@@ -126,7 +126,7 @@ func TestWatchBatchHealsCollectionPaths(t *testing.T) {
 	if got := nm.tagsView.Tracks[0].Path; got != "/new.flac" {
 		t.Errorf("tags track Path = %q; want /new.flac", got)
 	}
-	for id, cached := range nm.mixes.cachedMixes {
+	for id, cached := range nm.mixes.CachedMixes {
 		if cached[0].Path != "/new.flac" {
 			t.Errorf("mix %v cached Path = %q; want /new.flac", id, cached[0].Path)
 		}

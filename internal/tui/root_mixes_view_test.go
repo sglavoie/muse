@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/mixes"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -16,7 +17,7 @@ import (
 
 func TestMixesViewSwitchLazyLoad(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
-	if len(m.mixes.mixes) != 0 {
+	if len(m.mixes.Mixes) != 0 {
 		t.Fatal("precondition: expected empty mixes before first switch")
 	}
 
@@ -26,7 +27,7 @@ func TestMixesViewSwitchLazyLoad(t *testing.T) {
 	}
 
 	m = m.switchToView(viewMixes)
-	if len(m.mixes.mixes) == 0 {
+	if len(m.mixes.Mixes) == 0 {
 		t.Fatal("expected mixes to be populated after switchToView")
 	}
 }
@@ -34,7 +35,7 @@ func TestMixesViewSwitchLazyLoad(t *testing.T) {
 func TestMixesViewCountsLoaded(t *testing.T) {
 	m := newMixesModel(true, nil)
 	m = m.switchToView(viewMixes)
-	m.mixes.playsSinceRefresh = 3
+	m.mixes.PlaysSinceRefresh = 3
 
 	counts := map[db.MixID]int{
 		db.MixRediscover:  10,
@@ -45,26 +46,26 @@ func TestMixesViewCountsLoaded(t *testing.T) {
 	}
 	m = m.handleMixCountsLoadedMsg(mixCountsLoadedMsg{counts: counts})
 
-	for _, mix := range m.mixes.mixes {
+	for _, mix := range m.mixes.Mixes {
 		want := counts[mix.ID]
 		if mix.TrackCount != want {
 			t.Errorf("mix %q: want TrackCount=%d, got %d", mix.Name, want, mix.TrackCount)
 		}
 	}
-	if m.mixes.playsSinceRefresh != 0 {
-		t.Errorf("expected playsSinceRefresh reset to 0, got %d", m.mixes.playsSinceRefresh)
+	if m.mixes.PlaysSinceRefresh != 0 {
+		t.Errorf("expected playsSinceRefresh reset to 0, got %d", m.mixes.PlaysSinceRefresh)
 	}
 }
 
 func TestMixesViewDrillDown(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)
-	m.mixes.selectedMix = 0
+	m.mixes.SelectedMix = 0
 
 	m2, cmd := m.handleMixOpen()
 
-	if m2.mixes.level != 1 {
-		t.Fatalf("expected level 1 after drill-down, got %d", m2.mixes.level)
+	if m2.mixes.Level != 1 {
+		t.Fatalf("expected level 1 after drill-down, got %d", m2.mixes.Level)
 	}
 	if cmd == nil {
 		t.Fatal("expected loadMixCmd to be returned on drill-down")
@@ -74,17 +75,17 @@ func TestMixesViewDrillDown(t *testing.T) {
 func TestMixesViewBack(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)
-	m.mixes.selectedMix = 1
+	m.mixes.SelectedMix = 1
 
 	m, _ = m.handleMixOpen()
-	if m.mixes.level != 1 {
+	if m.mixes.Level != 1 {
 		t.Fatal("precondition: expected level 1")
 	}
 
 	m = m.handleMixBack()
 
-	if m.mixes.level != 0 {
-		t.Errorf("expected level 0 after back, got %d", m.mixes.level)
+	if m.mixes.Level != 0 {
+		t.Errorf("expected level 0 after back, got %d", m.mixes.Level)
 	}
 }
 
@@ -96,9 +97,9 @@ func TestMixesViewTrackEnqueue(t *testing.T) {
 		WithQueueWriter(qa),
 	)
 	m = m.switchToView(viewMixes)
-	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.Mixes = append([]mixes.MixInfo(nil), recommendation.Registry()...)
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
@@ -123,11 +124,11 @@ func TestMixesViewBulkSelect(t *testing.T) {
 	tracks := sampleMixTracks()
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
-	m.mixes.trackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx3": {}}
+	m.mixes.TrackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx3": {}}
 
 	hashes := m.bulkSelectedHashes()
 
@@ -165,14 +166,14 @@ func TestMixesViewRefreshDerived(t *testing.T) {
 		WithLibraryTracks([]library.Track{{Hash: "mx1", Title: "New Title", Artist: "ArtistX"}}),
 	)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
 	m = m.refreshDerivedViews()
 
-	cached := m.mixes.cachedMixes[db.MixRediscover]
+	cached := m.mixes.CachedMixes[db.MixRediscover]
 	if len(cached) == 0 {
 		t.Fatal("expected cached tracks to exist after refresh")
 	}
@@ -185,7 +186,7 @@ func TestMixesViewCacheInvalidation(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)
 	m = seedMixRegistry(m)
-	m.mixes.playsSinceRefresh = 5
+	m.mixes.PlaysSinceRefresh = 5
 
 	cmd := m.mixesMaybeLoadCmd()
 
@@ -198,7 +199,7 @@ func TestMixesViewNoReloadBelowThreshold(t *testing.T) {
 	m := newMixesModel(true, sampleMixTracks())
 	m = m.switchToView(viewMixes)
 	m = seedMixRegistry(m)
-	m.mixes.playsSinceRefresh = 4
+	m.mixes.PlaysSinceRefresh = 4
 
 	cmd := m.mixesMaybeLoadCmd()
 
@@ -212,7 +213,7 @@ func TestMixesViewEmptyState(t *testing.T) {
 	m = m.switchToView(viewMixes)
 	m = m.handleMixCountsLoadedMsg(mixCountsLoadedMsg{insufficient: true})
 
-	rendered := m.mixes.render(styles.NewStyles(false), nil, nil, nil, "", "")
+	rendered := m.mixes.Render(styles.NewStyles(false), nil, nil, nil, "", "")
 
 	if !strings.Contains(rendered, "minimum 20 plays") {
 		t.Errorf("expected empty state with 20 plays hint, got: %q", rendered)
@@ -225,12 +226,12 @@ func TestMixesViewEmptyState(t *testing.T) {
 func TestMixesViewEmptyTrackLevel(t *testing.T) {
 	m := newMixesModel(true, nil)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {}}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {}}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: nil})
 
-	rendered := m.mixes.render(styles.NewStyles(false), nil, nil, nil, "", "")
+	rendered := m.mixes.Render(styles.NewStyles(false), nil, nil, nil, "", "")
 
 	if !strings.Contains(rendered, "keep listening") {
 		t.Errorf("expected 'keep listening' message for empty track level, got: %q", rendered)
@@ -245,8 +246,8 @@ func TestMixLoadedFiltersDismissedHashesLikeRecommendationPackage(t *testing.T) 
 	}
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.activeMix = db.MixRediscover
-	m.mixes.level = 1
+	m.mixes.ActiveMix = db.MixRediscover
+	m.mixes.Level = 1
 	paddedDismissedHash := " ABC "
 	m.dismissedHashes = map[string]struct{}{
 		paddedDismissedHash: {},
@@ -254,7 +255,7 @@ func TestMixLoadedFiltersDismissedHashesLikeRecommendationPackage(t *testing.T) 
 	}
 
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
-	cached := m.mixes.cachedMixes[db.MixRediscover]
+	cached := m.mixes.CachedMixes[db.MixRediscover]
 
 	if len(cached) != 2 {
 		t.Fatalf("expected 2 tracks after dismissed filtering, got %d: %+v", len(cached), cached)
@@ -271,19 +272,19 @@ func TestMixesViewAsyncGuard(t *testing.T) {
 	tracks := sampleMixTracks()
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
-	if len(m.mixes.trackView.SourceTracks) != 3 {
-		t.Fatalf("precondition: expected 3 tracks, got %d", len(m.mixes.trackView.SourceTracks))
+	if len(m.mixes.TrackView.SourceTracks) != 3 {
+		t.Fatalf("precondition: expected 3 tracks, got %d", len(m.mixes.TrackView.SourceTracks))
 	}
 
 	staleTracks := []library.Track{{Hash: "stale", Title: "Stale Track"}}
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixHiddenGems, tracks: staleTracks})
 
-	if len(m.mixes.trackView.SourceTracks) != 3 {
-		t.Errorf("stale mixLoadedMsg overwrote active track view: got %d tracks", len(m.mixes.trackView.SourceTracks))
+	if len(m.mixes.TrackView.SourceTracks) != 3 {
+		t.Errorf("stale mixLoadedMsg overwrote active track view: got %d tracks", len(m.mixes.TrackView.SourceTracks))
 	}
 }
 
@@ -306,16 +307,16 @@ func TestMixesViewFilterAtTrackLevel(t *testing.T) {
 	}
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
 	m = pressSlash(m)
 	m = typeText(m, "Alpha")
 
-	if !strings.Contains(m.mixes.trackView.Filter.Text, "Alpha") {
-		t.Errorf("expected filter text to contain 'Alpha', got: %q", m.mixes.trackView.Filter.Text)
+	if !strings.Contains(m.mixes.TrackView.Filter.Text, "Alpha") {
+		t.Errorf("expected filter text to contain 'Alpha', got: %q", m.mixes.TrackView.Filter.Text)
 	}
 }
 
@@ -323,14 +324,14 @@ func TestMixesViewSortAtTrackLevel(t *testing.T) {
 	tracks := sampleMixTracks()
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
-	before := m.mixes.trackView.SortState.Field
+	before := m.mixes.TrackView.SortState.Field
 	m = pressKey(m, "s")
-	after := m.mixes.trackView.SortState.Field
+	after := m.mixes.TrackView.SortState.Field
 	if after == before {
 		t.Errorf("expected sort field to change after 's', still %v", after)
 	}
@@ -373,14 +374,14 @@ func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
 	}
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
-	m.mixes.trackView.Cursor = 1
-	m.mixes.trackView.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc}
-	m.mixes.trackView = m.mixes.trackView.RecomputeSortedTracks()
+	m.mixes.TrackView.Cursor = 1
+	m.mixes.TrackView.SortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc}
+	m.mixes.TrackView = m.mixes.TrackView.RecomputeSortedTracks()
 
 	reloaded := []library.Track{
 		{Hash: "mx1", Title: "Alpha Reloaded", Artist: "ArtistX", Path: "/mx1.flac", Duration: 180},
@@ -389,19 +390,19 @@ func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
 	}
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: reloaded})
 
-	if m.mixes.trackView.SortState.Field != sorting.SortDuration {
-		t.Errorf("sort field reset: got %v, want SortDuration", m.mixes.trackView.SortState.Field)
+	if m.mixes.TrackView.SortState.Field != sorting.SortDuration {
+		t.Errorf("sort field reset: got %v, want SortDuration", m.mixes.TrackView.SortState.Field)
 	}
-	if m.mixes.trackView.SortState.Dir != sorting.SortDesc {
-		t.Errorf("sort dir reset: got %v, want SortDesc", m.mixes.trackView.SortState.Dir)
+	if m.mixes.TrackView.SortState.Dir != sorting.SortDesc {
+		t.Errorf("sort dir reset: got %v, want SortDesc", m.mixes.TrackView.SortState.Dir)
 	}
-	if m.mixes.trackView.Cursor != 1 {
-		t.Errorf("cursor changed: got %d, want 1", m.mixes.trackView.Cursor)
+	if m.mixes.TrackView.Cursor != 1 {
+		t.Errorf("cursor changed: got %d, want 1", m.mixes.TrackView.Cursor)
 	}
-	if len(m.mixes.trackView.SourceTracks) != 3 {
-		t.Fatalf("sourceTracks length: got %d, want 3", len(m.mixes.trackView.SourceTracks))
+	if len(m.mixes.TrackView.SourceTracks) != 3 {
+		t.Fatalf("sourceTracks length: got %d, want 3", len(m.mixes.TrackView.SourceTracks))
 	}
-	if m.mixes.trackView.SourceTracks[0].Title != "Alpha Reloaded" {
-		t.Errorf("expected reloaded title, got %q", m.mixes.trackView.SourceTracks[0].Title)
+	if m.mixes.TrackView.SourceTracks[0].Title != "Alpha Reloaded" {
+		t.Errorf("expected reloaded title, got %q", m.mixes.TrackView.SourceTracks[0].Title)
 	}
 }

@@ -201,9 +201,9 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 	case viewTags:
 		return m.tagsView.Render(display, m.favoriteHashes, m.playback.currentHash, nowPlayingIcon)
 	case viewMixes:
-		return m.mixes.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
+		return m.mixes.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewInsights:
-		return m.insights.render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
+		return m.insights.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	default:
 		return ""
 	}

@@ -113,9 +113,9 @@ func TestFavoritePickerMixesTrackLevel(t *testing.T) {
 	store := newUITestFavorites(nil)
 	m := New(context.Background(), WithFavoriteReader(store), WithFavoriteWriter(store))
 	m.activeView = viewMixes
-	m.mixes.level = 1
-	m.mixes.trackView = libtui.View{SourceTracks: []library.Track{{Hash: "mx", Title: "Mix", Artist: "A", Album: "B"}}}
-	m.mixes.trackView = m.mixes.trackView.RefreshView()
+	m.mixes.Level = 1
+	m.mixes.TrackView = libtui.View{SourceTracks: []library.Track{{Hash: "mx", Title: "Mix", Artist: "A", Album: "B"}}}
+	m.mixes.TrackView = m.mixes.TrackView.RefreshView()
 
 	opened := openFavoritePickerForTest(t, m)
 	if got := opened.overlay.favoriteTargetPicker.Tracks[0].Hash; got != "mx" {

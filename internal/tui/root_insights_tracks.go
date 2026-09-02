@@ -9,6 +9,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 )
 
 // genreCoverageShelves measures unheard coverage per genre. insights.CoverageRow
@@ -69,84 +70,55 @@ func dormantTracks(tracks []library.Track, ref int64) []library.Track {
 	return out[:min(len(out), insightsDormantTopN)]
 }
 
-// backlogMonths groups the never-played tracks by the local month they entered
-// the library, most recent first. Tracks with no recorded add date are left out
-// rather than piled into the epoch; the Discovery body carries a total row so
-// they stay reachable.
-func backlogMonths(tracks []library.Track, loc *time.Location) []insightsBacklogMonth {
-	byKey := map[string]*insightsBacklogMonth{}
-	for _, t := range tracks {
-		if t.PlayCount > 0 || t.CreatedAt <= 0 {
-			continue
-		}
-		added := time.Unix(t.CreatedAt, 0).In(loc)
-		key := insightsBucketKey(insights.ResolutionMonthly, added)
-		b := byKey[key]
-		if b == nil {
-			b = &insightsBacklogMonth{Key: key, Label: added.Format("January 2006")}
-			byKey[key] = b
-		}
-		b.Tracks++
-		b.Secs += t.Duration
-	}
-
-	out := make([]insightsBacklogMonth, 0, len(byKey))
-	for _, b := range byKey {
-		out = append(out, *b)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Key > out[j].Key })
-	return out[:min(len(out), insightsMonthRows)]
-}
-
 // insightsDrillTracks resolves a briefing row to the concrete tracks behind it,
 // so every bar is a query with a shape rather than a picture.
-func (m Model) insightsDrillTracks(row insightsRow) []library.Track {
+func (m Model) insightsDrillTracks(row instui.Row) []library.Track {
 	// Every dormant row opens the whole dormant set: a one-track drill would
 	// make E and S meaningless, and the point of the section is the batch.
-	switch row.drill {
-	case drillDormant:
-		return m.insights.dormant
-	case drillHour, drillWeekday, drillRhythmGenre:
+	switch row.Drill {
+	case instui.DrillDormant:
+		return m.insights.Dormant
+	case instui.DrillHour, instui.DrillWeekday, instui.DrillRhythmGenre:
 		return m.insightsPlayedTracks(row)
-	case drillTrendBucket, drillFirstPlaysBucket:
-		return m.insightsBucketTracks(row.key, row.drill == drillFirstPlaysBucket)
-	case drillArtistPlays:
-		return m.insightsPlayTracks(func(p insights.PlayRow) bool { return p.Artist == row.key })
-	case drillTopArtists:
-		return m.insightsTopArtistTracks(row.key)
-	case drillHealth:
-		return m.insightsHealthTracks(row.key)
+	case instui.DrillTrendBucket, instui.DrillFirstPlaysBucket:
+		return m.insightsBucketTracks(row.Key, row.Drill == instui.DrillFirstPlaysBucket)
+	case instui.DrillArtistPlays:
+		return m.insightsPlayTracks(func(p insights.PlayRow) bool { return p.Artist == row.Key })
+	case instui.DrillTopArtists:
+		return m.insightsTopArtistTracks(row.Key)
+	case instui.DrillHealth:
+		return m.insightsHealthTracks(row.Key)
 	}
 
 	// A Sessions row opens sessions, not tracks, but the batch actions still
 	// need a track set behind it: E on the briefing row replays everything the
 	// row stands for, in the order it was heard.
-	if row.drill.opensSessions() {
-		return m.insightsSessionSetTracks(insightsSessionsMatching(m.insights.sessions, row.drill, row.key))
+	if row.Drill.OpensSessions() {
+		return m.insightsSessionSetTracks(instui.SessionsMatching(m.insights.Sessions, row.Drill, row.Key))
 	}
 
 	match := func(t library.Track) bool {
 		if t.PlayCount != 0 {
 			return false
 		}
-		switch row.drill {
-		case drillUnheardAll:
+		switch row.Drill {
+		case instui.DrillUnheardAll:
 			return true
-		case drillUnheardArtist:
-			return t.Artist == row.key
-		case drillUnheardAlbum:
-			return t.Album == row.key
-		case drillUnheardGenre:
+		case instui.DrillUnheardArtist:
+			return t.Artist == row.Key
+		case instui.DrillUnheardAlbum:
+			return t.Album == row.Key
+		case instui.DrillUnheardGenre:
 			for _, g := range library.SplitGenres(t.Genre) {
-				if strings.EqualFold(g, row.key) {
+				if strings.EqualFold(g, row.Key) {
 					return true
 				}
 			}
-		case drillAddedNeverPlayed:
+		case instui.DrillAddedNeverPlayed:
 			// Always monthly: the backlog is grouped by the month a track was
 			// added, which has nothing to do with how the play history is bucketed.
-			return t.CreatedAt > 0 && insightsBucketKey(insights.ResolutionMonthly,
-				time.Unix(t.CreatedAt, 0).In(m.insights.location())) == row.key
+			return t.CreatedAt > 0 && instui.BucketKey(insights.ResolutionMonthly,
+				time.Unix(t.CreatedAt, 0).In(m.insights.Location())) == row.Key
 		}
 		return false
 	}
@@ -165,11 +137,11 @@ func (m Model) insightsDrillTracks(row insightsRow) []library.Track {
 // set rather than two queries that can drift apart.
 func (m Model) insightsHealthTracks(key string) []library.Track {
 	i, err := strconv.Atoi(key)
-	if err != nil || i < 0 || i >= len(m.insights.health) {
+	if err != nil || i < 0 || i >= len(m.insights.Health) {
 		return nil
 	}
 	var out []library.Track
-	for _, hash := range m.insights.health[i].hashes {
+	for _, hash := range m.insights.Health[i].Hashes {
 		if t, ok := m.library.Index.FindByHash(hash); ok {
 			out = append(out, t)
 		}
@@ -183,7 +155,7 @@ func (m Model) insightsHealthTracks(key string) []library.Track {
 func (m Model) insightsPlayTracks(keep func(insights.PlayRow) bool) []library.Track {
 	var out []library.Track
 	seen := make(map[string]struct{})
-	for _, p := range m.insights.plays {
+	for _, p := range m.insights.Plays {
 		if !keep(p) {
 			continue
 		}
@@ -201,16 +173,16 @@ func (m Model) insightsPlayTracks(keep func(insights.PlayRow) bool) []library.Tr
 // insightsPlayedTracks resolves a Rhythm row. Rhythm is a windowed panel, so it
 // reads the windowed plays rather than the all-time timeline: an hour column
 // drawn from the last 7 days must not open a track heard a year ago.
-func (m Model) insightsPlayedTracks(row insightsRow) []library.Track {
-	if row.drill == drillRhythmGenre {
-		want := insightsGenreKey(row.key)
+func (m Model) insightsPlayedTracks(row instui.Row) []library.Track {
+	if row.Drill == instui.DrillRhythmGenre {
+		want := instui.GenreKey(row.Key)
 		return m.insightsPlayTracks(func(p insights.PlayRow) bool {
 			t, ok := m.library.Index.FindByHash(p.Hash)
 			if !ok {
 				return false
 			}
 			for _, g := range library.SplitGenres(t.Genre) {
-				if insightsGenreKey(g) == want {
+				if instui.GenreKey(g) == want {
 					return true
 				}
 			}
@@ -218,14 +190,14 @@ func (m Model) insightsPlayedTracks(row insightsRow) []library.Track {
 		})
 	}
 
-	want, err := strconv.Atoi(row.key)
+	want, err := strconv.Atoi(row.Key)
 	if err != nil {
 		return nil
 	}
-	loc := m.insights.location()
+	loc := m.insights.Location()
 	return m.insightsPlayTracks(func(p insights.PlayRow) bool {
 		start := time.Unix(p.StartAt, 0).In(loc)
-		if row.drill == drillWeekday {
+		if row.Drill == instui.DrillWeekday {
 			return int(start.Weekday()) == want
 		}
 		return start.Hour() == want
@@ -241,7 +213,7 @@ func (m Model) insightsTopArtistTracks(key string) []library.Track {
 		return nil
 	}
 	top := make(map[string]struct{}, n)
-	for i, e := range m.insights.snap.Rankings.ArtistsByHours {
+	for i, e := range m.insights.Snap.Rankings.ArtistsByHours {
 		if i >= n {
 			break
 		}
@@ -274,7 +246,7 @@ func (m Model) insightsSessionTracks(id string) []library.Track {
 		return nil
 	}
 	var out []library.Track
-	for _, p := range m.insights.plays {
+	for _, p := range m.insights.Plays {
 		if p.SessionID != id {
 			continue
 		}
@@ -289,9 +261,9 @@ func (m Model) insightsSessionTracks(id string) []library.Track {
 // already hold the top of the time ranking. Artists are visited round-robin,
 // least-heard first, so one prolific outsider cannot simply become the new rut.
 func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
-	top := make(map[string]struct{}, insightsRutTopArtists)
-	for i, e := range m.insights.snap.Rankings.ArtistsByHours {
-		if i >= insightsRutTopArtists {
+	top := make(map[string]struct{}, instui.RutTopArtists)
+	for i, e := range m.insights.Snap.Rankings.ArtistsByHours {
+		if i >= instui.RutTopArtists {
 			break
 		}
 		top[e.Name] = struct{}{}
@@ -438,15 +410,15 @@ func (m Model) insightsCoverageAntiRutTracks(limit int) []library.Track {
 // control, so a drill can never be keyed at one resolution and resolved at
 // another.
 func (m Model) insightsBucketTracks(key string, firstEverOnly bool) []library.Track {
-	loc := m.insights.location()
-	res := m.insights.snap.Trends.Resolution
+	loc := m.insights.Location()
+	res := m.insights.Snap.Trends.Resolution
 	var out []library.Track
 	seen := make(map[string]struct{})
-	for _, r := range m.insights.timeline {
+	for _, r := range m.insights.Timeline {
 		if firstEverOnly && !r.FirstEver {
 			continue
 		}
-		if insightsBucketKey(res, time.Unix(r.StartAt, 0).In(loc)) != key {
+		if instui.BucketKey(res, time.Unix(r.StartAt, 0).In(loc)) != key {
 			continue
 		}
 		if _, dup := seen[r.Hash]; dup {

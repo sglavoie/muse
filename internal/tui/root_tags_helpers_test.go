@@ -250,8 +250,8 @@ func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
 func TestSelectedTrackHashes_Mixes(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewMixes
-	m.mixes.level = 1
-	m.mixes.trackView.SelectedHashes = map[string]struct{}{
+	m.mixes.Level = 1
+	m.mixes.TrackView.SelectedHashes = map[string]struct{}{
 		"mx1": {},
 		"mx2": {},
 	}
@@ -275,7 +275,7 @@ func TestSelectedTrackHashes_MixesListLevel(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewMixes
 	// level 0 = list level, no track selection should be returned.
-	m.mixes.level = 0
+	m.mixes.Level = 0
 
 	got := m.selectedTrackHashes()
 	if got != nil {

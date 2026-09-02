@@ -1,4 +1,4 @@
-package tui
+package insights
 
 // Rhythm, Momentum and Discovery: the time-series family. All three answer a
 // "when" question, and all three obey the same rule as Coverage — every row is
@@ -6,11 +6,13 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -23,29 +25,58 @@ const (
 	// insightsGenreRows caps both the affinity grid and its row list: past a
 	// handful of genres the grid stops being readable at a glance.
 	insightsGenreRows = 5
-	// insightsMonthRows caps the month lists — Discovery's backlog, and the
+	// MonthRows caps the month lists — Discovery's backlog, and the
 	// monthly trend rows — so a long history stays a briefing.
-	insightsMonthRows = 24
+	MonthRows = 24
 	// insightsPunchcardHours is the number of columns in a day.
 	insightsPunchcardHours = 24
 )
 
-// insightsGenreHours is one genre's play count per local hour: the row the
+// GenreHours is one genre's play count per local hour: the row the
 // Rhythm affinity grid draws and the shape "you only reach for jazz after
 // 22:00" is visible in.
-type insightsGenreHours struct {
+type GenreHours struct {
 	Genre string
 	Hours [insightsPunchcardHours]int
 }
 
-// insightsBacklogMonth counts the never-played tracks that entered the library
+// BacklogMonth counts the never-played tracks that entered the library
 // in one local month, so Discovery can say what the backlog is made of rather
 // than only how big it is.
-type insightsBacklogMonth struct {
+type BacklogMonth struct {
 	Key    string // "2006-01", the drill key
 	Label  string
 	Tracks int
 	Secs   float64
+}
+
+// BacklogMonths groups the never-played tracks by the local month they entered
+// the library, most recent first. Tracks with no recorded add date are left out
+// rather than piled into the epoch; the Discovery body carries a total row so
+// they stay reachable.
+func BacklogMonths(tracks []library.Track, loc *time.Location) []BacklogMonth {
+	byKey := map[string]*BacklogMonth{}
+	for _, t := range tracks {
+		if t.PlayCount > 0 || t.CreatedAt <= 0 {
+			continue
+		}
+		added := time.Unix(t.CreatedAt, 0).In(loc)
+		key := BucketKey(insightsdata.ResolutionMonthly, added)
+		b := byKey[key]
+		if b == nil {
+			b = &BacklogMonth{Key: key, Label: added.Format("January 2006")}
+			byKey[key] = b
+		}
+		b.Tracks++
+		b.Secs += t.Duration
+	}
+
+	out := make([]BacklogMonth, 0, len(byKey))
+	for _, b := range byKey {
+		out = append(out, *b)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Key > out[j].Key })
+	return out[:min(len(out), MonthRows)]
 }
 
 func insightsFraction(part, whole int) float64 {
@@ -55,15 +86,15 @@ func insightsFraction(part, whole int) float64 {
 	return float64(part) / float64(whole)
 }
 
-// insightsBucketKey is the key every trend row drills on. Each form is sortable
+// BucketKey is the key every trend row drills on. Each form is sortable
 // so a string compare and a chronological compare agree, and each is distinct
 // per resolution so a key minted at one bucket size can never resolve at
 // another.
-func insightsBucketKey(res insights.Resolution, t time.Time) string {
+func BucketKey(res insightsdata.Resolution, t time.Time) string {
 	switch res {
-	case insights.ResolutionDaily:
+	case insightsdata.ResolutionDaily:
 		return t.Format("2006-01-02")
-	case insights.ResolutionWeekly:
+	case insightsdata.ResolutionWeekly:
 		// ISO year rather than calendar year: the week holding 1 January can
 		// belong to the previous one, and "2026-W01" for both would merge two
 		// bars into one drill.
@@ -74,12 +105,12 @@ func insightsBucketKey(res insights.Resolution, t time.Time) string {
 	}
 }
 
-// insightsBucketLabel names a bucket in a row.
-func insightsBucketLabel(res insights.Resolution, t time.Time) string {
+// BucketLabel names a bucket in a row.
+func BucketLabel(res insightsdata.Resolution, t time.Time) string {
 	switch res {
-	case insights.ResolutionDaily:
+	case insightsdata.ResolutionDaily:
 		return t.Format("Mon 2 Jan 2006")
-	case insights.ResolutionWeekly:
+	case insightsdata.ResolutionWeekly:
 		return "Week of " + t.Format("2 Jan 2006")
 	default:
 		return t.Format("January 2006")
@@ -88,11 +119,11 @@ func insightsBucketLabel(res insights.Resolution, t time.Time) string {
 
 // insightsBucketShort names a bucket under a bar, where the column is only a
 // few cells wide.
-func insightsBucketShort(res insights.Resolution, t time.Time) string {
+func insightsBucketShort(res insightsdata.Resolution, t time.Time) string {
 	switch res {
-	case insights.ResolutionDaily:
+	case insightsdata.ResolutionDaily:
 		return t.Format("02")
-	case insights.ResolutionWeekly:
+	case insightsdata.ResolutionWeekly:
 		_, w := t.ISOWeek()
 		return fmt.Sprintf("W%02d", w)
 	default:
@@ -101,11 +132,11 @@ func insightsBucketShort(res insights.Resolution, t time.Time) string {
 }
 
 // insightsTrendSection is the section header the trend rows sit under.
-func insightsTrendSection(res insights.Resolution) string {
+func insightsTrendSection(res insightsdata.Resolution) string {
 	switch res {
-	case insights.ResolutionDaily:
+	case insightsdata.ResolutionDaily:
 		return "Day by day"
-	case insights.ResolutionWeekly:
+	case insightsdata.ResolutionWeekly:
 		return "Week by week"
 	default:
 		return "Month by month"
@@ -115,21 +146,21 @@ func insightsTrendSection(res insights.Resolution) string {
 // insightsTrendRowCap scales the row cap with the bucket size so every
 // resolution lists a comparable stretch of history: a flat cap would make the
 // daily view reach back only three weeks.
-func insightsTrendRowCap(res insights.Resolution) int {
+func insightsTrendRowCap(res insightsdata.Resolution) int {
 	switch res {
-	case insights.ResolutionDaily:
+	case insightsdata.ResolutionDaily:
 		return 90
-	case insights.ResolutionWeekly:
+	case insightsdata.ResolutionWeekly:
 		return 52
 	default:
-		return insightsMonthRows
+		return MonthRows
 	}
 }
 
 // fit clamps a prose line to the view width. Chart output is already exactly as
 // wide as it was asked to be; a summary sentence is not, and one overlong line
 // is enough to overflow the frame.
-func (v InsightsView) fit(line string) string {
+func (v View) fit(line string) string {
 	if v.width <= 0 {
 		return line
 	}
@@ -160,9 +191,9 @@ func insightsFitHeader(budget int, head []string, blocks [][]string, tail []stri
 
 // --- Rhythm ------------------------------------------------------------------
 
-func (v InsightsView) rhythmRows() []insightsRow {
-	r := v.snap.Rhythm
-	rows := make([]insightsRow, 0, insightsPunchcardHours+7+insightsGenreRows)
+func (v View) rhythmRows() []Row {
+	r := v.Snap.Rhythm
+	rows := make([]Row, 0, insightsPunchcardHours+7+insightsGenreRows)
 
 	peakHour := 0
 	for _, h := range r.Hours {
@@ -172,13 +203,13 @@ func (v InsightsView) rhythmRows() []insightsRow {
 		if h.Plays == 0 {
 			continue
 		}
-		rows = append(rows, insightsRow{
-			section:  "Hour of day",
-			label:    fmt.Sprintf("%02d:00", h.Hour),
+		rows = append(rows, Row{
+			Section:  "Hour of day",
+			Label:    fmt.Sprintf("%02d:00", h.Hour),
 			note:     insightsPlaysNote(h.Plays, h.ListenedSecs),
 			fraction: insightsFraction(h.Plays, peakHour),
-			drill:    drillHour,
-			key:      strconv.Itoa(h.Hour),
+			Drill:    DrillHour,
+			Key:      strconv.Itoa(h.Hour),
 		})
 	}
 
@@ -194,13 +225,13 @@ func (v InsightsView) rhythmRows() []insightsRow {
 		if d.Plays > 0 {
 			note = fmt.Sprintf("%d %s · %.0f%%", d.Plays, text.Pluralize(d.Plays, "play", "plays"), d.Share*100)
 		}
-		rows = append(rows, insightsRow{
-			section:  "Weekday",
-			label:    d.Weekday.String(),
+		rows = append(rows, Row{
+			Section:  "Weekday",
+			Label:    d.Weekday.String(),
 			note:     note,
 			fraction: insightsFraction(d.Plays, peakDay),
-			drill:    drillWeekday,
-			key:      strconv.Itoa(int(d.Weekday)),
+			Drill:    DrillWeekday,
+			Key:      strconv.Itoa(int(d.Weekday)),
 		})
 	}
 
@@ -212,22 +243,22 @@ func (v InsightsView) rhythmRows() []insightsRow {
 			if i >= insightsGenreRows {
 				break
 			}
-			rows = append(rows, insightsRow{
-				section:  "Genre affinity",
-				label:    g.Canonical,
+			rows = append(rows, Row{
+				Section:  "Genre affinity",
+				Label:    g.Canonical,
 				note:     insightsPlaysNote(g.Plays, g.ListenedSecs),
 				fraction: insightsFraction(g.Plays, r.TotalPlays),
-				drill:    drillRhythmGenre,
-				key:      g.Canonical,
+				Drill:    DrillRhythmGenre,
+				Key:      g.Canonical,
 			})
 		}
 	}
 	return rows
 }
 
-func (v InsightsView) rhythmHeaderLines(s styles.Styles) []string {
-	r := v.snap.Rhythm
-	head := []string{"", s.Dim.Render(v.headline(panelRhythm)), ""}
+func (v View) rhythmHeaderLines(s styles.Styles) []string {
+	r := v.Snap.Rhythm
+	head := []string{"", s.Dim.Render(v.headline(PanelRhythm)), ""}
 	if r.TotalPlays == 0 {
 		return head
 	}
@@ -270,9 +301,9 @@ func (v InsightsView) rhythmHeaderLines(s styles.Styles) []string {
 		pad+chart.Scale([]string{"00", "06", "12", "18", "23"}, gridW, pal), "")
 
 	var affinity []string
-	if !r.GenresUnclean && len(v.genreHours) > 0 {
+	if !r.GenresUnclean && len(v.GenreHours) > 0 {
 		grid := make([]chart.HeatRow, 0, insightsGenreRows)
-		for i, g := range v.genreHours {
+		for i, g := range v.GenreHours {
 			if i >= insightsGenreRows {
 				break
 			}

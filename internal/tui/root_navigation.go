@@ -46,9 +46,9 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 		case viewTags:
 			m.tagsView = m.tagsView.HandleAction(action)
 		case viewMixes:
-			m.mixes = m.mixes.handleCursorAction(action)
+			m.mixes = m.mixes.HandleCursorAction(action)
 		case viewInsights:
-			m.insights = m.insights.handleCursorAction(action)
+			m.insights = m.insights.HandleCursorAction(action)
 		default:
 			var cmd tea.Cmd
 			m.queue, cmd = m.queue.HandleAction(action)
@@ -106,15 +106,15 @@ func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool)
 				}
 			}
 		case viewMixes:
-			if m.mixes.level == 1 {
-				if t := m.mixes.focusedTrack(); t != nil {
-					m.mixes.trackView.SelectedHashes = toggleHashInSet(m.mixes.trackView.SelectedHashes, t.Hash)
+			if m.mixes.Level == 1 {
+				if t := m.mixes.FocusedTrack(); t != nil {
+					m.mixes.TrackView.SelectedHashes = toggleHashInSet(m.mixes.TrackView.SelectedHashes, t.Hash)
 				}
 			}
 		case viewInsights:
-			if m.insights.atTracks() {
-				if t := m.insights.focusedTrack(); t != nil {
-					m.insights.trackView.SelectedHashes = toggleHashInSet(m.insights.trackView.SelectedHashes, t.Hash)
+			if m.insights.AtTracks() {
+				if t := m.insights.FocusedTrack(); t != nil {
+					m.insights.TrackView.SelectedHashes = toggleHashInSet(m.insights.TrackView.SelectedHashes, t.Hash)
 				}
 			}
 		default:
@@ -158,9 +158,9 @@ func (m Model) clearActiveViewSelection() Model {
 	case viewTags:
 		m.tagsView.SelectedHashes = nil
 	case viewMixes:
-		m.mixes.trackView.SelectedHashes = nil
+		m.mixes.TrackView.SelectedHashes = nil
 	case viewInsights:
-		m.insights.trackView.SelectedHashes = nil
+		m.insights.TrackView.SelectedHashes = nil
 	}
 	return m
 }

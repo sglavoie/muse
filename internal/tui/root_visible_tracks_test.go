@@ -8,7 +8,9 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/mixes"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/queue"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -143,8 +145,8 @@ func TestVisibleTracksRefusesLevelsWithNoTrackList(t *testing.T) {
 		{"favorites category level", Model{activeView: viewFavorites, favorites: favtui.FavoritesView{Level: favtui.CategoryLevel}}},
 		{"playlists list level", Model{activeView: viewPlaylists, playlists: pltui.PlaylistsView{Level: pltui.ListLevel}}},
 		{"tags tag level", Model{activeView: viewTags, tagsView: tagtui.TagsView{Level: tagtui.TagLevel}}},
-		{"insights briefing", Model{activeView: viewInsights, insights: InsightsView{level: insightsLevelBriefing}}},
-		{"mixes list level", Model{activeView: viewMixes, mixes: MixesView{level: 0}}},
+		{"insights briefing", Model{activeView: viewInsights, insights: instui.View{Level: instui.LevelBriefing}}},
+		{"mixes list level", Model{activeView: viewMixes, mixes: mixes.MixesView{Level: 0}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

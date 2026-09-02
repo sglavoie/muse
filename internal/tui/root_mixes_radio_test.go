@@ -55,8 +55,8 @@ func TestMixesRadioSeedEnable(t *testing.T) {
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
 	m = seedMixRegistry(m)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
@@ -81,8 +81,8 @@ func TestMixesRadioSeedDisable(t *testing.T) {
 	m := newMixesModel(true, tracks)
 	m = m.switchToView(viewMixes)
 	m = seedMixRegistry(m)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 

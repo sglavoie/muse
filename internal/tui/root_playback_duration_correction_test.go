@@ -251,13 +251,13 @@ func TestCorrectStoredDurationRebuildsGenresSortCache(t *testing.T) {
 func TestCorrectStoredDurationSyncsCachedMixTracks(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Duration: 360.0}},
 	}
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
-	cached, ok := nm.mixes.cachedMixes[db.MixRediscover]
+	cached, ok := nm.mixes.CachedMixes[db.MixRediscover]
 	if !ok || len(cached) == 0 {
 		t.Fatal("mixes cache missing or empty after correction")
 	}
@@ -272,19 +272,19 @@ func TestCorrectStoredDurationSyncsCachedMixTracks(t *testing.T) {
 func TestCorrectStoredDurationSyncsActiveMixTrackView(t *testing.T) {
 	m := New(context.Background())
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Duration: 360.0})
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Duration: 360.0}},
 	}
-	m.mixes.openMix(db.MixRediscover)
+	m.mixes.OpenMix(db.MixRediscover)
 
 	nm, _ := m.correctStoredDuration("h1", 180.0)
 
-	if len(nm.mixes.trackView.SourceTracks) == 0 {
+	if len(nm.mixes.TrackView.SourceTracks) == 0 {
 		t.Fatal("mixes trackView sourceTracks empty after correction")
 	}
-	if nm.mixes.trackView.SourceTracks[0].Duration != 180.0 {
+	if nm.mixes.TrackView.SourceTracks[0].Duration != 180.0 {
 		t.Errorf("mixes trackView duration after correction: got %f, want 180.0",
-			nm.mixes.trackView.SourceTracks[0].Duration)
+			nm.mixes.TrackView.SourceTracks[0].Duration)
 	}
 }
 

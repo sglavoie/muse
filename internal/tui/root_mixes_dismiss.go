@@ -34,10 +34,10 @@ type mixUndismissErrorMsg struct{ err error }
 // database asynchronously and, on success, removes the track from the cached
 // mix and the in-memory dismissedHashes set (bug hotspot #42: async validation).
 func (m Model) handleMixDismiss() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.level != 1 {
+	if m.activeView != viewMixes || m.mixes.Level != 1 {
 		return m, nil
 	}
-	t := m.mixes.focusedTrack()
+	t := m.mixes.FocusedTrack()
 	if t == nil {
 		return m, nil
 	}
@@ -66,16 +66,16 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 	}
 	m.dismissedHashes[msg.hash] = struct{}{}
 
-	for id, tracks := range m.mixes.cachedMixes {
-		m.mixes.cachedMixes[id] = removeTrackByHash(tracks, msg.hash)
+	for id, tracks := range m.mixes.CachedMixes {
+		m.mixes.CachedMixes[id] = removeTrackByHash(tracks, msg.hash)
 	}
-	if tracks, ok := m.mixes.cachedMixes[m.mixes.activeMix]; ok {
+	if tracks, ok := m.mixes.CachedMixes[m.mixes.ActiveMix]; ok {
 		// Refresh the track view if currently open on this mix, preserving
 		// cursor position, sort state, filter text, and selection (bug: the
 		// previous openMix call reset all of these).
-		if m.activeView == viewMixes && m.mixes.level == 1 {
-			m.mixes.trackView.SourceTracks = tracks
-			m.mixes.trackView = m.mixes.trackView.RefreshView().ClampCursor()
+		if m.activeView == viewMixes && m.mixes.Level == 1 {
+			m.mixes.TrackView.SourceTracks = tracks
+			m.mixes.TrackView = m.mixes.TrackView.RefreshView().ClampCursor()
 		}
 	}
 	m.statusBar.Notify("Dismissed — won't appear in future mixes")
@@ -85,10 +85,10 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 // handleMixUndismiss undismisses the focused track at level 1. The track
 // reappears on the next mix load.
 func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.level != 1 {
+	if m.activeView != viewMixes || m.mixes.Level != 1 {
 		return m, nil
 	}
-	t := m.mixes.focusedTrack()
+	t := m.mixes.FocusedTrack()
 	if t == nil {
 		return m, nil
 	}

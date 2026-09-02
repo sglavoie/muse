@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
+	"github.com/sglavoie/muse/internal/tui/mixes"
 )
 
 // stubRecReader is a minimal recommendationReader for mixes tests.
@@ -91,14 +92,14 @@ func setupMixesAtTrackLevel(opts ...Option) Model {
 	allOpts = append(allOpts, opts...)
 	m := New(context.Background(), allOpts...)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 	return m
 }
 
 func seedMixRegistry(m Model) Model {
-	m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
+	m.mixes.Mixes = append([]mixes.MixInfo(nil), recommendation.Registry()...)
 	return m
 }

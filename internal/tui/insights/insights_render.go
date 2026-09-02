@@ -1,4 +1,4 @@
-package tui
+package insights
 
 import (
 	"fmt"
@@ -7,30 +7,30 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// location is the zone every row buckets in. It falls back to the load path's
+// Location is the zone every row buckets in. It falls back to the load path's
 // own default rather than to UTC, so a view built without a snapshot still
 // files a play under the hour the user heard it.
-func (v InsightsView) location() *time.Location {
-	if v.loc == nil {
+func (v View) Location() *time.Location {
+	if v.Loc == nil {
 		return time.Local
 	}
-	return v.loc
+	return v.Loc
 }
 
 // coverageRows builds the Coverage body: dusty shelves, albums nobody has ever
 // opened, per-genre coverage, and tracks that were heard once and then dropped.
-func (v InsightsView) coverageRows() []insightsRow {
-	c := v.snap.Coverage
-	rows := make([]insightsRow, 0, 40)
+func (v View) coverageRows() []Row {
+	c := v.Snap.Coverage
+	rows := make([]Row, 0, 40)
 
-	var untouched, dusty []insights.ShelfStat
+	var untouched, dusty []insightsdata.ShelfStat
 	for _, a := range c.DustyAlbums {
 		if a.Unheard == a.Tracks {
 			untouched = append(untouched, a)
@@ -39,37 +39,37 @@ func (v InsightsView) coverageRows() []insightsRow {
 		}
 	}
 
-	appendShelves := func(section string, shelves []insights.ShelfStat, kind insightsDrillKind) {
+	appendShelves := func(section string, shelves []insightsdata.ShelfStat, kind DrillKind) {
 		for _, s := range shelves {
-			rows = append(rows, insightsRow{
-				section:  section,
-				label:    s.Name,
+			rows = append(rows, Row{
+				Section:  section,
+				Label:    s.Name,
 				note:     fmt.Sprintf("%d/%d unheard", s.Unheard, s.Tracks),
 				fraction: shelfFraction(s),
-				drill:    kind,
-				key:      s.Name,
+				Drill:    kind,
+				Key:      s.Name,
 			})
 		}
 	}
 
-	appendShelves("Dusty artists", c.DustyArtists, drillUnheardArtist)
-	appendShelves("Untouched albums", untouched, drillUnheardAlbum)
-	appendShelves("Dusty albums", dusty, drillUnheardAlbum)
-	appendShelves("Genre coverage", v.genreCoverage, drillUnheardGenre)
+	appendShelves("Dusty artists", c.DustyArtists, DrillUnheardArtist)
+	appendShelves("Untouched albums", untouched, DrillUnheardAlbum)
+	appendShelves("Dusty albums", dusty, DrillUnheardAlbum)
+	appendShelves("Genre coverage", v.GenreCoverage, DrillUnheardGenre)
 
-	for _, t := range v.dormant {
-		rows = append(rows, insightsRow{
-			section: "Dormant tracks",
-			label:   fmt.Sprintf("%s — %s", t.Artist, t.Title),
-			note:    "last " + relativeDayLabel(t.LastPlayedAt, v.snap.LastPlayAt),
-			drill:   drillDormant,
-			key:     t.Hash,
+	for _, t := range v.Dormant {
+		rows = append(rows, Row{
+			Section: "Dormant tracks",
+			Label:   fmt.Sprintf("%s — %s", t.Artist, t.Title),
+			note:    "last " + relativeDayLabel(t.LastPlayedAt, v.Snap.LastPlayAt),
+			Drill:   DrillDormant,
+			Key:     t.Hash,
 		})
 	}
 	return rows
 }
 
-func shelfFraction(s insights.ShelfStat) float64 {
+func shelfFraction(s insightsdata.ShelfStat) float64 {
 	if s.Tracks <= 0 {
 		return 0
 	}
@@ -97,34 +97,34 @@ func relativeDayLabel(at, ref int64) string {
 	}
 }
 
-// render draws the Insights view: the briefing plus the active panel at level
+// Render draws the Insights view: the briefing plus the active panel at level
 // 0, a session list at level 2, and an embedded track list at the two levels
 // that end in tracks.
-func (v InsightsView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
-	if v.atTracks() {
-		if len(v.trackView.SourceTracks) == 0 {
+func (v View) Render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
+	if v.AtTracks() {
+		if len(v.TrackView.SourceTracks) == 0 {
 			return s.Dim.Render("Nothing behind this row.")
 		}
-		return v.trackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
+		return v.TrackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
-	if v.level == insightsLevelSessions {
+	if v.Level == LevelSessions {
 		return v.renderSessionList(s)
 	}
 
-	if !v.loaded {
-		if v.loading {
+	if !v.Loaded {
+		if v.Loading {
 			return s.Dim.Render("Reading your listening history…")
 		}
-		if v.loadErr != nil {
-			return s.RenderEmptyCard(v.width, v.height, "Could not read your listening history", []styles.EmptyAction{
+		if v.LoadErr != nil {
+			return s.RenderEmptyCard(v.width, v.Height, "Could not read your listening history", []styles.EmptyAction{
 				{Key: "8", Label: "retry"},
 				{Key: "?", Label: "help"},
 			})
 		}
 		return s.Dim.Render("Insights are not available: no history reader is wired.")
 	}
-	if v.empty() {
-		return s.RenderEmptyCard(v.width, v.height, "Nothing to measure yet", []styles.EmptyAction{
+	if v.Empty() {
+		return s.RenderEmptyCard(v.width, v.Height, "Nothing to measure yet", []styles.EmptyAction{
 			{Key: "1", Label: "go to library"},
 			{Key: "?", Label: "help"},
 		})
@@ -143,79 +143,79 @@ func (v InsightsView) render(s styles.Styles, favHashes, favArtists, favAlbums m
 	// it can still outgrow the frame. Clamp rather than let it push the footer
 	// off the screen.
 	out := strings.Split(b.String(), "\n")
-	if v.height > 0 && len(out) > v.height {
-		out = out[:v.height]
+	if v.Height > 0 && len(out) > v.Height {
+		out = out[:v.Height]
 	}
 	return strings.Join(out, "\n")
 }
 
-func (v InsightsView) briefingFits() bool {
-	return v.height >= insightsBriefingMinHeight
+func (v View) briefingFits() bool {
+	return v.Height >= insightsBriefingMinHeight
 }
 
 // headerHeight counts every line drawn above the panel's scrollable rows.
-func (v InsightsView) headerHeight() int {
+func (v View) headerHeight() int {
 	h := 1 // state strip
 	if v.briefingFits() {
 		h += len(insightsPanelSpecs)
 	}
 	// Rendering the header with a zero Styles yields the same line count as the
 	// styled render, so the two can never drift apart.
-	h += len(v.panelHeaderLines(styles.Styles{}))
+	h += len(v.PanelHeaderLines(styles.Styles{}))
 	return h
 }
 
-func (v InsightsView) renderStrip(s styles.Styles) string {
-	spec := v.panelSpec()
+func (v View) renderStrip(s styles.Styles) string {
+	spec := v.Spec()
 	summary := fmt.Sprintf("%s plays · %s · %d %s",
-		text.FormatCount(v.snap.TotalPlays),
-		text.FormatListeningTime(v.snap.TotalSecs),
-		v.snap.SpanDays, text.Pluralize(v.snap.SpanDays, "day", "days"))
+		text.FormatCount(v.Snap.TotalPlays),
+		text.FormatListeningTime(v.Snap.TotalSecs),
+		v.Snap.SpanDays, text.Pluralize(v.Snap.SpanDays, "day", "days"))
 	line := strip.Render(v.width, []string{"Insights", summary},
 		strip.SortChunk{}, strip.FilterChunk{}, strip.CountsChunk{}, nil,
-		v.windowHint(), s)
+		v.WindowHint(), s)
 	if line == "" {
-		return spec.name
+		return spec.Name
 	}
 	return line
 }
 
-// windowHint is the right-edge affordance that names the active window and,
+// WindowHint is the right-edge affordance that names the active window and,
 // for panels that do not honour it, says so instead of silently ignoring w.
-func (v InsightsView) windowHint() string {
+func (v View) WindowHint() string {
 	// A failed read leaves every panel on figures that are not current, so the
 	// strip says so rather than letting the window label imply they match it.
 	// The hint is a "key label" pair, so the retry key leads.
-	if v.loadErr != nil {
+	if v.LoadErr != nil {
 		return "8 retry · read failed"
 	}
-	switch v.panelSpec().class {
-	case classFixed:
+	switch v.Spec().Class {
+	case ClassFixed:
 		return "all-time (fixed)"
-	case classResolution:
-		return "resolution: " + v.resolution().Unit() + " ‹w›"
+	case ClassResolution:
+		return "resolution: " + v.Resolution().Unit() + " ‹w›"
 	default:
-		return v.window().label + " ‹w›"
+		return v.window().Label + " ‹w›"
 	}
 }
 
-func (v InsightsView) renderBriefing(s styles.Styles) string {
+func (v View) renderBriefing(s styles.Styles) string {
 	lines := make([]string, 0, len(insightsPanelSpecs))
 	labelW := 0
 	for _, spec := range insightsPanelSpecs {
-		labelW = max(labelW, len(spec.name))
+		labelW = max(labelW, len(spec.Name))
 	}
 	for _, spec := range insightsPanelSpecs {
 		cursor := "  "
-		if spec.id == v.panel {
+		if spec.id == v.Panel {
 			cursor = "> "
 		}
-		head := cursor + text.Pad(spec.name, labelW) + "  "
+		head := cursor + text.Pad(spec.Name, labelW) + "  "
 		tail := v.headline(spec.id)
 		if v.width > 0 {
 			tail = text.Truncate(tail, max(v.width-len(head), 1))
 		}
-		if spec.id == v.panel {
+		if spec.id == v.Panel {
 			lines = append(lines, s.Accent.Render(head+tail))
 		} else {
 			lines = append(lines, s.TextPrimary.Render(head)+s.TextTertiary.Render(tail))
@@ -226,15 +226,15 @@ func (v InsightsView) renderBriefing(s styles.Styles) string {
 
 // headline is the one-line answer a panel gives. Every headline is computed
 // from live data even when the panel's expanded body is not built yet.
-func (v InsightsView) headline(p insightsPanel) string {
-	snap := v.snap
+func (v View) headline(p Panel) string {
+	snap := v.Snap
 	switch p {
-	case panelCoverage:
+	case PanelCoverage:
 		c := snap.Coverage
 		return fmt.Sprintf("%s of %s tracks never played · %s unheard",
 			text.FormatCount(c.UnheardTracks), text.FormatCount(c.TotalTracks),
 			text.FormatListeningTime(int(c.UnheardSecs)))
-	case panelRhythm:
+	case PanelRhythm:
 		r := snap.Rhythm
 		if r.TotalPlays == 0 {
 			return "no plays in this window"
@@ -242,7 +242,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 		return fmt.Sprintf("%ss %.0f%% of plays · peak %02d:00 · %d quiet %s",
 			r.TopWeekday.Weekday, r.TopWeekday.Share*100, r.PeakHour,
 			len(r.QuietHours), text.Pluralize(len(r.QuietHours), "hour", "hours"))
-	case panelMomentum:
+	case PanelMomentum:
 		t := snap.Trends
 		if t.AvgSecs <= 0 {
 			return "not enough completed " + t.Resolution.Period() + "s to compare"
@@ -250,7 +250,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 		return fmt.Sprintf("%s %s — %.0f%% of your %s %s average",
 			text.FormatListeningTime(t.Current.ListenedSecs), t.Resolution.Current(),
 			t.CurrentVsAvg*100, text.FormatListeningTime(int(t.AvgSecs)), t.Resolution.Unit())
-	case panelConcentration:
+	case PanelConcentration:
 		l := snap.Rankings.Ladder
 		if l.TotalArtists == 0 {
 			return "no artists in this window"
@@ -258,7 +258,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 		return fmt.Sprintf("%d %s = half your listening time · top-5 %.0f%%",
 			l.Artists50, text.Pluralize(l.Artists50, "artist", "artists"),
 			snap.Rankings.TopFiveShare*100)
-	case panelTimeVsPlays:
+	case PanelTimeVsPlays:
 		r := snap.Rankings
 		if len(r.Deltas) == 0 {
 			return "no artists in this window"
@@ -267,23 +267,23 @@ func (v InsightsView) headline(p insightsPanel) string {
 		// "moves 9 of your top 15" is only true when 15 is the size of that head.
 		return fmt.Sprintf("ranking by hours moves %d of your top %d artists",
 			r.MovedCount, len(r.Deltas))
-	case panelSessions:
+	case PanelSessions:
 		ss := snap.SessionStats
 		if ss.Count == 0 {
 			return "no sessions in this window"
 		}
 		return fmt.Sprintf("%d sessions · median %s · %.0f%% single-artist",
 			ss.Count, text.FormatListeningTime(ss.MedianSecs), ss.SingleArtistShare*100)
-	case panelDiscovery:
+	case PanelDiscovery:
 		t := snap.Trends
 		return fmt.Sprintf("%d first-time %s %s · %.0f%% are repeats",
 			t.CurrentFirstPlays, text.Pluralize(t.CurrentFirstPlays, "track", "tracks"),
 			t.Resolution.Current(), t.RepeatShare*100)
-	case panelDataHealth:
+	case PanelDataHealth:
 		// The count is of rows rather than of snapshot issues: a finding with no
 		// track list behind it is stated in the header prose instead, and a
 		// headline that counted those would promise rows that are not there.
-		switch n := len(v.health); {
+		switch n := len(v.Health); {
 		case n == 0 && len(snap.Quality.Issues) == 0:
 			return "nothing distorting the panels above"
 		case n == 0:
@@ -298,29 +298,29 @@ func (v InsightsView) headline(p insightsPanel) string {
 	return ""
 }
 
-// panelHeaderLines is the static block a panel draws above its scrollable
+// PanelHeaderLines is the static block a panel draws above its scrollable
 // rows, trimmed so it can never crowd the body out of a short terminal.
-func (v InsightsView) panelHeaderLines(s styles.Styles) []string {
+func (v View) PanelHeaderLines(s styles.Styles) []string {
 	var lines []string
-	switch v.panel {
-	case panelCoverage:
+	switch v.Panel {
+	case PanelCoverage:
 		lines = v.coverageHeaderLines(s)
-	case panelRhythm:
+	case PanelRhythm:
 		lines = v.rhythmHeaderLines(s)
-	case panelMomentum:
+	case PanelMomentum:
 		lines = v.momentumHeaderLines(s)
-	case panelConcentration:
+	case PanelConcentration:
 		lines = v.concentrationHeaderLines(s)
-	case panelTimeVsPlays:
+	case PanelTimeVsPlays:
 		lines = v.timeVsPlaysHeaderLines(s)
-	case panelSessions:
+	case PanelSessions:
 		lines = v.sessionsHeaderLines(s)
-	case panelDiscovery:
+	case PanelDiscovery:
 		lines = v.discoveryHeaderLines(s)
-	case panelDataHealth:
+	case PanelDataHealth:
 		lines = v.dataHealthHeaderLines(s)
 	default:
-		lines = []string{"", s.Dim.Render(v.headline(v.panel))}
+		lines = []string{"", s.Dim.Render(v.headline(v.Panel))}
 	}
 	if b := v.headerBudget(); len(lines) > b {
 		lines = lines[:b]
@@ -331,23 +331,23 @@ func (v InsightsView) panelHeaderLines(s styles.Styles) []string {
 // headerBudget is how many lines a panel header may occupy. A header that eats
 // the whole frame turns a drillable panel into a picture, so the body's floor
 // is reserved before the header gets anything.
-func (v InsightsView) headerBudget() int {
+func (v View) headerBudget() int {
 	used := 1 // state strip
 	if v.briefingFits() {
 		used += len(insightsPanelSpecs)
 	}
-	return max(v.height-used-insightsMinBodyRows, insightsMinHeaderLines)
+	return max(v.Height-used-insightsMinBodyRows, insightsMinHeaderLines)
 }
 
-func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
-	c := v.snap.Coverage
+func (v View) coverageHeaderLines(s styles.Styles) []string {
+	c := v.Snap.Coverage
 	w := max(v.width, 1)
 	pal := chart.FromStyles(s)
 
 	lines := []string{
 		"",
 		s.TextPrimary.Render(fmt.Sprintf("In %d %s you played %s tracks. You own %s.",
-			v.snap.SpanDays, text.Pluralize(v.snap.SpanDays, "day", "days"),
+			v.Snap.SpanDays, text.Pluralize(v.Snap.SpanDays, "day", "days"),
 			text.FormatCount(c.HeardTracks), text.FormatCount(c.TotalTracks))),
 		"",
 	}
@@ -360,7 +360,7 @@ func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
 			text.FormatListeningTime(int(c.UnheardSecs)))),
 		"",
 	)
-	if v.height >= insightsProseMinHeight {
+	if v.Height >= insightsProseMinHeight {
 		for _, l := range strings.Split(ansi.Wrap(v.coverageReadLine(), w, " "), "\n") {
 			lines = append(lines, s.Dim.Render(l))
 		}
@@ -371,8 +371,8 @@ func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
 
 // coverageReadLine is the cross-reference that makes Coverage land: the size of
 // the unheard part measured against everything actually listened to.
-func (v InsightsView) coverageReadLine() string {
-	c := v.snap.Coverage
+func (v View) coverageReadLine() string {
+	c := v.Snap.Coverage
 	if c.ListenedSecs <= 0 {
 		return "Nothing listened to yet — every track below is still unopened."
 	}
@@ -385,12 +385,12 @@ func (v InsightsView) coverageReadLine() string {
 		formatMonths(c.MonthsToFinish))
 }
 
-func (v InsightsView) renderPanel(s styles.Styles) string {
-	lines := append([]string(nil), v.panelHeaderLines(s)...)
+func (v View) renderPanel(s styles.Styles) string {
+	lines := append([]string(nil), v.PanelHeaderLines(s)...)
 
-	rows := v.rows()
+	rows := v.Rows()
 	if len(rows) == 0 {
-		if v.panel == panelCoverage {
+		if v.Panel == PanelCoverage {
 			lines = append(lines, s.Dim.Render("Every shelf in your library has been opened."))
 		}
 		return strings.Join(lines, "\n")
@@ -398,25 +398,25 @@ func (v InsightsView) renderPanel(s styles.Styles) string {
 
 	// Section headers occupy body lines too, so the budget is spent as lines are
 	// emitted rather than sliced off the row list up front.
-	budget := v.bodyRows()
+	budget := v.BodyRows()
 	section := ""
-	for i := v.scrollOffset; i < len(rows) && budget > 0; i++ {
+	for i := v.ScrollOffset; i < len(rows) && budget > 0; i++ {
 		row := rows[i]
-		if row.section != section {
-			section = row.section
+		if row.Section != section {
+			section = row.Section
 			lines = append(lines, s.BucketHeader.Render(section))
 			budget--
 			if budget == 0 {
 				break
 			}
 		}
-		lines = append(lines, v.renderRow(s, row, i == v.cursor))
+		lines = append(lines, v.renderRow(s, row, i == v.Cursor))
 		budget--
 	}
 	return strings.Join(lines, "\n")
 }
 
-func (v InsightsView) renderRow(s styles.Styles, row insightsRow, focused bool) string {
+func (v View) renderRow(s styles.Styles, row Row, focused bool) string {
 	cursor := "  "
 	if focused {
 		cursor = "> "
@@ -424,11 +424,11 @@ func (v InsightsView) renderRow(s styles.Styles, row insightsRow, focused bool) 
 	width := max(v.width-len(cursor), 1)
 
 	var body string
-	if v.compact() || row.drill == drillDormant {
+	if v.compact() || row.Drill == DrillDormant {
 		labelW := max(width-len(row.note)-2, 1)
-		body = text.Pad(text.Truncate(row.label, labelW), labelW) + "  " + row.note
+		body = text.Pad(text.Truncate(row.Label, labelW), labelW) + "  " + row.note
 	} else {
-		bars := chart.BarList([]chart.BarRow{{Label: row.label, Value: row.fraction, Note: row.note}},
+		bars := chart.BarList([]chart.BarRow{{Label: row.Label, Value: row.fraction, Note: row.note}},
 			chart.BarListOptions{Width: width, Max: 1}, chart.FromStyles(s))
 		if len(bars) > 0 {
 			body = bars[0]

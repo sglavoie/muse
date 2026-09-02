@@ -1,4 +1,4 @@
-package tui
+package insights
 
 // Data Health: what is lying to the panels above, and what to press to fix it.
 //
@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -22,47 +22,47 @@ import (
 // The Data Health section names. They are the row headers on screen and the
 // strings the layout scenarios assert on.
 const (
-	healthSectionCollisions   = "Genre collisions"
-	healthSectionPlaceholders = "Placeholder genres"
-	healthSectionMissing      = "Missing metadata"
-	healthSectionDurations    = "Unverified durations"
-	healthSectionArtists      = "Artist near-duplicates"
-	healthSectionDeepCuts     = "Deep Cuts"
+	HealthSectionCollisions   = "Genre collisions"
+	HealthSectionPlaceholders = "Placeholder genres"
+	HealthSectionMissing      = "Missing metadata"
+	HealthSectionDurations    = "Unverified durations"
+	HealthSectionArtists      = "Artist near-duplicates"
+	HealthSectionDeepCuts     = "Deep Cuts"
 )
 
-// healthRowKind names what a finding is about. Only genre collisions have a
+// HealthRowKind names what a finding is about. Only genre collisions have a
 // one-key fix, so this is what m checks before offering to merge.
-type healthRowKind int
+type HealthRowKind int
 
 const (
-	healthGenreCollision healthRowKind = iota
-	healthPlaceholderGenre
-	healthMissingMetadata
-	healthUnverifiedDuration
-	healthArtistDuplicate
-	healthDeepCutsFlat
+	HealthGenreCollision HealthRowKind = iota
+	HealthPlaceholderGenre
+	HealthMissingMetadata
+	HealthUnverifiedDuration
+	HealthArtistDuplicate
+	HealthDeepCutsFlat
 )
 
-// insightsHealthRow is one finding together with the exact tracks behind it.
+// HealthRow is one finding together with the exact tracks behind it.
 // The hashes are stored rather than re-derived when the row is opened, so the
 // count a row reports and the list it opens cannot disagree.
-type insightsHealthRow struct {
-	kind    healthRowKind
-	section string
-	label   string
+type HealthRow struct {
+	Kind    HealthRowKind
+	Section string
+	Label   string
 	note    string
-	hashes  []string
-	// canonical and variants are set on collision rows only: the spelling to
+	Hashes  []string
+	// Canonical and variants are set on collision rows only: the spelling to
 	// keep, and every stored spelling to fold into it.
-	canonical string
-	variants  []string
+	Canonical string
+	Variants  []string
 }
 
-// buildInsightsHealth folds the library into the Data Health findings. It runs
+// BuildHealth folds the library into the Data Health findings. It runs
 // on the load goroutine beside the other library-derived Insights inputs.
 // unverified is the set of tracks whose duration has never been checked against
 // the file; deepCutsMin/Max mirror the Deep Cuts mix bounds.
-func buildInsightsHealth(q insights.Quality, tracks []library.Track, unverified []string, deepCutsMin, deepCutsMax int) []insightsHealthRow {
+func BuildHealth(q insightsdata.Quality, tracks []library.Track, unverified []string, deepCutsMin, deepCutsMax int) []HealthRow {
 	indexed := make(map[string]struct{}, len(tracks))
 	for _, t := range tracks {
 		indexed[t.Hash] = struct{}{}
@@ -73,34 +73,34 @@ func buildInsightsHealth(q insights.Quality, tracks []library.Track, unverified 
 	byGenre := map[string][]string{}
 	for _, t := range tracks {
 		for _, g := range library.SplitGenres(t.Genre) {
-			key := insightsGenreKey(g)
+			key := GenreKey(g)
 			byGenre[key] = append(byGenre[key], t.Hash)
 		}
 	}
 
-	var rows []insightsHealthRow
-	add := func(kind healthRowKind, section, label, note string, hashes []string) {
-		rows = append(rows, insightsHealthRow{
-			kind: kind, section: section, label: label, note: note, hashes: hashes,
+	var rows []HealthRow
+	add := func(kind HealthRowKind, section, label, note string, hashes []string) {
+		rows = append(rows, HealthRow{
+			Kind: kind, Section: section, Label: label, note: note, Hashes: hashes,
 		})
 	}
 
 	for _, g := range q.Collisions {
-		hashes := byGenre[insightsGenreKey(g.Canonical)]
-		rows = append(rows, insightsHealthRow{
-			kind:      healthGenreCollision,
-			section:   healthSectionCollisions,
-			label:     strings.Join(g.Variants, " / "),
+		hashes := byGenre[GenreKey(g.Canonical)]
+		rows = append(rows, HealthRow{
+			Kind:      HealthGenreCollision,
+			Section:   HealthSectionCollisions,
+			Label:     strings.Join(g.Variants, " / "),
 			note:      healthTrackNote(len(hashes)),
-			hashes:    hashes,
-			canonical: g.Canonical,
-			variants:  g.Variants,
+			Hashes:    hashes,
+			Canonical: g.Canonical,
+			Variants:  g.Variants,
 		})
 	}
 
 	for _, g := range q.Placeholders {
-		hashes := byGenre[insightsGenreKey(g.Canonical)]
-		add(healthPlaceholderGenre, healthSectionPlaceholders, g.Canonical,
+		hashes := byGenre[GenreKey(g.Canonical)]
+		add(HealthPlaceholderGenre, HealthSectionPlaceholders, g.Canonical,
 			healthTrackNote(len(hashes)), hashes)
 	}
 
@@ -112,7 +112,7 @@ func buildInsightsHealth(q insights.Quality, tracks []library.Track, unverified 
 			}
 		}
 		if len(hashes) > 0 {
-			add(healthMissingMetadata, healthSectionMissing, f.label,
+			add(HealthMissingMetadata, HealthSectionMissing, f.label,
 				healthTrackNote(len(hashes)), hashes)
 		}
 	}
@@ -127,20 +127,20 @@ func buildInsightsHealth(q insights.Quality, tracks []library.Track, unverified 
 		}
 	}
 	if len(unverifiedHashes) > 0 {
-		add(healthUnverifiedDuration, healthSectionDurations, "Never checked against the file",
+		add(HealthUnverifiedDuration, HealthSectionDurations, "Never checked against the file",
 			healthTrackNote(len(unverifiedHashes)), unverifiedHashes)
 	}
 
 	rows = append(rows, healthArtistDuplicates(tracks)...)
 
-	if qualityHasIssue(q, insights.IssueDeepCutsFlat) {
+	if qualityHasIssue(q, insightsdata.IssueDeepCutsFlat) {
 		var hashes []string
 		for _, t := range tracks {
 			if t.PlayCount >= deepCutsMin && t.PlayCount <= deepCutsMax {
 				hashes = append(hashes, t.Hash)
 			}
 		}
-		add(healthDeepCutsFlat, healthSectionDeepCuts, "Completion filter clears almost everything",
+		add(HealthDeepCutsFlat, HealthSectionDeepCuts, "Completion filter clears almost everything",
 			fmt.Sprintf("%.0f%% of candidates", q.DeepCutsShare*100), hashes)
 	}
 
@@ -163,7 +163,7 @@ var healthMissingFields = []struct {
 // punctuation, a leading article or "&" versus "and". Anything subtler — a
 // dropped diacritic, a misspelling — is left alone: a false merge costs more
 // than a missed one, because the merge rewrites tags on disk.
-func healthArtistDuplicates(tracks []library.Track) []insightsHealthRow {
+func healthArtistDuplicates(tracks []library.Track) []HealthRow {
 	type cluster struct {
 		names  map[string]struct{}
 		hashes []string
@@ -176,7 +176,7 @@ func healthArtistDuplicates(tracks []library.Track) []insightsHealthRow {
 		if name == "" {
 			continue
 		}
-		key := healthArtistKey(name)
+		key := HealthArtistKey(name)
 		if key == "" {
 			continue
 		}
@@ -190,7 +190,7 @@ func healthArtistDuplicates(tracks []library.Track) []insightsHealthRow {
 		c.hashes = append(c.hashes, t.Hash)
 	}
 
-	var out []insightsHealthRow
+	var out []HealthRow
 	for _, key := range order {
 		c := byKey[key]
 		if len(c.names) < 2 {
@@ -201,20 +201,20 @@ func healthArtistDuplicates(tracks []library.Track) []insightsHealthRow {
 			names = append(names, n)
 		}
 		sort.Strings(names)
-		out = append(out, insightsHealthRow{
-			kind:    healthArtistDuplicate,
-			section: healthSectionArtists,
-			label:   strings.Join(names, " / "),
+		out = append(out, HealthRow{
+			Kind:    HealthArtistDuplicate,
+			Section: HealthSectionArtists,
+			Label:   strings.Join(names, " / "),
 			note:    healthTrackNote(len(c.hashes)),
-			hashes:  c.hashes,
+			Hashes:  c.hashes,
 		})
 	}
 	return out
 }
 
-// healthArtistKey folds the spelling differences that produce two shelves for
+// HealthArtistKey folds the spelling differences that produce two shelves for
 // one artist.
-func healthArtistKey(name string) string {
+func HealthArtistKey(name string) string {
 	folded := strings.ToLower(strings.TrimSpace(name))
 	folded = strings.ReplaceAll(folded, "&", " and ")
 	folded = strings.TrimPrefix(folded, "the ")
@@ -232,7 +232,7 @@ func healthTrackNote(n int) string {
 	return fmt.Sprintf("%d %s", n, text.Pluralize(n, "track", "tracks"))
 }
 
-func qualityHasIssue(q insights.Quality, kind insights.IssueKind) bool {
+func qualityHasIssue(q insightsdata.Quality, kind insightsdata.IssueKind) bool {
 	for _, issue := range q.Issues {
 		if issue.Kind == kind {
 			return true
@@ -244,17 +244,17 @@ func qualityHasIssue(q insights.Quality, kind insights.IssueKind) bool {
 // healthRows renders the precomputed findings as briefing rows. The bar is the
 // share of the library a finding touches, so the panel ranks by blast radius
 // rather than by section order.
-func (v InsightsView) healthRows() []insightsRow {
-	total := max(v.snap.Coverage.TotalTracks, 1)
-	rows := make([]insightsRow, 0, len(v.health))
-	for i, h := range v.health {
-		rows = append(rows, insightsRow{
-			section:  h.section,
-			label:    h.label,
+func (v View) healthRows() []Row {
+	total := max(v.Snap.Coverage.TotalTracks, 1)
+	rows := make([]Row, 0, len(v.Health))
+	for i, h := range v.Health {
+		rows = append(rows, Row{
+			Section:  h.Section,
+			Label:    h.Label,
 			note:     h.note,
-			fraction: float64(len(h.hashes)) / float64(total),
-			drill:    drillHealth,
-			key:      strconv.Itoa(i),
+			fraction: float64(len(h.Hashes)) / float64(total),
+			Drill:    DrillHealth,
+			Key:      strconv.Itoa(i),
 		})
 	}
 	return rows
@@ -263,31 +263,31 @@ func (v InsightsView) healthRows() []insightsRow {
 // healthAffectedTracks counts the distinct tracks named by at least one
 // finding. Findings overlap — a track with no genre is often the same one with
 // no album — so summing the rows would overstate the damage.
-func (v InsightsView) healthAffectedTracks() int {
+func (v View) healthAffectedTracks() int {
 	seen := make(map[string]struct{})
-	for _, h := range v.health {
-		for _, hash := range h.hashes {
+	for _, h := range v.Health {
+		for _, hash := range h.Hashes {
 			seen[hash] = struct{}{}
 		}
 	}
 	return len(seen)
 }
 
-// focusedHealthRow returns the finding under the cursor, or nil when the Data
+// FocusedHealthRow returns the finding under the cursor, or nil when the Data
 // Health panel is not the one being browsed.
-func (v InsightsView) focusedHealthRow() *insightsHealthRow {
-	if v.panel != panelDataHealth || v.level != insightsLevelBriefing {
+func (v View) FocusedHealthRow() *HealthRow {
+	if v.Panel != PanelDataHealth || v.Level != LevelBriefing {
 		return nil
 	}
-	if v.cursor < 0 || v.cursor >= len(v.health) {
+	if v.Cursor < 0 || v.Cursor >= len(v.Health) {
 		return nil
 	}
-	return &v.health[v.cursor]
+	return &v.Health[v.Cursor]
 }
 
-func (v InsightsView) dataHealthHeaderLines(s styles.Styles) []string {
-	head := []string{"", s.Dim.Render(v.fit(v.headline(panelDataHealth))), ""}
-	if len(v.health) == 0 && len(v.snap.Quality.Issues) == 0 {
+func (v View) dataHealthHeaderLines(s styles.Styles) []string {
+	head := []string{"", s.Dim.Render(v.fit(v.headline(PanelDataHealth))), ""}
+	if len(v.Health) == 0 && len(v.Snap.Quality.Issues) == 0 {
 		return append(head, s.TextSecondary.Render(v.fit(
 			"Every genre folds cleanly and every track carries its metadata.")))
 	}
@@ -295,8 +295,8 @@ func (v InsightsView) dataHealthHeaderLines(s styles.Styles) []string {
 	// The prose is where the findings with no track list behind them live —
 	// missing files, an inert Deep Cuts filter — so dropping it would silently
 	// lose them.
-	blocks := make([][]string, 0, len(v.snap.Quality.Issues))
-	for _, issue := range v.snap.Quality.Issues {
+	blocks := make([][]string, 0, len(v.Snap.Quality.Issues))
+	for _, issue := range v.Snap.Quality.Issues {
 		blocks = append(blocks, []string{s.TextSecondary.Render(v.fit("· " + issue.Detail))})
 	}
 	return insightsFitHeader(v.headerBudget(), head, blocks, []string{""})

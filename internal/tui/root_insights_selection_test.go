@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/insights"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 )
@@ -37,20 +38,20 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	}
 
 	// A session list is a list of sessions, not of tracks, and refuses too.
-	m.insights.openSessionList("Sessions", []insights.SessionRow{{ID: "s1"}, {ID: "s2"}})
+	m.insights.OpenSessionList("Sessions", []insights.SessionRow{{ID: "s1"}, {ID: "s2"}})
 	m = doVisual(m)
 	if m.visual.active {
 		t.Fatal("visual mode must not enter on the Insights session list")
 	}
-	m.insights.back()
+	m.insights.Back()
 
-	tracks := m.insightsDrillTracks(insightsRow{drill: drillUnheardAll})
+	tracks := m.insightsDrillTracks(instui.Row{Drill: instui.DrillUnheardAll})
 	if len(tracks) != 3 {
 		t.Fatalf("precondition: want 3 never-played tracks, got %d", len(tracks))
 	}
-	m.insights.openDrill("Never played", tracks)
+	m.insights.OpenDrill("Never played", tracks)
 	// A selection made before v must survive every restore of the range.
-	m.insights.trackView.SelectedHashes = map[string]struct{}{"h5": {}}
+	m.insights.TrackView.SelectedHashes = map[string]struct{}{"h5": {}}
 
 	m = doVisual(m)
 	if !m.visual.active {
@@ -62,14 +63,14 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	if m.visual.anchor != 0 {
 		t.Errorf("anchor: want the cursor position 0, got %d", m.visual.anchor)
 	}
-	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h5")
+	assertSelectedHashesExact(t, m.insights.TrackView.SelectedHashes, "h2", "h5")
 
 	m = doNav(m, keys.ActionCursorDown)
-	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h3", "h5")
+	assertSelectedHashesExact(t, m.insights.TrackView.SelectedHashes, "h2", "h3", "h5")
 
 	// Shrinking the range restores the snapshot rather than leaving h3 behind.
 	m = doNav(m, keys.ActionCursorUp)
-	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h5")
+	assertSelectedHashesExact(t, m.insights.TrackView.SelectedHashes, "h2", "h5")
 
 	m.showFooterHints = true
 	m.termWidth = 200
@@ -85,7 +86,7 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	if m.visual.active {
 		t.Fatal("expected a second v to exit visual mode")
 	}
-	assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, "h2", "h5")
+	assertSelectedHashesExact(t, m.insights.TrackView.SelectedHashes, "h2", "h5")
 
 	// esc leaves the drill, which is the list the anchor pointed into.
 	m = doVisual(m)
@@ -96,8 +97,8 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	if m.visual.active {
 		t.Error("stepping out of the drill must exit visual mode")
 	}
-	if m.insights.level != insightsLevelBriefing {
-		t.Errorf("expected the briefing after back, got level %d", m.insights.level)
+	if m.insights.Level != instui.LevelBriefing {
+		t.Errorf("expected the briefing after back, got level %d", m.insights.Level)
 	}
 }
 
@@ -130,11 +131,11 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			open: func(t *testing.T, opts ...Option) Model {
 				t.Helper()
 				m := newInsightsModel(t, opts...)
-				tracks := m.insightsDrillTracks(insightsRow{drill: drillUnheardAll})
+				tracks := m.insightsDrillTracks(instui.Row{Drill: instui.DrillUnheardAll})
 				if len(tracks) != 3 {
 					t.Fatalf("precondition: want 3 never-played tracks, got %d", len(tracks))
 				}
-				m.insights.openDrill("Never played", tracks)
+				m.insights.OpenDrill("Never played", tracks)
 				return m
 			},
 			wantSelected: []string{"h2", "h3"},
@@ -147,8 +148,8 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 				m := newSessionsModel(t, opts...)
 				m, _ = m.handleInsightsOpen()
 				m, _ = m.handleInsightsOpen()
-				if m.insights.level != insightsLevelSessionTracks {
-					t.Fatalf("precondition: want the session track level, got %d", m.insights.level)
+				if m.insights.Level != instui.LevelSessionTracks {
+					t.Fatalf("precondition: want the session track level, got %d", m.insights.Level)
 				}
 				return m
 			},
@@ -169,7 +170,7 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			m = doVisual(m)
 			m = doNav(m, keys.ActionCursorDown)
 			m = doVisual(m)
-			assertSelectedHashesExact(t, m.insights.trackView.SelectedHashes, tc.wantSelected...)
+			assertSelectedHashesExact(t, m.insights.TrackView.SelectedHashes, tc.wantSelected...)
 
 			hint := ansi.Strip(m.renderFooterHint())
 			for _, want := range []string{"enter enqueue", "a bulk action", "t tag", "X clear"} {
@@ -195,8 +196,8 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			}
 
 			cleared, _ := pressInsightsKey(t, m, tea.KeyPressMsg{Code: 'X', Text: "X"})
-			if len(cleared.insights.trackView.SelectedHashes) != 0 {
-				t.Errorf("X advertises a clear but left %d rows selected", len(cleared.insights.trackView.SelectedHashes))
+			if len(cleared.insights.TrackView.SelectedHashes) != 0 {
+				t.Errorf("X advertises a clear but left %d rows selected", len(cleared.insights.TrackView.SelectedHashes))
 			}
 
 			// enter enqueues the same set and then drops the selection, so the
@@ -214,10 +215,10 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			if got := hashesOf(be.appendTracksCalls[0]); !slices.Equal(got, tc.wantActedOn) {
 				t.Errorf("enter enqueued %v, want %v", got, tc.wantActedOn)
 			}
-			if got := be.appendTracksSources[0]; got != m.insights.drillLabel {
-				t.Errorf("source should name the drill: want %q, got %q", m.insights.drillLabel, got)
+			if got := be.appendTracksSources[0]; got != m.insights.DrillLabel {
+				t.Errorf("source should name the drill: want %q, got %q", m.insights.DrillLabel, got)
 			}
-			if n := len(m.insights.trackView.SelectedHashes); n != 0 {
+			if n := len(m.insights.TrackView.SelectedHashes); n != 0 {
 				t.Errorf("enter left %d rows selected", n)
 			}
 			if got := ansi.Strip(m.renderFooterHint()); strings.Contains(got, "enter enqueue") {

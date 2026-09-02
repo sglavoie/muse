@@ -10,14 +10,14 @@ import (
 
 // handleMixOpen drills into the track list for the focused mix.
 func (m Model) handleMixOpen() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.level != 0 {
+	if m.activeView != viewMixes || m.mixes.Level != 0 {
 		return m, nil
 	}
-	mix := m.mixes.focusedMix()
+	mix := m.mixes.FocusedMix()
 	if mix == nil {
 		return m, nil
 	}
-	m.mixes.openMix(mix.ID)
+	m.mixes.OpenMix(mix.ID)
 	return m, m.loadMixCmd(mix.ID)
 }
 
@@ -26,7 +26,7 @@ func (m Model) handleMixBack() Model {
 	if m.activeView != viewMixes {
 		return m
 	}
-	m.mixes.back()
+	m.mixes.Back()
 	return m
 }
 
@@ -46,17 +46,17 @@ type mixSaveAsPlaylistErrorMsg struct{ err error }
 // the currently open mix (level 1 only). It is a no-op at the list level or
 // when the mix cache is empty.
 func (m Model) handleMixesSaveMixAsPlaylist() (Model, tea.Cmd) {
-	if m.mixes.level != 1 {
+	if m.mixes.Level != 1 {
 		return m, nil
 	}
-	tracks, ok := m.mixes.cachedMixes[m.mixes.activeMix]
+	tracks, ok := m.mixes.CachedMixes[m.mixes.ActiveMix]
 	if !ok || len(tracks) == 0 {
 		m.statusBar.Notify("No tracks to save")
 		return m, nil
 	}
 	var mixName string
-	for _, info := range m.mixes.mixes {
-		if info.ID == m.mixes.activeMix {
+	for _, info := range m.mixes.Mixes {
+		if info.ID == m.mixes.ActiveMix {
 			mixName = info.Name
 			break
 		}
@@ -93,10 +93,10 @@ func (m Model) handleMixesSaveMixAsPlaylist() (Model, tea.Cmd) {
 
 // handleMixEnqueueAll enqueues all cached tracks from the focused mix (level 0).
 func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
-	if m.activeView != viewMixes || m.mixes.level != 0 {
+	if m.activeView != viewMixes || m.mixes.Level != 0 {
 		return m, nil
 	}
-	mix := m.mixes.focusedMix()
+	mix := m.mixes.FocusedMix()
 	if mix == nil {
 		return m, nil
 	}
@@ -105,7 +105,7 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
-	cached, ok := m.mixes.cachedMixes[mix.ID]
+	cached, ok := m.mixes.CachedMixes[mix.ID]
 	if !ok || len(cached) == 0 {
 		m.statusBar.Notify("Load the mix first (press Enter)")
 		return m, nil

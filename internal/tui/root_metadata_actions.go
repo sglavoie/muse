@@ -49,8 +49,8 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 
 	// A Data Health finding names a whole set of tracks, not a focused one, so
 	// editing from it opens the bulk editor over everything the row counted.
-	if row := m.insights.focusedHealthRow(); row != nil && len(row.hashes) > 0 {
-		ed := m.bulkEditorForHashes(row.hashes)
+	if row := m.insights.FocusedHealthRow(); row != nil && len(row.Hashes) > 0 {
+		ed := m.bulkEditorForHashes(row.Hashes)
 		m.overlay.metadataEditor = &ed
 		return m, nil, true
 	}

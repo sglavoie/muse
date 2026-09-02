@@ -101,31 +101,31 @@ func (m Model) favoritePickerTracks() []library.Track {
 			return m.bulkTagTracks()
 		}
 	case viewMixes:
-		if m.mixes.level != 1 {
+		if m.mixes.Level != 1 {
 			return nil
 		}
-		trackOrder := m.mixes.trackView.BaseTracks()
-		if m.mixes.trackView.SortedTracks != nil {
-			trackOrder = m.mixes.trackView.SortedTracks
+		trackOrder := m.mixes.TrackView.BaseTracks()
+		if m.mixes.TrackView.SortedTracks != nil {
+			trackOrder = m.mixes.TrackView.SortedTracks
 		}
-		if len(m.mixes.trackView.SelectedHashes) > 0 {
-			return collectSelectedTracks(trackOrder, m.mixes.trackView.SelectedHashes)
+		if len(m.mixes.TrackView.SelectedHashes) > 0 {
+			return collectSelectedTracks(trackOrder, m.mixes.TrackView.SelectedHashes)
 		}
-		if track, ok := m.mixes.trackView.Panel().FocusedTrack(); ok {
+		if track, ok := m.mixes.TrackView.Panel().FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	case viewInsights:
-		if !m.insights.atTracks() {
+		if !m.insights.AtTracks() {
 			return nil
 		}
-		trackOrder := m.insights.trackView.BaseTracks()
-		if m.insights.trackView.SortedTracks != nil {
-			trackOrder = m.insights.trackView.SortedTracks
+		trackOrder := m.insights.TrackView.BaseTracks()
+		if m.insights.TrackView.SortedTracks != nil {
+			trackOrder = m.insights.TrackView.SortedTracks
 		}
-		if len(m.insights.trackView.SelectedHashes) > 0 {
-			return collectSelectedTracks(trackOrder, m.insights.trackView.SelectedHashes)
+		if len(m.insights.TrackView.SelectedHashes) > 0 {
+			return collectSelectedTracks(trackOrder, m.insights.TrackView.SelectedHashes)
 		}
-		if track, ok := m.insights.trackView.Panel().FocusedTrack(); ok {
+		if track, ok := m.insights.TrackView.Panel().FocusedTrack(); ok {
 			return []library.Track{track}
 		}
 	}

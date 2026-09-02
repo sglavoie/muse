@@ -1,4 +1,4 @@
-package tui
+package mixes
 
 import (
 	"testing"
@@ -26,8 +26,8 @@ func makeTestMixes(n int) []MixInfo {
 // render() or focusedMix().
 func TestMixesViewHandleCursorClampsToBounds(t *testing.T) {
 	v := MixesView{
-		mixes:  makeTestMixes(3),
-		height: 10,
+		Mixes:  makeTestMixes(3),
+		Height: 10,
 	}
 	actions := []keys.Action{
 		keys.ActionCursorUp, keys.ActionCursorUp, keys.ActionCursorUp,
@@ -37,9 +37,9 @@ func TestMixesViewHandleCursorClampsToBounds(t *testing.T) {
 		keys.ActionGoToTop, keys.ActionGoToBottom,
 	}
 	for _, a := range actions {
-		v = v.handleCursorAction(a)
-		if v.selectedMix < 0 || v.selectedMix >= len(v.mixes) {
-			t.Fatalf("after action %v: selectedMix=%d out of bounds (n=%d)", a, v.selectedMix, len(v.mixes))
+		v = v.HandleCursorAction(a)
+		if v.SelectedMix < 0 || v.SelectedMix >= len(v.Mixes) {
+			t.Fatalf("after action %v: selectedMix=%d out of bounds (n=%d)", a, v.SelectedMix, len(v.Mixes))
 		}
 	}
 }
@@ -50,12 +50,12 @@ func TestMixesViewHandleCursorClampsToBounds(t *testing.T) {
 func TestMixesViewHandleCursorEmptyDoesNotPanic(t *testing.T) {
 	v := MixesView{}
 	for _, a := range []keys.Action{keys.ActionCursorDown, keys.ActionGoToBottom, keys.ActionFullPageDown} {
-		v = v.handleCursorAction(a)
+		v = v.HandleCursorAction(a)
 	}
-	if v.selectedMix != 0 {
-		t.Fatalf("expected selectedMix=0 on empty list, got %d", v.selectedMix)
+	if v.SelectedMix != 0 {
+		t.Fatalf("expected selectedMix=0 on empty list, got %d", v.SelectedMix)
 	}
-	if got := v.focusedMix(); got != nil {
+	if got := v.FocusedMix(); got != nil {
 		t.Fatalf("expected focusedMix=nil on empty list, got %+v", got)
 	}
 }
@@ -65,10 +65,10 @@ func TestMixesViewHandleCursorEmptyDoesNotPanic(t *testing.T) {
 // accidental access to a stale level-0 selection while drilled in.
 func TestMixesViewFocusedMixHonorsLevel(t *testing.T) {
 	v := MixesView{
-		mixes: makeTestMixes(2),
-		level: 1,
+		Mixes: makeTestMixes(2),
+		Level: 1,
 	}
-	if got := v.focusedMix(); got != nil {
+	if got := v.FocusedMix(); got != nil {
 		t.Fatalf("expected focusedMix=nil at level 1, got %+v", got)
 	}
 }
@@ -79,33 +79,33 @@ func TestMixesViewFocusedMixHonorsLevel(t *testing.T) {
 func TestMixesViewOpenMixSeedsTrackView(t *testing.T) {
 	tracks := []library.Track{{Hash: "h1"}, {Hash: "h2"}}
 	v := MixesView{
-		mixes:       makeTestMixes(1),
+		Mixes:       makeTestMixes(1),
 		width:       80,
-		height:      24,
-		cachedMixes: map[db.MixID][]library.Track{db.MixID(1): tracks},
+		Height:      24,
+		CachedMixes: map[db.MixID][]library.Track{db.MixID(1): tracks},
 	}
-	v.openMix(db.MixID(1))
-	if v.level != 1 {
-		t.Fatalf("expected level=1 after openMix, got %d", v.level)
+	v.OpenMix(db.MixID(1))
+	if v.Level != 1 {
+		t.Fatalf("expected level=1 after openMix, got %d", v.Level)
 	}
-	if v.activeMix != db.MixID(1) {
-		t.Fatalf("expected activeMix=1, got %d", v.activeMix)
+	if v.ActiveMix != db.MixID(1) {
+		t.Fatalf("expected activeMix=1, got %d", v.ActiveMix)
 	}
-	if len(v.trackView.SourceTracks) != 2 {
-		t.Fatalf("expected 2 source tracks, got %d", len(v.trackView.SourceTracks))
+	if len(v.TrackView.SourceTracks) != 2 {
+		t.Fatalf("expected 2 source tracks, got %d", len(v.TrackView.SourceTracks))
 	}
-	if v.trackView.Width != 80 || v.trackView.Height != 24 {
-		t.Fatalf("expected trackView to inherit width/height, got %dx%d", v.trackView.Width, v.trackView.Height)
+	if v.TrackView.Width != 80 || v.TrackView.Height != 24 {
+		t.Fatalf("expected trackView to inherit width/height, got %dx%d", v.TrackView.Width, v.TrackView.Height)
 	}
 
 	// Uncached mix: openMix should still transition without panicking.
-	v.back()
-	v.openMix(db.MixID(99))
-	if v.level != 1 {
-		t.Fatalf("expected level=1 after openMix with uncached id, got %d", v.level)
+	v.Back()
+	v.OpenMix(db.MixID(99))
+	if v.Level != 1 {
+		t.Fatalf("expected level=1 after openMix with uncached id, got %d", v.Level)
 	}
-	if len(v.trackView.SourceTracks) != 0 {
-		t.Fatalf("expected zero source tracks for uncached mix, got %d", len(v.trackView.SourceTracks))
+	if len(v.TrackView.SourceTracks) != 0 {
+		t.Fatalf("expected zero source tracks for uncached mix, got %d", len(v.TrackView.SourceTracks))
 	}
 }
 
@@ -115,18 +115,18 @@ func TestMixesViewOpenMixSeedsTrackView(t *testing.T) {
 func TestMixesViewBackResetsTrackView(t *testing.T) {
 	tracks := []library.Track{{Hash: "h1"}}
 	v := MixesView{
-		mixes:       makeTestMixes(1),
-		cachedMixes: map[db.MixID][]library.Track{db.MixID(1): tracks},
+		Mixes:       makeTestMixes(1),
+		CachedMixes: map[db.MixID][]library.Track{db.MixID(1): tracks},
 	}
-	v.openMix(db.MixID(1))
-	if len(v.trackView.SourceTracks) == 0 {
+	v.OpenMix(db.MixID(1))
+	if len(v.TrackView.SourceTracks) == 0 {
 		t.Fatalf("setup: expected non-empty trackView after openMix")
 	}
-	v.back()
-	if v.level != 0 {
-		t.Fatalf("expected level=0 after back, got %d", v.level)
+	v.Back()
+	if v.Level != 0 {
+		t.Fatalf("expected level=0 after back, got %d", v.Level)
 	}
-	if len(v.trackView.SourceTracks) != 0 {
-		t.Fatalf("expected trackView reset after back, got %d tracks", len(v.trackView.SourceTracks))
+	if len(v.TrackView.SourceTracks) != 0 {
+		t.Fatalf("expected trackView reset after back, got %d tracks", len(v.TrackView.SourceTracks))
 	}
 }

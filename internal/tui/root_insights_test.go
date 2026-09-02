@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -67,64 +68,64 @@ func TestInsightsWindowSince(t *testing.T) {
 	loc := time.UTC
 	now := time.Date(2026, 3, 15, 12, 0, 0, 0, loc)
 
-	if got := insightsWindowSince(0, now, loc); got != 0 {
+	if got := instui.WindowSince(0, now, loc); got != 0 {
 		t.Errorf("All Time: want 0, got %d", got)
 	}
-	if got, want := insightsWindowSince(1, now, loc), now.Add(-7*24*time.Hour).Unix(); got != want {
+	if got, want := instui.WindowSince(1, now, loc), now.Add(-7*24*time.Hour).Unix(); got != want {
 		t.Errorf("7 Days: want %d, got %d", want, got)
 	}
-	if got, want := insightsWindowSince(4, now, loc), time.Date(2026, 3, 1, 0, 0, 0, 0, loc).Unix(); got != want {
+	if got, want := instui.WindowSince(4, now, loc), time.Date(2026, 3, 1, 0, 0, 0, 0, loc).Unix(); got != want {
 		t.Errorf("This Month: want %d, got %d", want, got)
 	}
 	// Out-of-range indices wrap rather than panic, so a stale index from a
 	// resized window list cannot crash the load path.
-	if got := insightsWindowSince(len(insightsWindows), now, loc); got != 0 {
+	if got := instui.WindowSince(len(instui.Windows), now, loc); got != 0 {
 		t.Errorf("wrapped index should equal All Time, got %d", got)
 	}
-	if got, want := insightsWindowSince(-1, now, loc), time.Date(2026, 3, 1, 0, 0, 0, 0, loc).Unix(); got != want {
+	if got, want := instui.WindowSince(-1, now, loc), time.Date(2026, 3, 1, 0, 0, 0, 0, loc).Unix(); got != want {
 		t.Errorf("negative index should wrap to This Month: want %d, got %d", want, got)
 	}
 }
 
 func TestInsightsShiftPanelWraps(t *testing.T) {
-	v := InsightsView{panel: panelDataHealth, cursor: 4, scrollOffset: 2}
+	v := instui.View{Panel: instui.PanelDataHealth, Cursor: 4, ScrollOffset: 2}
 
-	forward := v.shiftPanel(1)
-	if forward.panel != panelCoverage {
-		t.Errorf("forward from last panel: want panelCoverage, got %v", forward.panel)
+	forward := v.ShiftPanel(1)
+	if forward.Panel != instui.PanelCoverage {
+		t.Errorf("forward from last panel: want panelCoverage, got %v", forward.Panel)
 	}
-	if forward.cursor != 0 || forward.scrollOffset != 0 {
-		t.Errorf("panel change should reset cursor/scroll, got %d/%d", forward.cursor, forward.scrollOffset)
+	if forward.Cursor != 0 || forward.ScrollOffset != 0 {
+		t.Errorf("panel change should reset cursor/scroll, got %d/%d", forward.Cursor, forward.ScrollOffset)
 	}
 
-	if back := (InsightsView{panel: panelCoverage}).shiftPanel(-1); back.panel != panelDataHealth {
-		t.Errorf("back from first panel: want panelDataHealth, got %v", back.panel)
+	if back := (instui.View{Panel: instui.PanelCoverage}).ShiftPanel(-1); back.Panel != instui.PanelDataHealth {
+		t.Errorf("back from first panel: want panelDataHealth, got %v", back.Panel)
 	}
 }
 
 func TestInsightsShiftWindowWraps(t *testing.T) {
-	last := len(insightsWindows) - 1
+	last := len(instui.Windows) - 1
 
-	if got := (InsightsView{windowIdx: last}).shiftWindow(1); got.windowIdx != 0 {
-		t.Errorf("forward from last window: want 0, got %d", got.windowIdx)
+	if got := (instui.View{WindowIdx: last}).ShiftWindow(1); got.WindowIdx != 0 {
+		t.Errorf("forward from last window: want 0, got %d", got.WindowIdx)
 	}
-	if got := (InsightsView{windowIdx: 0}).shiftWindow(-1); got.windowIdx != last {
-		t.Errorf("back from first window: want %d, got %d", last, got.windowIdx)
+	if got := (instui.View{WindowIdx: 0}).ShiftWindow(-1); got.WindowIdx != last {
+		t.Errorf("back from first window: want %d, got %d", last, got.WindowIdx)
 	}
 }
 
 func TestInsightsLoadGenerationGuard(t *testing.T) {
 	m := newInsightsModel(t)
-	fresh := m.insights.snap
+	fresh := m.insights.Snap
 
 	stale := insightsLoadedMsg{
-		gen:  m.insights.gen - 1,
+		gen:  m.insights.Gen - 1,
 		snap: insights.Snapshot{TotalPlays: 999},
 	}
 	m = m.handleInsightsLoadedMsg(stale)
 
-	if m.insights.snap.TotalPlays != fresh.TotalPlays {
-		t.Errorf("stale reply overwrote current snapshot: got %d plays", m.insights.snap.TotalPlays)
+	if m.insights.Snap.TotalPlays != fresh.TotalPlays {
+		t.Errorf("stale reply overwrote current snapshot: got %d plays", m.insights.Snap.TotalPlays)
 	}
 }
 
@@ -170,7 +171,7 @@ func hasInsightsShelf(shelves []insights.ShelfStat, name string) bool {
 func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 	t.Run("a recorded play", func(t *testing.T) {
 		m, reader := newInsightsModelReader(t)
-		before := m.insights.snap.TotalPlays
+		before := m.insights.Snap.TotalPlays
 
 		// What the play path writes before dispatching the message: a row in
 		// play_history and one more play on the in-memory track.
@@ -180,19 +181,19 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		m.library.Index.IncrementPlayCount("h1", now)
 
 		m = updateInsightsModel(t, m, playback.PlayRecordedMsg{Hash: "h1", PlayedAt: now})
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("a recorded play left the Insights memo current")
 		}
 
 		m = reloadInsights(t, m)
-		if got := m.insights.snap.TotalPlays; got != before+1 {
+		if got := m.insights.Snap.TotalPlays; got != before+1 {
 			t.Errorf("reload missed the new play: want %d plays, got %d", before+1, got)
 		}
 	})
 
 	t.Run("a completed rescan", func(t *testing.T) {
 		m, reader := newInsightsModelReader(t)
-		before := m.insights.snap.Coverage.TotalTracks
+		before := m.insights.Snap.Coverage.TotalTracks
 
 		found := library.Track{
 			Artist: "Delta", Album: "Epsilon", Title: "Track E1",
@@ -202,22 +203,22 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		m.library.Index.Insert(found)
 
 		m = updateInsightsModel(t, m, library.ScanDoneMsg{})
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("a completed rescan left the Insights memo current")
 		}
 
 		m = reloadInsights(t, m)
-		if got := m.insights.snap.Coverage.TotalTracks; got != before+1 {
+		if got := m.insights.Snap.Coverage.TotalTracks; got != before+1 {
 			t.Errorf("coverage missed the scanned track: want %d tracks, got %d", before+1, got)
 		}
-		if !hasInsightsShelf(m.insights.genreCoverage, "Drone") {
+		if !hasInsightsShelf(m.insights.GenreCoverage, "Drone") {
 			t.Error("the library-derived shelves missed the scanned genre")
 		}
 	})
 
 	t.Run("a metadata edit", func(t *testing.T) {
 		m, reader := newInsightsModelReader(t)
-		if !hasInsightsShelf(m.insights.genreCoverage, "Rock") {
+		if !hasInsightsShelf(m.insights.GenreCoverage, "Rock") {
 			t.Fatal("precondition: Rock should start out as a dusty shelf")
 		}
 
@@ -226,12 +227,12 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		m.library.Index.UpdateMetadata("h2", "Track A2", "Alice", "Alpha", "Jazz")
 
 		m = updateInsightsModel(t, m, metadataEditedMsg{})
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("a metadata edit left the Insights memo current")
 		}
 
 		m = reloadInsights(t, m)
-		if hasInsightsShelf(m.insights.genreCoverage, "Rock") {
+		if hasInsightsShelf(m.insights.GenreCoverage, "Rock") {
 			t.Error("reload kept the shelf the edit emptied")
 		}
 	})
@@ -247,12 +248,12 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		}, nil)
 
 		m = updateInsightsModel(t, m, UndoMsg{})
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("an undone metadata edit left the Insights memo current")
 		}
 
 		m = reloadInsights(t, m)
-		if !hasInsightsShelf(m.insights.genreCoverage, "Punk") {
+		if !hasInsightsShelf(m.insights.GenreCoverage, "Punk") {
 			t.Error("reload missed the genre the undo restored")
 		}
 	})
@@ -263,7 +264,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 
 		m, _ = m.handleTickMsg()
 
-		if !m.insights.loading {
+		if !m.insights.Loading {
 			t.Error("the tick did not start a reload for a stale active Insights view")
 		}
 	})
@@ -275,7 +276,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 
 		m, _ = m.handleTickMsg()
 
-		if m.insights.loading {
+		if m.insights.Loading {
 			t.Error("the tick reloaded Insights while the user was in another view")
 		}
 	})
@@ -291,7 +292,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		m.insightsInvalidate()
 		m = m.handleInsightsLoadedMsg(reply)
 
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Error("a load that predates the change was allowed to clear the memo")
 		}
 		if m.insightsActiveRefreshCmd() == nil {
@@ -347,15 +348,15 @@ func TestInsightsDrillTracks(t *testing.T) {
 
 	cases := []struct {
 		name  string
-		row   insightsRow
+		row   instui.Row
 		want  []string
 		exact bool
 	}{
-		{"artist", insightsRow{drill: drillUnheardArtist, key: "Alice"}, []string{"h2", "h3"}, true},
-		{"album", insightsRow{drill: drillUnheardAlbum, key: "Beta"}, []string{"h3"}, true},
-		{"genre", insightsRow{drill: drillUnheardGenre, key: "jazz"}, []string{"h3", "h5"}, true},
-		{"all unheard", insightsRow{drill: drillUnheardAll}, []string{"h2", "h3", "h5"}, true},
-		{"none", insightsRow{drill: drillNone}, nil, true},
+		{"artist", instui.Row{Drill: instui.DrillUnheardArtist, Key: "Alice"}, []string{"h2", "h3"}, true},
+		{"album", instui.Row{Drill: instui.DrillUnheardAlbum, Key: "Beta"}, []string{"h3"}, true},
+		{"genre", instui.Row{Drill: instui.DrillUnheardGenre, Key: "jazz"}, []string{"h3", "h5"}, true},
+		{"all unheard", instui.Row{Drill: instui.DrillUnheardAll}, []string{"h2", "h3", "h5"}, true},
+		{"none", instui.Row{Drill: instui.DrillNone}, nil, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -369,7 +370,7 @@ func TestInsightsDrillTracks(t *testing.T) {
 		})
 	}
 
-	dormant := m.insightsDrillTracks(insightsRow{drill: drillDormant, key: "h6"})
+	dormant := m.insightsDrillTracks(instui.Row{Drill: instui.DrillDormant, Key: "h6"})
 	if len(dormant) != 1 || dormant[0].Hash != "h6" {
 		t.Errorf("dormant drill should open the whole dormant set, got %+v", dormant)
 	}
@@ -377,30 +378,30 @@ func TestInsightsDrillTracks(t *testing.T) {
 
 func TestInsightsOpenAndBack(t *testing.T) {
 	m := newInsightsModel(t)
-	row := m.insights.focusedRow()
+	row := m.insights.FocusedRow()
 	if row == nil {
 		t.Fatal("expected the Coverage body to have rows")
 	}
 
 	m, _ = m.handleInsightsOpen()
 
-	if m.insights.level != 1 {
-		t.Fatalf("expected level 1 after open, got %d", m.insights.level)
+	if m.insights.Level != 1 {
+		t.Fatalf("expected level 1 after open, got %d", m.insights.Level)
 	}
-	if len(m.insights.trackView.SourceTracks) == 0 {
+	if len(m.insights.TrackView.SourceTracks) == 0 {
 		t.Fatal("expected the drill to carry tracks")
 	}
-	if m.insights.drillLabel != row.label {
-		t.Errorf("drill label: want %q, got %q", row.label, m.insights.drillLabel)
+	if m.insights.DrillLabel != row.Label {
+		t.Errorf("drill label: want %q, got %q", row.Label, m.insights.DrillLabel)
 	}
 
 	m = m.handleInsightsBack()
 
-	if m.insights.level != 0 {
-		t.Errorf("expected level 0 after back, got %d", m.insights.level)
+	if m.insights.Level != 0 {
+		t.Errorf("expected level 0 after back, got %d", m.insights.Level)
 	}
-	if m.insights.drillLabel != "" {
-		t.Errorf("expected drill label cleared, got %q", m.insights.drillLabel)
+	if m.insights.DrillLabel != "" {
+		t.Errorf("expected drill label cleared, got %q", m.insights.DrillLabel)
 	}
 }
 
@@ -414,10 +415,10 @@ func TestInsightsEmptyState(t *testing.T) {
 	}
 	m = m.handleInsightsLoadedMsg(cmd().(insightsLoadedMsg))
 
-	if !m.insights.empty() {
+	if !m.insights.Empty() {
 		t.Fatal("expected the empty state with no plays and no library")
 	}
-	rendered := m.insights.render(styles.NewStyles(false), nil, nil, nil, "", "")
+	rendered := m.insights.Render(styles.NewStyles(false), nil, nil, nil, "", "")
 	if !strings.Contains(rendered, "Nothing to measure yet") {
 		t.Errorf("expected the empty card, got: %q", rendered)
 	}
@@ -427,9 +428,9 @@ func TestInsightsRenderFitsHeight(t *testing.T) {
 	for _, size := range [][2]int{{100, 30}, {80, 24}, {60, 15}, {40, 10}} {
 		m := newInsightsModel(t)
 		m.insights.SetSize(size[0], size[1])
-		m.insights.clampCursor()
+		m.insights.ClampCursor()
 
-		lines := strings.Split(m.insights.render(styles.NewStyles(false), nil, nil, nil, "", ""), "\n")
+		lines := strings.Split(m.insights.Render(styles.NewStyles(false), nil, nil, nil, "", ""), "\n")
 
 		if len(lines) > size[1] {
 			t.Errorf("%dx%d: rendered %d lines, exceeds height", size[0], size[1], len(lines))

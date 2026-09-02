@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/metadata"
 )
 
@@ -22,7 +23,7 @@ func newHealthModel(t *testing.T) Model {
 	m.insights.SetSize(100, 30)
 	m = m.switchToView(viewInsights)
 	m = m.loadInsights(t)
-	m.insights.panel = panelDataHealth
+	m.insights.Panel = instui.PanelDataHealth
 	return m
 }
 
@@ -150,16 +151,16 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := newHealthModel(t)
-			m.insights.cursor = healthRowIndex(t, m, healthGenreCollision)
-			row := m.insights.health[m.insights.cursor]
+			m.insights.Cursor = healthRowIndex(t, m, instui.HealthGenreCollision)
+			row := m.insights.Health[m.insights.Cursor]
 
 			var targets []string
-			for _, hash := range row.hashes {
+			for _, hash := range row.Hashes {
 				tr, ok := m.library.Index.FindByHash(hash)
 				if !ok {
 					t.Fatalf("collision track %q is not in the library index", hash)
 				}
-				if tr.Genre != row.canonical {
+				if tr.Genre != row.Canonical {
 					targets = append(targets, hash)
 				}
 			}
@@ -228,11 +229,11 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 			if !ok {
 				t.Fatalf("collision track %q left the library index", untouched)
 			}
-			if other.Genre != row.canonical {
-				t.Errorf("untouched row reads %q in memory, want the merged %q", other.Genre, row.canonical)
+			if other.Genre != row.Canonical {
+				t.Errorf("untouched row reads %q in memory, want the merged %q", other.Genre, row.Canonical)
 			}
-			if got := store.row(untouched)[3]; got != row.canonical {
-				t.Errorf("untouched row reads %q in the database, want the merged %q", got, row.canonical)
+			if got := store.row(untouched)[3]; got != row.Canonical {
+				t.Errorf("untouched row reads %q in the database, want the merged %q", got, row.Canonical)
 			}
 
 			// Undo must not carry the pre-edit row either: restoring it would
@@ -248,13 +249,13 @@ func TestGenreMergeConcurrentMetadataEditPreservesLatestValues(t *testing.T) {
 	}
 }
 
-func healthRowIndex(t *testing.T, m Model, kind healthRowKind) int {
+func healthRowIndex(t *testing.T, m Model, kind instui.HealthRowKind) int {
 	t.Helper()
-	for i, row := range m.insights.health {
-		if row.kind == kind {
+	for i, row := range m.insights.Health {
+		if row.Kind == kind {
 			return i
 		}
 	}
-	t.Fatalf("no health row of kind %d in %d rows", kind, len(m.insights.health))
+	t.Fatalf("no health row of kind %d in %d rows", kind, len(m.insights.Health))
 	return -1
 }

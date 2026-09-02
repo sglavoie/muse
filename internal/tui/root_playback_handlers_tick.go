@@ -197,16 +197,16 @@ func (m Model) correctStoredDuration(hash string, mpvTotal float64) (Model, tea.
 	}
 	// Propagate to cached mix tracks so opening a mix shows the corrected
 	// duration, and refresh the active mix's trackView when at track level.
-	for id, cached := range m.mixes.cachedMixes {
+	for id, cached := range m.mixes.CachedMixes {
 		for i := range cached {
 			if cached[i].Hash == hash {
 				cached[i].Duration = mpvTotal
 			}
 		}
-		m.mixes.cachedMixes[id] = cached
+		m.mixes.CachedMixes[id] = cached
 	}
-	if m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.RefreshView()
+	if m.mixes.Level == 1 {
+		m.mixes.TrackView = m.mixes.TrackView.RefreshView()
 	}
 
 	var cmd tea.Cmd

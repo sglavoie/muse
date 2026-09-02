@@ -350,11 +350,11 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 			return track.Path, track.Artist, track.Title, true
 		}
 	case viewMixes:
-		if t := m.mixes.focusedTrack(); t != nil {
+		if t := m.mixes.FocusedTrack(); t != nil {
 			return t.Path, t.Artist, t.Title, true
 		}
 	case viewInsights:
-		if t := m.insights.focusedTrack(); t != nil {
+		if t := m.insights.FocusedTrack(); t != nil {
 			return t.Path, t.Artist, t.Title, true
 		}
 	}

@@ -68,13 +68,13 @@ func (m Model) bulkSelectedHashes() []string {
 	case viewTags:
 		return hashMapToSlice(m.tagsView.SelectedHashes)
 	case viewMixes:
-		if m.mixes.level == 1 {
-			return hashMapToSlice(m.mixes.trackView.SelectedHashes)
+		if m.mixes.Level == 1 {
+			return hashMapToSlice(m.mixes.TrackView.SelectedHashes)
 		}
 		return nil
 	case viewInsights:
-		if m.insights.atTracks() {
-			return hashMapToSlice(m.insights.trackView.SelectedHashes)
+		if m.insights.AtTracks() {
+			return hashMapToSlice(m.insights.TrackView.SelectedHashes)
 		}
 		return nil
 	default:
@@ -215,20 +215,20 @@ func (m Model) refreshDerivedViews() Model {
 	// Refresh metadata for every cached mix, not just the active one — when
 	// the user navigates to a previously-loaded mix the cached slice is
 	// reused as-is, so stale title/artist/album/duration would leak in.
-	for id, cached := range m.mixes.cachedMixes {
+	for id, cached := range m.mixes.CachedMixes {
 		refreshTrackMetadata(cached)
-		m.mixes.cachedMixes[id] = cached
+		m.mixes.CachedMixes[id] = cached
 	}
-	if m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.RefreshView()
+	if m.mixes.Level == 1 {
+		m.mixes.TrackView = m.mixes.TrackView.RefreshView()
 	}
 
 	// An open Insights drill holds a frozen snapshot taken by openDrill, so
 	// without this the list the export/import loop is aimed at keeps rendering
 	// pre-edit values until the drill is reopened.
-	if m.insights.atTracks() && len(m.insights.trackView.SourceTracks) > 0 {
-		refreshTrackMetadata(m.insights.trackView.SourceTracks)
-		m.insights.trackView = m.insights.trackView.RefreshView().ClampCursor()
+	if m.insights.AtTracks() && len(m.insights.TrackView.SourceTracks) > 0 {
+		refreshTrackMetadata(m.insights.TrackView.SourceTracks)
+		m.insights.TrackView = m.insights.TrackView.RefreshView().ClampCursor()
 	}
 
 	return m

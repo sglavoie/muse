@@ -200,18 +200,18 @@ func (m Model) fillPlaylistsSnapshot(snap *UITestSnapshot) {
 
 func (m Model) fillMixesSnapshot(snap *UITestSnapshot) {
 	mx := m.mixes
-	if mx.level == 0 {
+	if mx.Level == 0 {
 		snap.Level = "list"
-		snap.Cursor = mx.selectedMix
-		snap.VisibleCount = len(mx.mixes)
+		snap.Cursor = mx.SelectedMix
+		snap.VisibleCount = len(mx.Mixes)
 		return
 	}
 	snap.Level = "tracks"
-	snap.Cursor = mx.trackView.Cursor
-	snap.ScrollOffset = mx.trackView.ScrollOffset
-	snap.VisibleCount = mx.trackView.TrackCount()
-	snap.SelectionCount = len(mx.trackView.SelectedHashes)
-	if t, ok := mx.trackView.Panel().FocusedTrack(); ok {
+	snap.Cursor = mx.TrackView.Cursor
+	snap.ScrollOffset = mx.TrackView.ScrollOffset
+	snap.VisibleCount = mx.TrackView.TrackCount()
+	snap.SelectionCount = len(mx.TrackView.SelectedHashes)
+	if t, ok := mx.TrackView.Panel().FocusedTrack(); ok {
 		snap.FocusedHash = t.Hash
 		snap.FocusedLabel = trackLabel(t)
 	}
@@ -219,25 +219,25 @@ func (m Model) fillMixesSnapshot(snap *UITestSnapshot) {
 
 func (m Model) fillInsightsSnapshot(snap *UITestSnapshot) {
 	iv := m.insights
-	if iv.level == 0 {
+	if iv.Level == 0 {
 		snap.Level = "briefing"
-		snap.Mode = iv.panelSpec().name
-		snap.Cursor = iv.cursor
-		snap.ScrollOffset = iv.scrollOffset
-		rows := iv.rows()
+		snap.Mode = iv.Spec().Name
+		snap.Cursor = iv.Cursor
+		snap.ScrollOffset = iv.ScrollOffset
+		rows := iv.Rows()
 		snap.VisibleCount = len(rows)
-		if iv.cursor >= 0 && iv.cursor < len(rows) {
-			snap.FocusedLabel = rows[iv.cursor].label
+		if iv.Cursor >= 0 && iv.Cursor < len(rows) {
+			snap.FocusedLabel = rows[iv.Cursor].Label
 		}
 		return
 	}
 	snap.Level = "tracks"
-	snap.Mode = iv.drillLabel
-	snap.Cursor = iv.trackView.Cursor
-	snap.ScrollOffset = iv.trackView.ScrollOffset
-	snap.VisibleCount = iv.trackView.TrackCount()
-	snap.SelectionCount = len(iv.trackView.SelectedHashes)
-	if t, ok := iv.trackView.Panel().FocusedTrack(); ok {
+	snap.Mode = iv.DrillLabel
+	snap.Cursor = iv.TrackView.Cursor
+	snap.ScrollOffset = iv.TrackView.ScrollOffset
+	snap.VisibleCount = iv.TrackView.TrackCount()
+	snap.SelectionCount = len(iv.TrackView.SelectedHashes)
+	if t, ok := iv.TrackView.Panel().FocusedTrack(); ok {
 		snap.FocusedHash = t.Hash
 		snap.FocusedLabel = trackLabel(t)
 	}

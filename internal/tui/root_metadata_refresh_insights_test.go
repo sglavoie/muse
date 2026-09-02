@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -18,8 +19,8 @@ func drilledInsights(t *testing.T, tracks []library.Track) Model {
 	}
 	m.activeView = viewInsights
 	m.insights.SetSize(100, 30)
-	m.insights.dormant = tracks
-	m.insights.openDrill("No album", m.insightsDrillTracks(insightsRow{drill: drillDormant}))
+	m.insights.Dormant = tracks
+	m.insights.OpenDrill("No album", m.insightsDrillTracks(instui.Row{Drill: instui.DrillDormant}))
 	return m
 }
 
@@ -36,7 +37,7 @@ func TestRefreshDerivedViewsUpdatesInsightsDrillTracks(t *testing.T) {
 	m.library.Index.UpdateTrackPosition("h1", 7, 2)
 	m = m.refreshDerivedViews()
 
-	got := m.insights.trackView.SourceTracks[0]
+	got := m.insights.TrackView.SourceTracks[0]
 	if got.Title != "NewTitle" || got.Artist != "NewArt" || got.Album != "NewAlbum" || got.Genre != "NewGenre" {
 		t.Errorf("drill track metadata not refreshed: %+v", got)
 	}
@@ -56,17 +57,17 @@ func TestRefreshDerivedViewsPreservesInsightsSelectionAndSort(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "Zulu"},
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "Alpha"},
 	})
-	m.insights.trackView.SelectedHashes = map[string]struct{}{"h2": {}}
-	m.insights.trackView.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.insights.trackView = m.insights.trackView.RefreshView()
+	m.insights.TrackView.SelectedHashes = map[string]struct{}{"h2": {}}
+	m.insights.TrackView.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.insights.TrackView = m.insights.TrackView.RefreshView()
 
 	m.library.Index.UpdateMetadata("h1", "Bravo", "A", "", "")
 	m = m.refreshDerivedViews()
 
-	if _, ok := m.insights.trackView.SelectedHashes["h2"]; !ok {
+	if _, ok := m.insights.TrackView.SelectedHashes["h2"]; !ok {
 		t.Error("the hash-keyed selection must survive an in-place value edit")
 	}
-	sorted := m.insights.trackView.SortedTracks
+	sorted := m.insights.TrackView.SortedTracks
 	if len(sorted) != 2 || sorted[0].Title != "Alpha" || sorted[1].Title != "Bravo" {
 		t.Errorf("sorted cache not recomputed against the new titles: %+v", sorted)
 	}
@@ -80,21 +81,21 @@ func TestRefreshDerivedViewsClampsInsightsCursorWhenAFilterNarrows(t *testing.T)
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "zebra one"},
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "zebra two"},
 	})
-	m.insights.trackView.Filter.Text = "zebra"
-	m.insights.trackView = m.insights.trackView.RefreshView()
-	m.insights.trackView.Cursor = 1
-	if len(m.insights.trackView.FilteredMatches) != 2 {
-		t.Fatalf("expected both tracks to match, got %d", len(m.insights.trackView.FilteredMatches))
+	m.insights.TrackView.Filter.Text = "zebra"
+	m.insights.TrackView = m.insights.TrackView.RefreshView()
+	m.insights.TrackView.Cursor = 1
+	if len(m.insights.TrackView.FilteredMatches) != 2 {
+		t.Fatalf("expected both tracks to match, got %d", len(m.insights.TrackView.FilteredMatches))
 	}
 
 	m.library.Index.UpdateMetadata("h2", "quiet", "B", "", "")
 	m = m.refreshDerivedViews()
 
-	if n := len(m.insights.trackView.FilteredMatches); n != 1 {
+	if n := len(m.insights.TrackView.FilteredMatches); n != 1 {
 		t.Fatalf("expected the filter to narrow to one match, got %d", n)
 	}
-	if m.insights.trackView.Cursor != 0 {
-		t.Errorf("cursor = %d, want it clamped to 0", m.insights.trackView.Cursor)
+	if m.insights.TrackView.Cursor != 0 {
+		t.Errorf("cursor = %d, want it clamped to 0", m.insights.TrackView.Cursor)
 	}
 }
 
@@ -104,17 +105,17 @@ func TestRefreshDerivedViewsSkipsClosedInsightsDrill(t *testing.T) {
 	m := drilledInsights(t, []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle"},
 	})
-	m.insights.back()
+	m.insights.Back()
 
 	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "", "")
 	m = m.refreshDerivedViews()
 
 	// back() drops trackView, so the aliased dormant snapshot is what would
 	// carry a stray write.
-	if got := m.insights.dormant[0].Title; got != "OldTitle" {
+	if got := m.insights.Dormant[0].Title; got != "OldTitle" {
 		t.Errorf("a closed drill must be left alone, got title %q", got)
 	}
-	if m.insights.trackView.SourceTracks != nil {
+	if m.insights.TrackView.SourceTracks != nil {
 		t.Error("refreshDerivedViews must not repopulate a closed drill")
 	}
 }

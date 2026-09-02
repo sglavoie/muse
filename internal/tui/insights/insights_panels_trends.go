@@ -1,4 +1,4 @@
-package tui
+package insights
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -14,15 +14,15 @@ import (
 
 // --- Momentum ----------------------------------------------------------------
 
-func (v InsightsView) momentumRows() []insightsRow {
-	t := v.snap.Trends
+func (v View) momentumRows() []Row {
+	t := v.Snap.Trends
 	peak := 0
 	for _, b := range t.Buckets {
 		peak = max(peak, b.ListenedSecs)
 	}
 
 	rowCap := insightsTrendRowCap(t.Resolution)
-	rows := make([]insightsRow, 0, min(len(t.Buckets), rowCap))
+	rows := make([]Row, 0, min(len(t.Buckets), rowCap))
 	// Newest first: the question Momentum answers is about the recent end, and
 	// putting it on top means the answer needs no scrolling.
 	for i := len(t.Buckets) - 1; i >= 0 && len(rows) < rowCap; i-- {
@@ -31,21 +31,21 @@ func (v InsightsView) momentumRows() []insightsRow {
 		if b.Plays > 0 {
 			note = insightsPlaysNote(b.Plays, b.ListenedSecs)
 		}
-		rows = append(rows, insightsRow{
-			section:  insightsTrendSection(t.Resolution),
-			label:    insightsBucketLabel(t.Resolution, b.Start),
+		rows = append(rows, Row{
+			Section:  insightsTrendSection(t.Resolution),
+			Label:    BucketLabel(t.Resolution, b.Start),
 			note:     note,
 			fraction: insightsFraction(b.ListenedSecs, peak),
-			drill:    drillTrendBucket,
-			key:      insightsBucketKey(t.Resolution, b.Start),
+			Drill:    DrillTrendBucket,
+			Key:      BucketKey(t.Resolution, b.Start),
 		})
 	}
 	return rows
 }
 
-func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
-	t := v.snap.Trends
-	head := []string{"", s.Dim.Render(v.headline(panelMomentum)), ""}
+func (v View) momentumHeaderLines(s styles.Styles) []string {
+	t := v.Snap.Trends
+	head := []string{"", s.Dim.Render(v.headline(PanelMomentum)), ""}
 	if len(t.Buckets) == 0 {
 		return head
 	}
@@ -65,7 +65,7 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 	// "best:" rather than "best month": the weekly and daily labels already name
 	// their own grain, and the replay clause below names it for the monthly one.
 	summary := fmt.Sprintf("best: %s at %s · enter replays a %s in order",
-		insightsBucketLabel(t.Resolution, best.Start),
+		BucketLabel(t.Resolution, best.Start),
 		text.FormatListeningTime(best.ListenedSecs), t.Resolution.Period())
 	if t.AvgSecs > 0 {
 		summary = chart.Trend(t.CurrentVsAvg-1, pal) + " " + summary
@@ -98,7 +98,7 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 	// The calendar is where a dry spell stops being a statistic: the run of
 	// blank cells is the silence itself.
 	var calendar []string
-	if days := v.snap.Calendar.Days; len(days) > 0 {
+	if days := v.Snap.Calendar.Days; len(days) > 0 {
 		cells := make([]chart.HeatCell, len(days))
 		for i, d := range days {
 			cells[i] = chart.HeatCell{Value: float64(d.Plays), Present: true}
@@ -115,66 +115,66 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 
 // --- Discovery ---------------------------------------------------------------
 
-func (v InsightsView) discoveryRows() []insightsRow {
-	t := v.snap.Trends
+func (v View) discoveryRows() []Row {
+	t := v.Snap.Trends
 	peak := 0
 	for _, b := range t.Buckets {
 		peak = max(peak, b.FirstPlays)
 	}
 
 	rowCap := insightsTrendRowCap(t.Resolution)
-	rows := make([]insightsRow, 0, rowCap+len(v.backlog)+1)
+	rows := make([]Row, 0, rowCap+len(v.Backlog)+1)
 	for i := len(t.Buckets) - 1; i >= 0 && len(rows) < rowCap; i-- {
 		b := t.Buckets[i]
 		if b.FirstPlays == 0 {
 			continue
 		}
-		rows = append(rows, insightsRow{
-			section: "First heard",
-			label:   insightsBucketLabel(t.Resolution, b.Start),
+		rows = append(rows, Row{
+			Section: "First heard",
+			Label:   BucketLabel(t.Resolution, b.Start),
 			note: fmt.Sprintf("%d new %s", b.FirstPlays,
 				text.Pluralize(b.FirstPlays, "track", "tracks")),
 			fraction: insightsFraction(b.FirstPlays, peak),
-			drill:    drillFirstPlaysBucket,
-			key:      insightsBucketKey(t.Resolution, b.Start),
+			Drill:    DrillFirstPlaysBucket,
+			Key:      BucketKey(t.Resolution, b.Start),
 		})
 	}
 
 	// The backlog leads with its total: the per-month rows below only cover
 	// tracks whose add date was recorded, so the whole set needs a row of its
 	// own to stay reachable.
-	c := v.snap.Coverage
+	c := v.Snap.Coverage
 	if c.UnheardTracks > 0 {
-		rows = append(rows, insightsRow{
-			section: "Added but never played",
-			label:   "Everything unheard",
+		rows = append(rows, Row{
+			Section: "Added but never played",
+			Label:   "Everything unheard",
 			note: fmt.Sprintf("%s %s · %s", text.FormatCount(c.UnheardTracks),
 				text.Pluralize(c.UnheardTracks, "track", "tracks"), text.FormatListeningTime(int(c.UnheardSecs))),
 			fraction: 1,
-			drill:    drillUnheardAll,
+			Drill:    DrillUnheardAll,
 		})
 	}
 	peakBacklog := 0
-	for _, b := range v.backlog {
+	for _, b := range v.Backlog {
 		peakBacklog = max(peakBacklog, b.Tracks)
 	}
-	for _, b := range v.backlog {
-		rows = append(rows, insightsRow{
-			section: "Added but never played",
-			label:   b.Label,
+	for _, b := range v.Backlog {
+		rows = append(rows, Row{
+			Section: "Added but never played",
+			Label:   b.Label,
 			note: fmt.Sprintf("%d %s · %s", b.Tracks,
 				text.Pluralize(b.Tracks, "track", "tracks"), text.FormatListeningTime(int(b.Secs))),
 			fraction: insightsFraction(b.Tracks, peakBacklog),
-			drill:    drillAddedNeverPlayed,
-			key:      b.Key,
+			Drill:    DrillAddedNeverPlayed,
+			Key:      b.Key,
 		})
 	}
 	return rows
 }
 
-func (v InsightsView) discoveryHeaderLines(s styles.Styles) []string {
-	t := v.snap.Trends
-	head := []string{"", s.Dim.Render(v.headline(panelDiscovery)), ""}
+func (v View) discoveryHeaderLines(s styles.Styles) []string {
+	t := v.Snap.Trends
+	head := []string{"", s.Dim.Render(v.headline(PanelDiscovery)), ""}
 	if len(t.Buckets) == 0 {
 		return head
 	}
@@ -184,7 +184,7 @@ func (v InsightsView) discoveryHeaderLines(s styles.Styles) []string {
 
 	tail := []string{
 		s.TextSecondary.Render(v.fit(fmt.Sprintf("%.1f new tracks a %s on average · %s still unheard",
-			t.AvgFirstPlays, t.Resolution.Period(), text.FormatCount(v.snap.Coverage.UnheardTracks)))),
+			t.AvgFirstPlays, t.Resolution.Period(), text.FormatCount(v.Snap.Coverage.UnheardTracks)))),
 		"",
 	}
 	if v.compact() {
@@ -207,25 +207,25 @@ func (v InsightsView) discoveryHeaderLines(s styles.Styles) []string {
 
 // --- shared folding ----------------------------------------------------------
 
-// insightsHourGenreFold folds a window's plays into per-genre hourly counts,
+// HourGenreFold folds a window's plays into per-genre hourly counts,
 // heaviest genre first. It takes the genre from the library rather than from
 // insights.GenreRow because that aggregate has already summed the hours away.
-func insightsHourGenreFold(plays []insights.PlayRow, genreOf func(hash string) []string, loc *time.Location) []insightsGenreHours {
+func HourGenreFold(plays []insightsdata.PlayRow, genreOf func(hash string) []string, loc *time.Location) []GenreHours {
 	type acc struct {
-		row   insightsGenreHours
+		row   GenreHours
 		plays int
 	}
 	byGenre := map[string]*acc{}
 	for _, p := range plays {
 		hour := time.Unix(p.StartAt, 0).In(loc).Hour()
 		for _, g := range genreOf(p.Hash) {
-			key := insightsGenreKey(g)
+			key := GenreKey(g)
 			if key == "" {
 				continue
 			}
 			a := byGenre[key]
 			if a == nil {
-				a = &acc{row: insightsGenreHours{Genre: g}}
+				a = &acc{row: GenreHours{Genre: g}}
 				byGenre[key] = a
 			}
 			a.row.Hours[hour]++
@@ -244,13 +244,13 @@ func insightsHourGenreFold(plays []insights.PlayRow, genreOf func(hash string) [
 		return accs[i].row.Genre < accs[j].row.Genre
 	})
 
-	out := make([]insightsGenreHours, 0, len(accs))
+	out := make([]GenreHours, 0, len(accs))
 	for _, a := range accs {
 		out = append(out, a.row)
 	}
 	return out
 }
 
-// insightsGenreKey folds a stored genre string the same way insights.foldGenres
+// GenreKey folds a stored genre string the same way insights.foldGenres
 // does, so a row and the aggregate above it agree on what counts as one genre.
-func insightsGenreKey(g string) string { return strings.ToLower(strings.TrimSpace(g)) }
+func GenreKey(g string) string { return strings.ToLower(strings.TrimSpace(g)) }

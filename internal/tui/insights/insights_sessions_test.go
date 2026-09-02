@@ -1,4 +1,4 @@
-package tui
+package insights
 
 import (
 	"strconv"
@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // sessionsFixture is four sessions with deliberately different lengths, shapes
 // and artists, so every Sessions section has something to say.
-func sessionsFixture() []insights.SessionRow {
+func sessionsFixture() []insightsdata.SessionRow {
 	base := at(time.August, 3, 9).Unix()
-	return []insights.SessionRow{
+	return []insightsdata.SessionRow{
 		// 10m, one play, one artist: the false start.
 		{ID: "s1", StartedAt: base, EndedAt: base + 600, Plays: 1, ListenedSecs: 600,
 			DistinctArtists: 1, OpenerArtist: "Alice", CloserArtist: "Alice"},
@@ -30,23 +30,23 @@ func sessionsFixture() []insights.SessionRow {
 	}
 }
 
-func sessionsFixtureView() InsightsView {
+func sessionsFixtureView() View {
 	rows := sessionsFixture()
 	durations := make([]int, len(rows))
 	for i, r := range rows {
 		durations[i] = insightsSessionSecs(r)
 	}
-	return InsightsView{
-		panel:    panelSessions,
-		sessions: rows,
+	return View{
+		Panel:    PanelSessions,
+		Sessions: rows,
 		width:    100,
-		height:   30,
-		loc:      panelsTestLoc(),
-		snap: insights.Snapshot{SessionStats: insights.SessionStats{
+		Height:   30,
+		Loc:      panelsTestLoc(),
+		Snap: insightsdata.Snapshot{SessionStats: insightsdata.SessionStats{
 			Count: len(rows), SinglePlay: 1, TotalSecs: 9100, LongestSecs: 90 * 60,
 			MedianSecs: 20 * 60, AvgPlays: 8.25, Durations: durations,
-			TopOpeners: []insights.EntityStat{{Name: "Alice", Plays: 2, ListenedSecs: 5600}, {Name: "Bob", Plays: 2, ListenedSecs: 3500}},
-			TopClosers: []insights.EntityStat{{Name: "Alice", Plays: 2, ListenedSecs: 3000}},
+			TopOpeners: []insightsdata.EntityStat{{Name: "Alice", Plays: 2, ListenedSecs: 5600}, {Name: "Bob", Plays: 2, ListenedSecs: 3500}},
+			TopClosers: []insightsdata.EntityStat{{Name: "Alice", Plays: 2, ListenedSecs: 3000}},
 		}},
 	}
 }
@@ -77,7 +77,7 @@ func TestInsightsDurationBucketBoundaries(t *testing.T) {
 func TestInsightsSessionsMatching(t *testing.T) {
 	rows := sessionsFixture()
 
-	ids := func(got []insights.SessionRow) string {
+	ids := func(got []insightsdata.SessionRow) string {
 		var out []string
 		for _, r := range got {
 			out = append(out, r.ID)
@@ -87,28 +87,28 @@ func TestInsightsSessionsMatching(t *testing.T) {
 
 	cases := []struct {
 		name string
-		kind insightsDrillKind
+		kind DrillKind
 		key  string
 		want string
 	}{
 		// Newest first: a session list is read like history, most recent at top.
-		{"all", drillSessionsAll, "", "s4,s3,s2,s1"},
-		{"under 15m bucket", drillSessionsBucket, "0", "s1"},
-		{"15-30m bucket", drillSessionsBucket, "1", "s4"},
-		{"empty bucket", drillSessionsBucket, "5", ""},
-		{"unparseable bucket", drillSessionsBucket, "x", ""},
-		{"single play", drillSessionsShape, insightsShapeSinglePlay, "s1"},
-		{"one artist", drillSessionsShape, insightsDietOne, "s4,s1"},
-		{"few artists", drillSessionsShape, insightsDietFew, "s2"},
-		{"many artists", drillSessionsShape, insightsDietMany, "s3"},
-		{"opener", drillSessionsOpener, "Alice", "s3,s1"},
+		{"all", DrillSessionsAll, "", "s4,s3,s2,s1"},
+		{"under 15m bucket", DrillSessionsBucket, "0", "s1"},
+		{"15-30m bucket", DrillSessionsBucket, "1", "s4"},
+		{"empty bucket", DrillSessionsBucket, "5", ""},
+		{"unparseable bucket", DrillSessionsBucket, "x", ""},
+		{"single play", DrillSessionsShape, insightsShapeSinglePlay, "s1"},
+		{"one artist", DrillSessionsShape, insightsDietOne, "s4,s1"},
+		{"few artists", DrillSessionsShape, insightsDietFew, "s2"},
+		{"many artists", DrillSessionsShape, insightsDietMany, "s3"},
+		{"opener", DrillSessionsOpener, "Alice", "s3,s1"},
 		// s1 both opens and closes with Alice, so it belongs to either list.
-		{"closer", drillSessionsCloser, "Alice", "s2,s1"},
-		{"non-session kind", drillUnheardAll, "", ""},
+		{"closer", DrillSessionsCloser, "Alice", "s2,s1"},
+		{"non-session kind", DrillUnheardAll, "", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := ids(insightsSessionsMatching(rows, tc.kind, tc.key)); got != tc.want {
+			if got := ids(SessionsMatching(rows, tc.kind, tc.key)); got != tc.want {
 				t.Errorf("want %q, got %q", tc.want, got)
 			}
 		})
@@ -140,41 +140,41 @@ func TestSessionRowsCountsMatchWhatTheyOpen(t *testing.T) {
 	// A row's number and the set it opens come from the same bucketing, so they
 	// cannot drift the way a separately-computed count would.
 	for _, r := range rows {
-		if !r.drill.opensSessions() {
-			t.Errorf("every Sessions row should open sessions, %q does not", r.label)
+		if !r.Drill.OpensSessions() {
+			t.Errorf("every Sessions row should open sessions, %q does not", r.Label)
 			continue
 		}
-		n := len(insightsSessionsMatching(v.sessions, r.drill, r.key))
+		n := len(SessionsMatching(v.Sessions, r.Drill, r.Key))
 		if n == 0 || !strings.HasPrefix(r.note, strconv.Itoa(n)+" ") {
-			t.Errorf("row %q notes %q but opens %d sessions", r.label, r.note, n)
+			t.Errorf("row %q notes %q but opens %d sessions", r.Label, r.note, n)
 		}
 	}
 }
 
 func TestSessionRowsEmptyWithoutSessions(t *testing.T) {
-	if rows := (InsightsView{panel: panelSessions}).sessionRows(); rows != nil {
+	if rows := (View{Panel: PanelSessions}).sessionRows(); rows != nil {
 		t.Errorf("no sessions should produce no rows, got %v", rows)
 	}
 }
 
 func TestSessionListHeaderStaysInLockstepWithSizing(t *testing.T) {
 	v := sessionsFixtureView()
-	v.openSessionList("All sessions", insightsSessionsMatching(v.sessions, drillSessionsAll, ""))
+	v.OpenSessionList("All sessions", SessionsMatching(v.Sessions, DrillSessionsAll, ""))
 
 	styled := v.sessionListHeaderLines(styles.NewStyles(false))
 	zero := v.sessionListHeaderLines(styles.Styles{})
 	if len(styled) != len(zero) {
 		t.Fatalf("styled header is %d lines, zero-styles header is %d — sizing would drift", len(styled), len(zero))
 	}
-	if got, want := v.sessionBodyRows(), v.height-len(zero); got != want {
+	if got, want := v.sessionBodyRows(), v.Height-len(zero); got != want {
 		t.Errorf("body rows: want %d, got %d", want, got)
 	}
 
 	lines := strings.Split(v.renderSessionList(styles.NewStyles(false)), "\n")
-	if len(lines) != len(zero)+len(v.sessionList) {
-		t.Errorf("want %d header lines plus %d sessions, got %d lines", len(zero), len(v.sessionList), len(lines))
+	if len(lines) != len(zero)+len(v.SessionList) {
+		t.Errorf("want %d header lines plus %d sessions, got %d lines", len(zero), len(v.SessionList), len(lines))
 	}
-	if want := insightsSessionArc(v.sessionList[0]); !strings.Contains(lines[len(zero)], want) {
+	if want := insightsSessionArc(v.SessionList[0]); !strings.Contains(lines[len(zero)], want) {
 		t.Errorf("first session row should name its arc %q, got %q", want, lines[len(zero)])
 	}
 }
@@ -182,7 +182,7 @@ func TestSessionListHeaderStaysInLockstepWithSizing(t *testing.T) {
 func TestRenderSessionListClampsToHeight(t *testing.T) {
 	v := sessionsFixtureView()
 	v.SetSize(60, 8)
-	v.openSessionList("All sessions", insightsSessionsMatching(v.sessions, drillSessionsAll, ""))
+	v.OpenSessionList("All sessions", SessionsMatching(v.Sessions, DrillSessionsAll, ""))
 
 	if got := len(strings.Split(v.renderSessionList(styles.NewStyles(false)), "\n")); got > 8 {
 		t.Errorf("rendered %d lines into a height of 8", got)
@@ -191,13 +191,13 @@ func TestRenderSessionListClampsToHeight(t *testing.T) {
 
 func TestInsightsSessionArc(t *testing.T) {
 	cases := []struct {
-		row  insights.SessionRow
+		row  insightsdata.SessionRow
 		want string
 	}{
-		{insights.SessionRow{OpenerArtist: "Alice", CloserArtist: "Bob"}, "Alice → Bob"},
+		{insightsdata.SessionRow{OpenerArtist: "Alice", CloserArtist: "Bob"}, "Alice → Bob"},
 		// A session that never left one artist says so once instead of twice.
-		{insights.SessionRow{OpenerArtist: "Alice", CloserArtist: "Alice"}, "Alice"},
-		{insights.SessionRow{}, "unknown artist"},
+		{insightsdata.SessionRow{OpenerArtist: "Alice", CloserArtist: "Alice"}, "Alice"},
+		{insightsdata.SessionRow{}, "unknown artist"},
 	}
 	for _, tc := range cases {
 		if got := insightsSessionArc(tc.row); got != tc.want {

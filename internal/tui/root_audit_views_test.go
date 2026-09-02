@@ -132,10 +132,10 @@ func TestDurationAuditBatchSyncsAlbumsTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsCachedMixTracks(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {{Hash: "h1", Duration: 120.0}}}
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {{Hash: "h1", Duration: 120.0}}}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	cached := nm.mixes.cachedMixes[db.MixRediscover]
+	cached := nm.mixes.CachedMixes[db.MixRediscover]
 	if len(cached) == 0 {
 		t.Fatal("mixes cache missing or empty after audit")
 	}
@@ -147,17 +147,17 @@ func TestDurationAuditBatchSyncsCachedMixTracks(t *testing.T) {
 func TestDurationAuditBatchSyncsActiveMixTrackView(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.Index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 120.0})
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {{Hash: "h1", Duration: 120.0}}}
-	m.mixes.openMix(db.MixRediscover)
-	if m.mixes.level != 1 {
-		t.Fatalf("expected level=1 after openMix, got %d", m.mixes.level)
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: {{Hash: "h1", Duration: 120.0}}}
+	m.mixes.OpenMix(db.MixRediscover)
+	if m.mixes.Level != 1 {
+		t.Fatalf("expected level=1 after openMix, got %d", m.mixes.Level)
 	}
 
 	nm, _ := durationAuditBatchUpdate(t, m, library.DurationFix{Hash: "h1", DurationMs: 240000})
-	if len(nm.mixes.trackView.SourceTracks) == 0 {
+	if len(nm.mixes.TrackView.SourceTracks) == 0 {
 		t.Fatal("mixes trackView sourceTracks empty after audit")
 	}
-	if got := nm.mixes.trackView.SourceTracks[0].Duration; got != 240.0 {
+	if got := nm.mixes.TrackView.SourceTracks[0].Duration; got != 240.0 {
 		t.Errorf("mixes trackView duration after audit: got %f, want 240.0", got)
 	}
 }

@@ -187,7 +187,7 @@ func TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers(t *testing.T) {
 	m.library.SourceTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
 	m.favorites.Level = favtui.TrackLevel
 	m.favorites.DrilldownTracks = []library.Track{{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}}
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Path: "/a.flac", TrackNumber: 1, DiscNumber: 1}},
 	}
 
@@ -197,7 +197,7 @@ func TestRefreshDerivedViewsUpdatesTrackAndDiscNumbers(t *testing.T) {
 	for name, got := range map[string]library.Track{
 		"history":   m.library.SourceTracks[0],
 		"favorites": m.favorites.DrilldownTracks[0],
-		"mixes":     m.mixes.cachedMixes[db.MixRediscover][0],
+		"mixes":     m.mixes.CachedMixes[db.MixRediscover][0],
 	} {
 		if got.TrackNumber != 9 || got.DiscNumber != 2 {
 			t.Errorf("%s position = %d/%d, want 9/2", name, got.TrackNumber, got.DiscNumber)

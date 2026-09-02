@@ -107,16 +107,16 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 	}
 	// Propagate to cached mix tracks so opening a mix shows corrected
 	// durations, and refresh the active mix's trackView when at track level.
-	for id, cached := range m.mixes.cachedMixes {
+	for id, cached := range m.mixes.CachedMixes {
 		for i := range cached {
 			if ms, ok := fixMap[cached[i].Hash]; ok {
 				cached[i].Duration = float64(ms) / 1000
 			}
 		}
-		m.mixes.cachedMixes[id] = cached
+		m.mixes.CachedMixes[id] = cached
 	}
-	if m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.RefreshView()
+	if m.mixes.Level == 1 {
+		m.mixes.TrackView = m.mixes.TrackView.RefreshView()
 	}
 	if m.auditCh != nil {
 		return m, waitForAuditBatch(m.auditCh)

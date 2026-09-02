@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -145,7 +146,7 @@ func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
 	t.Run("an undo holds the refresh until its metadata write lands", func(t *testing.T) {
 		store := newBlockingInsightsDB(insightsTestTracks())
 		m := newBlockingInsightsModel(t, store, WithMetadataWriter(store))
-		if hasGenreGroup(m.insights.snap.Rhythm.Genres, "Punk") {
+		if hasGenreGroup(m.insights.Snap.Rhythm.Genres, "Punk") {
 			t.Fatal("precondition: the database should not know Punk yet")
 		}
 
@@ -164,28 +165,28 @@ func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
 		}, nil)
 		m = updateInsightsModel(t, m, UndoMsg{})
 
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("an undone metadata edit left the Insights memo current")
 		}
 		m = m.handleInsightsLoadedMsg(staleReply)
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Error("a snapshot read before the undo was installed as the current one")
 		}
 		if cmd := m.insightsActiveRefreshCmd(); cmd != nil {
 			t.Fatal("Insights refreshed while the undo's database write was still parked")
 		}
 		m, _ = m.handleTickMsg()
-		if m.insights.loading {
+		if m.insights.Loading {
 			t.Fatal("the tick started a load while the undo's database write was still parked")
 		}
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("the declined refresh cleared the staleness that makes the retry happen")
 		}
 
 		releaseWrites(t, store, m)
 
 		m = reloadInsights(t, m)
-		if !hasGenreGroup(m.insights.snap.Rhythm.Genres, "Punk") {
+		if !hasGenreGroup(m.insights.Snap.Rhythm.Genres, "Punk") {
 			t.Error("the installed snapshot missed the undo the database had accepted")
 		}
 	})
@@ -193,7 +194,7 @@ func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
 	t.Run("a rescan deletion holds the refresh until its missing marks land", func(t *testing.T) {
 		store := newBlockingInsightsDB(insightsTestTracks())
 		m := newBlockingInsightsModel(t, store, WithScanWriter(store, 500))
-		before := m.insights.snap.Coverage.TotalTracks
+		before := m.insights.Snap.Coverage.TotalTracks
 
 		// What a completed full rescan leaves behind for a file that vanished: the
 		// path is gone from the rebuilt index but still in the pre-rescan snapshot.
@@ -206,7 +207,7 @@ func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
 		if cmd == nil {
 			t.Fatal("scan completion issued no command to persist the deletion")
 		}
-		if !m.insights.stale {
+		if !m.insights.Stale {
 			t.Fatal("a completed rescan left the Insights memo current")
 		}
 		if refresh := m.insightsActiveRefreshCmd(); refresh != nil {
@@ -222,7 +223,7 @@ func TestInsightsRefreshWaitsForPersistenceCompletion(t *testing.T) {
 		<-persisted
 
 		m = reloadInsights(t, m)
-		if got := m.insights.snap.Coverage.TotalTracks; got != before-1 {
+		if got := m.insights.Snap.Coverage.TotalTracks; got != before-1 {
 			t.Errorf("coverage kept the deleted track: want %d tracks, got %d", before-1, got)
 		}
 	})
@@ -308,16 +309,16 @@ func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.
 
 		m = m.handleInsightsLoadedMsg(msg)
 
-		if m.insights.loaded {
+		if m.insights.Loaded {
 			t.Error("a failed read marked the view loaded")
 		}
-		if m.insights.loading {
+		if m.insights.Loading {
 			t.Error("a failed read left the view loading forever")
 		}
-		if m.insights.loadErr == nil {
+		if m.insights.LoadErr == nil {
 			t.Fatal("the failure was swallowed")
 		}
-		rendered := m.insights.render(styles.NewStyles(false), nil, nil, nil, "", "")
+		rendered := m.insights.Render(styles.NewStyles(false), nil, nil, nil, "", "")
 		if !strings.Contains(rendered, "Could not read your listening history") {
 			t.Errorf("expected a visible error state, got: %q", rendered)
 		}
@@ -331,10 +332,10 @@ func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.
 		m, msg = enterInsights(t, m)
 		m = m.handleInsightsLoadedMsg(msg)
 
-		if !m.insights.loaded || m.insights.loadErr != nil {
-			t.Fatalf("re-entering the view did not recover: loaded=%v err=%v", m.insights.loaded, m.insights.loadErr)
+		if !m.insights.Loaded || m.insights.LoadErr != nil {
+			t.Fatalf("re-entering the view did not recover: loaded=%v err=%v", m.insights.Loaded, m.insights.LoadErr)
 		}
-		if m.insights.snap.TotalPlays == 0 {
+		if m.insights.Snap.TotalPlays == 0 {
 			t.Error("the retry installed no plays")
 		}
 	})
@@ -343,7 +344,7 @@ func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.
 		m, reader := newBrokenInsightsModel(t)
 		m, msg := enterInsights(t, m)
 		m = m.handleInsightsLoadedMsg(msg)
-		before := m.insights.snap.TotalPlays
+		before := m.insights.Snap.TotalPlays
 		if before == 0 {
 			t.Fatal("precondition: the first load should carry plays")
 		}
@@ -359,13 +360,13 @@ func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.
 		reader.fail = dbDown
 		m = reloadInsights(t, m)
 
-		if got := m.insights.snap.TotalPlays; got != before {
+		if got := m.insights.Snap.TotalPlays; got != before {
 			t.Errorf("a failed refresh replaced the good snapshot: want %d plays, got %d", before, got)
 		}
-		if !m.insights.loaded {
+		if !m.insights.Loaded {
 			t.Error("a failed refresh threw away a snapshot the view already had")
 		}
-		rendered := m.insights.render(styles.NewStyles(false), nil, nil, nil, "", "")
+		rendered := m.insights.Render(styles.NewStyles(false), nil, nil, nil, "", "")
 		if !strings.Contains(rendered, "retry · read failed") {
 			t.Errorf("the strip should say the figures are not current, got: %q", rendered)
 		}
@@ -377,37 +378,37 @@ func TestInsightsLoadFailureDoesNotInstallPartialSnapshotAndCanRetry(t *testing.
 		m, msg = enterInsights(t, m)
 		m = m.handleInsightsLoadedMsg(msg)
 
-		if got := m.insights.snap.TotalPlays; got != before+1 {
+		if got := m.insights.Snap.TotalPlays; got != before+1 {
 			t.Errorf("the retry missed the play recorded during the outage: want %d, got %d", before+1, got)
 		}
-		if m.insights.loadErr != nil || m.insights.stale {
-			t.Errorf("a recovered load left the view marked bad: err=%v stale=%v", m.insights.loadErr, m.insights.stale)
+		if m.insights.LoadErr != nil || m.insights.Stale {
+			t.Errorf("a recovered load left the view marked bad: err=%v stale=%v", m.insights.LoadErr, m.insights.Stale)
 		}
 	})
 }
 
 func TestInsightsWindowCycleFixedPanelDoesNotReload(t *testing.T) {
 	m := newInsightsModel(t)
-	if m.insights.panelSpec().class != classFixed {
+	if m.insights.Spec().Class != instui.ClassFixed {
 		t.Fatal("precondition: Coverage should be a fixed panel")
 	}
-	before := m.insights.windowIdx
+	before := m.insights.WindowIdx
 
 	m, cmd := m.handleInsightsWindowCycle(1)
 
 	if cmd != nil {
 		t.Error("fixed panel should not trigger a reload")
 	}
-	if m.insights.windowIdx != before {
-		t.Errorf("fixed panel should not move the window: got %d, want %d", m.insights.windowIdx, before)
+	if m.insights.WindowIdx != before {
+		t.Errorf("fixed panel should not move the window: got %d, want %d", m.insights.WindowIdx, before)
 	}
 }
 
 func TestInsightsWindowCycleWindowedPanelReloads(t *testing.T) {
 	m := newInsightsModel(t)
 	m = m.handleInsightsPanelCycle(1)
-	if m.insights.panelSpec().class != classWindowed {
-		t.Fatalf("precondition: Rhythm should be windowed, got %v", m.insights.panelSpec().class)
+	if m.insights.Spec().Class != instui.ClassWindowed {
+		t.Fatalf("precondition: Rhythm should be windowed, got %v", m.insights.Spec().Class)
 	}
 
 	m, cmd := m.handleInsightsWindowCycle(1)
@@ -415,7 +416,7 @@ func TestInsightsWindowCycleWindowedPanelReloads(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("windowed panel should trigger a reload")
 	}
-	if m.insights.windowIdx != 1 {
-		t.Errorf("window did not advance: got %d, want 1", m.insights.windowIdx)
+	if m.insights.WindowIdx != 1 {
+		t.Errorf("window did not advance: got %d, want 1", m.insights.WindowIdx)
 	}
 }

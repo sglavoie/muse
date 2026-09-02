@@ -205,8 +205,8 @@ func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
 	}
 	m := New(context.Background(), WithLibraryTracks(tracks))
 	m.activeView = viewMixes
-	m.mixes.level = 1
-	m.mixes.trackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
+	m.mixes.Level = 1
+	m.mixes.TrackView.SelectedHashes = map[string]struct{}{"mx1": {}, "mx2": {}}
 
 	ed := metadata.NewBulkEditor([]string{"mx1", "mx2"}, "", "ArtX", "", "", "")
 	m.overlay.metadataEditor = &ed
@@ -215,7 +215,7 @@ func TestBulkMetadataSaveClearsMixesSelection(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.mixes.trackView.SelectedHashes != nil {
-		t.Errorf("expected mixes trackView.selectedHashes to be cleared, got %v", nm.mixes.trackView.SelectedHashes)
+	if nm.mixes.TrackView.SelectedHashes != nil {
+		t.Errorf("expected mixes trackView.selectedHashes to be cleared, got %v", nm.mixes.TrackView.SelectedHashes)
 	}
 }

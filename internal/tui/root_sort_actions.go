@@ -124,23 +124,23 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewMixes:
-		if m.mixes.level != 1 {
+		if m.mixes.Level != 1 {
 			return m, nil, false
 		}
-		m.mixes.trackView, _ = m.mixes.trackView.CycleSortField(sorting.LibrarySortFields)
-		m.mixes.trackView.Cursor = 0
-		m.mixes.trackView.ScrollOffset = 0
-		m.statusBar.NotifyInfo(sortNotification(m.mixes.trackView.SortState))
+		m.mixes.TrackView, _ = m.mixes.TrackView.CycleSortField(sorting.LibrarySortFields)
+		m.mixes.TrackView.Cursor = 0
+		m.mixes.TrackView.ScrollOffset = 0
+		m.statusBar.NotifyInfo(sortNotification(m.mixes.TrackView.SortState))
 		return m, nil, true
 
 	case viewInsights:
-		if !m.insights.atTracks() {
+		if !m.insights.AtTracks() {
 			return m, nil, false
 		}
-		m.insights.trackView, _ = m.insights.trackView.CycleSortField(sorting.LibrarySortFields)
-		m.insights.trackView.Cursor = 0
-		m.insights.trackView.ScrollOffset = 0
-		m.statusBar.NotifyInfo(sortNotification(m.insights.trackView.SortState))
+		m.insights.TrackView, _ = m.insights.TrackView.CycleSortField(sorting.LibrarySortFields)
+		m.insights.TrackView.Cursor = 0
+		m.insights.TrackView.ScrollOffset = 0
+		m.statusBar.NotifyInfo(sortNotification(m.insights.TrackView.SortState))
 		return m, nil, true
 
 	default:
@@ -207,24 +207,24 @@ func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewMixes:
-		if m.mixes.level != 1 {
+		if m.mixes.Level != 1 {
 			return m, nil, false
 		}
 		var ss sorting.SortState
 		var ok bool
-		if m.mixes.trackView, ss, ok = m.mixes.trackView.ApplySortDir(dir); !ok {
+		if m.mixes.TrackView, ss, ok = m.mixes.TrackView.ApplySortDir(dir); !ok {
 			return m, nil, false
 		}
 		m.statusBar.NotifyInfo(sortNotification(ss))
 		return m, nil, true
 
 	case viewInsights:
-		if !m.insights.atTracks() {
+		if !m.insights.AtTracks() {
 			return m, nil, false
 		}
 		var ss sorting.SortState
 		var ok bool
-		if m.insights.trackView, ss, ok = m.insights.trackView.ApplySortDir(dir); !ok {
+		if m.insights.TrackView, ss, ok = m.insights.TrackView.ApplySortDir(dir); !ok {
 			return m, nil, false
 		}
 		m.statusBar.NotifyInfo(sortNotification(ss))

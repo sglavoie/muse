@@ -13,6 +13,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/mixes"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
@@ -50,7 +51,7 @@ func (m *Model) refreshHelpViewport() {
 // is armed, so a plan outliving it would fire on an unrelated keypress.
 func (m *Model) clearPendingConfirmations() {
 	m.confirmationBar = ""
-	m.insights.pendingMerge = nil
+	m.insights.PendingMerge = nil
 }
 
 // switchToView transitions to the given view, clearing pending confirmations,
@@ -92,8 +93,8 @@ func (m Model) switchToView(id viewID) Model {
 	if id == viewQueue && m.followNowPlaying {
 		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
 	}
-	if id == viewMixes && len(m.mixes.mixes) == 0 {
-		m.mixes.mixes = append([]MixInfo(nil), recommendation.Registry()...)
+	if id == viewMixes && len(m.mixes.Mixes) == 0 {
+		m.mixes.Mixes = append([]mixes.MixInfo(nil), recommendation.Registry()...)
 	}
 	if id == viewBrowse {
 		m = m.deriveCurrentBrowseData()

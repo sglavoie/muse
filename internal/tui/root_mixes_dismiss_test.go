@@ -32,12 +32,12 @@ func TestMixesDismissRoundTrip(t *testing.T) {
 	if _, found := m.dismissedHashes["mx1"]; !found {
 		t.Error("expected mx1 in dismissedHashes after dismiss")
 	}
-	for _, tr := range m.mixes.cachedMixes[db.MixRediscover] {
+	for _, tr := range m.mixes.CachedMixes[db.MixRediscover] {
 		if tr.Hash == "mx1" {
 			t.Error("expected mx1 removed from cachedMixes after dismiss")
 		}
 	}
-	for _, tr := range m.mixes.trackView.SourceTracks {
+	for _, tr := range m.mixes.TrackView.SourceTracks {
 		if tr.Hash == "mx1" {
 			t.Error("expected mx1 removed from trackView.sourceTracks after dismiss")
 		}
@@ -86,7 +86,7 @@ func TestMixesDismissPropagatesAcrossCachedMixes(t *testing.T) {
 	// Seed a second cached mix that contains the same hash (mx1) plus a
 	// distinct hash. The dismiss should leave the unrelated hash alone but
 	// scrub mx1 from this mix's cache too.
-	m.mixes.cachedMixes[db.MixHiddenGems] = []library.Track{
+	m.mixes.CachedMixes[db.MixHiddenGems] = []library.Track{
 		{Hash: "mx1", Title: "Dup", Artist: "ArtistX", Path: "/mx1.flac"},
 		{Hash: "mxOther", Title: "Other", Artist: "ArtistZ", Path: "/mxo.flac"},
 	}
@@ -98,14 +98,14 @@ func TestMixesDismissPropagatesAcrossCachedMixes(t *testing.T) {
 	msg := cmd().(mixDismissedMsg)
 	m = m.handleMixDismissedMsg(msg)
 
-	for _, tr := range m.mixes.cachedMixes[db.MixHiddenGems] {
+	for _, tr := range m.mixes.CachedMixes[db.MixHiddenGems] {
 		if tr.Hash == "mx1" {
 			t.Error("expected mx1 removed from other cached mix after dismiss")
 		}
 	}
 	// Unrelated hash must still be present.
 	foundOther := false
-	for _, tr := range m.mixes.cachedMixes[db.MixHiddenGems] {
+	for _, tr := range m.mixes.CachedMixes[db.MixHiddenGems] {
 		if tr.Hash == "mxOther" {
 			foundOther = true
 		}
@@ -148,14 +148,14 @@ func TestMixesDismissPreservesCursorAndSort(t *testing.T) {
 		WithDismissalWriter(stub),
 	)
 	m = m.switchToView(viewMixes)
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
-	m.mixes.selectedMix = 0
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{db.MixRediscover: tracks}
+	m.mixes.SelectedMix = 0
 	m, _ = m.handleMixOpen()
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
-	m.mixes.trackView.Cursor = 2
-	m.mixes.trackView.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.mixes.trackView = m.mixes.trackView.RecomputeSortedTracks()
+	m.mixes.TrackView.Cursor = 2
+	m.mixes.TrackView.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
+	m.mixes.TrackView = m.mixes.TrackView.RecomputeSortedTracks()
 
 	m, cmd := m.handleMixDismiss()
 	if cmd == nil {
@@ -165,19 +165,19 @@ func TestMixesDismissPreservesCursorAndSort(t *testing.T) {
 	msg := rawMsg.(mixDismissedMsg)
 	m = m.handleMixDismissedMsg(msg)
 
-	if m.mixes.trackView.SortState.Field != sorting.SortTitle {
-		t.Errorf("sort field reset: got %v, want SortTitle", m.mixes.trackView.SortState.Field)
+	if m.mixes.TrackView.SortState.Field != sorting.SortTitle {
+		t.Errorf("sort field reset: got %v, want SortTitle", m.mixes.TrackView.SortState.Field)
 	}
-	if m.mixes.trackView.SortState.Dir != sorting.SortAsc {
-		t.Errorf("sort dir reset: got %v, want SortAsc", m.mixes.trackView.SortState.Dir)
+	if m.mixes.TrackView.SortState.Dir != sorting.SortAsc {
+		t.Errorf("sort dir reset: got %v, want SortAsc", m.mixes.TrackView.SortState.Dir)
 	}
-	if m.mixes.trackView.Cursor > 1 {
-		t.Errorf("cursor not clamped: got %d, want <= 1 (only 2 tracks remain)", m.mixes.trackView.Cursor)
+	if m.mixes.TrackView.Cursor > 1 {
+		t.Errorf("cursor not clamped: got %d, want <= 1 (only 2 tracks remain)", m.mixes.TrackView.Cursor)
 	}
-	if len(m.mixes.trackView.SourceTracks) != 2 {
-		t.Errorf("sourceTracks length: got %d, want 2", len(m.mixes.trackView.SourceTracks))
+	if len(m.mixes.TrackView.SourceTracks) != 2 {
+		t.Errorf("sourceTracks length: got %d, want 2", len(m.mixes.TrackView.SourceTracks))
 	}
-	if len(m.mixes.trackView.SortedTracks) != 2 {
-		t.Errorf("sortedTracks length: got %d, want 2", len(m.mixes.trackView.SortedTracks))
+	if len(m.mixes.TrackView.SortedTracks) != 2 {
+		t.Errorf("sortedTracks length: got %d, want 2", len(m.mixes.TrackView.SortedTracks))
 	}
 }

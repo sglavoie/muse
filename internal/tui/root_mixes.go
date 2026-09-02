@@ -36,7 +36,7 @@ func (m Model) mixesMaybeLoadCmd() tea.Cmd {
 	if m.recReader == nil {
 		return nil
 	}
-	if len(m.mixes.mixes) == 0 || m.mixes.playsSinceRefresh >= 5 {
+	if len(m.mixes.Mixes) == 0 || m.mixes.PlaysSinceRefresh >= 5 {
 		loadCmd := m.loadMixCountsCmd()
 		rebuildCmd := m.rebuildCacheCmd()
 		if rebuildCmd != nil {
@@ -209,17 +209,17 @@ func (m Model) loadMixCmd(mixID db.MixID) tea.Cmd {
 // handleMixCountsLoadedMsg populates mix track counts and progress strings
 // into the list view and resets playsSinceRefresh since the data is now fresh.
 func (m Model) handleMixCountsLoadedMsg(msg mixCountsLoadedMsg) Model {
-	m.mixes.insufficientData = msg.insufficient
-	for i := range m.mixes.mixes {
-		id := m.mixes.mixes[i].ID
+	m.mixes.InsufficientData = msg.insufficient
+	for i := range m.mixes.Mixes {
+		id := m.mixes.Mixes[i].ID
 		if !msg.insufficient && msg.counts != nil {
-			m.mixes.mixes[i].TrackCount = msg.counts[id]
+			m.mixes.Mixes[i].TrackCount = msg.counts[id]
 		}
 		if msg.progress != nil {
-			m.mixes.mixes[i].Progress = msg.progress[id].Description
+			m.mixes.Mixes[i].Progress = msg.progress[id].Description
 		}
 	}
-	m.mixes.playsSinceRefresh = 0
+	m.mixes.PlaysSinceRefresh = 0
 	return m
 }
 
@@ -228,20 +228,20 @@ func (m Model) handleMixCountsLoadedMsg(msg mixCountsLoadedMsg) Model {
 // populates the track view (bug hotspot #42: async message validation).
 // Dismissed tracks are filtered out before caching.
 func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
-	if m.mixes.cachedMixes == nil {
-		m.mixes.cachedMixes = make(map[db.MixID][]library.Track)
+	if m.mixes.CachedMixes == nil {
+		m.mixes.CachedMixes = make(map[db.MixID][]library.Track)
 	}
 	tracks := recommendation.FilterSeen(msg.tracks, m.dismissedHashes)
-	m.mixes.cachedMixes[msg.mixID] = tracks
-	if m.activeView == viewMixes && m.mixes.level == 1 && m.mixes.activeMix == msg.mixID {
-		if len(m.mixes.trackView.SourceTracks) == 0 {
+	m.mixes.CachedMixes[msg.mixID] = tracks
+	if m.activeView == viewMixes && m.mixes.Level == 1 && m.mixes.ActiveMix == msg.mixID {
+		if len(m.mixes.TrackView.SourceTracks) == 0 {
 			// Initial population: no user state to preserve.
-			m.mixes.openMix(msg.mixID)
+			m.mixes.OpenMix(msg.mixID)
 		} else {
 			// Re-load while user is already browsing: update tracks
 			// in place to preserve cursor, sort, and filter state.
-			m.mixes.trackView.SourceTracks = tracks
-			m.mixes.trackView = m.mixes.trackView.RefreshView().ClampCursor()
+			m.mixes.TrackView.SourceTracks = tracks
+			m.mixes.TrackView = m.mixes.TrackView.RefreshView().ClampCursor()
 		}
 	}
 	return m

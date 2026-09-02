@@ -110,21 +110,21 @@ func (m Model) allFilterOps() *filterOps {
 	case viewTags:
 		return makeFilterOps(&m, &m.tagsView.Filter, &m.tagsView.Cursor, &m.tagsView.ScrollOffset, nil)
 	case viewMixes:
-		if m.mixes.level != 1 {
+		if m.mixes.Level != 1 {
 			return nil
 		}
-		return makeFilterOps(&m, &m.mixes.trackView.Filter,
-			&m.mixes.trackView.Cursor,
-			&m.mixes.trackView.ScrollOffset,
-			func() { m.mixes.trackView = m.mixes.trackView.RebuildFilterCache() })
+		return makeFilterOps(&m, &m.mixes.TrackView.Filter,
+			&m.mixes.TrackView.Cursor,
+			&m.mixes.TrackView.ScrollOffset,
+			func() { m.mixes.TrackView = m.mixes.TrackView.RebuildFilterCache() })
 	case viewInsights:
-		if !m.insights.atTracks() {
+		if !m.insights.AtTracks() {
 			return nil
 		}
-		return makeFilterOps(&m, &m.insights.trackView.Filter,
-			&m.insights.trackView.Cursor,
-			&m.insights.trackView.ScrollOffset,
-			func() { m.insights.trackView = m.insights.trackView.RebuildFilterCache() })
+		return makeFilterOps(&m, &m.insights.TrackView.Filter,
+			&m.insights.TrackView.Cursor,
+			&m.insights.TrackView.ScrollOffset,
+			func() { m.insights.TrackView = m.insights.TrackView.RebuildFilterCache() })
 	default:
 		return nil
 	}

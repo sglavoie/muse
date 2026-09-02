@@ -21,7 +21,7 @@ func TestRefreshDerivedViewsUpdatesAllCachedMixes(t *testing.T) {
 		Genre: "OldGenre", Duration: 120,
 	})
 
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {
 			{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre", Duration: 120},
 		},
@@ -30,14 +30,14 @@ func TestRefreshDerivedViewsUpdatesAllCachedMixes(t *testing.T) {
 		},
 	}
 	// Active mix is Rediscover; HiddenGems is cached but not active.
-	m.mixes.activeMix = db.MixRediscover
-	m.mixes.level = 0 // Stay at list level so trackView is not in play.
+	m.mixes.ActiveMix = db.MixRediscover
+	m.mixes.Level = 0 // Stay at list level so trackView is not in play.
 
 	m.library.Index.UpdateMetadata("h1", "NewTitle", "NewArt", "NewAlbum", "NewGenre")
 	m.library.Index.UpdateDuration("h1", 200)
 	m = m.refreshDerivedViews()
 
-	for id, cached := range m.mixes.cachedMixes {
+	for id, cached := range m.mixes.CachedMixes {
 		if len(cached) != 1 {
 			t.Fatalf("mix %v: expected 1 cached track, got %d", id, len(cached))
 		}

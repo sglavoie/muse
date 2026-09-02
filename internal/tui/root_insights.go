@@ -11,6 +11,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 )
 
 // insightsDormantDays is how long a track must have gone unplayed, measured
@@ -34,9 +35,9 @@ type insightsLoadedMsg struct {
 	plays         []insights.PlayRow
 	sessions      []insights.SessionRow
 	timeline      []insights.TimelineRow
-	genreHours    []insightsGenreHours
-	backlog       []insightsBacklogMonth
-	health        []insightsHealthRow
+	genreHours    []instui.GenreHours
+	backlog       []instui.BacklogMonth
+	health        []instui.HealthRow
 	loc           *time.Location
 }
 
@@ -65,16 +66,16 @@ func (w *insightsPendingWrites) busy() bool { return w != nil && w.inflight.Load
 // its memo has been invalidated. Returns nil when no reader is wired or the
 // snapshot is already current.
 func (m *Model) insightsMaybeLoadCmd() tea.Cmd {
-	if m.insightsReader == nil || m.insights.loading {
+	if m.insightsReader == nil || m.insights.Loading {
 		return nil
 	}
 	// A read that failed is not retried on its own: the active refresh rides the
 	// 1 Hz tick, so a database that keeps failing would become one failed read
 	// per second. Entering the view and changing the data both clear loadErr.
-	if m.insights.loadErr != nil {
+	if m.insights.LoadErr != nil {
 		return nil
 	}
-	if m.insights.loaded && !m.insights.stale {
+	if m.insights.Loaded && !m.insights.Stale {
 		return nil
 	}
 	return m.insightsLoadCmd()
@@ -84,7 +85,7 @@ func (m *Model) insightsMaybeLoadCmd() tea.Cmd {
 // is the retry for a failed read, so it clears the error the automatic refresh
 // path refuses to retry past.
 func (m *Model) insightsEnterCmd() tea.Cmd {
-	m.insights.loadErr = nil
+	m.insights.LoadErr = nil
 	return m.insightsMaybeLoadCmd()
 }
 
@@ -94,10 +95,10 @@ func (m *Model) insightsEnterCmd() tea.Cmd {
 // A change that reached the database is also fresh evidence that reading it can
 // work again, so a previous failure stops blocking the next load.
 func (m *Model) insightsInvalidate() {
-	m.insights.gen++
-	m.insights.loading = false
-	m.insights.stale = true
-	m.insights.loadErr = nil
+	m.insights.Gen++
+	m.insights.Loading = false
+	m.insights.Stale = true
+	m.insights.LoadErr = nil
 }
 
 // insightsActiveRefreshCmd reloads an invalidated snapshot the user is looking
@@ -122,16 +123,16 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 	// rescan-deletion write announces its completion. Staying stale is what keeps
 	// the 1 Hz refresh asking until every write has succeeded or failed.
 	if m.insightsPending.busy() {
-		m.insights.stale = true
+		m.insights.Stale = true
 		return nil
 	}
 
-	m.insights.gen++
-	m.insights.loading = true
+	m.insights.Gen++
+	m.insights.Loading = true
 
-	gen := m.insights.gen
-	windowIdx := m.insights.windowIdx
-	res := m.insights.resolution()
+	gen := m.insights.Gen
+	windowIdx := m.insights.WindowIdx
+	res := m.insights.Resolution()
 	mx := m.cfg.Mixes
 	// Snapshot the index on the UI goroutine; the closure below runs off it.
 	tracks := m.library.Index.Tracks()
@@ -139,7 +140,7 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 	return func() tea.Msg {
 		now := time.Now()
 		loc := time.Local
-		since := insightsWindowSince(windowIdx, now, loc)
+		since := instui.WindowSince(windowIdx, now, loc)
 
 		// Every reader feeds a panel that is drawn unconditionally, so a failed
 		// one leaves a zero-valued input that renders as a real measurement.
@@ -180,7 +181,7 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 			Now:         now,
 			Loc:         loc,
 			Since:       since,
-			WindowLabel: insightsWindows[windowIdx].label,
+			WindowLabel: instui.Windows[windowIdx].Label,
 			Resolution:  res,
 			Plays:       plays,
 			Genres:      genres,
@@ -203,9 +204,9 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 			plays:         plays,
 			sessions:      sessions,
 			timeline:      timeline,
-			genreHours:    insightsHourGenreFold(plays, func(h string) []string { return genreOf[h] }, loc),
-			backlog:       backlogMonths(tracks, loc),
-			health:        buildInsightsHealth(snap.Quality, tracks, unverifiedHashes, mx.DeepCutsMinPlays, mx.DeepCutsMaxPlays),
+			genreHours:    instui.HourGenreFold(plays, func(h string) []string { return genreOf[h] }, loc),
+			backlog:       instui.BacklogMonths(tracks, loc),
+			health:        instui.BuildHealth(snap.Quality, tracks, unverifiedHashes, mx.DeepCutsMinPlays, mx.DeepCutsMaxPlays),
 			loc:           loc,
 		}
 	}
@@ -214,44 +215,44 @@ func (m *Model) insightsLoadCmd() tea.Cmd {
 // handleInsightsLoadedMsg installs a snapshot, discarding replies that a newer
 // request has already superseded.
 func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
-	if msg.gen != m.insights.gen {
+	if msg.gen != m.insights.Gen {
 		return m
 	}
-	m.insights.loading = false
+	m.insights.Loading = false
 	if msg.err != nil {
 		// Nothing is installed: the panels keep the last numbers that were whole,
 		// or say they have none. stale stays set so the retry has something to do.
-		m.insights.loadErr = msg.err
-		m.insights.stale = true
-		if m.insights.loaded {
+		m.insights.LoadErr = msg.err
+		m.insights.Stale = true
+		if m.insights.Loaded {
 			m.statusBar.Notify("Insights: refresh failed, showing the last complete figures")
 		} else {
 			m.statusBar.Notify("Insights: could not read your listening history")
 		}
 		return m
 	}
-	m.insights.loadErr = nil
-	m.insights.snap = msg.snap
-	m.insights.genreCoverage = msg.genreCoverage
-	m.insights.dormant = msg.dormant
-	m.insights.plays = msg.plays
-	m.insights.sessions = msg.sessions
-	m.insights.timeline = msg.timeline
-	m.insights.genreHours = msg.genreHours
-	m.insights.backlog = msg.backlog
-	m.insights.health = msg.health
-	m.insights.loc = msg.loc
-	m.insights.loaded = true
-	m.insights.stale = false
-	m.insights.clampCursor()
+	m.insights.LoadErr = nil
+	m.insights.Snap = msg.snap
+	m.insights.GenreCoverage = msg.genreCoverage
+	m.insights.Dormant = msg.dormant
+	m.insights.Plays = msg.plays
+	m.insights.Sessions = msg.sessions
+	m.insights.Timeline = msg.timeline
+	m.insights.GenreHours = msg.genreHours
+	m.insights.Backlog = msg.backlog
+	m.insights.Health = msg.health
+	m.insights.Loc = msg.loc
+	m.insights.Loaded = true
+	m.insights.Stale = false
+	m.insights.ClampCursor()
 	return m
 }
 
 // handleInsightsPanelCycle moves the active panel. Panels read from the same
 // snapshot, so no reload is needed.
 func (m Model) handleInsightsPanelCycle(delta int) Model {
-	m.insights = m.insights.shiftPanel(delta)
-	m.insights.clampCursor()
+	m.insights = m.insights.ShiftPanel(delta)
+	m.insights.ClampCursor()
 	return m
 }
 
@@ -260,14 +261,14 @@ func (m Model) handleInsightsPanelCycle(delta int) Model {
 // always all-time — and reloads. A fixed panel says so rather than reloading
 // identical numbers under a new label.
 func (m Model) handleInsightsWindowCycle(delta int) (Model, tea.Cmd) {
-	switch m.insights.panelSpec().class {
-	case classFixed:
+	switch m.insights.Spec().Class {
+	case instui.ClassFixed:
 		m.statusBar.Notify("This panel is always all-time")
 		return m, nil
-	case classResolution:
-		m.insights = m.insights.shiftResolution(delta)
+	case instui.ClassResolution:
+		m.insights = m.insights.ShiftResolution(delta)
 	default:
-		m.insights = m.insights.shiftWindow(delta)
+		m.insights = m.insights.ShiftWindow(delta)
 	}
 	return m, m.insightsLoadCmd()
 }

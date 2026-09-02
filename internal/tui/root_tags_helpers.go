@@ -90,13 +90,13 @@ func (m Model) selectedTrackHashes() []string {
 	case viewTags:
 		return hashMapToSlice(m.tagsView.SelectedHashes)
 	case viewMixes:
-		if m.mixes.level == 1 {
-			return hashMapToSlice(m.mixes.trackView.SelectedHashes)
+		if m.mixes.Level == 1 {
+			return hashMapToSlice(m.mixes.TrackView.SelectedHashes)
 		}
 		return nil
 	case viewInsights:
-		if m.insights.atTracks() {
-			return hashMapToSlice(m.insights.trackView.SelectedHashes)
+		if m.insights.AtTracks() {
+			return hashMapToSlice(m.insights.TrackView.SelectedHashes)
 		}
 		return nil
 	}
@@ -174,11 +174,11 @@ func (m Model) focusedTrackHash() string {
 			}
 		}
 	case viewMixes:
-		if t := m.mixes.focusedTrack(); t != nil {
+		if t := m.mixes.FocusedTrack(); t != nil {
 			return t.Hash
 		}
 	case viewInsights:
-		if t := m.insights.focusedTrack(); t != nil {
+		if t := m.insights.FocusedTrack(); t != nil {
 			return t.Hash
 		}
 	}

@@ -1,30 +1,30 @@
-package tui
+package insights
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // rankingsFixture is four artists whose two orderings deliberately disagree:
 // Dana is played often but briefly, Carol rarely but at length.
-func rankingsFixture() insights.Rankings {
-	return insights.Rankings{
-		ArtistsByPlays: []insights.EntityStat{
+func rankingsFixture() insightsdata.Rankings {
+	return insightsdata.Rankings{
+		ArtistsByPlays: []insightsdata.EntityStat{
 			{Name: "Alice", Plays: 40, ListenedSecs: 9000, Rank: 1},
 			{Name: "Dana", Plays: 30, ListenedSecs: 1200, Rank: 2},
 			{Name: "Bob", Plays: 20, ListenedSecs: 6000, Rank: 3},
 			{Name: "Carol", Plays: 5, ListenedSecs: 4000, Rank: 4},
 		},
-		ArtistsByHours: []insights.EntityStat{
+		ArtistsByHours: []insightsdata.EntityStat{
 			{Name: "Alice", Plays: 40, ListenedSecs: 9000, Rank: 1},
 			{Name: "Bob", Plays: 20, ListenedSecs: 6000, Rank: 2},
 			{Name: "Carol", Plays: 5, ListenedSecs: 4000, Rank: 3},
 			{Name: "Dana", Plays: 30, ListenedSecs: 1200, Rank: 4},
 		},
-		Deltas: []insights.RankDelta{
+		Deltas: []insightsdata.RankDelta{
 			{Name: "Alice", PlayRank: 1, HoursRank: 1, Delta: 0},
 			{Name: "Dana", PlayRank: 2, HoursRank: 4, Delta: -2},
 			{Name: "Bob", PlayRank: 3, HoursRank: 2, Delta: 1},
@@ -32,22 +32,22 @@ func rankingsFixture() insights.Rankings {
 		},
 		MovedCount:   3,
 		TopFiveShare: 0.75,
-		Ladder:       insights.Ladder{TotalArtists: 40, Artists25: 1, Artists50: 3, Artists75: 8, Artists90: 17},
+		Ladder:       insightsdata.Ladder{TotalArtists: 40, Artists25: 1, Artists50: 3, Artists75: 8, Artists90: 17},
 	}
 }
 
-func rankingsFixtureView(panel insightsPanel) InsightsView {
-	return InsightsView{
-		panel:  panel,
+func rankingsFixtureView(panel Panel) View {
+	return View{
+		Panel:  panel,
 		width:  100,
-		height: 30,
-		loc:    panelsTestLoc(),
-		snap:   insights.Snapshot{Rankings: rankingsFixture()},
+		Height: 30,
+		Loc:    panelsTestLoc(),
+		Snap:   insightsdata.Snapshot{Rankings: rankingsFixture()},
 	}
 }
 
 func TestConcentrationRowsBuildTheRepertoireLadder(t *testing.T) {
-	rows := rankingsFixtureView(panelConcentration).rows()
+	rows := rankingsFixtureView(PanelConcentration).Rows()
 
 	want := []string{"25% of your time", "50% of your time", "75% of your time", "90% of your time"}
 	got := sectionLabels(rows, "Repertoire ladder")
@@ -57,15 +57,15 @@ func TestConcentrationRowsBuildTheRepertoireLadder(t *testing.T) {
 	// The rung's key is the artist count it stands for, so opening it resolves to
 	// exactly the group the number names.
 	for _, r := range rows {
-		if r.section != "Repertoire ladder" {
+		if r.Section != "Repertoire ladder" {
 			continue
 		}
-		if r.drill != drillTopArtists {
-			t.Errorf("rung %q should drill into its top artists, got %v", r.label, r.drill)
+		if r.Drill != DrillTopArtists {
+			t.Errorf("rung %q should drill into its top artists, got %v", r.Label, r.Drill)
 		}
 	}
-	if rows[1].key != "3" || !strings.Contains(rows[1].note, "3 of 40 artists") {
-		t.Errorf("the half-time rung should name 3 of 40 artists, got key %q note %q", rows[1].key, rows[1].note)
+	if rows[1].Key != "3" || !strings.Contains(rows[1].note, "3 of 40 artists") {
+		t.Errorf("the half-time rung should name 3 of 40 artists, got key %q note %q", rows[1].Key, rows[1].note)
 	}
 	if got := sectionLabels(rows, "Top artists by time"); strings.Join(got, ",") != "Alice,Bob,Carol,Dana" {
 		t.Errorf("top artists should run in hours order, got %v", got)
@@ -73,23 +73,23 @@ func TestConcentrationRowsBuildTheRepertoireLadder(t *testing.T) {
 }
 
 func TestConcentrationRowsSkipEmptyRungsAndEmptyWindows(t *testing.T) {
-	v := rankingsFixtureView(panelConcentration)
-	v.snap.Rankings.Ladder.Artists25 = 0
+	v := rankingsFixtureView(PanelConcentration)
+	v.Snap.Rankings.Ladder.Artists25 = 0
 
 	// A rung nobody reaches would open an empty set, so it is left off rather
 	// than offered as a drill that dead-ends.
-	if got := sectionLabels(v.rows(), "Repertoire ladder"); len(got) != 3 || got[0] != "50% of your time" {
+	if got := sectionLabels(v.Rows(), "Repertoire ladder"); len(got) != 3 || got[0] != "50% of your time" {
 		t.Errorf("want the 25%% rung dropped, got %v", got)
 	}
 
-	v.snap.Rankings = insights.Rankings{}
-	if rows := v.rows(); rows != nil {
+	v.Snap.Rankings = insightsdata.Rankings{}
+	if rows := v.Rows(); rows != nil {
 		t.Errorf("no artists should produce no rows, got %v", rows)
 	}
 }
 
 func TestConcentrationHeaderNamesTheRutTheShortcutAvoids(t *testing.T) {
-	v := rankingsFixtureView(panelConcentration)
+	v := rankingsFixtureView(PanelConcentration)
 	s := styles.NewStyles(false)
 
 	header := strings.Join(v.concentrationHeaderLines(s), "\n")
@@ -108,7 +108,7 @@ func TestConcentrationHeaderNamesTheRutTheShortcutAvoids(t *testing.T) {
 }
 
 func TestTimeVsPlaysRowsLeadWithTheBiggestMover(t *testing.T) {
-	rows := rankingsFixtureView(panelTimeVsPlays).rows()
+	rows := rankingsFixtureView(PanelTimeVsPlays).Rows()
 
 	// Biggest mover first: the row that most contradicts the play count is the
 	// one the panel exists to show.
@@ -121,8 +121,8 @@ func TestTimeVsPlaysRowsLeadWithTheBiggestMover(t *testing.T) {
 	if !strings.Contains(rows[0].note, "plays #2 · hours #4 · ▼2") {
 		t.Errorf("Dana's note should spell out both ranks and the move, got %q", rows[0].note)
 	}
-	if rows[0].drill != drillArtistPlays || rows[0].key != "Dana" {
-		t.Errorf("a mover should open its own plays, got %v/%q", rows[0].drill, rows[0].key)
+	if rows[0].Drill != DrillArtistPlays || rows[0].Key != "Dana" {
+		t.Errorf("a mover should open its own plays, got %v/%q", rows[0].Drill, rows[0].Key)
 	}
 }
 
@@ -138,7 +138,7 @@ func TestInsightsDeltaText(t *testing.T) {
 }
 
 func TestTimeVsPlaysHeaderShrinksRatherThanVanishing(t *testing.T) {
-	v := rankingsFixtureView(panelTimeVsPlays)
+	v := rankingsFixtureView(PanelTimeVsPlays)
 	s := styles.NewStyles(false)
 
 	full := v.timeVsPlaysHeaderLines(s)
@@ -165,10 +165,10 @@ func TestTimeVsPlaysHeaderShrinksRatherThanVanishing(t *testing.T) {
 }
 
 func TestTimeVsPlaysHeaderMarksOnlyTheComparedHead(t *testing.T) {
-	v := rankingsFixtureView(panelTimeVsPlays)
+	v := rankingsFixtureView(PanelTimeVsPlays)
 	// Deltas only covers the head of the play ranking, so an artist high on hours
 	// alone gets no arrow rather than a "=" it has not earned.
-	v.snap.Rankings.Deltas = v.snap.Rankings.Deltas[:1]
+	v.Snap.Rankings.Deltas = v.Snap.Rankings.Deltas[:1]
 
 	lines := v.timeVsPlaysHeaderLines(styles.NewStyles(false))
 	var bob string
@@ -186,9 +186,9 @@ func TestTimeVsPlaysHeaderMarksOnlyTheComparedHead(t *testing.T) {
 }
 
 func TestTimeVsPlaysEmptyWindow(t *testing.T) {
-	v := InsightsView{panel: panelTimeVsPlays, width: 100, height: 30}
+	v := View{Panel: PanelTimeVsPlays, width: 100, Height: 30}
 
-	if rows := v.rows(); rows != nil {
+	if rows := v.Rows(); rows != nil {
 		t.Errorf("no deltas should produce no rows, got %v", rows)
 	}
 	if got := strings.Join(v.timeVsPlaysHeaderLines(styles.NewStyles(false)), "\n"); !strings.Contains(got, "no artists in this window") {

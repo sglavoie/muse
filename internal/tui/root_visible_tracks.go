@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -56,16 +57,16 @@ func (m Model) libraryVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) mixesVisibleTracks() ([]library.Track, string, bool) {
-	if m.mixes.level != 1 {
+	if m.mixes.Level != 1 {
 		return nil, "Open a mix before exporting", false
 	}
-	rows := m.mixes.trackView.Panel().VisibleTracks()
-	if len(m.mixes.trackView.SelectedHashes) > 0 {
-		rows = collectSelectedTracks(rows, m.mixes.trackView.SelectedHashes)
+	rows := m.mixes.TrackView.Panel().VisibleTracks()
+	if len(m.mixes.TrackView.SelectedHashes) > 0 {
+		rows = collectSelectedTracks(rows, m.mixes.TrackView.SelectedHashes)
 	}
 	name := "Mix"
-	for _, mix := range m.mixes.mixes {
-		if mix.ID == m.mixes.activeMix {
+	for _, mix := range m.mixes.Mixes {
+		if mix.ID == m.mixes.ActiveMix {
 			name = mix.Name
 			break
 		}
@@ -74,16 +75,16 @@ func (m Model) mixesVisibleTracks() ([]library.Track, string, bool) {
 }
 
 func (m Model) insightsVisibleTracks() ([]library.Track, string, bool) {
-	if !m.insights.atTracks() {
+	if !m.insights.AtTracks() {
 		return nil, "Drill into a track list before exporting", false
 	}
-	rows := m.insights.trackView.Panel().VisibleTracks()
-	if len(m.insights.trackView.SelectedHashes) > 0 {
-		rows = collectSelectedTracks(rows, m.insights.trackView.SelectedHashes)
+	rows := m.insights.TrackView.Panel().VisibleTracks()
+	if len(m.insights.TrackView.SelectedHashes) > 0 {
+		rows = collectSelectedTracks(rows, m.insights.TrackView.SelectedHashes)
 	}
-	label := m.insights.drillLabel
-	if m.insights.level == insightsLevelSessionTracks && m.insights.sessionLabel != "" {
-		label = m.insights.sessionLabel
+	label := m.insights.DrillLabel
+	if m.insights.Level == instui.LevelSessionTracks && m.insights.SessionLabel != "" {
+		label = m.insights.SessionLabel
 	}
 	if label == "" {
 		return rows, "Insights", true

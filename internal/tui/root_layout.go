@@ -88,20 +88,20 @@ func (m *Model) clampAllScrollOffsets() {
 	tagMaxRows := layout.VisibleRows(m.tagsView.Height, tagReserve)
 	m.tagsView.ScrollOffset = sorting.AdjustScroll(m.tagsView.Cursor, m.tagsView.ScrollOffset, tagMaxRows)
 
-	if m.mixes.level == 1 {
-		mixReserve := libtui.VisibleReserve(m.mixes.trackView)
-		mixMaxRows := layout.VisibleRows(m.mixes.height, mixReserve)
-		m.mixes.trackView.ScrollOffset = sorting.AdjustScroll(
-			m.mixes.trackView.Cursor, m.mixes.trackView.ScrollOffset, mixMaxRows)
+	if m.mixes.Level == 1 {
+		mixReserve := libtui.VisibleReserve(m.mixes.TrackView)
+		mixMaxRows := layout.VisibleRows(m.mixes.Height, mixReserve)
+		m.mixes.TrackView.ScrollOffset = sorting.AdjustScroll(
+			m.mixes.TrackView.Cursor, m.mixes.TrackView.ScrollOffset, mixMaxRows)
 	}
 
-	if m.insights.atTracks() {
-		insReserve := libtui.VisibleReserve(m.insights.trackView)
-		insMaxRows := layout.VisibleRows(m.insights.height, insReserve)
-		m.insights.trackView.ScrollOffset = sorting.AdjustScroll(
-			m.insights.trackView.Cursor, m.insights.trackView.ScrollOffset, insMaxRows)
+	if m.insights.AtTracks() {
+		insReserve := libtui.VisibleReserve(m.insights.TrackView)
+		insMaxRows := layout.VisibleRows(m.insights.Height, insReserve)
+		m.insights.TrackView.ScrollOffset = sorting.AdjustScroll(
+			m.insights.TrackView.Cursor, m.insights.TrackView.ScrollOffset, insMaxRows)
 	} else {
-		m.insights.clampCursor()
+		m.insights.ClampCursor()
 	}
 }
 

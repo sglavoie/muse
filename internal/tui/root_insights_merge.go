@@ -14,16 +14,10 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
-
-// insightsMergePlan is a genre merge waiting on the confirmation bar.
-type insightsMergePlan struct {
-	canonical string
-	variants  []string
-	hashes    []string
-}
 
 // insightsMergeWrite is one track's genre rewrite, carried from the plan
 // through the database write to the memory update only a persisted row earns.
@@ -61,32 +55,32 @@ func (m Model) handleInsightsMergeGenre() Model {
 	if m.activeView != viewInsights {
 		return m
 	}
-	row := m.insights.focusedHealthRow()
-	if row == nil || row.kind != healthGenreCollision {
+	row := m.insights.FocusedHealthRow()
+	if row == nil || row.Kind != instui.HealthGenreCollision {
 		m.statusBar.Notify("Only genre collisions can be merged")
 		return m
 	}
-	n := len(row.hashes)
-	m.insights.pendingMerge = &insightsMergePlan{
-		canonical: row.canonical,
-		variants:  row.variants,
-		hashes:    row.hashes,
+	n := len(row.Hashes)
+	m.insights.PendingMerge = &instui.MergePlan{
+		Canonical: row.Canonical,
+		Variants:  row.Variants,
+		Hashes:    row.Hashes,
 	}
 	m.confirmationBar = fmt.Sprintf("Merge %s into %q on %d %s? (y to confirm)",
-		strings.Join(row.variants, " / "), row.canonical, n, text.Pluralize(n, "track", "tracks"))
+		strings.Join(row.Variants, " / "), row.Canonical, n, text.Pluralize(n, "track", "tracks"))
 	return m
 }
 
 // handleInsightsMergeKeyPress owns the keyboard while a merge is pending.
 func (m Model) handleInsightsMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
-	if m.insights.pendingMerge == nil {
+	if m.insights.PendingMerge == nil {
 		return m, nil, false
 	}
 	if msg.String() == "ctrl+c" {
 		return m, tea.Quit, true
 	}
 	if key := msg.String(); key != "y" && key != "Y" {
-		m.insights.pendingMerge = nil
+		m.insights.PendingMerge = nil
 		m.confirmationBar = ""
 		m.statusBar.Notify("Merge canceled")
 		return m, nil, true
@@ -98,22 +92,22 @@ func (m Model) handleInsightsMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd,
 // returns the command that persists it. Nothing changes in memory here: the
 // database goes first, and only rows it accepts are applied on the reply.
 func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
-	plan := *m.insights.pendingMerge
-	m.insights.pendingMerge = nil
+	plan := *m.insights.PendingMerge
+	m.insights.PendingMerge = nil
 	m.confirmationBar = ""
 
-	fold := make(map[string]struct{}, len(plan.variants))
-	for _, v := range plan.variants {
-		fold[insightsGenreKey(v)] = struct{}{}
+	fold := make(map[string]struct{}, len(plan.Variants))
+	for _, v := range plan.Variants {
+		fold[instui.GenreKey(v)] = struct{}{}
 	}
 
 	var writes []insightsMergeWrite
-	for _, hash := range plan.hashes {
+	for _, hash := range plan.Hashes {
 		t, ok := m.library.Index.FindByHash(hash)
 		if !ok {
 			continue
 		}
-		merged := mergeGenreVariants(t.Genre, fold, plan.canonical)
+		merged := mergeGenreVariants(t.Genre, fold, plan.Canonical)
 		if merged == t.Genre {
 			continue
 		}
@@ -142,7 +136,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 		writes[i].ticket = q.Publish(writes[i].hash)
 	}
 
-	canonical := plan.canonical
+	canonical := plan.Canonical
 	return m, func() tea.Msg {
 		msg := insightsMergedMsg{canonical: canonical}
 		for _, w := range writes {
@@ -230,10 +224,10 @@ func mergeGenreVariants(genre string, fold map[string]struct{}, canonical string
 	out := make([]string, 0, len(parts))
 	seen := make(map[string]struct{}, len(parts))
 	for _, p := range parts {
-		if _, folded := fold[insightsGenreKey(p)]; folded {
+		if _, folded := fold[instui.GenreKey(p)]; folded {
 			p = canonical
 		}
-		key := insightsGenreKey(p)
+		key := instui.GenreKey(p)
 		if _, dup := seen[key]; dup {
 			continue
 		}

@@ -1,4 +1,4 @@
-package tui
+package mixes
 
 import (
 	"fmt"
@@ -22,132 +22,132 @@ type MixInfo = recommendation.MixInfo
 // MixesView manages the two-level Mixes panel: a list of recommendation mixes
 // at level 0, and the track list for the selected mix at level 1.
 type MixesView struct {
-	mixes             []MixInfo
-	selectedMix       int
-	level             int // 0=list, 1=tracks
-	activeMix         db.MixID
-	trackView         libtui.View // reuses sort/filter/select/enqueue logic
-	cachedMixes       map[db.MixID][]library.Track
-	playsSinceRefresh int
-	insufficientData  bool
-	width, height     int
+	Mixes             []MixInfo
+	SelectedMix       int
+	Level             int // 0=list, 1=tracks
+	ActiveMix         db.MixID
+	TrackView         libtui.View // reuses sort/filter/select/enqueue logic
+	CachedMixes       map[db.MixID][]library.Track
+	PlaysSinceRefresh int
+	InsufficientData  bool
+	width, Height     int
 }
 
-func (v *MixesView) SetSize(w, h int) { v.width = w; v.height = h }
+func (v *MixesView) SetSize(w, h int) { v.width = w; v.Height = h }
 
 // clampCursor ensures the cursor is within the valid range for the current level.
 func (v *MixesView) clampCursor() {
-	if v.level == 0 {
-		n := len(v.mixes)
+	if v.Level == 0 {
+		n := len(v.Mixes)
 		if n == 0 {
-			v.selectedMix = 0
+			v.SelectedMix = 0
 			return
 		}
-		if v.selectedMix < 0 {
-			v.selectedMix = 0
-		} else if v.selectedMix >= n {
-			v.selectedMix = n - 1
+		if v.SelectedMix < 0 {
+			v.SelectedMix = 0
+		} else if v.SelectedMix >= n {
+			v.SelectedMix = n - 1
 		}
 	}
 }
 
-// focusedMix returns a pointer to the currently focused MixInfo, or nil if the
+// FocusedMix returns a pointer to the currently focused MixInfo, or nil if the
 // list is empty or the view is at track level.
-func (v *MixesView) focusedMix() *MixInfo {
-	if v.level != 0 || len(v.mixes) == 0 {
+func (v *MixesView) FocusedMix() *MixInfo {
+	if v.Level != 0 || len(v.Mixes) == 0 {
 		return nil
 	}
-	return &v.mixes[v.selectedMix]
+	return &v.Mixes[v.SelectedMix]
 }
 
-// focusedTrack returns the focused track at level 1, or nil when not at track level.
+// FocusedTrack returns the focused track at level 1, or nil when not at track level.
 // It delegates to the embedded trackView which accounts for filter and sort state.
-func (v *MixesView) focusedTrack() *library.Track {
-	if v.level != 1 {
+func (v *MixesView) FocusedTrack() *library.Track {
+	if v.Level != 1 {
 		return nil
 	}
-	track, ok := v.trackView.Panel().FocusedTrack()
+	track, ok := v.TrackView.Panel().FocusedTrack()
 	if !ok {
 		return nil
 	}
 	return &track
 }
 
-// openMix transitions to level 1 and loads cached tracks for the given mix.
-// The caller is responsible for populating cachedMixes before calling openMix.
-func (v *MixesView) openMix(id db.MixID) {
-	v.level = 1
-	v.activeMix = id
-	tracks := v.cachedMixes[id]
-	v.trackView = libtui.View{
+// OpenMix transitions to level 1 and loads cached tracks for the given mix.
+// The caller is responsible for populating cachedMixes before calling OpenMix.
+func (v *MixesView) OpenMix(id db.MixID) {
+	v.Level = 1
+	v.ActiveMix = id
+	tracks := v.CachedMixes[id]
+	v.TrackView = libtui.View{
 		SourceTracks: tracks,
 		Fuzzy:        library.SahilmFuzzySearcher{},
 		Width:        v.width,
-		Height:       v.height,
+		Height:       v.Height,
 	}
 }
 
-// back returns from the track list to the mix list.
-func (v *MixesView) back() {
-	v.level = 0
-	v.trackView = libtui.View{}
+// Back returns from the track list to the mix list.
+func (v *MixesView) Back() {
+	v.Level = 0
+	v.TrackView = libtui.View{}
 }
 
-// handleCursorAction moves the cursor at list level 0 or delegates to the
+// HandleCursorAction moves the cursor at list level 0 or delegates to the
 // embedded trackView at level 1.
-func (v MixesView) handleCursorAction(a keys.Action) MixesView {
-	if v.level == 1 {
-		v.trackView = v.trackView.HandleAction(a)
+func (v MixesView) HandleCursorAction(a keys.Action) MixesView {
+	if v.Level == 1 {
+		v.TrackView = v.TrackView.HandleAction(a)
 		return v
 	}
-	n := len(v.mixes)
+	n := len(v.Mixes)
 	if n == 0 {
 		return v
 	}
-	half := max(v.height/2, 1)
+	half := max(v.Height/2, 1)
 	switch a {
 	case keys.ActionCursorUp:
-		v.selectedMix--
+		v.SelectedMix--
 	case keys.ActionCursorDown:
-		v.selectedMix++
+		v.SelectedMix++
 	case keys.ActionHalfPageUp:
-		v.selectedMix -= half
+		v.SelectedMix -= half
 	case keys.ActionHalfPageDown:
-		v.selectedMix += half
+		v.SelectedMix += half
 	case keys.ActionFullPageUp:
-		v.selectedMix -= v.height
+		v.SelectedMix -= v.Height
 	case keys.ActionFullPageDown:
-		v.selectedMix += v.height
+		v.SelectedMix += v.Height
 	case keys.ActionGoToTop:
-		v.selectedMix = 0
+		v.SelectedMix = 0
 	case keys.ActionGoToBottom:
-		v.selectedMix = n - 1
+		v.SelectedMix = n - 1
 	}
 	v.clampCursor()
 	return v
 }
 
-// render returns a string representation of the Mixes view.
+// Render returns a string representation of the Mixes view.
 // At level 0, it shows the list of mixes with name, description, and count.
 // At level 1, it delegates to the embedded trackView.
-func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
-	if v.level == 1 {
-		if len(v.trackView.SourceTracks) == 0 {
-			for _, mix := range v.mixes {
-				if mix.ID == v.activeMix && mix.Progress != "" {
+func (v MixesView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
+	if v.Level == 1 {
+		if len(v.TrackView.SourceTracks) == 0 {
+			for _, mix := range v.Mixes {
+				if mix.ID == v.ActiveMix && mix.Progress != "" {
 					return s.Dim.Render(mix.Progress)
 				}
 			}
 			return s.Dim.Render("No tracks match yet — keep listening!")
 		}
-		return v.trackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
+		return v.TrackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
 
-	if v.insufficientData {
-		if len(v.mixes) > 0 && v.mixes[0].Progress != "" {
+	if v.InsufficientData {
+		if len(v.Mixes) > 0 && v.Mixes[0].Progress != "" {
 			var sb strings.Builder
 			sb.WriteString("Personalized Mixes\n\n")
-			for _, mix := range v.mixes {
+			for _, mix := range v.Mixes {
 				fmt.Fprintf(&sb, "  %-14s  %s\n", mix.Name, mix.Progress)
 			}
 			return s.Dim.Render(strings.TrimRight(sb.String(), "\n"))
@@ -156,16 +156,16 @@ func (v MixesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[
 		return s.Dim.Render(msg)
 	}
 
-	if len(v.mixes) == 0 {
-		return s.RenderEmptyCard(v.width, v.height, "No mixes yet", []styles.EmptyAction{
+	if len(v.Mixes) == 0 {
+		return s.RenderEmptyCard(v.width, v.Height, "No mixes yet", []styles.EmptyAction{
 			{Key: "1", Label: "go to library"},
 			{Key: "?", Label: "help"},
 		})
 	}
 
 	var lines []string
-	for i, mix := range v.mixes {
-		focused := i == v.selectedMix
+	for i, mix := range v.Mixes {
+		focused := i == v.SelectedMix
 		cursor := "  "
 		if focused {
 			cursor = "> "

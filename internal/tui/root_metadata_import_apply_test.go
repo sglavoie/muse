@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/metaexport"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -80,8 +81,8 @@ func TestMetadataImportRefreshesTheOpenInsightsDrill(t *testing.T) {
 	m := importModel(t, dir)
 	m.activeView = viewInsights
 	m.insights.SetSize(100, 30)
-	m.insights.dormant = m.library.Index.Tracks()
-	m.insights.openDrill("No artist", m.insightsDrillTracks(insightsRow{drill: drillDormant}))
+	m.insights.Dormant = m.library.Index.Tracks()
+	m.insights.OpenDrill("No artist", m.insightsDrillTracks(instui.Row{Drill: instui.DrillDormant}))
 	writeImportFile(t, dir, editedExport)
 
 	m = m.handleMetadataImportParsedMsg(parseImport(t, m))
@@ -92,7 +93,7 @@ func TestMetadataImportRefreshesTheOpenInsightsDrill(t *testing.T) {
 	m = next
 
 	var drilled library.Track
-	for _, tr := range m.insights.trackView.SourceTracks {
+	for _, tr := range m.insights.TrackView.SourceTracks {
 		if tr.Hash == "h1" {
 			drilled = tr
 		}

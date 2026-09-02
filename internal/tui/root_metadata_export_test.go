@@ -13,6 +13,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
@@ -49,7 +50,7 @@ func TestMetadataExportRefusesWithoutDataDirAndReturnsNoCmd(t *testing.T) {
 func TestMetadataExportRefusalNotifiesWithTheViewsReason(t *testing.T) {
 	m := exportModel(t, t.TempDir())
 	m.activeView = viewInsights
-	m.insights.level = insightsLevelBriefing
+	m.insights.Level = instui.LevelBriefing
 
 	next, cmd := m.handleMetadataExportRequest()
 	if cmd != nil {

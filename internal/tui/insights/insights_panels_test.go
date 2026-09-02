@@ -1,11 +1,11 @@
-package tui
+package insights
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/sglavoie/muse/internal/insights"
+	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -19,26 +19,26 @@ func at(month time.Month, day, hour int) time.Time {
 	return time.Date(2026, month, day, hour, 30, 0, 0, panelsTestLoc())
 }
 
-func sectionLabels(rows []insightsRow, section string) []string {
+func sectionLabels(rows []Row, section string) []string {
 	var out []string
 	for _, r := range rows {
-		if r.section == section {
-			out = append(out, r.label)
+		if r.Section == section {
+			out = append(out, r.Label)
 		}
 	}
 	return out
 }
 
 func TestRhythmRowsListEveryWeekdayIncludingSilentOnes(t *testing.T) {
-	var r insights.Rhythm
+	var r insightsdata.Rhythm
 	for i := range r.Weekdays {
 		r.Weekdays[i].Weekday = time.Weekday(i)
 	}
 	r.Weekdays[time.Monday].Plays = 4
-	r.Hours[9] = insights.HourBucket{Hour: 9, Plays: 4, ListenedSecs: 600}
+	r.Hours[9] = insightsdata.HourBucket{Hour: 9, Plays: 4, ListenedSecs: 600}
 	r.TotalPlays = 4
 
-	rows := InsightsView{panel: panelRhythm, snap: insights.Snapshot{Rhythm: r}}.rows()
+	rows := View{Panel: PanelRhythm, Snap: insightsdata.Snapshot{Rhythm: r}}.Rows()
 
 	if got := sectionLabels(rows, "Weekday"); len(got) != 7 {
 		t.Errorf("want all 7 weekdays listed, got %v", got)
@@ -51,44 +51,44 @@ func TestRhythmRowsListEveryWeekdayIncludingSilentOnes(t *testing.T) {
 }
 
 func TestRhythmRowsHideGenreAffinityWhenGenresCollide(t *testing.T) {
-	genres := []insights.GenreGroup{{Canonical: "Ambient", Plays: 3, Variants: []string{"Ambient", "ambient"}}}
-	snap := insights.Snapshot{Rhythm: insights.Rhythm{Genres: genres, TotalPlays: 3}}
+	genres := []insightsdata.GenreGroup{{Canonical: "Ambient", Plays: 3, Variants: []string{"Ambient", "ambient"}}}
+	snap := insightsdata.Snapshot{Rhythm: insightsdata.Rhythm{Genres: genres, TotalPlays: 3}}
 
 	snap.Rhythm.GenresUnclean = false
-	clean := InsightsView{panel: panelRhythm, snap: snap}.rows()
+	clean := View{Panel: PanelRhythm, Snap: snap}.Rows()
 	if got := sectionLabels(clean, "Genre affinity"); len(got) != 1 {
 		t.Fatalf("clean genres should produce an affinity row, got %v", got)
 	}
 
 	snap.Rhythm.GenresUnclean = true
-	dirty := InsightsView{panel: panelRhythm, snap: snap}.rows()
+	dirty := View{Panel: PanelRhythm, Snap: snap}.Rows()
 	if got := sectionLabels(dirty, "Genre affinity"); got != nil {
 		t.Errorf("colliding genres should withhold the affinity rows, got %v", got)
 	}
 }
 
 func TestRhythmHeaderExplainsTheWithheldAffinityEvenWhenCompact(t *testing.T) {
-	snap := insights.Snapshot{Rhythm: insights.Rhythm{TotalPlays: 3, GenresUnclean: true}}
+	snap := insightsdata.Snapshot{Rhythm: insightsdata.Rhythm{TotalPlays: 3, GenresUnclean: true}}
 	s := styles.NewStyles(false)
 
 	// The gate outlives the grid: at 60 columns there is no heatmap to hide, but
 	// the rows are withheld just the same, so the reason still has to show.
 	for _, w := range []int{60, 100} {
-		v := InsightsView{panel: panelRhythm, snap: snap, width: w, height: 30, loc: panelsTestLoc()}
-		if !strings.Contains(strings.Join(v.panelHeaderLines(s), "\n"), "genre names collide") {
+		v := View{Panel: PanelRhythm, Snap: snap, width: w, Height: 30, Loc: panelsTestLoc()}
+		if !strings.Contains(strings.Join(v.PanelHeaderLines(s), "\n"), "genre names collide") {
 			t.Errorf("width %d: header should explain why affinity is hidden", w)
 		}
 	}
 }
 
 func TestMomentumRowsRunNewestFirstAndNameSilentMonths(t *testing.T) {
-	snap := insights.Snapshot{Trends: insights.Trends{Buckets: []insights.TrendBucket{
+	snap := insightsdata.Snapshot{Trends: insightsdata.Trends{Buckets: []insightsdata.TrendBucket{
 		{Start: at(time.June, 1, 0), Plays: 2, ListenedSecs: 600},
 		{Start: at(time.July, 1, 0)},
 		{Start: at(time.August, 1, 0), Plays: 5, ListenedSecs: 900},
 	}}}
 
-	rows := InsightsView{panel: panelMomentum, snap: snap, loc: panelsTestLoc()}.rows()
+	rows := View{Panel: PanelMomentum, Snap: snap, Loc: panelsTestLoc()}.Rows()
 
 	want := []string{"August 2026", "July 2026", "June 2026"}
 	if got := sectionLabels(rows, "Month by month"); strings.Join(got, ",") != strings.Join(want, ",") {
@@ -97,23 +97,23 @@ func TestMomentumRowsRunNewestFirstAndNameSilentMonths(t *testing.T) {
 	if rows[1].note != "silent" {
 		t.Errorf("a month with no plays should read as silent, got %q", rows[1].note)
 	}
-	if rows[0].key != "2026-08" {
-		t.Errorf("drill key should be the sortable month, got %q", rows[0].key)
+	if rows[0].Key != "2026-08" {
+		t.Errorf("drill key should be the sortable month, got %q", rows[0].Key)
 	}
 }
 
 func TestDiscoveryRowsLeadTheBacklogWithItsTotal(t *testing.T) {
-	v := InsightsView{
-		panel: panelDiscovery,
-		snap: insights.Snapshot{
-			Trends:   insights.Trends{Buckets: []insights.TrendBucket{{Start: at(time.August, 1, 0), FirstPlays: 2}}},
-			Coverage: insights.Coverage{UnheardTracks: 5, UnheardSecs: 900},
+	v := View{
+		Panel: PanelDiscovery,
+		Snap: insightsdata.Snapshot{
+			Trends:   insightsdata.Trends{Buckets: []insightsdata.TrendBucket{{Start: at(time.August, 1, 0), FirstPlays: 2}}},
+			Coverage: insightsdata.Coverage{UnheardTracks: 5, UnheardSecs: 900},
 		},
-		backlog: []insightsBacklogMonth{{Key: "2026-08", Label: "August 2026", Tracks: 2, Secs: 400}},
-		loc:     panelsTestLoc(),
+		Backlog: []BacklogMonth{{Key: "2026-08", Label: "August 2026", Tracks: 2, Secs: 400}},
+		Loc:     panelsTestLoc(),
 	}
 
-	rows := v.rows()
+	rows := v.Rows()
 
 	if got := sectionLabels(rows, "First heard"); len(got) != 1 || got[0] != "August 2026" {
 		t.Errorf("want one first-heard month row, got %v", got)
@@ -125,8 +125,8 @@ func TestDiscoveryRowsLeadTheBacklogWithItsTotal(t *testing.T) {
 	// The per-month rows only cover tracks whose add date was recorded, so the
 	// total row is the only way the rest of the backlog stays reachable.
 	for _, r := range rows {
-		if r.label == "Everything unheard" && r.drill != drillUnheardAll {
-			t.Errorf("total row should drill to the whole unheard set, got %v", r.drill)
+		if r.Label == "Everything unheard" && r.Drill != DrillUnheardAll {
+			t.Errorf("total row should drill to the whole unheard set, got %v", r.Drill)
 		}
 	}
 }
@@ -141,7 +141,7 @@ func TestBacklogMonths(t *testing.T) {
 		{Hash: "no-add-date", Duration: 500},
 	}
 
-	got := backlogMonths(tracks, loc)
+	got := BacklogMonths(tracks, loc)
 
 	if len(got) != 2 {
 		t.Fatalf("want two add-months, got %+v", got)
@@ -159,13 +159,13 @@ func TestBacklogMonths(t *testing.T) {
 
 func TestInsightsHourGenreFold(t *testing.T) {
 	genreOf := map[string][]string{"a": {"Ambient", "Drone"}, "b": {"ambient"}}
-	plays := []insights.PlayRow{
+	plays := []insightsdata.PlayRow{
 		{Hash: "a", StartAt: at(time.August, 3, 9).Unix()},
 		{Hash: "a", StartAt: at(time.August, 4, 9).Unix()},
 		{Hash: "b", StartAt: at(time.August, 5, 22).Unix()},
 	}
 
-	got := insightsHourGenreFold(plays, func(h string) []string { return genreOf[h] }, panelsTestLoc())
+	got := HourGenreFold(plays, func(h string) []string { return genreOf[h] }, panelsTestLoc())
 
 	if len(got) != 2 {
 		t.Fatalf("want Ambient and Drone rows, got %+v", got)
@@ -207,12 +207,12 @@ func TestInsightsFitHeaderDropsWholeBlocks(t *testing.T) {
 }
 
 func TestInsightsHeaderBudgetLeavesRoomForBody(t *testing.T) {
-	tall := InsightsView{width: 100, height: 30}
+	tall := View{width: 100, Height: 30}
 	if got := tall.headerBudget(); got != 30-1-len(insightsPanelSpecs)-insightsMinBodyRows {
 		t.Errorf("tall budget: got %d", got)
 	}
 	// At 60x15 the briefing list is dropped, so the header gets those lines back.
-	short := InsightsView{width: 60, height: 15}
+	short := View{width: 60, Height: 15}
 	if short.briefingFits() {
 		t.Fatal("precondition: the briefing list should not fit at 60x15")
 	}
@@ -221,7 +221,7 @@ func TestInsightsHeaderBudgetLeavesRoomForBody(t *testing.T) {
 	}
 	// Even a terminal with no room at all keeps the header's blank line and
 	// headline rather than going negative.
-	if got := (InsightsView{width: 60, height: 3}).headerBudget(); got != insightsMinHeaderLines {
+	if got := (View{width: 60, Height: 3}).headerBudget(); got != insightsMinHeaderLines {
 		t.Errorf("floor: want %d, got %d", insightsMinHeaderLines, got)
 	}
 }

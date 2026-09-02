@@ -211,12 +211,12 @@ func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
 // refreshed in place, since trackView.sourceTracks aliases the active mix's
 // cached slice.
 func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
-	if len(m.mixes.cachedMixes) == 0 {
+	if len(m.mixes.CachedMixes) == 0 {
 		return m
 	}
 	updated := false
 	for _, t := range tracks {
-		for id, cached := range m.mixes.cachedMixes {
+		for id, cached := range m.mixes.CachedMixes {
 			changed := false
 			for i := range cached {
 				if cached[i].Hash == t.Hash {
@@ -230,13 +230,13 @@ func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
 				}
 			}
 			if changed {
-				m.mixes.cachedMixes[id] = cached
+				m.mixes.CachedMixes[id] = cached
 				updated = true
 			}
 		}
 	}
-	if updated && m.mixes.level == 1 {
-		m.mixes.trackView = m.mixes.trackView.RefreshView()
+	if updated && m.mixes.Level == 1 {
+		m.mixes.TrackView = m.mixes.TrackView.RefreshView()
 	}
 	return m
 }
@@ -246,8 +246,8 @@ func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
 // insightsDrillTracks returned — m.insights.dormant for a dormant drill — so
 // entries are mutated in place and the slice is never appended to or resliced.
 func (m Model) watchSyncInsightsMetadata(tracks []library.Track) Model {
-	src := m.insights.trackView.SourceTracks
-	if !m.insights.atTracks() || len(src) == 0 {
+	src := m.insights.TrackView.SourceTracks
+	if !m.insights.AtTracks() || len(src) == 0 {
 		return m
 	}
 	updated := false
@@ -270,7 +270,7 @@ func (m Model) watchSyncInsightsMetadata(tracks []library.Track) Model {
 		}
 	}
 	if updated {
-		m.insights.trackView = m.insights.trackView.RefreshView().ClampCursor()
+		m.insights.TrackView = m.insights.TrackView.RefreshView().ClampCursor()
 	}
 	return m
 }

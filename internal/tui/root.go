@@ -13,9 +13,11 @@ import (
 	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/metadata"
+	"github.com/sglavoie/muse/internal/tui/mixes"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
@@ -116,8 +118,8 @@ type Model struct {
 	browse     browse.BrowseView
 	favorites  favtui.FavoritesView
 	tagsView   tagtui.TagsView
-	mixes      MixesView
-	insights   InsightsView
+	mixes      mixes.MixesView
+	insights   instui.View
 
 	// scanCh is the channel returned by library.Scan. It is nil when no scan
 	// is in progress or after the scan has completed.

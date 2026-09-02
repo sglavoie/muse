@@ -36,7 +36,7 @@ func TestScanBatchReconcilesCachesWithNormalizedMetadata(t *testing.T) {
 	m.queue.Entries = []queue.Entry{
 		{ID: 1, Hash: "h1", Path: "/a.mp3", Title: "Old", Artist: "Old", DurationMs: 0},
 	}
-	m.mixes.cachedMixes = map[db.MixID][]library.Track{
+	m.mixes.CachedMixes = map[db.MixID][]library.Track{
 		db.MixRediscover: {{Hash: "h1", Path: "/a.mp3", Title: "Old", Artist: "Old", Duration: 0}},
 	}
 
@@ -70,7 +70,7 @@ func TestScanBatchReconcilesCachesWithNormalizedMetadata(t *testing.T) {
 	}
 
 	// Collection (mixes) cache must match too.
-	cached := nm.mixes.cachedMixes[db.MixRediscover][0]
+	cached := nm.mixes.CachedMixes[db.MixRediscover][0]
 	if cached.Title != "Edited Title" {
 		t.Errorf("mix cached Title = %q; want Edited Title", cached.Title)
 	}

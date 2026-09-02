@@ -142,12 +142,12 @@ func collectDebugInfo(m Model) DebugPanel {
 	}
 
 	// Recommendations.
-	p.insufficientData = m.mixes.insufficientData
-	p.playsSinceRefresh = m.mixes.playsSinceRefresh
-	p.mixCount = len(m.mixes.mixes)
+	p.insufficientData = m.mixes.InsufficientData
+	p.playsSinceRefresh = m.mixes.PlaysSinceRefresh
+	p.mixCount = len(m.mixes.Mixes)
 	p.cachedMixCounts = make(map[string]int)
-	for _, mix := range m.mixes.mixes {
-		if cached, ok := m.mixes.cachedMixes[mix.ID]; ok {
+	for _, mix := range m.mixes.Mixes {
+		if cached, ok := m.mixes.CachedMixes[mix.ID]; ok {
 			p.cachedMixCounts[mix.Name] = len(cached)
 			p.totalCachedTracks += len(cached)
 		}
