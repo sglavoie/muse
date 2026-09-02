@@ -1,4 +1,4 @@
-package tui
+package settings
 
 import (
 	"testing"
@@ -30,7 +30,7 @@ func TestEQToConfigRoundTrip(t *testing.T) {
 
 func TestEQToConfigCustomSentinelKeyIsCustom(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.fields[settingsTabEqualizer][1].Value = len(o.eqPresets) - 1
+	o.Fields[TabEqualizer][1].Value = len(o.EQPresets) - 1
 	got := o.ToConfig(config.Defaults())
 	if got.EQPreset != "custom" {
 		t.Errorf("ToConfig with sentinel: expected EQPreset=%q, got %q", "custom", got.EQPreset)

@@ -17,6 +17,8 @@ import (
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/settings"
+	"github.com/sglavoie/muse/internal/tui/smartrules"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -36,8 +38,8 @@ type overlayInfo struct {
 	destPicker            *pltui.DestinationPickerModal
 	destPickerTracks      []library.Track
 	goTo                  *overlay.GoToModal
-	settings              *SettingsOverlay
-	smartRuleEditor       *SmartRuleEditor
+	settings              *settings.SettingsOverlay
+	smartRuleEditor       *smartrules.SmartRuleEditor
 	commandPalette        *CommandPalette
 	tagPicker             *TagPicker
 	tagMergePicker        *TagMergePicker

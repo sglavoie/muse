@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
 func TestInputForwardingPrefersHelpSearchOverOverlayInputs(t *testing.T) {
@@ -16,9 +17,9 @@ func TestInputForwardingPrefersHelpSearchOverOverlayInputs(t *testing.T) {
 	m.termHeight = 24
 	m.helpSearchFilter = filter.New()
 	m.helpSearchFilter, _ = m.helpSearchFilter.Activate()
-	settings := NewSettingsOverlay(config.Defaults(), 50, nil)
-	settings.exclPathInput = newSettingsInput()
-	m.overlay.settings = &settings
+	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), 50, nil)
+	overlaySettings.ExclPathInput = settings.NewSettingsInput()
+	m.overlay.settings = &overlaySettings
 
 	next, _, ok := m.forwardToActiveInput(tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if !ok {
@@ -28,16 +29,16 @@ func TestInputForwardingPrefersHelpSearchOverOverlayInputs(t *testing.T) {
 	if next.helpSearchFilter.Text != "x" {
 		t.Fatalf("expected help search input to consume msg, got %q", next.helpSearchFilter.Text)
 	}
-	if got := next.overlay.settings.exclPathInput.Value(); got != "" {
+	if got := next.overlay.settings.ExclPathInput.Value(); got != "" {
 		t.Fatalf("expected settings input to remain untouched, got %q", got)
 	}
 }
 
 func TestInputForwardingPrefersSettingsOverMetadataEditor(t *testing.T) {
 	m := New(context.Background())
-	settings := NewSettingsOverlay(config.Defaults(), 50, nil)
-	settings.exclPathInput = newSettingsInput()
-	m.overlay.settings = &settings
+	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), 50, nil)
+	overlaySettings.ExclPathInput = settings.NewSettingsInput()
+	m.overlay.settings = &overlaySettings
 	editor := NewMetadataEditor("hash", "title", "artist", "album", "genre", 0)
 	m.overlay.metadataEditor = &editor
 
@@ -46,7 +47,7 @@ func TestInputForwardingPrefersSettingsOverMetadataEditor(t *testing.T) {
 		t.Fatal("expected settings input to consume forwarded msg")
 	}
 
-	if got := next.overlay.settings.exclPathInput.Value(); got != "z" {
+	if got := next.overlay.settings.ExclPathInput.Value(); got != "z" {
 		t.Fatalf("expected settings input to update, got %q", got)
 	}
 	if got := next.overlay.metadataEditor.Title(); got != "title" {

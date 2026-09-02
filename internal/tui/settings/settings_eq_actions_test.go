@@ -1,4 +1,4 @@
-package tui
+package settings
 
 import (
 	"testing"
@@ -20,12 +20,12 @@ func TestEQPresetCyclingSnapssBands(t *testing.T) {
 	}
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
-	if action != settingsEQLive {
+	if action != ActionEQLive {
 		t.Errorf("preset cycle: expected settingsEQLive, got %v", action)
 	}
 
 	bassBoostPreset := config.BuiltinEQPresets[1]
-	eq := o.fields[settingsTabEqualizer]
+	eq := o.Fields[TabEqualizer]
 	for i := range 10 {
 		if eq[i+2].Value != bassBoostPreset.Bands[i] {
 			t.Errorf("band %d: expected %d (Bass Boost), got %d", i, bassBoostPreset.Bands[i], eq[i+2].Value)
@@ -46,10 +46,10 @@ func TestEQPresetCyclingIncludesCustomPresets(t *testing.T) {
 		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	}
 
-	presetIdx := o.fields[settingsTabEqualizer][1].Value
-	if o.eqPresets[presetIdx].Key != "night_mode" {
+	presetIdx := o.Fields[TabEqualizer][1].Value
+	if o.EQPresets[presetIdx].Key != "night_mode" {
 		t.Errorf("after cycling through built-ins: expected custom preset %q, got %q",
-			"night_mode", o.eqPresets[presetIdx].Key)
+			"night_mode", o.EQPresets[presetIdx].Key)
 	}
 }
 
@@ -66,14 +66,14 @@ func TestEQBandAdjustmentSwitchesToCustomSentinel(t *testing.T) {
 	}
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
-	if action != settingsEQLive {
+	if action != ActionEQLive {
 		t.Errorf("band adjust: expected settingsEQLive, got %v", action)
 	}
 
-	sentinelIdx := len(o.eqPresets) - 1
-	if o.fields[settingsTabEqualizer][1].Value != sentinelIdx {
+	sentinelIdx := len(o.EQPresets) - 1
+	if o.Fields[TabEqualizer][1].Value != sentinelIdx {
 		t.Errorf("preset after band adjust: expected sentinel index %d, got %d",
-			sentinelIdx, o.fields[settingsTabEqualizer][1].Value)
+			sentinelIdx, o.Fields[TabEqualizer][1].Value)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestEQEnabledToggleReturnsEQLive(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
-	if action != settingsEQLive {
+	if action != ActionEQLive {
 		t.Errorf("enabled toggle: expected settingsEQLive, got %v", action)
 	}
 }
@@ -91,10 +91,10 @@ func TestEQSavePresetOpensNameInput(t *testing.T) {
 	o = switchToEQTab(o)
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("S: expected settingsNone, got %v", action)
 	}
-	if o.eqNameInput == nil {
+	if o.EQNameInput == nil {
 		t.Error("S: expected eqNameInput to be non-nil")
 	}
 }
@@ -102,23 +102,23 @@ func TestEQSavePresetOpensNameInput(t *testing.T) {
 func TestEQSavePresetTypingAndEnter(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
-	initialPresetCount := len(o.eqPresets)
+	initialPresetCount := len(o.EQPresets)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'H', Text: "H"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'i', Text: "i"})
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if action != settingsEQSave {
+	if action != ActionEQSave {
 		t.Errorf("Enter after typing: expected settingsEQSave, got %v", action)
 	}
-	if o.eqNameInput != nil {
+	if o.EQNameInput != nil {
 		t.Error("Enter: expected eqNameInput to be nil after confirm")
 	}
-	if len(o.eqPresets) != initialPresetCount+1 {
-		t.Errorf("Enter: expected %d presets, got %d", initialPresetCount+1, len(o.eqPresets))
+	if len(o.EQPresets) != initialPresetCount+1 {
+		t.Errorf("Enter: expected %d presets, got %d", initialPresetCount+1, len(o.EQPresets))
 	}
-	newPreset := o.eqPresets[len(o.eqPresets)-2]
+	newPreset := o.EQPresets[len(o.EQPresets)-2]
 	if newPreset.Name != "Hi" {
 		t.Errorf("new preset name: expected %q, got %q", "Hi", newPreset.Name)
 	}
@@ -130,34 +130,34 @@ func TestEQSavePresetTypingAndEnter(t *testing.T) {
 func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
-	initialPresetCount := len(o.eqPresets)
+	initialPresetCount := len(o.EQPresets)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("Enter with empty name: expected settingsNone, got %v", action)
 	}
-	if len(o.eqPresets) != initialPresetCount {
-		t.Errorf("Enter with empty name: preset count changed from %d to %d", initialPresetCount, len(o.eqPresets))
+	if len(o.EQPresets) != initialPresetCount {
+		t.Errorf("Enter with empty name: preset count changed from %d to %d", initialPresetCount, len(o.EQPresets))
 	}
 }
 
 func TestEQSavePresetEscCancels(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
-	initialPresetCount := len(o.eqPresets)
+	initialPresetCount := len(o.EQPresets)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'X', Text: "X"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("Esc in name input: expected settingsNone, got %v", action)
 	}
-	if o.eqNameInput != nil {
+	if o.EQNameInput != nil {
 		t.Error("Esc: expected eqNameInput to be nil")
 	}
-	if len(o.eqPresets) != initialPresetCount {
-		t.Errorf("Esc: preset count changed from %d to %d", initialPresetCount, len(o.eqPresets))
+	if len(o.EQPresets) != initialPresetCount {
+		t.Errorf("Esc: preset count changed from %d to %d", initialPresetCount, len(o.EQPresets))
 	}
 }
 
@@ -176,7 +176,7 @@ func TestEQSavePresetSlugDedup(t *testing.T) {
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	var keys []string
-	for _, p := range o.eqPresets {
+	for _, p := range o.EQPresets {
 		if !p.Builtin && p.Key != "custom" {
 			keys = append(keys, p.Key)
 		}
@@ -203,10 +203,10 @@ func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("D on built-in: expected settingsNone, got %v", action)
 	}
-	if o.eqConfirmDel {
+	if o.EQConfirmDel {
 		t.Error("D on built-in: expected eqConfirmDel=false")
 	}
 }
@@ -215,13 +215,13 @@ func TestEQDeleteSentinelIgnored(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 
-	o.fields[settingsTabEqualizer][1].Value = len(o.eqPresets) - 1
+	o.Fields[TabEqualizer][1].Value = len(o.EQPresets) - 1
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("D on sentinel: expected settingsNone, got %v", action)
 	}
-	if o.eqConfirmDel {
+	if o.EQConfirmDel {
 		t.Error("D on sentinel: expected eqConfirmDel=false")
 	}
 }
@@ -233,34 +233,34 @@ func TestEQDeleteCustomPresetFlow(t *testing.T) {
 	}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
 	o = switchToEQTab(o)
-	initialPresetCount := len(o.eqPresets)
+	initialPresetCount := len(o.EQPresets)
 
 	customIdx := len(config.BuiltinEQPresets)
-	o.fields[settingsTabEqualizer][1].Value = customIdx
+	o.Fields[TabEqualizer][1].Value = customIdx
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("D: expected settingsNone, got %v", action)
 	}
-	if !o.eqConfirmDel {
+	if !o.EQConfirmDel {
 		t.Error("D: expected eqConfirmDel=true")
 	}
 
 	o, action, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
-	if action != settingsEQDelete {
+	if action != ActionEQDelete {
 		t.Errorf("D confirm: expected settingsEQDelete, got %v", action)
 	}
-	if o.eqConfirmDel {
+	if o.EQConfirmDel {
 		t.Error("D confirm: expected eqConfirmDel=false after confirm")
 	}
-	if len(o.eqPresets) != initialPresetCount-1 {
-		t.Errorf("D confirm: expected %d presets, got %d", initialPresetCount-1, len(o.eqPresets))
+	if len(o.EQPresets) != initialPresetCount-1 {
+		t.Errorf("D confirm: expected %d presets, got %d", initialPresetCount-1, len(o.EQPresets))
 	}
 
-	presetIdx := o.fields[settingsTabEqualizer][1].Value
-	if o.eqPresets[presetIdx].Key != "flat" {
-		t.Errorf("after delete: expected preset=flat, got %q", o.eqPresets[presetIdx].Key)
+	presetIdx := o.Fields[TabEqualizer][1].Value
+	if o.EQPresets[presetIdx].Key != "flat" {
+		t.Errorf("after delete: expected preset=flat, got %q", o.EQPresets[presetIdx].Key)
 	}
 }
 
@@ -271,22 +271,22 @@ func TestEQDeleteCustomPresetEscCancels(t *testing.T) {
 	}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
 	o = switchToEQTab(o)
-	initialPresetCount := len(o.eqPresets)
+	initialPresetCount := len(o.EQPresets)
 
 	customIdx := len(config.BuiltinEQPresets)
-	o.fields[settingsTabEqualizer][1].Value = customIdx
+	o.Fields[TabEqualizer][1].Value = customIdx
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("Esc in confirm: expected settingsNone, got %v", action)
 	}
-	if o.eqConfirmDel {
+	if o.EQConfirmDel {
 		t.Error("Esc: expected eqConfirmDel=false")
 	}
-	if len(o.eqPresets) != initialPresetCount {
-		t.Errorf("Esc: preset count changed from %d to %d", initialPresetCount, len(o.eqPresets))
+	if len(o.EQPresets) != initialPresetCount {
+		t.Errorf("Esc: preset count changed from %d to %d", initialPresetCount, len(o.EQPresets))
 	}
 }
 
@@ -298,15 +298,15 @@ func TestEQBandAtMinDoesNotResetPreset(t *testing.T) {
 	o = switchToEQTab(o)
 
 	o.cursor = 2
-	o.fields[settingsTabEqualizer][2].Value = -12
+	o.Fields[TabEqualizer][2].Value = -12
 
-	presetBefore := o.fields[settingsTabEqualizer][1].Value
+	presetBefore := o.Fields[TabEqualizer][1].Value
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
 
-	if o.fields[settingsTabEqualizer][1].Value != presetBefore {
-		t.Errorf("h at min: preset changed from %d to %d", presetBefore, o.fields[settingsTabEqualizer][1].Value)
+	if o.Fields[TabEqualizer][1].Value != presetBefore {
+		t.Errorf("h at min: preset changed from %d to %d", presetBefore, o.Fields[TabEqualizer][1].Value)
 	}
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("h at min: expected settingsNone, got %v", action)
 	}
 }
@@ -319,15 +319,15 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 	o = switchToEQTab(o)
 
 	o.cursor = 2
-	o.fields[settingsTabEqualizer][2].Value = 12
+	o.Fields[TabEqualizer][2].Value = 12
 
-	presetBefore := o.fields[settingsTabEqualizer][1].Value
+	presetBefore := o.Fields[TabEqualizer][1].Value
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 
-	if o.fields[settingsTabEqualizer][1].Value != presetBefore {
-		t.Errorf("l at max: preset changed from %d to %d", presetBefore, o.fields[settingsTabEqualizer][1].Value)
+	if o.Fields[TabEqualizer][1].Value != presetBefore {
+		t.Errorf("l at max: preset changed from %d to %d", presetBefore, o.Fields[TabEqualizer][1].Value)
 	}
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("l at max: expected settingsNone, got %v", action)
 	}
 }
@@ -342,27 +342,27 @@ func TestEQPresetCyclingOntoCustomSentinelPreservesBands(t *testing.T) {
 	o = switchToEQTab(o)
 
 	// Position the Preset cursor just before the (Custom) sentinel.
-	sentinelIdx := len(o.eqPresets) - 1
-	o.fields[settingsTabEqualizer][1].Value = sentinelIdx - 1
+	sentinelIdx := len(o.EQPresets) - 1
+	o.Fields[TabEqualizer][1].Value = sentinelIdx - 1
 	o.cursor = 1
 
 	// Set custom band values (simulate user edits that diverged from the
 	// preset just before the sentinel).
 	custom := [10]int{1, -2, 3, -4, 5, -6, 7, -8, 9, -10}
 	for i := range 10 {
-		o.fields[settingsTabEqualizer][i+2].Value = custom[i]
+		o.Fields[TabEqualizer][i+2].Value = custom[i]
 	}
 
 	// Advance one step to land on the (Custom) sentinel.
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
-	if o.fields[settingsTabEqualizer][1].Value != sentinelIdx {
+	if o.Fields[TabEqualizer][1].Value != sentinelIdx {
 		t.Fatalf("precondition: expected to land on sentinel idx %d, got %d",
-			sentinelIdx, o.fields[settingsTabEqualizer][1].Value)
+			sentinelIdx, o.Fields[TabEqualizer][1].Value)
 	}
 
 	// Bands must be unchanged after landing on sentinel.
 	for i := range 10 {
-		got := o.fields[settingsTabEqualizer][i+2].Value
+		got := o.Fields[TabEqualizer][i+2].Value
 		if got != custom[i] {
 			t.Errorf("band %d after sentinel snap: expected %d (preserved), got %d",
 				i, custom[i], got)
@@ -373,7 +373,7 @@ func TestEQPresetCyclingOntoCustomSentinelPreservesBands(t *testing.T) {
 func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
-	initialPresetCount := len(o.eqPresets)
+	initialPresetCount := len(o.EQPresets)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
@@ -381,11 +381,11 @@ func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '!', Text: "!"})
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-	if action != settingsNone {
+	if action != ActionNone {
 		t.Errorf("Enter with all-special-chars name: expected settingsNone, got %v", action)
 	}
-	if len(o.eqPresets) != initialPresetCount {
+	if len(o.EQPresets) != initialPresetCount {
 		t.Errorf("Enter with all-special-chars name: preset count changed from %d to %d",
-			initialPresetCount, len(o.eqPresets))
+			initialPresetCount, len(o.EQPresets))
 	}
 }

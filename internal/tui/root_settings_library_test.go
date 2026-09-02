@@ -127,9 +127,9 @@ func TestSettingsSaveLibraryDirsUnchangedExcludedPathsChangedTriggersRescan(t *t
 	nm = next.(Model)
 
 	// The overlay should have 0 excluded paths now.
-	if len(nm.overlay.settings.excludedPaths) != 0 {
+	if len(nm.overlay.settings.ExcludedPaths) != 0 {
 		t.Fatalf("precondition: expected 0 excludedPaths in overlay, got %d",
-			len(nm.overlay.settings.excludedPaths))
+			len(nm.overlay.settings.ExcludedPaths))
 	}
 
 	_, cmd := nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})

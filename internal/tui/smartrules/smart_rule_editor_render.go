@@ -1,4 +1,4 @@
-package tui
+package smartrules
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ func (e SmartRuleEditor) Render(termWidth, termHeight int, s styles.Styles) stri
 
 func (e SmartRuleEditor) renderNameStep(termWidth, termHeight int, s styles.Styles) string {
 	title := " Create Smart Playlist "
-	if e.isEdit {
+	if e.IsEdit {
 		title = " Edit Smart Playlist "
 	}
 	box := overlay.Box{
@@ -140,7 +140,7 @@ func (e SmartRuleEditor) renderSortStep(termWidth, termHeight int, s styles.Styl
 	}
 
 	saveLabel := "create"
-	if e.isEdit {
+	if e.IsEdit {
 		saveLabel = "save"
 	}
 

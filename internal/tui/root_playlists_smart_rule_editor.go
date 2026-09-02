@@ -3,6 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/smartrules"
 )
 
 // handleSmartRuleEditorKeyPress routes key events to the smart rule editor
@@ -17,14 +18,14 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 	updated, act, cmd := m.overlay.smartRuleEditor.HandleKey(msg)
 	m.overlay.smartRuleEditor = &updated
 	switch act {
-	case ruleEditorClose:
+	case smartrules.ActionClose:
 		m.overlay.smartRuleEditor = nil
 		return m, cmd, true
-	case ruleEditorCommit:
+	case smartrules.ActionCommit:
 		name := updated.Name()
-		q := updated.buildQuery()
-		isEdit := updated.isEdit
-		editID := updated.editID
+		q := updated.BuildQuery()
+		isEdit := updated.IsEdit
+		editID := updated.EditID
 		m.overlay.smartRuleEditor = nil
 		sw := m.smartPlaylistWriter
 		if sw != nil {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/settings"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
@@ -21,33 +22,33 @@ type playerApplyStep struct {
 	rollback func() error
 }
 
-func cloneSettingsOverlay(o SettingsOverlay) SettingsOverlay {
+func cloneSettingsOverlay(o settings.SettingsOverlay) settings.SettingsOverlay {
 	clone := o
-	for i := range o.fields {
-		if o.fields[i] != nil {
-			clone.fields[i] = append([]settingsField(nil), o.fields[i]...)
+	for i := range o.Fields {
+		if o.Fields[i] != nil {
+			clone.Fields[i] = append([]settings.Field(nil), o.Fields[i]...)
 		}
 	}
-	if o.eqPresets != nil {
-		clone.eqPresets = append([]config.EQPresetDef(nil), o.eqPresets...)
+	if o.EQPresets != nil {
+		clone.EQPresets = append([]config.EQPresetDef(nil), o.EQPresets...)
 	}
-	if o.libraryDirs != nil {
-		clone.libraryDirs = append([]string(nil), o.libraryDirs...)
+	if o.LibraryDirs != nil {
+		clone.LibraryDirs = append([]string(nil), o.LibraryDirs...)
 	}
-	if o.excludedPaths != nil {
-		clone.excludedPaths = append([]string(nil), o.excludedPaths...)
+	if o.ExcludedPaths != nil {
+		clone.ExcludedPaths = append([]string(nil), o.ExcludedPaths...)
 	}
-	if o.libDirInput != nil {
-		input := *o.libDirInput
-		clone.libDirInput = &input
+	if o.LibDirInput != nil {
+		input := *o.LibDirInput
+		clone.LibDirInput = &input
 	}
-	if o.exclPathInput != nil {
-		input := *o.exclPathInput
-		clone.exclPathInput = &input
+	if o.ExclPathInput != nil {
+		input := *o.ExclPathInput
+		clone.ExclPathInput = &input
 	}
-	if o.eqNameInput != nil {
-		input := *o.eqNameInput
-		clone.eqNameInput = &input
+	if o.EQNameInput != nil {
+		input := *o.EQNameInput
+		clone.EQNameInput = &input
 	}
 	return clone
 }
@@ -178,7 +179,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 	updated, action, cmd := m.overlay.settings.HandleKey(msg)
 	m.overlay.settings = &updated
 	switch action {
-	case settingsCancel:
+	case settings.ActionCancel:
 		prevEQEnabled, prevEQBands := previous.EQState()
 		prevStereoEnabled, prevStereoAmount := previous.StereoWideState()
 		if err := applyPlayerSteps(
@@ -192,10 +193,10 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		}
 		m.overlay.settings = nil
 		return m, cmd, true
-	case settingsSave:
+	case settings.ActionSave:
 		saved, saveCmd := m.handleSettingsSave()
 		return saved, tea.Batch(cmd, saveCmd), true
-	case settingsEQLive:
+	case settings.ActionEQLive:
 		prevEnabled, prevBands := previous.EQState()
 		nextEnabled, nextBands := updated.EQState()
 		if err := applyPlayerStep(m.equalizerApplyStep(prevEnabled, prevBands, nextEnabled, nextBands)); err != nil {
@@ -204,7 +205,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 			m.statusBar.Notify("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
-	case settingsStereoLive:
+	case settings.ActionStereoLive:
 		prevEnabled, prevAmount := previous.StereoWideState()
 		nextEnabled, nextAmount := updated.StereoWideState()
 		if err := applyPlayerStep(m.stereoWideApplyStep(prevEnabled, prevAmount, nextEnabled, nextAmount)); err != nil {
@@ -213,9 +214,9 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 			m.statusBar.Notify("Stereo widening preview failed: " + err.Error())
 		}
 		return m, cmd, true
-	case settingsEQSave:
+	case settings.ActionEQSave:
 		return m, cmd, true
-	case settingsEQDelete:
+	case settings.ActionEQDelete:
 		prevEnabled, prevBands := previous.EQState()
 		nextEnabled, nextBands := updated.EQState()
 		step := m.equalizerApplyStep(prevEnabled, prevBands, nextEnabled, nextBands)
@@ -234,7 +235,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		}
 		if err := applyPlayerStep(step); err != nil {
 			restored := previous
-			restored.eqConfirmDel = false
+			restored.EQConfirmDel = false
 			m.overlay.settings = &restored
 			m.statusBar.Notify("Equalizer preview failed: " + err.Error())
 		}
@@ -245,7 +246,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 
 // handleSettingsOpen creates a new SettingsOverlay from the current config.
 func (m Model) handleSettingsOpen() (tea.Model, tea.Cmd) {
-	overlay := NewSettingsOverlay(m.cfg, m.playback.volume, m.cfg.MusicDirectories)
+	overlay := settings.NewSettingsOverlay(m.cfg, m.playback.volume, m.cfg.MusicDirectories)
 	m.overlay.settings = &overlay
 	return m, nil
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
 // fakeTrackNotifier records every NotifyTrack call. drainCmd runs the
@@ -129,8 +130,8 @@ func TestToggleTrackNotifyFlipsState(t *testing.T) {
 // command palette.
 func TestSettingsSaveSyncsTrackNotifyMirror(t *testing.T) {
 	m := New(context.Background())
-	o := NewSettingsOverlay(m.cfg, m.cfg.DefaultVolume, m.cfg.MusicDirectories)
-	o.fields[settingsTabDisplay][2].Value = 1
+	o := settings.NewSettingsOverlay(m.cfg, m.cfg.DefaultVolume, m.cfg.MusicDirectories)
+	o.Fields[settings.TabDisplay][2].Value = 1
 	m.overlay.settings = &o
 
 	next, _ := m.handleSettingsSave()

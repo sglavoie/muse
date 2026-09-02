@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/smartrules"
 )
 
 // handlePlaylistKeyAction handles playlist-specific key actions.
@@ -41,7 +42,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 		return m, cmd, true
 	case keys.ActionSmartPlaylistCreate:
 		if m.activeView == viewPlaylists && m.playlists.atListLevel() {
-			editor := newSmartRuleEditor()
+			editor := smartrules.NewSmartRuleEditor()
 			m.overlay.smartRuleEditor = &editor
 		}
 		return m, nil, true
@@ -60,7 +61,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 					m.statusBar.Notify("Invalid smart playlist query: " + err.Error())
 					return m, nil, true
 				}
-				editor := newSmartRuleEditorEdit(pl.ID, pl.Name, q)
+				editor := smartrules.NewSmartRuleEditorEdit(pl.ID, pl.Name, q)
 				m.overlay.smartRuleEditor = &editor
 			}
 		}

@@ -1,4 +1,4 @@
-package tui
+package settings
 
 import (
 	"strings"
@@ -12,7 +12,7 @@ import (
 
 func TestEQRenderEqualizerTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.tab = settingsTabEqualizer
+	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
 	for _, label := range []string{"Enabled", "Preset", "31 Hz", "16 kHz"} {
@@ -26,7 +26,7 @@ func TestEQRenderShowsPresetName(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o.tab = settingsTabEqualizer
+	o.Tab = TabEqualizer
 	o.cursor = 1
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
@@ -37,10 +37,10 @@ func TestEQRenderShowsPresetName(t *testing.T) {
 
 func TestEQRenderShowsNameInputPrompt(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.tab = settingsTabEqualizer
-	input := newSettingsInput()
+	o.Tab = TabEqualizer
+	input := NewSettingsInput()
 	input.SetValue("My")
-	o.eqNameInput = input
+	o.EQNameInput = input
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
 	if !strings.Contains(out, "Save as:") {
@@ -54,10 +54,10 @@ func TestEQRenderShowsDeleteConfirmation(t *testing.T) {
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o.tab = settingsTabEqualizer
+	o.Tab = TabEqualizer
 	o.cursor = 1
-	o.fields[settingsTabEqualizer][1].Value = len(config.BuiltinEQPresets)
-	o.eqConfirmDel = true
+	o.Fields[TabEqualizer][1].Value = len(config.BuiltinEQPresets)
+	o.EQConfirmDel = true
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
 	if !strings.Contains(out, "Delete") {
@@ -70,7 +70,7 @@ func TestEQRenderShowsDeleteConfirmation(t *testing.T) {
 
 func TestEQHintLineShowsOnEQTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.tab = settingsTabEqualizer
+	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
 	if !strings.Contains(out, "s save") {
@@ -83,7 +83,7 @@ func TestEQHintLineShowsOnEQTab(t *testing.T) {
 
 func TestEQHintLineIncludesJKFields(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.tab = settingsTabEqualizer
+	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
 	if !strings.Contains(out, "j/k fields") {

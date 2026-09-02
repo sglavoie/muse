@@ -1,4 +1,4 @@
-package tui
+package settings
 
 import (
 	"strings"
@@ -35,7 +35,7 @@ func TestSettingsRenderContainsTabNames(t *testing.T) {
 
 func TestSettingsRenderContainsFieldLabels(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.tab = settingsTabPlayback
+	o.Tab = TabPlayback
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	for _, label := range []string{"Volume step", "Seek short", "Seek long", "Default volume", "Normalize", "Gapless"} {
@@ -65,19 +65,9 @@ func TestSettingsRenderContainsHint(t *testing.T) {
 	}
 }
 
-func TestSettingsRenderHintFitsMinimumSupportedSize(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	s := styles.NewStyles(true)
-
-	raw := o.Render(minTerminalWidth, minTerminalHeight, s)
-	if issues := DetectLayoutIssues(raw, PlainScreen(raw), minTerminalWidth, minTerminalHeight); len(issues) != 0 {
-		t.Fatalf("settings overlay should fit at minimum supported size, got %+v:\n%s", issues, PlainScreen(raw))
-	}
-}
-
 func TestSettingsRenderDisplayTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	o.tab = settingsTabDisplay
+	o.Tab = TabDisplay
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	if !strings.Contains(out, "Notification") {
@@ -92,7 +82,7 @@ func TestSettingsRenderClampsToBoxWidthAtNarrowTerm(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{strings.Repeat("a-very-long-excluded-path-pattern/", 4)}
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o.tab = settingsTabLibrary
+	o.Tab = TabLibrary
 	o.libSubView = libSubViewExcluded
 	s := styles.NewStyles(true)
 
@@ -140,7 +130,7 @@ func TestSettingsRenderClampsToBoxWidthAtNarrowTerm(t *testing.T) {
 func TestSettingsRenderEqualizerTabClampsAtNarrowTerm(t *testing.T) {
 	cfg := config.Defaults()
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o.tab = settingsTabEqualizer
+	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 
 	out := ansi.Strip(o.Render(28, 30, s))
@@ -175,7 +165,7 @@ func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideAmount = 20
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	o.tab = settingsTabPlayback
+	o.Tab = TabPlayback
 	for range 7 {
 		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	}

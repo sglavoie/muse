@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
 // equalizerCapturingPlayer wraps a playPauser stub and records SetEqualizer calls.
@@ -41,8 +42,8 @@ func openSettingsOnEQTab(t *testing.T, m Model) Model {
 	nm = next.(Model)
 	next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
 	nm = next.(Model)
-	if nm.overlay.settings.tab != settingsTabEqualizer {
-		t.Fatalf("precondition: expected EQ tab, got %v", nm.overlay.settings.tab)
+	if nm.overlay.settings.Tab != settings.TabEqualizer {
+		t.Fatalf("precondition: expected EQ tab, got %v", nm.overlay.settings.Tab)
 	}
 	return nm
 }
@@ -83,7 +84,7 @@ func TestEQLivePreviewFailureRestoresOverlayState(t *testing.T) {
 	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	nm = next.(Model)
 
-	if nm.overlay.settings.fields[settingsTabEqualizer][0].Value != 0 {
+	if nm.overlay.settings.Fields[settings.TabEqualizer][0].Value != 0 {
 		t.Fatal("live preview: expected EQ enabled toggle to revert on failure")
 	}
 	if !strings.Contains(nm.statusBar.TopNotification().Msg, "failed") {
@@ -219,7 +220,7 @@ func TestEQDeleteActionAppliesEqualizer(t *testing.T) {
 
 	// Navigate to the custom preset.
 	customIdx := len(config.BuiltinEQPresets)
-	nm.overlay.settings.fields[settingsTabEqualizer][1].Value = customIdx
+	nm.overlay.settings.Fields[settings.TabEqualizer][1].Value = customIdx
 
 	// Move cursor to Preset field (j once) then press D.
 	next, _ := nm.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})

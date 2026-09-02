@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
 // normalizeCapturingPlayer wraps a playPauser stub and records SetNormalize calls.
@@ -69,8 +70,8 @@ func openSettingsOnPlaybackTab(t *testing.T, m Model) Model {
 	// Advance one tab from Library to Playback.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
 	nm = next.(Model)
-	if nm.overlay.settings.tab != settingsTabPlayback {
-		t.Fatalf("precondition: expected Playback tab, got %v", nm.overlay.settings.tab)
+	if nm.overlay.settings.Tab != settings.TabPlayback {
+		t.Fatalf("precondition: expected Playback tab, got %v", nm.overlay.settings.Tab)
 	}
 	return nm
 }
@@ -233,7 +234,7 @@ func TestStereoWideLivePreviewFailureRestoresOverlayState(t *testing.T) {
 	next, _ := nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	nm = next.(Model)
 
-	if nm.overlay.settings.fields[settingsTabPlayback][6].Value != 0 {
+	if nm.overlay.settings.Fields[settings.TabPlayback][6].Value != 0 {
 		t.Fatal("live preview: expected stereo wide toggle to revert on failure")
 	}
 	if !strings.Contains(nm.statusBar.TopNotification().Msg, "failed") {

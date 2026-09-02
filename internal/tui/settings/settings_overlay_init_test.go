@@ -1,4 +1,4 @@
-package tui
+package settings
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	currentVolume := 75
 	o := NewSettingsOverlay(cfg, currentVolume, cfg.MusicDirectories)
 
-	pb := o.fields[settingsTabPlayback]
+	pb := o.Fields[TabPlayback]
 	if len(pb) != 8 {
 		t.Fatalf("expected 8 playback fields, got %d", len(pb))
 	}
@@ -43,7 +43,7 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 		t.Errorf("GaplessAudio: expected %d, got %d", boolToInt(cfg.GaplessAudio), pb[5].Value)
 	}
 
-	disp := o.fields[settingsTabDisplay]
+	disp := o.Fields[TabDisplay]
 	if len(disp) != 3 {
 		t.Fatalf("expected 3 display fields, got %d", len(disp))
 	}
@@ -70,7 +70,7 @@ func TestNewSettingsOverlayUsesCurrentVolume(t *testing.T) {
 	cfg.DefaultVolume = 100
 	currentVolume := 75
 	o := NewSettingsOverlay(cfg, currentVolume, cfg.MusicDirectories)
-	pb := o.fields[settingsTabPlayback]
+	pb := o.Fields[TabPlayback]
 	if pb[3].Value != 75 {
 		t.Errorf("expected Default volume field to show currentVolume 75, got %d", pb[3].Value)
 	}
@@ -78,8 +78,8 @@ func TestNewSettingsOverlayUsesCurrentVolume(t *testing.T) {
 
 func TestNewSettingsOverlayDefaultsTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
-	if o.tab != settingsTabLibrary {
-		t.Errorf("expected initial tab=settingsTabLibrary, got %v", o.tab)
+	if o.Tab != TabLibrary {
+		t.Errorf("expected initial tab=settingsTabLibrary, got %v", o.Tab)
 	}
 	if o.cursor != 0 {
 		t.Errorf("expected initial cursor=0, got %d", o.cursor)
@@ -91,7 +91,7 @@ func TestStereoWideFieldsInitializeFromConfig(t *testing.T) {
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 20
 	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
-	pb := o.fields[settingsTabPlayback]
+	pb := o.Fields[TabPlayback]
 	if pb[6].Value != 1 {
 		t.Errorf("StereoWideEnabled field: expected 1, got %d", pb[6].Value)
 	}

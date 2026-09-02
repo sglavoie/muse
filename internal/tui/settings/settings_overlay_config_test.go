@@ -1,4 +1,4 @@
-package tui
+package settings
 
 import (
 	"testing"
@@ -10,15 +10,15 @@ func TestSettingsToConfigRoundTrip(t *testing.T) {
 	base := config.Defaults()
 	o := NewSettingsOverlay(base, base.DefaultVolume, base.MusicDirectories)
 
-	o.fields[settingsTabPlayback][0].Value = 10
-	o.fields[settingsTabPlayback][1].Value = 15
-	o.fields[settingsTabPlayback][2].Value = 60
-	o.fields[settingsTabPlayback][3].Value = 80
-	o.fields[settingsTabPlayback][4].Value = 1
-	o.fields[settingsTabPlayback][5].Value = 0
-	o.fields[settingsTabDisplay][0].Value = 8
-	o.fields[settingsTabDisplay][1].Value = 4
-	o.fields[settingsTabDisplay][2].Value = 1
+	o.Fields[TabPlayback][0].Value = 10
+	o.Fields[TabPlayback][1].Value = 15
+	o.Fields[TabPlayback][2].Value = 60
+	o.Fields[TabPlayback][3].Value = 80
+	o.Fields[TabPlayback][4].Value = 1
+	o.Fields[TabPlayback][5].Value = 0
+	o.Fields[TabDisplay][0].Value = 8
+	o.Fields[TabDisplay][1].Value = 4
+	o.Fields[TabDisplay][2].Value = 1
 
 	got := o.ToConfig(base)
 

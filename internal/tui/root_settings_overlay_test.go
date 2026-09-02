@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/settings"
 )
 
 // TestCtrlCommaOpensSettingsOverlay verifies that ctrl+, opens the settings overlay.
@@ -59,7 +60,7 @@ func TestSettingsOverlayCtrlSSavesConfig(t *testing.T) {
 	// Increment VolumeIncrement (first field, cursor=0 on Playback tab).
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	nm = next.(Model)
-	expectedVolInc := nm.overlay.settings.fields[settingsTabPlayback][0].Value
+	expectedVolInc := nm.overlay.settings.Fields[settings.TabPlayback][0].Value
 
 	// Save.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
@@ -160,7 +161,7 @@ func TestSettingsSaveUpdatesTransientDur(t *testing.T) {
 	nm := next.(Model)
 
 	// Navigate to Display tab (tab 3 = settingsTabDisplay) using "]".
-	for range int(settingsTabDisplay) {
+	for range int(settings.TabDisplay) {
 		next, _ = nm.Update(tea.KeyPressMsg{Code: ']', Text: "]"})
 		nm = next.(Model)
 	}

@@ -1,4 +1,4 @@
-package tui
+package smartrules
 
 import (
 	"strings"
@@ -33,7 +33,7 @@ func (e SmartRuleEditor) ForwardMsg(msg tea.Msg) (SmartRuleEditor, tea.Cmd, bool
 }
 
 // HandleKey processes a key press and returns the updated editor, result action, and any tea.Cmd.
-func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch e.step {
 	case stepName:
 		return e.handleNameKey(msg)
@@ -44,26 +44,26 @@ func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEd
 	case stepSort:
 		return e.handleSortKey(msg)
 	}
-	return e, ruleEditorNone, nil
+	return e, ActionNone, nil
 }
 
-func (e SmartRuleEditor) handleNameKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+func (e SmartRuleEditor) handleNameKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		return e, ruleEditorClose, nil
+		return e, ActionClose, nil
 	case "enter":
 		if strings.TrimSpace(e.nameInput.Value()) != "" {
 			e.step = stepRules
 		}
-		return e, ruleEditorNone, nil
+		return e, ActionNone, nil
 	default:
 		updated, cmd := e.nameInput.Update(msg)
 		e.nameInput = updated
-		return e, ruleEditorNone, cmd
+		return e, ActionNone, cmd
 	}
 }
 
-func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "left":
 		e.step = stepName
@@ -75,7 +75,7 @@ func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, r
 		}
 	case "right":
 		if len(e.rules) == 0 {
-			return e, ruleEditorNone, nil
+			return e, ActionNone, nil
 		}
 		e.step = stepSort
 	case "a":
@@ -102,7 +102,7 @@ func (e SmartRuleEditor) handleRulesKey(msg tea.KeyPressMsg) (SmartRuleEditor, r
 			e.ruleCursor--
 		}
 	}
-	return e, ruleEditorNone, nil
+	return e, ActionNone, nil
 }
 
 func (e SmartRuleEditor) startNewRule() SmartRuleEditor {
@@ -144,7 +144,7 @@ func (e SmartRuleEditor) startEditRule(idx int) SmartRuleEditor {
 	return e
 }
 
-func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	if e.editSubField == 2 {
 		switch msg.String() {
 		case "esc":
@@ -162,9 +162,9 @@ func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor
 		default:
 			updated, cmd := e.ruleValueInput.Update(msg)
 			e.ruleValueInput = updated
-			return e, ruleEditorNone, cmd
+			return e, ActionNone, cmd
 		}
-		return e, ruleEditorNone, nil
+		return e, ActionNone, nil
 	}
 
 	switch msg.String() {
@@ -211,7 +211,7 @@ func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor
 			e.ruleOpIdx = (e.ruleOpIdx + 1) % len(ops)
 		}
 	}
-	return e, ruleEditorNone, nil
+	return e, ActionNone, nil
 }
 
 func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
@@ -232,14 +232,14 @@ func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
 	return e
 }
 
-func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, ruleEditorAction, tea.Cmd) {
+func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	if e.sortCursor == 2 {
 		switch msg.String() {
 		case "esc":
 			e.maxTracksInput.Blur()
 			e.step = stepRules
 		case "enter":
-			return e, ruleEditorCommit, nil
+			return e, ActionCommit, nil
 		case "tab", "down":
 			e.maxTracksInput.Blur()
 			e.sortCursor = 0
@@ -249,16 +249,16 @@ func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, ru
 		default:
 			updated, cmd := e.maxTracksInput.Update(msg)
 			e.maxTracksInput = updated
-			return e, ruleEditorNone, cmd
+			return e, ActionNone, cmd
 		}
-		return e, ruleEditorNone, nil
+		return e, ActionNone, nil
 	}
 
 	switch msg.String() {
 	case "esc":
 		e.step = stepRules
 	case "enter":
-		return e, ruleEditorCommit, nil
+		return e, ActionCommit, nil
 	case "tab", "j", "down":
 		newCursor := (e.sortCursor + 1) % 3
 		if newCursor == 2 {
@@ -290,5 +290,5 @@ func (e SmartRuleEditor) handleSortKey(msg tea.KeyPressMsg) (SmartRuleEditor, ru
 			e.sortDir = 1 - e.sortDir
 		}
 	}
-	return e, ruleEditorNone, nil
+	return e, ActionNone, nil
 }

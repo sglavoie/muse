@@ -1,4 +1,4 @@
-package tui
+package smartrules
 
 import (
 	"fmt"
@@ -20,19 +20,19 @@ const (
 	stepSort                       // sort/limit configuration
 )
 
-// ruleEditorAction is the result of a HandleKey call on a SmartRuleEditor.
-type ruleEditorAction int
+// Action is the result of a HandleKey call on a SmartRuleEditor.
+type Action int
 
 const (
-	ruleEditorNone   ruleEditorAction = iota
-	ruleEditorClose                   // esc from stepName → dismiss overlay
-	ruleEditorCommit                  // enter on stepSort → persist and close
+	ActionNone   Action = iota
+	ActionClose         // esc from stepName → dismiss overlay
+	ActionCommit        // enter on stepSort → persist and close
 )
 
 // SmartRuleEditor is the multi-step overlay for creating and editing smart playlists.
 type SmartRuleEditor struct {
-	isEdit bool
-	editID int64 // playlist ID when editing an existing smart playlist
+	IsEdit bool
+	EditID int64 // playlist ID when editing an existing smart playlist
 
 	step editorStep
 
@@ -171,8 +171,8 @@ func newEditorInputDigits(initial string) textinput.Model {
 	return ti
 }
 
-// newSmartRuleEditor creates an empty editor for creating a new smart playlist.
-func newSmartRuleEditor() SmartRuleEditor {
+// NewSmartRuleEditor creates an empty editor for creating a new smart playlist.
+func NewSmartRuleEditor() SmartRuleEditor {
 	return SmartRuleEditor{
 		conjunction:    db.ConjAnd,
 		editingRuleIdx: -1,
@@ -181,15 +181,15 @@ func newSmartRuleEditor() SmartRuleEditor {
 	}
 }
 
-// newSmartRuleEditorEdit creates an editor pre-populated for editing an existing playlist.
-func newSmartRuleEditorEdit(id int64, name string, q db.SmartPlaylistQuery) SmartRuleEditor {
+// NewSmartRuleEditorEdit creates an editor pre-populated for editing an existing playlist.
+func NewSmartRuleEditorEdit(id int64, name string, q db.SmartPlaylistQuery) SmartRuleEditor {
 	maxTracksStr := ""
 	if q.MaxTracks > 0 {
 		maxTracksStr = strconv.Itoa(q.MaxTracks)
 	}
 	e := SmartRuleEditor{
-		isEdit:         true,
-		editID:         id,
+		IsEdit:         true,
+		EditID:         id,
 		conjunction:    db.ConjAnd,
 		editingRuleIdx: -1,
 		nameInput:      newEditorInput(name),
@@ -216,8 +216,8 @@ func (e SmartRuleEditor) Name() string {
 	return strings.TrimSpace(e.nameInput.Value())
 }
 
-// buildQuery assembles the SmartPlaylistQuery from the editor state.
-func (e SmartRuleEditor) buildQuery() db.SmartPlaylistQuery {
+// BuildQuery assembles the SmartPlaylistQuery from the editor state.
+func (e SmartRuleEditor) BuildQuery() db.SmartPlaylistQuery {
 	rules := e.rules
 	if rules == nil {
 		rules = []db.SmartRule{}
