@@ -3,6 +3,9 @@ package tui
 import (
 	"fmt"
 	"time"
+
+	"github.com/sglavoie/muse/internal/tui/sorting"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // renderStatusBar builds the status bar line shown at the bottom of the view.
@@ -23,8 +26,8 @@ func (m Model) renderStatusBar() string {
 		sb.queuePosition = ""
 	}
 	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
-		sb.elapsed = formatTime(m.playback.elapsedSecs)
-		sb.total = formatTime(m.playback.totalSecs)
+		sb.elapsed = text.FormatPositionSecs(m.playback.elapsedSecs)
+		sb.total = text.FormatPositionSecs(m.playback.totalSecs)
 	}
 	sb.elapsedSecs = m.playback.elapsedSecs
 	sb.totalSecs = m.playback.totalSecs
@@ -69,17 +72,17 @@ func (m Model) focusedBucketLabel() string {
 	switch m.activeView {
 	case viewLibrary:
 		field := m.library.sortState.Field
-		if !SortFieldHasBuckets(field) {
+		if !sorting.SortFieldHasBuckets(field) {
 			return ""
 		}
 		track, ok := m.library.view().FocusedTrack()
 		if !ok {
 			return ""
 		}
-		return TrackBucket(field, track, time.Now())
+		return sorting.TrackBucket(field, track, time.Now())
 	case viewQueue:
 		field := m.queue.sortState.Field
-		if !SortFieldHasBuckets(field) {
+		if !sorting.SortFieldHasBuckets(field) {
 			return ""
 		}
 		entries := m.queue.filteredEntries()

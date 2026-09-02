@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestWatchBatchMsgUpdatesPlaylistTracks verifies that a watcher metadata
@@ -101,7 +102,7 @@ func TestWatchBatchUpdatesHistoryTracks(t *testing.T) {
 	m.library.sourceTracks = []library.Track{
 		{Hash: "h1", Path: "/a.flac", Artist: "OldArt", Title: "OldTitle", Album: "OldAlbum", Genre: "OldGenre"},
 	}
-	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	next, _ := m.Update(watchBatchMsg{

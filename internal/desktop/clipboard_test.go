@@ -1,4 +1,4 @@
-package tui
+package desktop
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func TestCopyToClipboardPrefersWaylandWhenAvailable(t *testing.T) {
 		return name == "xclip" || name == "wl-copy"
 	}
 
-	_ = copyToClipboard(context.Background(), "hi")()
+	_ = CopyToClipboard(context.Background(), "hi")()
 	if len(order) == 0 || order[0] != "wl-copy" {
 		t.Fatalf("expected wl-copy to be checked first under Wayland, got %v", order)
 	}
@@ -60,7 +60,7 @@ func TestCopyToClipboardDetectsWaylandViaSessionType(t *testing.T) {
 		return name == "xclip" || name == "wl-copy"
 	}
 
-	_ = copyToClipboard(context.Background(), "hi")()
+	_ = CopyToClipboard(context.Background(), "hi")()
 	if len(order) == 0 || order[0] != "wl-copy" {
 		t.Fatalf("expected wl-copy to be checked first when XDG_SESSION_TYPE=wayland, got %v", order)
 	}
@@ -83,14 +83,14 @@ func TestCopyToClipboardFallsBackToXclipWithoutWayland(t *testing.T) {
 		return name == "xclip" || name == "wl-copy"
 	}
 
-	_ = copyToClipboard(context.Background(), "hi")()
+	_ = CopyToClipboard(context.Background(), "hi")()
 	if len(order) == 0 || order[0] != "xclip" {
 		t.Fatalf("expected xclip first without Wayland, got %v", order)
 	}
 }
 
 // TestCopyToClipboardNoToolReturnsError verifies that when no clipboard tool
-// is available on the host, copyToClipboard returns a clipboardResultMsg
+// is available on the host, CopyToClipboard returns a ClipboardResultMsg
 // carrying errNoClipboardTool rather than panicking on a nil *exec.Cmd.
 // Stubs lookPath to simulate an environment with no tools installed. Only
 // meaningful on non-darwin/non-windows hosts (those branches hardcode their
@@ -103,39 +103,39 @@ func TestCopyToClipboardNoToolReturnsError(t *testing.T) {
 	defer func() { lookPath = orig }()
 	lookPath = func(string) bool { return false }
 
-	cmd := copyToClipboard(context.Background(), "hello")
+	cmd := CopyToClipboard(context.Background(), "hello")
 	if cmd == nil {
-		t.Fatal("copyToClipboard returned nil cmd")
+		t.Fatal("CopyToClipboard returned nil cmd")
 	}
 	msg := cmd()
-	res, ok := msg.(clipboardResultMsg)
+	res, ok := msg.(ClipboardResultMsg)
 	if !ok {
-		t.Fatalf("expected clipboardResultMsg, got %T", msg)
+		t.Fatalf("expected ClipboardResultMsg, got %T", msg)
 	}
-	if !errors.Is(res.err, errNoClipboardTool) {
-		t.Errorf("expected errNoClipboardTool, got %v", res.err)
+	if !errors.Is(res.Err, errNoClipboardTool) {
+		t.Errorf("expected errNoClipboardTool, got %v", res.Err)
 	}
-	if res.text != "hello" {
-		t.Errorf("expected text 'hello', got %q", res.text)
+	if res.Text != "hello" {
+		t.Errorf("expected text 'hello', got %q", res.Text)
 	}
 }
 
 // TestCopyToClipboardAlwaysReturnsClipboardResultMsg ensures that, regardless
 // of host OS and tool availability, invoking the returned cmd produces a
-// clipboardResultMsg rather than panicking. The earlier implementation could
+// ClipboardResultMsg rather than panicking. The earlier implementation could
 // panic on a nil *exec.Cmd when running on unsupported platforms.
 func TestCopyToClipboardAlwaysReturnsClipboardResultMsg(t *testing.T) {
-	cmd := copyToClipboard(context.Background(), "x")
+	cmd := CopyToClipboard(context.Background(), "x")
 	if cmd == nil {
-		t.Fatal("copyToClipboard returned nil cmd")
+		t.Fatal("CopyToClipboard returned nil cmd")
 	}
-	// Invocation should not panic and must return clipboardResultMsg.
+	// Invocation should not panic and must return ClipboardResultMsg.
 	msg := cmd()
-	res, ok := msg.(clipboardResultMsg)
+	res, ok := msg.(ClipboardResultMsg)
 	if !ok {
-		t.Fatalf("expected clipboardResultMsg, got %T", msg)
+		t.Fatalf("expected ClipboardResultMsg, got %T", msg)
 	}
-	if res.text != "x" {
-		t.Errorf("expected text 'x', got %q", res.text)
+	if res.Text != "x" {
+		t.Errorf("expected text 'x', got %q", res.Text)
 	}
 }

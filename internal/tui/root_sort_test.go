@@ -8,6 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestSortCycleLibraryAllFields(t *testing.T) {
@@ -21,47 +22,47 @@ func TestSortCycleLibraryAllFields(t *testing.T) {
 
 	v := LibraryView{
 		index:     idx,
-		sortState: SortState{Field: SortDefault, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortDefault, Dir: sorting.SortAsc},
 	}
 
-	v.sortState.Field = CycleSortField(v.sortState.Field, librarySortFields)
+	v.sortState.Field = sorting.CycleSortField(v.sortState.Field, sorting.LibrarySortFields)
 	v = v.recomputeSortedTracks()
-	if v.sortState.Field != SortArtist {
+	if v.sortState.Field != sorting.SortArtist {
 		t.Fatalf("expected SortArtist, got %d", v.sortState.Field)
 	}
 	if v.sortedTracks[0].Artist != "Alpha" {
 		t.Errorf("first track by artist should be Alpha, got %q", v.sortedTracks[0].Artist)
 	}
 
-	v.sortState.Field = CycleSortField(v.sortState.Field, librarySortFields)
+	v.sortState.Field = sorting.CycleSortField(v.sortState.Field, sorting.LibrarySortFields)
 	v = v.recomputeSortedTracks()
-	if v.sortState.Field != SortTitle {
+	if v.sortState.Field != sorting.SortTitle {
 		t.Fatalf("expected SortTitle, got %d", v.sortState.Field)
 	}
 	if v.sortedTracks[0].Title != "Alpha" {
 		t.Errorf("first track by title should be Alpha, got %q", v.sortedTracks[0].Title)
 	}
 
-	v.sortState.Field = CycleSortField(v.sortState.Field, librarySortFields)
+	v.sortState.Field = sorting.CycleSortField(v.sortState.Field, sorting.LibrarySortFields)
 	v = v.recomputeSortedTracks()
-	if v.sortState.Field != SortAlbum {
+	if v.sortState.Field != sorting.SortAlbum {
 		t.Fatalf("expected SortAlbum, got %d", v.sortState.Field)
 	}
 	if v.sortedTracks[0].Album != "Blue" {
 		t.Errorf("first track by album should be Blue, got %q", v.sortedTracks[0].Album)
 	}
 
-	v.sortState.Field = CycleSortField(v.sortState.Field, librarySortFields)
+	v.sortState.Field = sorting.CycleSortField(v.sortState.Field, sorting.LibrarySortFields)
 	v = v.recomputeSortedTracks()
-	if v.sortState.Field != SortDuration {
+	if v.sortState.Field != sorting.SortDuration {
 		t.Fatalf("expected SortDuration, got %d", v.sortState.Field)
 	}
 	if v.sortedTracks[0].Duration != 100 {
 		t.Errorf("first track by duration should be 100, got %f", v.sortedTracks[0].Duration)
 	}
 
-	v.sortState.Field = CycleSortField(v.sortState.Field, librarySortFields)
-	if v.sortState.Field != SortDefault {
+	v.sortState.Field = sorting.CycleSortField(v.sortState.Field, sorting.LibrarySortFields)
+	if v.sortState.Field != sorting.SortDefault {
 		t.Fatalf("expected SortDefault after full cycle, got %d", v.sortState.Field)
 	}
 	v = v.recomputeSortedTracks()
@@ -81,7 +82,7 @@ func TestSortDirectionToggle(t *testing.T) {
 
 	v := LibraryView{
 		index:     idx,
-		sortState: SortState{Field: SortArtist, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc},
 	}
 	v = v.recomputeSortedTracks()
 
@@ -92,7 +93,7 @@ func TestSortDirectionToggle(t *testing.T) {
 		t.Errorf("asc last should be Charlie, got %q", v.sortedTracks[2].Artist)
 	}
 
-	v.sortState.Dir = SortDesc
+	v.sortState.Dir = sorting.SortDesc
 	v = v.recomputeSortedTracks()
 	if v.sortedTracks[0].Artist != "Charlie" {
 		t.Errorf("desc first should be Charlie, got %q", v.sortedTracks[0].Artist)
@@ -106,19 +107,19 @@ func TestSortResetOnViewSwitch(t *testing.T) {
 	m := Model{
 		activeView: viewLibrary,
 		library: LibraryView{
-			sortState: SortState{Field: SortArtist, Dir: SortDesc},
+			sortState: sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortDesc},
 			sortedTracks: []library.Track{
 				{Artist: "X"},
 			},
 		},
 		queue: QueueView{
-			sortState:    SortState{Field: SortTitle, Dir: SortAsc},
+			sortState:    sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 			displayOrder: []int{1, 0},
 		},
 	}
 
 	m = m.resetLibrarySort()
-	if m.library.sortState.Field != SortDefault {
+	if m.library.sortState.Field != sorting.SortDefault {
 		t.Error("library sort should be reset")
 	}
 	if m.library.sortedTracks != nil {
@@ -126,7 +127,7 @@ func TestSortResetOnViewSwitch(t *testing.T) {
 	}
 
 	m = m.resetQueueSort()
-	if m.queue.sortState.Field != SortDefault {
+	if m.queue.sortState.Field != sorting.SortDefault {
 		t.Error("queue sort should be reset")
 	}
 	if m.queue.displayOrder != nil {
@@ -136,30 +137,30 @@ func TestSortResetOnViewSwitch(t *testing.T) {
 
 func TestResetAllSorts(t *testing.T) {
 	m := Model{
-		library:   LibraryView{sortState: SortState{Field: SortArtist}},
-		queue:     QueueView{sortState: SortState{Field: SortTitle}},
-		playlists: PlaylistsView{sortState: SortState{Field: SortName}},
+		library:   LibraryView{sortState: sorting.SortState{Field: sorting.SortArtist}},
+		queue:     QueueView{sortState: sorting.SortState{Field: sorting.SortTitle}},
+		playlists: PlaylistsView{sortState: sorting.SortState{Field: sorting.SortName}},
 		browse: BrowseView{
-			artists: ArtistsView{sortState: SortState{Field: SortName}},
-			albums:  AlbumsView{sortState: SortState{Field: SortTitle}},
+			artists: ArtistsView{sortState: sorting.SortState{Field: sorting.SortName}},
+			albums:  AlbumsView{sortState: sorting.SortState{Field: sorting.SortTitle}},
 		},
 	}
 
 	m = m.resetAllSorts()
 
-	if m.library.sortState.Field != SortDefault {
+	if m.library.sortState.Field != sorting.SortDefault {
 		t.Error("library sort not reset")
 	}
-	if m.queue.sortState.Field != SortDefault {
+	if m.queue.sortState.Field != sorting.SortDefault {
 		t.Error("queue sort not reset")
 	}
-	if m.playlists.sortState.Field != SortDefault {
+	if m.playlists.sortState.Field != sorting.SortDefault {
 		t.Error("playlists sort not reset")
 	}
-	if m.browse.artists.sortState.Field != SortDefault {
+	if m.browse.artists.sortState.Field != sorting.SortDefault {
 		t.Error("artists sort not reset")
 	}
-	if m.browse.albums.sortState.Field != SortDefault {
+	if m.browse.albums.sortState.Field != sorting.SortDefault {
 		t.Error("albums sort not reset")
 	}
 }
@@ -220,7 +221,7 @@ func TestSortCycleToDefaultRederivesArtists(t *testing.T) {
 	original := make([]string, len(m.browse.artists.artists))
 	copy(original, m.browse.artists.artists)
 
-	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 
 	if len(m.browse.artists.artists) > 1 && m.browse.artists.artists[0] == original[0] {
@@ -230,7 +231,7 @@ func TestSortCycleToDefaultRederivesArtists(t *testing.T) {
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.browse.artists.sortState.Field != SortDefault {
+	if m.browse.artists.sortState.Field != sorting.SortDefault {
 		t.Fatalf("expected SortDefault after cycle, got %v", m.browse.artists.sortState.Field)
 	}
 
@@ -256,7 +257,7 @@ func TestSortCycleToDefaultRederivesAlbums(t *testing.T) {
 	original := make([]string, len(m.browse.albums.albums))
 	copy(original, m.browse.albums.albums)
 
-	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 
 	if len(m.browse.albums.albums) > 1 && m.browse.albums.albums[0] == original[0] {
@@ -266,7 +267,7 @@ func TestSortCycleToDefaultRederivesAlbums(t *testing.T) {
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.browse.albums.sortState.Field != SortDefault {
+	if m.browse.albums.sortState.Field != sorting.SortDefault {
 		t.Fatalf("expected SortDefault after cycle, got %v", m.browse.albums.sortState.Field)
 	}
 
@@ -292,7 +293,7 @@ func TestSortCycleToDefaultRederivesGenres(t *testing.T) {
 	original := make([]string, len(m.browse.genres.genres))
 	copy(original, m.browse.genres.genres)
 
-	m.browse.genres.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.genres = m.browse.genres.recomputeGenresSort()
 
 	if len(m.browse.genres.genres) > 1 && m.browse.genres.genres[0] == original[0] {
@@ -302,7 +303,7 @@ func TestSortCycleToDefaultRederivesGenres(t *testing.T) {
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.browse.genres.sortState.Field != SortDefault {
+	if m.browse.genres.sortState.Field != sorting.SortDefault {
 		t.Fatalf("expected SortDefault after cycle, got %v", m.browse.genres.sortState.Field)
 	}
 
@@ -334,14 +335,14 @@ func TestSortCycleToDefaultRederivesFavoritesTracks(t *testing.T) {
 		originalOrder[i] = tr.Hash
 	}
 
-	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.favorites.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	m.favorites = m.favorites.recomputeFavoritesSort()
 
 	if m.favorites.tracks[0].Hash == originalOrder[0] {
 		t.Fatal("sort did not change the order — test is invalid")
 	}
 
-	for m.favorites.sortState.Field != SortDefault {
+	for m.favorites.sortState.Field != sorting.SortDefault {
 		result, _, _ := m.handleSortCycle()
 		m = result.(Model)
 	}
@@ -362,7 +363,7 @@ func TestSortCycleRecentlyAddedHandled(t *testing.T) {
 	m.activeView = viewLibrary
 	m.library.index.Insert(library.Track{Artist: "A", Title: "T1", Path: "/1", Hash: "h1"})
 
-	m.library.sortState = SortState{Field: SortDefault, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortDefault, Dir: sorting.SortAsc}
 
 	result, _, handled := m.handleSortCycle()
 	if !handled {
@@ -370,7 +371,7 @@ func TestSortCycleRecentlyAddedHandled(t *testing.T) {
 	}
 	m = result.(Model)
 
-	if m.library.sortState.Field != SortDateAdded {
+	if m.library.sortState.Field != sorting.SortDateAdded {
 		t.Fatalf("expected SortDateAdded after cycle from default, got %v", m.library.sortState.Field)
 	}
 	if m.library.cursor != 0 {

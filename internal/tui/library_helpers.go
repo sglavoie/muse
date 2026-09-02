@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // syncRecentlyAddedFromLibrary refreshes the library view's source tracks when
@@ -17,8 +18,8 @@ func (m Model) syncRecentlyAddedFromLibrary() Model {
 	if m.library.fuzzy == nil {
 		m.library.fuzzy = library.SahilmFuzzySearcher{}
 	}
-	if m.library.sortState.Field == SortDefault {
-		m.library.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+	if m.library.sortState.Field == sorting.SortDefault {
+		m.library.sortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}
 	}
 	m.library = m.library.refreshView().clampCursor()
 	return m

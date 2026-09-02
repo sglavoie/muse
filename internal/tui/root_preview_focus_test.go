@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestFocusedTrackForPreview_Queue verifies that focusedTrackForPreview
@@ -95,7 +96,7 @@ func TestFocusedTrackForPreview_QueueWithSort(t *testing.T) {
 		{Hash: "h2", Path: "/b.flac", Artist: "Alpha", Title: "Able", DurationMs: 4000},
 	}
 	// Sort by artist ascending: Alpha first, then Zeta.
-	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 	m.queue.cursor = 0 // first display entry after sort = Alpha
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestFavoritesRemoveWithFilter_ArtistUsesRawIndex verifies that removing a
@@ -248,10 +249,10 @@ func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 	m.favorites.category = favtui.CategoryAlbums
 	m.favorites.albums = []string{"Zulu", "Mike", "Alpha"}
 	m.favorites.height = 20
-	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.favorites.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.favorites.selectedItems = map[int]struct{}{1: {}}
 
-	result, _, handled := m.handleSortDir(SortAsc)
+	result, _, handled := m.handleSortDir(sorting.SortAsc)
 	if !handled {
 		t.Fatal("handleSortDir(SortAsc) should handle favorites view with active sort")
 	}
@@ -261,7 +262,7 @@ func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 	}
 
 	rm.favorites.selectedItems = map[int]struct{}{0: {}}
-	result2, _, handled2 := rm.handleSortDir(SortDesc)
+	result2, _, handled2 := rm.handleSortDir(sorting.SortDesc)
 	if !handled2 {
 		t.Fatal("handleSortDir(SortDesc) should handle favorites view with active sort")
 	}

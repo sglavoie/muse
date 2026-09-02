@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/sglavoie/muse/internal/tui/sorting"
+
 // Panel, window and cursor movement: the controls that decide what the briefing
 // is pointed at, without knowing what any of it means. Everything here is
 // arithmetic over the row set a panel already produced.
@@ -39,7 +41,7 @@ func (v *InsightsView) clampCursor() {
 	if v.level == insightsLevelSessions {
 		if n := len(v.sessionList); n > 0 {
 			v.sessionCursor = min(max(v.sessionCursor, 0), n-1)
-			v.sessionScroll = adjustScroll(v.sessionCursor, v.sessionScroll, v.sessionBodyRows())
+			v.sessionScroll = sorting.AdjustScroll(v.sessionCursor, v.sessionScroll, v.sessionBodyRows())
 		} else {
 			v.sessionCursor, v.sessionScroll = 0, 0
 		}

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestUDispatchesUndoMessage verifies that pressing 'u' returns a cmd that
@@ -51,19 +52,19 @@ func TestShiftArrowKeysControlSortDirection(t *testing.T) {
 
 	next, _ = m.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	nm := next.(Model)
-	if nm.library.sortState.Field == SortDefault {
+	if nm.library.sortState.Field == sorting.SortDefault {
 		t.Fatal("ctrl+s should activate a non-default library sort field")
 	}
 
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
 	nm = next.(Model)
-	if nm.library.sortState.Dir != SortDesc {
+	if nm.library.sortState.Dir != sorting.SortDesc {
 		t.Fatalf("shift+down: expected SortDesc, got %v", nm.library.sortState.Dir)
 	}
 
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift})
 	nm = next.(Model)
-	if nm.library.sortState.Dir != SortAsc {
+	if nm.library.sortState.Dir != sorting.SortAsc {
 		t.Fatalf("shift+up: expected SortAsc, got %v", nm.library.sortState.Dir)
 	}
 }

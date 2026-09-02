@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -35,7 +36,7 @@ type LibraryView struct {
 	filteredMatches []library.Match // cached result of the last fuzzy search
 	fuzzy           library.FuzzySearcher
 	selectedHashes  map[string]struct{} // bulk-selected track hashes
-	sortState       SortState
+	sortState       sorting.SortState
 	sortedTracks    []library.Track // cached sorted copy; nil when SortDefault
 	showDateAdded   bool
 	showPlayedAt    bool

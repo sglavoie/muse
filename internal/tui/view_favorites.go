@@ -10,6 +10,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -46,7 +47,7 @@ type FavoritesView struct {
 	height int
 
 	filter        filter.State
-	sortState     SortState
+	sortState     sorting.SortState
 	selectedItems map[int]struct{}
 }
 
@@ -54,8 +55,8 @@ func (v *FavoritesView) setSize(w, h int) { v.width = w; v.height = h }
 
 func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
+	if v.sortState.Field != sorting.SortDefault {
+		sortInd = fmt.Sprintf("Sort: %s %s", sorting.SortFieldLabel(v.sortState.Field), sorting.SortDirIndicator(v.sortState.Dir))
 	}
 	fv := favtui.View{
 		Level:            v.level,
@@ -99,7 +100,7 @@ func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 // HandleAction executes a pre-resolved favorites action dispatched by root.Update.
 func (v FavoritesView) HandleAction(a action) FavoritesView {
 	var sortInd string
-	if v.sortState.Field != SortDefault {
+	if v.sortState.Field != sorting.SortDefault {
 		sortInd = "active" // non-empty triggers reserve in visibleRows
 	}
 	view := favtui.View{
@@ -165,7 +166,7 @@ func (v FavoritesView) back() FavoritesView {
 	v.drilldownTracks = view.DrilldownTracks
 	v.drilldownName = ""
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedItems = nil
 	return v
 }
@@ -188,7 +189,7 @@ func (v FavoritesView) openTracks(tracks []musiclib.Track, name string) Favorite
 	v.drilldownTracks = view.DrilldownTracks
 	v.drilldownName = name
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedItems = nil
 	return v
 }
@@ -248,7 +249,7 @@ func (v FavoritesView) playNextFocusedTrack(qa libtui.QueueAppender, prevQueueLe
 
 // recomputeFavoritesSort re-sorts the owned slices for the current level.
 func (v FavoritesView) recomputeFavoritesSort() FavoritesView {
-	if v.sortState.Field == SortDefault {
+	if v.sortState.Field == sorting.SortDefault {
 		return v
 	}
 	switch v.level {
@@ -256,19 +257,19 @@ func (v FavoritesView) recomputeFavoritesSort() FavoritesView {
 		switch v.category {
 		case favtui.CategoryArtists:
 			if len(v.artists) > 0 {
-				v.artists = SortStrings(v.artists, v.sortState.Dir)
+				v.artists = sorting.SortStrings(v.artists, v.sortState.Dir)
 			}
 		case favtui.CategoryAlbums:
 			if len(v.albums) > 0 {
-				v.albums = SortStrings(v.albums, v.sortState.Dir)
+				v.albums = sorting.SortStrings(v.albums, v.sortState.Dir)
 			}
 		case favtui.CategoryTracks:
-			if sorted := SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+			if sorted := sorting.SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
 				v.tracks = sorted
 			}
 		}
 	case favtui.TrackLevel:
-		if sorted := SortTracks(v.drilldownTracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+		if sorted := sorting.SortTracks(v.drilldownTracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
 			v.drilldownTracks = sorted
 		}
 	}
@@ -296,7 +297,7 @@ func (v FavoritesView) clampCursor() FavoritesView {
 	case favtui.TrackLevel:
 		n = len(arttui.FilterTracks(v.drilldownTracks, v.filter.Text))
 	}
-	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
+	v.cursor, v.scrollOffset = sorting.ClampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 

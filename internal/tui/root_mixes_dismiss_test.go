@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestMixesDismissRoundTrip(t *testing.T) {
@@ -153,7 +154,7 @@ func TestMixesDismissPreservesCursorAndSort(t *testing.T) {
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
 	m.mixes.trackView.cursor = 2
-	m.mixes.trackView.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.mixes.trackView.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
 
 	m, cmd := m.handleMixDismiss()
@@ -164,10 +165,10 @@ func TestMixesDismissPreservesCursorAndSort(t *testing.T) {
 	msg := rawMsg.(mixDismissedMsg)
 	m = m.handleMixDismissedMsg(msg)
 
-	if m.mixes.trackView.sortState.Field != SortTitle {
+	if m.mixes.trackView.sortState.Field != sorting.SortTitle {
 		t.Errorf("sort field reset: got %v, want SortTitle", m.mixes.trackView.sortState.Field)
 	}
-	if m.mixes.trackView.sortState.Dir != SortAsc {
+	if m.mixes.trackView.sortState.Dir != sorting.SortAsc {
 		t.Errorf("sort dir reset: got %v, want SortAsc", m.mixes.trackView.sortState.Dir)
 	}
 	if m.mixes.trackView.cursor > 1 {

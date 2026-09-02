@@ -8,6 +8,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
@@ -48,7 +49,7 @@ func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string 
 	if ctx.width > 0 && s.title != "" {
 		const minGap = 2
 		fixedWidth := prefixWidth + sepWidth + suffixWidth + minGap + ansi.StringWidth(right)
-		title = truncateTitle(s.title, ctx.width-fixedWidth)
+		title = text.Truncate(s.title, ctx.width-fixedWidth)
 	}
 
 	var parts []string

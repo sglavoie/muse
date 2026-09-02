@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // drilledInsights returns a model with an open Insights drill over the given
@@ -56,7 +57,7 @@ func TestRefreshDerivedViewsPreservesInsightsSelectionAndSort(t *testing.T) {
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "Alpha"},
 	})
 	m.insights.trackView.selectedHashes = map[string]struct{}{"h2": {}}
-	m.insights.trackView.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.insights.trackView.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.insights.trackView = m.insights.trackView.refreshView()
 
 	m.library.index.UpdateMetadata("h1", "Bravo", "A", "", "")

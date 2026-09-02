@@ -1,25 +1,27 @@
 package tui
 
+import "github.com/sglavoie/muse/internal/tui/sorting"
+
 // resetLibrarySort resets the library sort state to the mode's default.
 // For LibraryModeAll this clears any custom sort; for Recent and History modes
 // it restores their fixed sort (Date Added and Last Played respectively).
 func (m Model) resetLibrarySort() Model {
 	switch m.library.mode {
 	case LibraryModeRecent:
-		m.library.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+		m.library.sortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}
 		m.library = m.library.recomputeSortedTracks()
 		if m.library.filter.Text != "" {
 			m.library = m.library.rebuildFilterCache()
 		}
 	case LibraryModeHistory:
-		m.library.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
+		m.library.sortState = sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}
 		m.library = m.library.recomputeSortedTracks()
 		if m.library.filter.Text != "" {
 			m.library = m.library.rebuildFilterCache()
 		}
 	default: // LibraryModeAll
-		hadSort := m.library.sortState.Field != SortDefault
-		m.library.sortState = SortState{}
+		hadSort := m.library.sortState.Field != sorting.SortDefault
+		m.library.sortState = sorting.SortState{}
 		m.library.sortedTracks = nil
 		if hadSort && m.library.filter.Text != "" {
 			m.library = m.library.rebuildFilterCache()
@@ -30,7 +32,7 @@ func (m Model) resetLibrarySort() Model {
 
 // resetQueueSort clears the queue sort state and display order.
 func (m Model) resetQueueSort() Model {
-	m.queue.sortState = SortState{}
+	m.queue.sortState = sorting.SortState{}
 	m.queue.displayOrder = nil
 	return m
 }
@@ -38,7 +40,7 @@ func (m Model) resetQueueSort() Model {
 // preserveQueueSort recomputes displayOrder if a sort is active, otherwise
 // leaves the queue in insertion-order mode.
 func (m Model) preserveQueueSort() Model {
-	if m.queue.sortState.Field != SortDefault {
+	if m.queue.sortState.Field != sorting.SortDefault {
 		m.queue = m.queue.recomputeDisplayOrder()
 	}
 	return m
@@ -46,7 +48,7 @@ func (m Model) preserveQueueSort() Model {
 
 // resetPlaylistsSort clears the playlists sort state and sorted caches.
 func (m Model) resetPlaylistsSort() Model {
-	m.playlists.sortState = SortState{}
+	m.playlists.sortState = sorting.SortState{}
 	m.playlists.sortedPlaylists = nil
 	m.playlists.sortedTrackOrder = nil
 	return m
@@ -55,7 +57,7 @@ func (m Model) resetPlaylistsSort() Model {
 // preservePlaylistsSort recomputes playlist sort caches if a sort is active,
 // otherwise leaves the view in default order.
 func (m Model) preservePlaylistsSort() Model {
-	if m.playlists.sortState.Field != SortDefault {
+	if m.playlists.sortState.Field != sorting.SortDefault {
 		m.playlists = m.playlists.recomputePlaylistSort()
 	}
 	return m
@@ -65,8 +67,8 @@ func (m Model) preservePlaylistsSort() Model {
 // active the backing slices were sorted in-place, so re-derive from the library
 // index to restore the original order.
 func (m Model) resetArtistsSort() Model {
-	hadSort := m.browse.artists.sortState.Field != SortDefault
-	m.browse.artists.sortState = SortState{}
+	hadSort := m.browse.artists.sortState.Field != sorting.SortDefault
+	m.browse.artists.sortState = sorting.SortState{}
 	if hadSort {
 		m = m.rederiveArtistsData()
 	}
@@ -75,8 +77,8 @@ func (m Model) resetArtistsSort() Model {
 
 // resetAlbumsSort clears the albums sort state. See resetArtistsSort.
 func (m Model) resetAlbumsSort() Model {
-	hadSort := m.browse.albums.sortState.Field != SortDefault
-	m.browse.albums.sortState = SortState{}
+	hadSort := m.browse.albums.sortState.Field != sorting.SortDefault
+	m.browse.albums.sortState = sorting.SortState{}
 	if hadSort {
 		m = m.rederiveAlbumsData()
 	}
@@ -85,8 +87,8 @@ func (m Model) resetAlbumsSort() Model {
 
 // resetFavoritesSort clears the favorites sort state. See resetArtistsSort.
 func (m Model) resetFavoritesSort() Model {
-	hadSort := m.favorites.sortState.Field != SortDefault
-	m.favorites.sortState = SortState{}
+	hadSort := m.favorites.sortState.Field != sorting.SortDefault
+	m.favorites.sortState = sorting.SortState{}
 	if hadSort {
 		m = m.rederiveFavoritesData()
 	}
@@ -95,8 +97,8 @@ func (m Model) resetFavoritesSort() Model {
 
 // resetGenresSort clears the genres sort state. See resetArtistsSort.
 func (m Model) resetGenresSort() Model {
-	hadSort := m.browse.genres.sortState.Field != SortDefault
-	m.browse.genres.sortState = SortState{}
+	hadSort := m.browse.genres.sortState.Field != sorting.SortDefault
+	m.browse.genres.sortState = sorting.SortState{}
 	if hadSort {
 		m = m.rederiveGenresData()
 	}
@@ -105,7 +107,7 @@ func (m Model) resetGenresSort() Model {
 
 // resetTagsSort clears the tags sort state.
 func (m Model) resetTagsSort() Model {
-	m.tagsView.sortState = SortState{}
+	m.tagsView.sortState = sorting.SortState{}
 	m.tagsView.sortedTrackOrder = nil
 	return m
 }

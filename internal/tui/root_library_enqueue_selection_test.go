@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestLibraryEnterEnqueuesSelectionAsBatch(t *testing.T) {
@@ -75,8 +76,8 @@ func TestLibraryEnterSelectionRespectsSortOrder(t *testing.T) {
 	m := New(context.Background(), WithBatchEnqueuer(be))
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Hash: "hb"})
 	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Hash: "ha"})
-	m.library.sortedTracks = SortTracks(m.library.index.Tracks(), SortTitle, SortAsc)
-	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library.sortedTracks = sorting.SortTracks(m.library.index.Tracks(), sorting.SortTitle, sorting.SortAsc)
+	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.library.selectedHashes = map[string]struct{}{"ha": {}, "hb": {}}
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

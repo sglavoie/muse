@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestPlaylistsBulkRemoveAtTrackLevel verifies the 'a' key at TrackLevel with
@@ -243,7 +244,7 @@ func TestBulkActionRemovalResetsSortState(t *testing.T) {
 	m.playlists.tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}, {ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000}}
 	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 20: {}}
 
-	m.playlists.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 	if m.playlists.sortedTrackOrder == nil {
 		t.Fatal("precondition: sortedTrackOrder should be non-nil after sort")
@@ -255,7 +256,7 @@ func TestBulkActionRemovalResetsSortState(t *testing.T) {
 	if len(nm.playlists.tracks) != 1 {
 		t.Fatalf("expected 1 track remaining, got %d", len(nm.playlists.tracks))
 	}
-	if nm.playlists.sortState.Field != SortTitle {
+	if nm.playlists.sortState.Field != sorting.SortTitle {
 		t.Errorf("expected sort field preserved as SortTitle, got %v", nm.playlists.sortState.Field)
 	}
 	if nm.playlists.sortedTrackOrder == nil {
@@ -269,7 +270,7 @@ func TestPlaylistDeleteWithSortActiveDeletesCorrectEntry(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Zebra"}, {ID: 2, Name: "Alpha"}, {ID: 3, Name: "Middle"}}))
 	m.activeView = viewPlaylists
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 	m.playlists.cursor = 0
 
@@ -299,7 +300,7 @@ func TestPlaylistDeleteWithSortActiveUndoRestoresCorrectEntry(t *testing.T) {
 	pd := &stubPlaylistDeleter{}
 	m := New(context.Background(), WithPlaylistDeleter(pd), WithPlaylists([]db.PlaylistRow{{ID: 1, Name: "Zebra"}, {ID: 2, Name: "Alpha"}, {ID: 3, Name: "Middle"}}))
 	m.activeView = viewPlaylists
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 	m.playlists.cursor = 0
 

@@ -3,6 +3,7 @@ package tui
 import (
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -13,10 +14,10 @@ import (
 // is applied (equal to total when no filter is active).
 func (v QueueView) renderStateStrip(s styles.Styles, total, filtered int) string {
 	var sortChunk strip.SortChunk
-	if v.sortState.Field != SortDefault {
+	if v.sortState.Field != sorting.SortDefault {
 		sortChunk = strip.SortChunk{
-			Label:     SortFieldLabel(v.sortState.Field),
-			Indicator: SortDirIndicator(v.sortState.Dir),
+			Label:     sorting.SortFieldLabel(v.sortState.Field),
+			Indicator: sorting.SortDirIndicator(v.sortState.Dir),
 		}
 	}
 	f := strip.FilterChunk{Active: v.filter.Active, Text: v.filter.Text}

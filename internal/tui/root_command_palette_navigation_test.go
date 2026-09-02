@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestBuildPaletteCommandsIncludesStableNavigationTargets(t *testing.T) {
@@ -101,7 +102,7 @@ func TestPaletteLibraryNavigationTargetsExactMode(t *testing.T) {
 	if !m.library.showDateAdded || m.library.showPlayedAt {
 		t.Fatalf("recent columns: showDateAdded=%v showPlayedAt=%v", m.library.showDateAdded, m.library.showPlayedAt)
 	}
-	if m.library.sortState != (SortState{Field: SortDateAdded, Dir: SortDesc}) {
+	if m.library.sortState != (sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}) {
 		t.Fatalf("recent sort = %+v", m.library.sortState)
 	}
 	if focused, ok := m.library.view().FocusedTrack(); !ok || focused.Hash != "new" {
@@ -130,7 +131,7 @@ func TestPaletteLibraryNavigationTargetsExactMode(t *testing.T) {
 	if reader.calls != 1 || len(m.library.sourceTracks) != 1 || m.library.sourceTracks[0].Hash != "played" {
 		t.Fatalf("history was not loaded: calls=%d tracks=%+v", reader.calls, m.library.sourceTracks)
 	}
-	if m.library.sortState != (SortState{Field: SortLastPlayed, Dir: SortDesc}) {
+	if m.library.sortState != (sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}) {
 		t.Fatalf("history sort = %+v", m.library.sortState)
 	}
 }

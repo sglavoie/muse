@@ -1,4 +1,4 @@
-package tui
+package sorting
 
 import (
 	"testing"
@@ -23,9 +23,9 @@ func TestAdjustScroll(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := adjustScroll(tt.cursor, tt.scrollOffset, tt.maxRows)
+			got := AdjustScroll(tt.cursor, tt.scrollOffset, tt.maxRows)
 			if got != tt.want {
-				t.Errorf("adjustScroll(%d, %d, %d) = %d, want %d",
+				t.Errorf("AdjustScroll(%d, %d, %d) = %d, want %d",
 					tt.cursor, tt.scrollOffset, tt.maxRows, got, tt.want)
 			}
 		})
@@ -51,9 +51,9 @@ func TestClampCursorToCount(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotCur, gotScr := clampCursorToCount(tt.cursor, tt.scroll, tt.count)
+			gotCur, gotScr := ClampCursorToCount(tt.cursor, tt.scroll, tt.count)
 			if gotCur != tt.wantCur || gotScr != tt.wantScr {
-				t.Errorf("clampCursorToCount(%d, %d, %d) = (%d, %d), want (%d, %d)",
+				t.Errorf("ClampCursorToCount(%d, %d, %d) = (%d, %d), want (%d, %d)",
 					tt.cursor, tt.scroll, tt.count, gotCur, gotScr, tt.wantCur, tt.wantScr)
 			}
 		})
@@ -62,13 +62,13 @@ func TestClampCursorToCount(t *testing.T) {
 
 func TestFindStringPosition(t *testing.T) {
 	items := []string{"Alpha", "Bravo", "Charlie"}
-	if findStringPosition(items, "Bravo") != 1 {
+	if FindStringPosition(items, "Bravo") != 1 {
 		t.Error("expected 1 for Bravo")
 	}
-	if findStringPosition(items, "Missing") != 0 {
+	if FindStringPosition(items, "Missing") != 0 {
 		t.Error("expected 0 for missing item")
 	}
-	if findStringPosition(nil, "A") != 0 {
+	if FindStringPosition(nil, "A") != 0 {
 		t.Error("expected 0 for nil items")
 	}
 }
@@ -80,7 +80,7 @@ func TestFindStringPosition(t *testing.T) {
 // because we failed to capture the focused name beforehand.
 func TestFindStringPositionEmptyName(t *testing.T) {
 	items := []string{"Alpha", "", "Charlie"}
-	if got := findStringPosition(items, ""); got != 0 {
+	if got := FindStringPosition(items, ""); got != 0 {
 		t.Errorf("empty name should return 0, got %d", got)
 	}
 }
@@ -91,13 +91,13 @@ func TestFindTrackHashPosition(t *testing.T) {
 		{Hash: "b"},
 		{Hash: "c"},
 	}
-	if findTrackHashPosition(tracks, "b") != 1 {
+	if FindTrackHashPosition(tracks, "b") != 1 {
 		t.Error("expected 1 for hash b")
 	}
-	if findTrackHashPosition(tracks, "missing") != 0 {
+	if FindTrackHashPosition(tracks, "missing") != 0 {
 		t.Error("expected 0 for missing hash")
 	}
-	if findTrackHashPosition(tracks, "") != 0 {
+	if FindTrackHashPosition(tracks, "") != 0 {
 		t.Error("expected 0 for empty hash")
 	}
 }
@@ -108,44 +108,12 @@ func TestFindPlaylistPosition(t *testing.T) {
 		{ID: 20, Name: "B"},
 		{ID: 30, Name: "C"},
 	}
-	if findPlaylistPosition(pls, 20) != 1 {
+	if FindPlaylistPosition(pls, 20) != 1 {
 		t.Error("expected 1 for ID 20")
 	}
-	if findPlaylistPosition(pls, 99) != 0 {
+	if FindPlaylistPosition(pls, 99) != 0 {
 		t.Error("expected 0 for missing ID")
 	}
-}
-
-func TestSortQueueIndicesZeroDurationSortsLast(t *testing.T) {
-	entries := []QueueEntry{
-		{Title: "A", DurationMs: 0},
-		{Title: "B", DurationMs: 5000},
-		{Title: "C", DurationMs: 2000},
-	}
-	t.Run("asc", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortDuration, SortAsc)
-		if entries[order[0]].Title != "C" {
-			t.Errorf("first should be C (2000ms), got %s", entries[order[0]].Title)
-		}
-		if entries[order[1]].Title != "B" {
-			t.Errorf("second should be B (5000ms), got %s", entries[order[1]].Title)
-		}
-		if entries[order[2]].DurationMs != 0 {
-			t.Error("zero-duration entry should be last")
-		}
-	})
-	t.Run("desc", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortDuration, SortDesc)
-		if entries[order[0]].Title != "B" {
-			t.Errorf("first should be B (5000ms), got %s", entries[order[0]].Title)
-		}
-		if entries[order[1]].Title != "C" {
-			t.Errorf("second should be C (2000ms), got %s", entries[order[1]].Title)
-		}
-		if entries[order[2]].DurationMs != 0 {
-			t.Error("zero-duration entry should be last")
-		}
-	})
 }
 
 func TestSortPlaylistTrackIndicesZeroDurationSortsLast(t *testing.T) {

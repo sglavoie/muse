@@ -1,12 +1,16 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/sorting"
+)
 
 // TestRefreshDerivedViewsRebuildsLibrarySortCache verifies that
 // refreshDerivedViews recomputes the library sort cache when sorting is active.
 func TestRefreshDerivedViewsRebuildsLibrarySortCache(t *testing.T) {
 	m := newModelWithTracks()
-	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 	if m.library.sortedTracks == nil {
 		t.Fatal("expected sortedTracks to be non-nil after recomputeSortedTracks")

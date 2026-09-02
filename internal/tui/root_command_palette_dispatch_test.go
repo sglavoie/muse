@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -56,12 +57,12 @@ func TestCommandPaletteActionWithoutViewRunsInPlace(t *testing.T) {
 func TestCommandPaletteActionSameViewKeepsState(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewPlaylists
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.playlists = m.playlists.startRename("Mix tape")
 
 	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: actionQueueSummary, view: viewPlaylists})
 
-	if out.playlists.sortState != (SortState{Field: SortName, Dir: SortDesc}) {
+	if out.playlists.sortState != (sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}) {
 		t.Errorf("playlists sortState = %+v, want it preserved", out.playlists.sortState)
 	}
 	if !out.playlists.isRenaming() {

@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -376,7 +377,7 @@ func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: tracks})
 
 	m.mixes.trackView.cursor = 1
-	m.mixes.trackView.sortState = SortState{Field: SortDuration, Dir: SortDesc}
+	m.mixes.trackView.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc}
 	m.mixes.trackView = m.mixes.trackView.recomputeSortedTracks()
 
 	reloaded := []library.Track{
@@ -386,10 +387,10 @@ func TestMixesReloadPreservesCursorAndSort(t *testing.T) {
 	}
 	m = m.handleMixLoadedMsg(mixLoadedMsg{mixID: db.MixRediscover, tracks: reloaded})
 
-	if m.mixes.trackView.sortState.Field != SortDuration {
+	if m.mixes.trackView.sortState.Field != sorting.SortDuration {
 		t.Errorf("sort field reset: got %v, want SortDuration", m.mixes.trackView.sortState.Field)
 	}
-	if m.mixes.trackView.sortState.Dir != SortDesc {
+	if m.mixes.trackView.sortState.Dir != sorting.SortDesc {
 		t.Errorf("sort dir reset: got %v, want SortDesc", m.mixes.trackView.sortState.Dir)
 	}
 	if m.mixes.trackView.cursor != 1 {

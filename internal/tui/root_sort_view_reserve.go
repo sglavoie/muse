@@ -6,6 +6,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func libraryViewVisibleReserve(v LibraryView) int {
@@ -20,7 +21,7 @@ func libraryViewVisibleReserve(v LibraryView) int {
 
 func playlistsVisibleReserve(v PlaylistsView) int {
 	reserve := 1
-	if v.level == pltui.ListLevel && v.sortState.Field != SortDefault {
+	if v.level == pltui.ListLevel && v.sortState.Field != sorting.SortDefault {
 		reserve++
 	}
 	if v.level == pltui.TrackLevel {
@@ -72,7 +73,7 @@ func favoritesVisibleReserve(v FavoritesView) int {
 	case favtui.TrackLevel:
 		reserve = 3
 	}
-	if v.sortState.Field != SortDefault {
+	if v.sortState.Field != sorting.SortDefault {
 		reserve++
 	}
 	return reserve

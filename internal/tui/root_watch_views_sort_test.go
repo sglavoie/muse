@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -21,7 +22,7 @@ func TestWatchBatchPreservesQueueSort(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	// Watcher renames h1 to "Aaron" - should cause re-sort.
@@ -51,7 +52,7 @@ func TestWatchBatchPreservesPlaylistSort(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.playlists.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	next, _ := m.Update(watchBatchMsg{
@@ -77,7 +78,7 @@ func TestWatchBatchPreservesFavoritesSort(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.favorites.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.favorites.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.favorites = m.favorites.recomputeFavoritesSort()
 
 	next, _ := m.Update(watchBatchMsg{
@@ -103,7 +104,7 @@ func TestWatchBatchPreservesTagsSort(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.tagsView.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.tagsView.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.tagsView = m.tagsView.recomputeTagsSort()
 
 	next, _ := m.Update(watchBatchMsg{
@@ -128,7 +129,7 @@ func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 	m.browse.mode = BrowseModeArtists
 	m.browse.artists.artists = []string{"Zara", "Alice"}
 	// Simulate user sorting artists ascending.
-	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 
 	if m.browse.artists.artists[0] != "Alice" {
@@ -143,7 +144,7 @@ func TestWatchBatchPreservesArtistLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.artists.sortState.Field != SortName {
+	if nm.browse.artists.sortState.Field != sorting.SortName {
 		t.Errorf("sort field = %v, want SortName", nm.browse.artists.sortState.Field)
 	}
 	// After re-derive + re-sort: Alice, Bob, Zara.
@@ -168,7 +169,7 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums
 	m.browse.albums.albums = []string{"Zeta", "Alpha"}
-	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 
 	if m.browse.albums.albums[0] != "Alpha" {
@@ -182,7 +183,7 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.albums.sortState.Field != SortName {
+	if nm.browse.albums.sortState.Field != sorting.SortName {
 		t.Errorf("sort field = %v, want SortName", nm.browse.albums.sortState.Field)
 	}
 	if len(nm.browse.albums.albums) != 3 {
@@ -205,7 +206,7 @@ func TestWatchBatchPreservesGenreLevelSort(t *testing.T) {
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeGenres
 	m.browse.genres.genres = []string{"Zydeco", "Alternative"}
-	m.browse.genres.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.genres = m.browse.genres.recomputeGenresSort()
 
 	if m.browse.genres.genres[0] != "Alternative" {
@@ -219,7 +220,7 @@ func TestWatchBatchPreservesGenreLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.genres.sortState.Field != SortName {
+	if nm.browse.genres.sortState.Field != sorting.SortName {
 		t.Errorf("sort field = %v, want SortName", nm.browse.genres.sortState.Field)
 	}
 	if len(nm.browse.genres.genres) != 3 {

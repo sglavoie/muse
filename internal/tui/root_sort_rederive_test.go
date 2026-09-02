@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestRederiveFavoritesDataArtists verifies that rederiveFavoritesData at
@@ -120,12 +121,12 @@ func TestResetFavoritesSortRederivesArtists(t *testing.T) {
 	m.favorites.artists = []string{"Charlie", "Bob", "Alice"}
 
 	// Simulate that a sort was active (in-place sort scrambled the slice).
-	m.favorites.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.favorites.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.favorites.artists = []string{"Alice", "Bob", "Charlie"} // sorted alphabetically
 
 	m = m.resetFavoritesSort()
 
-	if m.favorites.sortState.Field != SortDefault {
+	if m.favorites.sortState.Field != sorting.SortDefault {
 		t.Errorf("expected SortDefault, got %v", m.favorites.sortState.Field)
 	}
 
@@ -157,12 +158,12 @@ func TestSortCycleToDefaultRederivesFavoritesArtists(t *testing.T) {
 	m.favorites.artists = []string{"Alice", "Bob", "Charlie"} // sorted in-place
 
 	// Set sort to SortName so that cycling once reaches SortDefault.
-	m.favorites.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.favorites.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 
 	result, _, _ := m.handleSortCycle()
 	m = result.(Model)
 
-	if m.favorites.sortState.Field != SortDefault {
+	if m.favorites.sortState.Field != sorting.SortDefault {
 		t.Fatalf("expected SortDefault, got %v", m.favorites.sortState.Field)
 	}
 

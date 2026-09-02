@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestScanBatchRefreshesArtistAlbumLevel verifies that when the artists view
@@ -98,7 +99,7 @@ func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeArtists
 	m.browse.artists.artists = []string{"Zara", "Alice"}
-	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 
 	// Scan batch adds a new artist.
@@ -109,7 +110,7 @@ func TestScanBatchPreservesArtistLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.artists.sortState.Field != SortName {
+	if nm.browse.artists.sortState.Field != sorting.SortName {
 		t.Fatalf("sort field reset; got %v", nm.browse.artists.sortState.Field)
 	}
 	if len(nm.browse.artists.artists) < 3 {
@@ -130,7 +131,7 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeAlbums
 	m.browse.albums.albums = []string{"Zebra", "Alpha"}
-	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 
 	next, _ := m.Update(library.ScanBatchMsg{
@@ -140,7 +141,7 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.albums.sortState.Field != SortName {
+	if nm.browse.albums.sortState.Field != sorting.SortName {
 		t.Fatalf("sort field reset; got %v", nm.browse.albums.sortState.Field)
 	}
 	if len(nm.browse.albums.albums) < 3 {
@@ -161,7 +162,7 @@ func TestScanBatchPreservesGenreLevelSort(t *testing.T) {
 	m.activeView = viewBrowse
 	m.browse.mode = BrowseModeGenres
 	m.browse.genres.genres = []string{"Rock", "Jazz"}
-	m.browse.genres.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.genres = m.browse.genres.recomputeGenresSort()
 
 	next, _ := m.Update(library.ScanBatchMsg{
@@ -171,7 +172,7 @@ func TestScanBatchPreservesGenreLevelSort(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.browse.genres.sortState.Field != SortName {
+	if nm.browse.genres.sortState.Field != sorting.SortName {
 		t.Fatalf("sort field reset; got %v", nm.browse.genres.sortState.Field)
 	}
 	if len(nm.browse.genres.genres) < 3 {

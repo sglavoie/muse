@@ -4,6 +4,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // focusedPlaylist returns the playlist at the current cursor position and true.
@@ -30,9 +31,9 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 		return v
 	}
 	var sortField, sortDir string
-	if v.sortState.Field != SortDefault {
-		sortField = SortFieldLabel(v.sortState.Field)
-		sortDir = SortDirIndicator(v.sortState.Dir)
+	if v.sortState.Field != sorting.SortDefault {
+		sortField = sorting.SortFieldLabel(v.sortState.Field)
+		sortDir = sorting.SortDirIndicator(v.sortState.Dir)
 	}
 	view := pltui.View{
 		Level:        v.level,
@@ -140,7 +141,7 @@ func (v PlaylistsView) openTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 	v.tracks = view.Tracks
 	v.scrollOffset = 0
 	v.selectedTrackIDs = nil // clear stale track-level selections from a previous playlist
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.sortedPlaylists = nil
 	v.sortedTrackOrder = nil
 	return v
@@ -162,7 +163,7 @@ func (v PlaylistsView) backToList() PlaylistsView {
 	v.tracks = view.Tracks
 	v.scrollOffset = view.ScrollOffset
 	v.selectedTrackIDs = nil // clear stale track-level selections
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.sortedPlaylists = nil
 	v.sortedTrackOrder = nil
 	v.smartQuery = nil

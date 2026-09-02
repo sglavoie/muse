@@ -1,4 +1,4 @@
-package tui
+package desktop
 
 import (
 	"context"
@@ -7,17 +7,17 @@ import (
 )
 
 func TestOpenDirReturnsNonNilCmd(t *testing.T) {
-	cmd := openDir(context.Background(), t.TempDir())
+	cmd := OpenDir(context.Background(), t.TempDir())
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
 }
 
-// TestOpenDirEmptyPathIsNoOp verifies the bug fix where openDir would dispatch
+// TestOpenDirEmptyPathIsNoOp verifies the bug fix where OpenDir would dispatch
 // the OS open command with an empty argument, which on macOS opens the current
 // working directory and on Linux surfaces a confusing xdg-open failure.
 func TestOpenDirEmptyPathIsNoOp(t *testing.T) {
-	cmd := openDir(context.Background(), "")
+	cmd := OpenDir(context.Background(), "")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd even for empty path")
 	}
@@ -29,7 +29,7 @@ func TestOpenDirEmptyPathIsNoOp(t *testing.T) {
 }
 
 func TestOpenDirWhitespacePathIsNoOp(t *testing.T) {
-	cmd := openDir(context.Background(), "   \t  ")
+	cmd := OpenDir(context.Background(), "   \t  ")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd even for whitespace path")
 	}
@@ -40,9 +40,9 @@ func TestOpenDirWhitespacePathIsNoOp(t *testing.T) {
 }
 
 // TestRevealFileEmptyPathIsNoOp mirrors TestOpenDirEmptyPathIsNoOp for the
-// revealFile helper: an empty path must not be forwarded to the OS.
+// RevealFile helper: an empty path must not be forwarded to the OS.
 func TestRevealFileEmptyPathIsNoOp(t *testing.T) {
-	cmd := revealFile(context.Background(), "")
+	cmd := RevealFile(context.Background(), "")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd even for empty path")
 	}
@@ -53,7 +53,7 @@ func TestRevealFileEmptyPathIsNoOp(t *testing.T) {
 }
 
 func TestRevealFileWhitespacePathIsNoOp(t *testing.T) {
-	cmd := revealFile(context.Background(), " \n\t ")
+	cmd := RevealFile(context.Background(), " \n\t ")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd even for whitespace path")
 	}
@@ -67,13 +67,13 @@ func TestRevealFileWhitespacePathIsNoOp(t *testing.T) {
 // previous implementation called Start() without a matching Wait(), which the
 // os/exec docs explicitly warn leaks system resources. After the fix the
 // command should run to completion in the background; we exercise that path by
-// invoking openDir with a context that is already cancelled so Start fails fast
+// invoking OpenDir with a context that is already cancelled so Start fails fast
 // without leaving a launched-but-unreaped subprocess behind. The test simply
 // asserts the helper does not panic and returns nil promptly.
 func TestOpenDirReapsChildProcess(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	cmd := openDir(ctx, t.TempDir())
+	cmd := OpenDir(ctx, t.TempDir())
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
@@ -83,11 +83,11 @@ func TestOpenDirReapsChildProcess(t *testing.T) {
 }
 
 // TestRevealFileReapsChildProcess mirrors TestOpenDirReapsChildProcess for the
-// revealFile helper.
+// RevealFile helper.
 func TestRevealFileReapsChildProcess(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	cmd := revealFile(ctx, "/tmp/does-not-exist")
+	cmd := RevealFile(ctx, "/tmp/does-not-exist")
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}

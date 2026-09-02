@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Render produces a vertically and horizontally centered settings box.
@@ -41,7 +42,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		}
 	}
 	tabContent := strings.Join(tabParts, "  ")
-	tabContent = truncateTitle(tabContent, contentWidth)
+	tabContent = text.Truncate(tabContent, contentWidth)
 	tabVisW := ansi.StringWidth(tabContent)
 	tabPad := max(0, contentWidth-tabVisW)
 	tabRow := "  " + tabContent + strings.Repeat(" ", tabPad) + "  "
@@ -90,7 +91,7 @@ func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s
 		lines = append(lines, borderV+s.Dim.Render(row)+borderV)
 	}
 	for i, pattern := range o.excludedPaths {
-		pattern = truncateTitle(pattern, contentWidth)
+		pattern = text.Truncate(pattern, contentWidth)
 		patW := ansi.StringWidth(pattern)
 		pad := max(0, contentWidth-patW)
 		row := "  " + pattern + strings.Repeat(" ", pad) + "  "
@@ -101,12 +102,12 @@ func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s
 		}
 	}
 	if o.exclPathInput != nil {
-		body := truncateTitle("Add pattern: "+o.exclPathInput.View(), contentWidth)
+		body := text.Truncate("Add pattern: "+o.exclPathInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 	} else if o.exclConfirmDel && o.exclCursor < len(o.excludedPaths) {
 		pattern := o.excludedPaths[o.exclCursor]
-		body := truncateTitle(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", pattern), contentWidth)
+		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", pattern), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 	}
@@ -115,7 +116,7 @@ func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s
 
 func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s styles.Styles) []string {
 	for i, dir := range o.libraryDirs {
-		display := truncateTitle(collapseHomeDir(dir), contentWidth)
+		display := text.Truncate(collapseHomeDir(dir), contentWidth)
 		displayW := ansi.StringWidth(display)
 		pad := max(0, contentWidth-displayW)
 		row := "  " + display + strings.Repeat(" ", pad) + "  "
@@ -126,12 +127,12 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s s
 		}
 	}
 	if o.libDirInput != nil {
-		body := truncateTitle("Add dir: "+o.libDirInput.View(), contentWidth)
+		body := text.Truncate("Add dir: "+o.libDirInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 	} else if o.libConfirmDel && o.libCursor < len(o.libraryDirs) {
 		dirName := collapseHomeDir(o.libraryDirs[o.libCursor])
-		body := truncateTitle(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName), contentWidth)
+		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		lines = append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 	}
@@ -168,7 +169,7 @@ func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth int, s sty
 		spinnerW := ansi.StringWidth(spinner)
 		gap := max(1, contentWidth-maxLabelW-spinnerW)
 		rowBody := fmt.Sprintf("%-*s%s%s", maxLabelW, f.Label, strings.Repeat(" ", gap), spinner)
-		rowBody = truncateTitle(rowBody, contentWidth)
+		rowBody = text.Truncate(rowBody, contentWidth)
 		rowBodyW := ansi.StringWidth(rowBody)
 		rowPad := max(0, contentWidth-rowBodyW)
 		row := "  " + rowBody + strings.Repeat(" ", rowPad) + "  "
@@ -186,13 +187,13 @@ func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth int, s sty
 
 func (o SettingsOverlay) renderEQStateRow(lines []string, contentWidth int, presetField settingsField) []string {
 	if o.eqNameInput != nil {
-		body := truncateTitle("Save as: "+o.eqNameInput.View(), contentWidth)
+		body := text.Truncate("Save as: "+o.eqNameInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		return append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 	}
 	if o.eqConfirmDel && presetField.Value >= 0 && presetField.Value < len(o.eqPresets) {
 		presetName := o.eqPresets[presetField.Value].Name
-		body := truncateTitle(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", presetName), contentWidth)
+		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", presetName), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		return append(lines, borderV+"  "+body+strings.Repeat(" ", pad)+"  "+borderV)
 	}

@@ -11,6 +11,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -113,7 +114,7 @@ func TestCorrectStoredDurationRebuildsLibrarySortCache(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Title: "A", Duration: 360.0})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Title: "B", Duration: 100.0})
-	m.library.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	// Before correction: h2 (100s) < h1 (360s).
@@ -143,7 +144,7 @@ func TestCorrectStoredDurationRebuildsHistorySortCache(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Duration: 360.0},
 		{Hash: "h2", Path: "/b.flac", Duration: 100.0},
 	}
-	m.library.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	// Before: h2 (100s) < h1 (360s).
@@ -174,7 +175,7 @@ func TestCorrectStoredDurationRebuildsArtistsSortCache(t *testing.T) {
 		{Hash: "h1", Artist: "A", Duration: 360.0},
 		{Hash: "h2", Artist: "A", Duration: 100.0},
 	}
-	m.browse.artists.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 
 	// Before: h2 (100s) < h1 (360s).
@@ -202,7 +203,7 @@ func TestCorrectStoredDurationRebuildsAlbumsSortCache(t *testing.T) {
 		{Hash: "h1", Artist: "A", Album: "X", Duration: 360.0},
 		{Hash: "h2", Artist: "A", Album: "X", Duration: 100.0},
 	}
-	m.browse.albums.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 
 	if m.browse.albums.tracks[0].Hash != "h2" {
@@ -228,7 +229,7 @@ func TestCorrectStoredDurationRebuildsGenresSortCache(t *testing.T) {
 		{Hash: "h1", Artist: "A", Genre: "Rock", Duration: 360.0},
 		{Hash: "h2", Artist: "A", Genre: "Rock", Duration: 100.0},
 	}
-	m.browse.genres.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.browse.genres = m.browse.genres.recomputeGenresSort()
 
 	if m.browse.genres.tracks[0].Hash != "h2" {
@@ -298,7 +299,7 @@ func TestCorrectStoredDurationRebuildsQueueSortCache(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", DurationMs: 360000},
 		{ID: 2, Hash: "h2", Path: "/b.flac", DurationMs: 100000},
 	}
-	m.queue.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 	if m.queue.entries[m.queue.displayOrder[0]].Hash != "h2" {
 		t.Fatalf("pre-correction queue order: want h2 first, got %s", m.queue.entries[m.queue.displayOrder[0]].Hash)

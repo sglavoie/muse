@@ -1,4 +1,4 @@
-package tui
+package sorting
 
 import "testing"
 
@@ -113,9 +113,9 @@ func TestCompareStringsUnknownLast(t *testing.T) {
 		{"Unknown Artist", "Alpha", SortDesc, false},
 	}
 	for _, tt := range tests {
-		got := compareStringsUnknownLast(tt.a, tt.b, tt.dir)
+		got := CompareStringsUnknownLast(tt.a, tt.b, tt.dir)
 		if got != tt.want {
-			t.Errorf("compareStringsUnknownLast(%q, %q, %d) = %v, want %v",
+			t.Errorf("CompareStringsUnknownLast(%q, %q, %d) = %v, want %v",
 				tt.a, tt.b, tt.dir, got, tt.want)
 		}
 	}
@@ -139,9 +139,9 @@ func TestCompareNumericZeroLast_Float64(t *testing.T) {
 		{0, 0, SortDesc, false},   // stable
 	}
 	for _, tt := range tests {
-		got := compareNumericZeroLast(tt.a, tt.b, tt.dir)
+		got := CompareNumericZeroLast(tt.a, tt.b, tt.dir)
 		if got != tt.want {
-			t.Errorf("compareNumericZeroLast(%v, %v, %v) = %v, want %v",
+			t.Errorf("CompareNumericZeroLast(%v, %v, %v) = %v, want %v",
 				tt.a, tt.b, tt.dir, got, tt.want)
 		}
 	}
@@ -165,9 +165,9 @@ func TestCompareNumericZeroLast_Int64(t *testing.T) {
 		{0, 0, SortDesc, false},
 	}
 	for _, tt := range tests {
-		got := compareNumericZeroLast(tt.a, tt.b, tt.dir)
+		got := CompareNumericZeroLast(tt.a, tt.b, tt.dir)
 		if got != tt.want {
-			t.Errorf("compareNumericZeroLast(%v, %v, %v) = %v, want %v",
+			t.Errorf("CompareNumericZeroLast(%v, %v, %v) = %v, want %v",
 				tt.a, tt.b, tt.dir, got, tt.want)
 		}
 	}

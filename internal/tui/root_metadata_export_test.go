@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
 )
 
@@ -227,7 +228,7 @@ func TestExportPathCopyKeyArmsAndExpires(t *testing.T) {
 	if !ok || cmd == nil {
 		t.Fatalf("y must copy while the export notification is up (consumed=%v)", ok)
 	}
-	if res, isResult := cmd().(clipboardResultMsg); !isResult || res.text != path {
+	if res, isResult := cmd().(desktop.ClipboardResultMsg); !isResult || res.Text != path {
 		t.Fatalf("expected the export path on the clipboard, got %#v", cmd())
 	}
 	if armed.exportCopyHint.armed() {

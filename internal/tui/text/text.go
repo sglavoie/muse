@@ -54,6 +54,23 @@ func FormatDurationSecs(secs float64) string {
 	return fmt.Sprintf("%d:%02d", m, s)
 }
 
+// FormatPositionSecs converts a duration in seconds to M:SS or H:MM:SS format.
+// Unlike FormatDurationSecs, zero is treated as a valid position (start of
+// playback) and returns "0:00". NaN and infinite values are clamped to zero.
+func FormatPositionSecs(secs float64) string {
+	if secs < 0 || math.IsNaN(secs) || math.IsInf(secs, 0) {
+		secs = 0
+	}
+	total := int(secs)
+	hours := total / 3600
+	minutes := (total % 3600) / 60
+	seconds := total % 60
+	if hours > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
+	}
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
+}
+
 // FormatDurationMs converts milliseconds to M:SS or H:MM:SS format.
 // Returns "--:--" when ms is zero or negative.
 func FormatDurationMs(ms int64) string {

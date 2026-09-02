@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -42,27 +43,27 @@ type GenresView struct {
 	height int
 
 	filter         filter.State
-	sortState      SortState
+	sortState      sorting.SortState
 	selectedHashes map[string]struct{}
 }
 
 func (v *GenresView) setSize(w, h int) { v.width = w; v.height = h }
 
 func (v GenresView) recomputeGenresSort() GenresView {
-	if v.sortState.Field == SortDefault {
+	if v.sortState.Field == sorting.SortDefault {
 		return v
 	}
 	switch v.level {
 	case gentui.GenreLevel:
 		if len(v.genres) > 0 {
-			v.genres = SortStrings(v.genres, v.sortState.Dir)
+			v.genres = sorting.SortStrings(v.genres, v.sortState.Dir)
 		}
 	case gentui.ArtistLevel:
 		if len(v.artists) > 0 {
-			v.artists = SortStrings(v.artists, v.sortState.Dir)
+			v.artists = sorting.SortStrings(v.artists, v.sortState.Dir)
 		}
 	case gentui.TrackLevel:
-		if sorted := SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+		if sorted := sorting.SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
 			v.tracks = sorted
 		}
 	}
@@ -104,9 +105,9 @@ func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		NowPlayingHash:  nowPlayingHash,
 		NowPlayingIcon:  nowPlayingIcon,
 	}
-	if v.sortState.Field != SortDefault {
-		gv.StripSortLabel = SortFieldLabel(v.sortState.Field)
-		gv.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
+	if v.sortState.Field != sorting.SortDefault {
+		gv.StripSortLabel = sorting.SortFieldLabel(v.sortState.Field)
+		gv.StripSortIndicator = sorting.SortDirIndicator(v.sortState.Dir)
 	}
 	return gv.Render()
 }
@@ -167,7 +168,7 @@ func (v GenresView) openArtists(artists []string) GenresView {
 	v.genreScrollOffset = view.GenreScrollOffset
 	v.artists = view.Artists
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedHashes = nil
 	return v
 }
@@ -188,7 +189,7 @@ func (v GenresView) openTracks(tracks []musiclib.Track) GenresView {
 	v.artistScrollOffset = view.ArtistScrollOffset
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedHashes = nil
 	return v
 }
@@ -220,7 +221,7 @@ func (v GenresView) back() GenresView {
 	v.artists = view.Artists
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedHashes = nil
 	return v
 }
@@ -237,7 +238,7 @@ func (v GenresView) clampCursor() GenresView {
 	default:
 		n = len(arttui.FilterStrings(v.genres, v.filter.Text))
 	}
-	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
+	v.cursor, v.scrollOffset = sorting.ClampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 

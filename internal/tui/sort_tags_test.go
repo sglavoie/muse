@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -17,12 +18,12 @@ func TestTagsSortFieldsForLevel(t *testing.T) {
 	})
 	t.Run("TrackLevel returns tagsTrackSortFields", func(t *testing.T) {
 		got := tagsSortFieldsForLevel(tagtui.TrackLevel)
-		if len(got) != len(tagsTrackSortFields) {
-			t.Fatalf("len=%d, want %d", len(got), len(tagsTrackSortFields))
+		if len(got) != len(sorting.TagsTrackSortFields) {
+			t.Fatalf("len=%d, want %d", len(got), len(sorting.TagsTrackSortFields))
 		}
 		for i, f := range got {
-			if f != tagsTrackSortFields[i] {
-				t.Errorf("idx %d: got %d, want %d", i, f, tagsTrackSortFields[i])
+			if f != sorting.TagsTrackSortFields[i] {
+				t.Errorf("idx %d: got %d, want %d", i, f, sorting.TagsTrackSortFields[i])
 			}
 		}
 	})
@@ -39,7 +40,7 @@ func TestTagsRecomputeSort(t *testing.T) {
 		v := TagsView{
 			level:     tagtui.TrackLevel,
 			tracks:    tracks,
-			sortState: SortState{Field: SortTitle, Dir: SortAsc},
+			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		}
 		v = v.recomputeTagsSort()
 		if v.sortedTrackOrder == nil {
@@ -58,7 +59,7 @@ func TestTagsRecomputeSort(t *testing.T) {
 		v := TagsView{
 			level:     tagtui.TrackLevel,
 			tracks:    tracks,
-			sortState: SortState{Field: SortArtist, Dir: SortDesc},
+			sortState: sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortDesc},
 		}
 		v = v.recomputeTagsSort()
 		display := v.displayTracks()
@@ -71,7 +72,7 @@ func TestTagsRecomputeSort(t *testing.T) {
 		v := TagsView{
 			level:     tagtui.TrackLevel,
 			tracks:    tracks,
-			sortState: SortState{Field: SortDuration, Dir: SortAsc},
+			sortState: sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc},
 		}
 		v = v.recomputeTagsSort()
 		display := v.displayTracks()
@@ -84,7 +85,7 @@ func TestTagsRecomputeSort(t *testing.T) {
 		v := TagsView{
 			level:     tagtui.TrackLevel,
 			tracks:    tracks,
-			sortState: SortState{Field: SortDefault},
+			sortState: sorting.SortState{Field: sorting.SortDefault},
 		}
 		v = v.recomputeTagsSort()
 		if v.sortedTrackOrder != nil {
@@ -96,7 +97,7 @@ func TestTagsRecomputeSort(t *testing.T) {
 		v := TagsView{
 			level:     tagtui.TagLevel,
 			tracks:    tracks,
-			sortState: SortState{Field: SortTitle, Dir: SortAsc},
+			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		}
 		v = v.recomputeTagsSort()
 		if v.sortedTrackOrder != nil {
@@ -109,7 +110,7 @@ func TestTagsSortResetOnBack(t *testing.T) {
 	v := TagsView{
 		level:     tagtui.TrackLevel,
 		tracks:    []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}},
-		sortState: SortState{Field: SortTitle, Dir: SortDesc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc},
 	}
 	v = v.recomputeTagsSort()
 	if v.sortedTrackOrder == nil {
@@ -117,7 +118,7 @@ func TestTagsSortResetOnBack(t *testing.T) {
 	}
 
 	v2 := v.back()
-	if v2.sortState.Field != SortDefault {
+	if v2.sortState.Field != sorting.SortDefault {
 		t.Error("sort should be reset on back")
 	}
 	if v2.sortedTrackOrder != nil {
@@ -153,12 +154,12 @@ func TestTagsBackClampsRestoredCursorAgainstCurrentTags(t *testing.T) {
 func TestTagsSortResetOnOpenTracks(t *testing.T) {
 	v := TagsView{
 		level:     tagtui.TagLevel,
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	tag := db.TagRow{ID: 1, Name: "MyTag"}
 	tracks := []db.PlaylistTrackRow{{Hash: "h1", Title: "T1"}}
 	v2 := v.openTracks(tag, tracks)
-	if v2.sortState.Field != SortDefault {
+	if v2.sortState.Field != sorting.SortDefault {
 		t.Error("sort should be reset on openTracks")
 	}
 }
@@ -171,7 +172,7 @@ func TestTagsFocusedTrackWithSort(t *testing.T) {
 	v := TagsView{
 		level:     tagtui.TrackLevel,
 		tracks:    tracks,
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		cursor:    0,
 	}
 	v = v.recomputeTagsSort()
@@ -193,9 +194,9 @@ func TestTagsVisibleReserve(t *testing.T) {
 	}{
 		{"tag level no filter no sort", TagsView{level: tagtui.TagLevel}, 0},
 		{"tag level with filter", TagsView{level: tagtui.TagLevel, filter: filter.State{Active: true}}, 1},
-		{"tag level with sort", TagsView{level: tagtui.TagLevel, sortState: SortState{Field: SortName}}, 1},
+		{"tag level with sort", TagsView{level: tagtui.TagLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
 		{"track level no sort", TagsView{level: tagtui.TrackLevel}, 3},
-		{"track level with sort", TagsView{level: tagtui.TrackLevel, sortState: SortState{Field: SortTitle}}, 4},
+		{"track level with sort", TagsView{level: tagtui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

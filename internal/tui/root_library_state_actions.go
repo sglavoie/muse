@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool) {
@@ -51,7 +52,7 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			m.library.filter = m.library.filter.Deactivate()
 			m.library.filteredMatches = nil
 			m.library.selectedHashes = nil
-			m.library.sortState = SortState{}
+			m.library.sortState = sorting.SortState{}
 			m.library.sortedTracks = nil
 			m.scanCh = ch
 			m.scanning = true

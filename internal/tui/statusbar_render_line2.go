@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 func (s StatusBar) renderLine2(ctx statusBarRenderContext) string {
@@ -74,7 +75,7 @@ func (s StatusBar) renderLongOpLine(ctx statusBarRenderContext, targetWidth int)
 	}
 	etaText := ""
 	if eta := s.longOp.etaSeconds(); eta > 0 {
-		etaText = "ETA " + formatTime(float64(eta))
+		etaText = "ETA " + text.FormatPositionSecs(float64(eta))
 	}
 	cancelHint := "esc cancel"
 

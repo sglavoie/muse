@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestRescanHotkeyReturnsCmd verifies that pressing R (Shift+r) with a
@@ -164,13 +165,13 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 	// Seed a track, select it, and activate a sort.
 	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
 	m.library = m.library.ToggleBulkSelection("h1")
-	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	if len(m.library.selectedHashes) != 1 {
 		t.Fatalf("setup: expected 1 selected hash, got %d", len(m.library.selectedHashes))
 	}
-	if m.library.sortState.Field != SortArtist {
+	if m.library.sortState.Field != sorting.SortArtist {
 		t.Fatal("setup: expected SortArtist sort field")
 	}
 	if m.library.sortedTracks == nil {
@@ -186,7 +187,7 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 	if nm.library.selectedHashes != nil {
 		t.Errorf("selectedHashes should be nil after rescan, got %v", nm.library.selectedHashes)
 	}
-	if nm.library.sortState.Field != SortDefault {
+	if nm.library.sortState.Field != sorting.SortDefault {
 		t.Errorf("sortState.Field should be SortDefault after rescan, got %v", nm.library.sortState.Field)
 	}
 	if nm.library.sortedTracks != nil {

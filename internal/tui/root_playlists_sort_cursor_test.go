@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestPlaylistRenamedMsgCursorUsesEffectiveSort verifies that after a rename,
@@ -26,7 +27,7 @@ func TestPlaylistRenamedMsgCursorUsesEffectiveSort(t *testing.T) {
 	m = next.(Model)
 
 	// Activate name-ascending sort.
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	// Rename "Rock" (ID=1) to "Zulu". After rename, unsorted order is:
@@ -63,7 +64,7 @@ func TestPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	// Create "Beta" (ID=3). Unsorted: Rock(1), Alpha(2), Beta(3).
@@ -100,7 +101,7 @@ func TestSmartPlaylistCreatedMsgCursorUsesEffectiveSort(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m = next.(Model)
 
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	// Create smart playlist "Beta" (ID=3). Sorted: Alpha, Beta, Rock.

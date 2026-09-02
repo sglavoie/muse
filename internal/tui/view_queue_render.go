@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/sglavoie/muse/internal/tui/buckets"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -244,7 +245,7 @@ func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackStat
 	stripLine := v.renderStateStrip(s, len(v.entries), len(entries))
 
 	bodyLines := lines
-	if SortFieldHasBuckets(v.sortState.Field) {
+	if sorting.SortFieldHasBuckets(v.sortState.Field) {
 		labels := make([]string, len(lines))
 		for i := range lines {
 			labels[i] = QueueEntryBucket(v.sortState.Field, entries[start+i])

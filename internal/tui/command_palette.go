@@ -271,7 +271,7 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	lines = append(lines, cpCornerTL+strings.Repeat(cpBorderH, innerWidth)+cpCornerTR)
 
 	// Title row (centered).
-	displayTitle := truncateTitle(modalTitle, innerWidth)
+	displayTitle := text.Truncate(modalTitle, innerWidth)
 	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP

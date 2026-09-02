@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/sglavoie/muse/internal/tui/layout"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -55,46 +56,46 @@ func (m *Model) setViewDimensions(width, height int) {
 func (m *Model) clampAllScrollOffsets() {
 	libReserve := libraryViewVisibleReserve(m.library)
 	libMaxRows := layout.VisibleRows(m.library.height, libReserve)
-	m.library.scrollOffset = adjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
+	m.library.scrollOffset = sorting.AdjustScroll(m.library.cursor, m.library.scrollOffset, libMaxRows)
 
 	queueMaxRows := m.queue.visibleRows()
-	m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
+	m.queue.scrollOffset = sorting.AdjustScroll(m.queue.cursor, m.queue.scrollOffset, queueMaxRows)
 
 	plReserve := playlistsVisibleReserve(m.playlists)
 	plMaxRows := layout.VisibleRows(m.playlists.height, plReserve)
-	m.playlists.scrollOffset = adjustScroll(m.playlists.cursor, m.playlists.scrollOffset, plMaxRows)
+	m.playlists.scrollOffset = sorting.AdjustScroll(m.playlists.cursor, m.playlists.scrollOffset, plMaxRows)
 
 	artReserve := artistsVisibleReserve(m.browse.artists)
 	artMaxRows := layout.VisibleRows(m.browse.artists.height, artReserve)
-	m.browse.artists.scrollOffset = adjustScroll(m.browse.artists.cursor, m.browse.artists.scrollOffset, artMaxRows)
+	m.browse.artists.scrollOffset = sorting.AdjustScroll(m.browse.artists.cursor, m.browse.artists.scrollOffset, artMaxRows)
 
 	albReserve := albumsVisibleReserve(m.browse.albums)
 	albMaxRows := layout.VisibleRows(m.browse.albums.height, albReserve)
-	m.browse.albums.scrollOffset = adjustScroll(m.browse.albums.cursor, m.browse.albums.scrollOffset, albMaxRows)
+	m.browse.albums.scrollOffset = sorting.AdjustScroll(m.browse.albums.cursor, m.browse.albums.scrollOffset, albMaxRows)
 
 	favReserve := favoritesVisibleReserve(m.favorites)
 	favMaxRows := layout.VisibleRows(m.favorites.height, favReserve)
-	m.favorites.scrollOffset = adjustScroll(m.favorites.cursor, m.favorites.scrollOffset, favMaxRows)
+	m.favorites.scrollOffset = sorting.AdjustScroll(m.favorites.cursor, m.favorites.scrollOffset, favMaxRows)
 
 	genReserve := genresVisibleReserve(m.browse.genres)
 	genMaxRows := layout.VisibleRows(m.browse.genres.height, genReserve)
-	m.browse.genres.scrollOffset = adjustScroll(m.browse.genres.cursor, m.browse.genres.scrollOffset, genMaxRows)
+	m.browse.genres.scrollOffset = sorting.AdjustScroll(m.browse.genres.cursor, m.browse.genres.scrollOffset, genMaxRows)
 
 	tagReserve := tagsVisibleReserve(m.tagsView)
 	tagMaxRows := layout.VisibleRows(m.tagsView.height, tagReserve)
-	m.tagsView.scrollOffset = adjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, tagMaxRows)
+	m.tagsView.scrollOffset = sorting.AdjustScroll(m.tagsView.cursor, m.tagsView.scrollOffset, tagMaxRows)
 
 	if m.mixes.level == 1 {
 		mixReserve := libraryViewVisibleReserve(m.mixes.trackView)
 		mixMaxRows := layout.VisibleRows(m.mixes.height, mixReserve)
-		m.mixes.trackView.scrollOffset = adjustScroll(
+		m.mixes.trackView.scrollOffset = sorting.AdjustScroll(
 			m.mixes.trackView.cursor, m.mixes.trackView.scrollOffset, mixMaxRows)
 	}
 
 	if m.insights.atTracks() {
 		insReserve := libraryViewVisibleReserve(m.insights.trackView)
 		insMaxRows := layout.VisibleRows(m.insights.height, insReserve)
-		m.insights.trackView.scrollOffset = adjustScroll(
+		m.insights.trackView.scrollOffset = sorting.AdjustScroll(
 			m.insights.trackView.cursor, m.insights.trackView.scrollOffset, insMaxRows)
 	} else {
 		m.insights.clampCursor()
@@ -106,6 +107,6 @@ func tagsVisibleReserve(v TagsView) int {
 	return drilldownVisibleReserve(
 		v.level == tagtui.TagLevel,
 		v.filter.Active || v.filter.Text != "",
-		v.sortState.Field != SortDefault,
+		v.sortState.Field != sorting.SortDefault,
 	)
 }

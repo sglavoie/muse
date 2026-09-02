@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestUpdateScanBatchMsgAppendsTracksToLibrary verifies that receiving a
@@ -207,7 +208,7 @@ func TestScanBatchRecomputesSortedTracks(t *testing.T) {
 	// Seed two tracks and sort.
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
 	m.library.index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
-	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 	if len(m.library.sortedTracks) != 2 {
 		t.Fatalf("setup: expected 2 sorted tracks, got %d", len(m.library.sortedTracks))

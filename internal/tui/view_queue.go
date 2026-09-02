@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // QueueEntry holds a single item in the playback queue.
@@ -43,7 +44,7 @@ type QueueView struct {
 	savingAsPlaylist    bool            // true while the inline save-as-playlist input is active
 	savingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
 	saveInput           textinput.Model // current value of the inline save field
-	sortState           SortState
+	sortState           sorting.SortState
 	displayOrder        []int // nil when sort inactive (identity mapping)
 	filter              filter.State
 	tagFilterHashes     map[string]struct{} // non-nil when a cross-view tag filter is active

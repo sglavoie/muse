@@ -1,4 +1,4 @@
-package tui
+package sorting
 
 import (
 	"time"
@@ -22,23 +22,6 @@ func TrackBucket(field SortField, t library.Track, now time.Time) string {
 		return buckets.DateBucket(t.CreatedAt, now)
 	case SortLastPlayed:
 		return buckets.DateBucket(t.LastPlayedAt, now)
-	default:
-		return ""
-	}
-}
-
-// QueueEntryBucket returns the bucket label for a QueueEntry under the given
-// sort field. Returns the empty string when the field has no bucketing.
-func QueueEntryBucket(field SortField, e QueueEntry) string {
-	switch field {
-	case SortTitle:
-		return buckets.FirstLetter(e.Title)
-	case SortArtist:
-		return buckets.FirstLetter(e.Artist)
-	case SortAlbum:
-		return buckets.FirstLetter(e.Album)
-	case SortSource:
-		return buckets.FirstLetter(e.SourcePlaylist)
 	default:
 		return ""
 	}

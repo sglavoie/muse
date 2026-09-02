@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // handleSortAction handles sort-related key actions. Returns (model, cmd, true)
@@ -17,10 +18,10 @@ func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
 		return m.handleSortCycle()
 	case actionSortAsc:
 		m = exitVisualMode(m)
-		return m.handleSortDir(SortAsc)
+		return m.handleSortDir(sorting.SortAsc)
 	case actionSortDesc:
 		m = exitVisualMode(m)
-		return m.handleSortDir(SortDesc)
+		return m.handleSortDir(sorting.SortDesc)
 	default:
 		return m, nil, false
 	}
@@ -28,16 +29,16 @@ func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
 
 // handleSortCycle cycles to the next sort field for the active view.
 func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
-	var ss SortState
+	var ss sorting.SortState
 	switch m.activeView {
 	case viewLibrary:
 		switch m.library.mode {
 		case LibraryModeRecent:
-			m.library, ss = m.library.cycleSortField(recentlyAddedSortFields)
+			m.library, ss = m.library.cycleSortField(sorting.RecentlyAddedSortFields)
 		case LibraryModeHistory:
-			m.library, ss = m.library.cycleSortField(historySortFields)
+			m.library, ss = m.library.cycleSortField(sorting.HistorySortFields)
 		default:
-			m.library, ss = m.library.cycleSortField(librarySortFields)
+			m.library, ss = m.library.cycleSortField(sorting.LibrarySortFields)
 		}
 		m.statusBar.notifyInfo(sortNotification(ss))
 		return m, nil, true
@@ -46,10 +47,10 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.queue.savingAsPlaylist {
 			return m, nil, false
 		}
-		next := CycleSortField(m.queue.sortState.Field, queueSortFields)
+		next := sorting.CycleSortField(m.queue.sortState.Field, sorting.QueueSortFields)
 		m.queue.sortState.Field = next
-		if next == SortDefault {
-			m.queue.sortState.Dir = SortAsc
+		if next == sorting.SortDefault {
+			m.queue.sortState.Dir = sorting.SortAsc
 		}
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = 0
@@ -61,14 +62,14 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.playlists.creating || m.playlists.renaming {
 			return m, nil, false
 		}
-		fields := playlistListSortFields
+		fields := sorting.PlaylistListSortFields
 		if m.playlists.level == pltui.TrackLevel {
-			fields = playlistTrackSortFields
+			fields = sorting.PlaylistTrackSortFields
 		}
-		next := CycleSortField(m.playlists.sortState.Field, fields)
+		next := sorting.CycleSortField(m.playlists.sortState.Field, fields)
 		m.playlists.sortState.Field = next
-		if next == SortDefault {
-			m.playlists.sortState.Dir = SortAsc
+		if next == sorting.SortDefault {
+			m.playlists.sortState.Dir = sorting.SortAsc
 		}
 		m.playlists = m.playlists.recomputePlaylistSort()
 		m.playlists.cursor = 0
@@ -77,7 +78,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewBrowse:
-		var ss SortState
+		var ss sorting.SortState
 		var ok bool
 		if m, ss, ok = m.cycleBrowseSortField(); !ok {
 			return m, nil, false
@@ -90,10 +91,10 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if fields == nil {
 			return m, nil, false
 		}
-		next := CycleSortField(m.favorites.sortState.Field, fields)
+		next := sorting.CycleSortField(m.favorites.sortState.Field, fields)
 		m.favorites.sortState.Field = next
-		if next == SortDefault {
-			m.favorites.sortState.Dir = SortAsc
+		if next == sorting.SortDefault {
+			m.favorites.sortState.Dir = sorting.SortAsc
 			m = m.rederiveFavoritesData()
 		}
 		m.favorites = m.favorites.recomputeFavoritesSort()
@@ -108,10 +109,10 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if fields == nil {
 			return m, nil, false
 		}
-		next := CycleSortField(m.tagsView.sortState.Field, fields)
+		next := sorting.CycleSortField(m.tagsView.sortState.Field, fields)
 		m.tagsView.sortState.Field = next
-		if next == SortDefault {
-			m.tagsView.sortState.Dir = SortAsc
+		if next == sorting.SortDefault {
+			m.tagsView.sortState.Dir = sorting.SortAsc
 		}
 		m.tagsView = m.tagsView.recomputeTagsSort()
 		m.tagsView.cursor = 0
@@ -124,7 +125,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.mixes.level != 1 {
 			return m, nil, false
 		}
-		m.mixes.trackView, _ = m.mixes.trackView.cycleSortField(librarySortFields)
+		m.mixes.trackView, _ = m.mixes.trackView.cycleSortField(sorting.LibrarySortFields)
 		m.mixes.trackView.cursor = 0
 		m.mixes.trackView.scrollOffset = 0
 		m.statusBar.notifyInfo(sortNotification(m.mixes.trackView.sortState))
@@ -134,7 +135,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if !m.insights.atTracks() {
 			return m, nil, false
 		}
-		m.insights.trackView, _ = m.insights.trackView.cycleSortField(librarySortFields)
+		m.insights.trackView, _ = m.insights.trackView.cycleSortField(sorting.LibrarySortFields)
 		m.insights.trackView.cursor = 0
 		m.insights.trackView.scrollOffset = 0
 		m.statusBar.notifyInfo(sortNotification(m.insights.trackView.sortState))
@@ -147,10 +148,10 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 
 // handleSortDir sets the sort direction for the active view, preserving the
 // focused item at its new position after re-sort.
-func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
 	switch m.activeView {
 	case viewLibrary:
-		var ss SortState
+		var ss sorting.SortState
 		var ok bool
 		if m.library, ss, ok = m.library.applySortDir(dir); !ok {
 			return m, nil, false
@@ -159,19 +160,19 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewQueue:
-		if m.queue.sortState.Field == SortDefault {
+		if m.queue.sortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		prevEntryIdx := m.queue.focusedEntryIndex()
 		m.queue.sortState.Dir = dir
 		m.queue = m.queue.recomputeDisplayOrder()
 		m.queue.cursor = m.queue.findEntryFilteredPosition(prevEntryIdx)
-		m.queue.scrollOffset = adjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
+		m.queue.scrollOffset = sorting.AdjustScroll(m.queue.cursor, m.queue.scrollOffset, m.queue.visibleRows())
 		m.statusBar.notifyInfo(sortNotification(m.queue.sortState))
 		return m, nil, true
 
 	case viewPlaylists:
-		if m.playlists.sortState.Field == SortDefault {
+		if m.playlists.sortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		m = m.preservePlaylistCursorOnDirChange(dir)
@@ -179,7 +180,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewBrowse:
-		var ss SortState
+		var ss sorting.SortState
 		var ok bool
 		if m, ss, ok = m.shiftBrowseSortDir(dir); !ok {
 			return m, nil, false
@@ -188,7 +189,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewFavorites:
-		if m.favorites.sortState.Field == SortDefault {
+		if m.favorites.sortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		m = m.preserveFavoritesCursorOnDirChange(dir)
@@ -196,7 +197,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case viewTags:
-		if m.tagsView.sortState.Field == SortDefault {
+		if m.tagsView.sortState.Field == sorting.SortDefault {
 			return m, nil, false
 		}
 		m = m.preserveTagsCursorOnDirChange(dir)
@@ -207,7 +208,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		if m.mixes.level != 1 {
 			return m, nil, false
 		}
-		var ss SortState
+		var ss sorting.SortState
 		var ok bool
 		if m.mixes.trackView, ss, ok = m.mixes.trackView.applySortDir(dir); !ok {
 			return m, nil, false
@@ -219,7 +220,7 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 		if !m.insights.atTracks() {
 			return m, nil, false
 		}
-		var ss SortState
+		var ss sorting.SortState
 		var ok bool
 		if m.insights.trackView, ss, ok = m.insights.trackView.applySortDir(dir); !ok {
 			return m, nil, false
@@ -233,9 +234,9 @@ func (m Model) handleSortDir(dir SortDir) (tea.Model, tea.Cmd, bool) {
 }
 
 // sortNotification formats a transient notification string for the current sort state.
-func sortNotification(s SortState) string {
-	if s.Field == SortDefault {
+func sortNotification(s sorting.SortState) string {
+	if s.Field == sorting.SortDefault {
 		return "Sort: default"
 	}
-	return fmt.Sprintf("Sort: %s %s", SortFieldLabel(s.Field), SortDirIndicator(s.Dir))
+	return fmt.Sprintf("Sort: %s %s", sorting.SortFieldLabel(s.Field), sorting.SortDirIndicator(s.Dir))
 }

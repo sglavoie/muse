@@ -1,4 +1,8 @@
-package tui
+// Package desktop provides OS-level desktop integration: opening a directory
+// or revealing a file in the system file manager, and copying text to the
+// system clipboard. It is independent of the TUI and imports no internal/tui
+// package.
+package desktop
 
 import (
 	"bytes"
@@ -20,17 +24,17 @@ var getEnv = os.Getenv
 // panic so the TUI keeps running on systems without pbcopy/xclip/xsel/wl-copy.
 var errNoClipboardTool = errors.New("no clipboard utility found (install xclip, xsel, or wl-copy)")
 
-// clipboardResultMsg is dispatched after a copy-to-clipboard operation.
-type clipboardResultMsg struct {
-	err  error
-	text string
+// ClipboardResultMsg is dispatched after a copy-to-clipboard operation.
+type ClipboardResultMsg struct {
+	Err  error
+	Text string
 }
 
-// copyToClipboard returns a tea.Cmd that writes text to the system clipboard.
+// CopyToClipboard returns a tea.Cmd that writes text to the system clipboard.
 // On macOS it pipes to pbcopy; on Linux/BSD it tries xclip, xsel, then wl-copy
 // (Wayland). When no tool is available it returns an explanatory error rather
 // than letting a nil *exec.Cmd panic.
-func copyToClipboard(ctx context.Context, text string) tea.Cmd {
+func CopyToClipboard(ctx context.Context, text string) tea.Cmd {
 	return func() tea.Msg {
 		var cmd *exec.Cmd
 		switch runtime.GOOS {
@@ -59,11 +63,11 @@ func copyToClipboard(ctx context.Context, text string) tea.Cmd {
 			}
 		}
 		if cmd == nil {
-			return clipboardResultMsg{err: errNoClipboardTool, text: text}
+			return ClipboardResultMsg{Err: errNoClipboardTool, Text: text}
 		}
 		cmd.Stdin = bytes.NewBufferString(text)
 		err := cmd.Run()
-		return clipboardResultMsg{err: err, text: text}
+		return ClipboardResultMsg{Err: err, Text: text}
 	}
 }
 

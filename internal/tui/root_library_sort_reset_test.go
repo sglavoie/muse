@@ -8,6 +8,7 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestResetLibrarySortRebuildFilterCache verifies that resetting the library
@@ -21,7 +22,7 @@ func TestResetLibrarySortRebuildFilterCache(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h2", Title: "Alpha", Artist: "B"})
 	m.library.index.Insert(library.Track{Hash: "h3", Title: "Beta", Artist: "C"})
 
-	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	m.library.filter.Text = "alpha"
@@ -70,7 +71,7 @@ func TestResetArtistsSortRederivesData(t *testing.T) {
 	}
 
 	// Sort descending: Charlie, Beta, Alpha.
-	m.browse.artists.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 	if m.browse.artists.artists[0] != "Charlie" {
 		t.Fatalf("after sort desc: first artist should be Charlie, got %q", m.browse.artists.artists[0])
@@ -78,7 +79,7 @@ func TestResetArtistsSortRederivesData(t *testing.T) {
 
 	// Reset should restore original alphabetical order.
 	m = m.resetArtistsSort()
-	if m.browse.artists.sortState.Field != SortDefault {
+	if m.browse.artists.sortState.Field != sorting.SortDefault {
 		t.Fatal("sortState should be SortDefault after reset")
 	}
 	if m.browse.artists.artists[0] != "Alpha" {
@@ -101,7 +102,7 @@ func TestResetAlbumsSortRederivesData(t *testing.T) {
 	}
 
 	// Sort descending: Zebra, Alpha.
-	m.browse.albums.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 	if m.browse.albums.albums[0] != "Zebra" {
 		t.Fatalf("after sort desc: first album should be Zebra, got %q", m.browse.albums.albums[0])
@@ -131,7 +132,7 @@ func TestResetGenresSortRederivesData(t *testing.T) {
 	origFirst := m.browse.genres.genres[0]
 
 	// Sort ascending: Jazz, Rock.
-	m.browse.genres.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.browse.genres.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.browse.genres = m.browse.genres.recomputeGenresSort()
 	if m.browse.genres.genres[0] != "Jazz" {
 		t.Fatalf("after sort asc: first genre should be Jazz, got %q", m.browse.genres.genres[0])

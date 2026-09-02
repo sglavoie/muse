@@ -1,6 +1,10 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/sorting"
+)
 
 func TestSortQueueIndices(t *testing.T) {
 	entries := []QueueEntry{
@@ -10,7 +14,7 @@ func TestSortQueueIndices(t *testing.T) {
 	}
 
 	t.Run("sort by title asc", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortTitle, SortAsc)
+		order := SortQueueIndices(entries, sorting.SortTitle, sorting.SortAsc)
 		if order == nil {
 			t.Fatal("expected non-nil order")
 		}
@@ -26,7 +30,7 @@ func TestSortQueueIndices(t *testing.T) {
 	})
 
 	t.Run("sort by title desc", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortTitle, SortDesc)
+		order := SortQueueIndices(entries, sorting.SortTitle, sorting.SortDesc)
 		if entries[order[0]].Title != "Zulu" {
 			t.Errorf("first should be Zulu, got %q", entries[order[0]].Title)
 		}
@@ -36,14 +40,14 @@ func TestSortQueueIndices(t *testing.T) {
 	})
 
 	t.Run("sort by artist asc", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortArtist, SortAsc)
+		order := SortQueueIndices(entries, sorting.SortArtist, sorting.SortAsc)
 		if entries[order[0]].Artist != "Alpha" {
 			t.Errorf("first should be Alpha, got %q", entries[order[0]].Artist)
 		}
 	})
 
 	t.Run("sort by duration asc", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortDuration, SortAsc)
+		order := SortQueueIndices(entries, sorting.SortDuration, sorting.SortAsc)
 		if entries[order[0]].DurationMs != 1000 {
 			t.Errorf("first should have 1000ms, got %d", entries[order[0]].DurationMs)
 		}
@@ -53,7 +57,7 @@ func TestSortQueueIndices(t *testing.T) {
 	})
 
 	t.Run("sort by album asc unknown last", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortAlbum, SortAsc)
+		order := SortQueueIndices(entries, sorting.SortAlbum, sorting.SortAsc)
 		if entries[order[0]].Album != "Blue" {
 			t.Errorf("first should be Blue, got %q", entries[order[0]].Album)
 		}
@@ -66,7 +70,7 @@ func TestSortQueueIndices(t *testing.T) {
 	})
 
 	t.Run("sort by source asc unknown last", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortSource, SortAsc)
+		order := SortQueueIndices(entries, sorting.SortSource, sorting.SortAsc)
 		if entries[order[0]].SourcePlaylist != "Jazz" {
 			t.Errorf("first should be Jazz, got %q", entries[order[0]].SourcePlaylist)
 		}
@@ -79,21 +83,21 @@ func TestSortQueueIndices(t *testing.T) {
 	})
 
 	t.Run("default returns nil", func(t *testing.T) {
-		order := SortQueueIndices(entries, SortDefault, SortAsc)
+		order := SortQueueIndices(entries, sorting.SortDefault, sorting.SortAsc)
 		if order != nil {
 			t.Error("SortDefault should return nil")
 		}
 	})
 
 	t.Run("empty entries returns nil", func(t *testing.T) {
-		order := SortQueueIndices(nil, SortTitle, SortAsc)
+		order := SortQueueIndices(nil, sorting.SortTitle, sorting.SortAsc)
 		if order != nil {
 			t.Error("empty entries should return nil")
 		}
 	})
 
 	t.Run("original entries not modified", func(t *testing.T) {
-		_ = SortQueueIndices(entries, SortTitle, SortAsc)
+		_ = SortQueueIndices(entries, sorting.SortTitle, sorting.SortAsc)
 		if entries[0].Title != "Zulu" {
 			t.Error("original entries were modified")
 		}
@@ -167,7 +171,7 @@ func TestQueueSortDequeueCorrectEntry(t *testing.T) {
 			{ID: 20, Title: "Alpha", Artist: "B"},
 			{ID: 30, Title: "Mike", Artist: "C"},
 		},
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v = v.recomputeDisplayOrder()
 
@@ -234,7 +238,7 @@ func TestQueueSortSelectCorrectEntry(t *testing.T) {
 			{ID: 1, Hash: "h1", Title: "Zulu"},
 			{ID: 2, Hash: "h2", Title: "Alpha"},
 		},
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v = v.recomputeDisplayOrder()
 
@@ -259,7 +263,7 @@ func TestQueueBulkSelectionToggleWithSort(t *testing.T) {
 			{ID: 1, Title: "Zulu"},
 			{ID: 2, Title: "Alpha"},
 		},
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v = v.recomputeDisplayOrder()
 
@@ -311,4 +315,36 @@ func TestQueueEntryIndexBoundsCheck(t *testing.T) {
 	if got := v.entryIndex(5); got != 5 {
 		t.Errorf("over-bounds index: got %d, want 5", got)
 	}
+}
+
+func TestSortQueueIndicesZeroDurationSortsLast(t *testing.T) {
+	entries := []QueueEntry{
+		{Title: "A", DurationMs: 0},
+		{Title: "B", DurationMs: 5000},
+		{Title: "C", DurationMs: 2000},
+	}
+	t.Run("asc", func(t *testing.T) {
+		order := SortQueueIndices(entries, sorting.SortDuration, sorting.SortAsc)
+		if entries[order[0]].Title != "C" {
+			t.Errorf("first should be C (2000ms), got %s", entries[order[0]].Title)
+		}
+		if entries[order[1]].Title != "B" {
+			t.Errorf("second should be B (5000ms), got %s", entries[order[1]].Title)
+		}
+		if entries[order[2]].DurationMs != 0 {
+			t.Error("zero-duration entry should be last")
+		}
+	})
+	t.Run("desc", func(t *testing.T) {
+		order := SortQueueIndices(entries, sorting.SortDuration, sorting.SortDesc)
+		if entries[order[0]].Title != "B" {
+			t.Errorf("first should be B (5000ms), got %s", entries[order[0]].Title)
+		}
+		if entries[order[1]].Title != "C" {
+			t.Errorf("second should be C (2000ms), got %s", entries[order[1]].Title)
+		}
+		if entries[order[2]].DurationMs != 0 {
+			t.Error("zero-duration entry should be last")
+		}
+	})
 }

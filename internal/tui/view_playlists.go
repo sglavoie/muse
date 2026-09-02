@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // PlaylistsView wraps the playlists sub-panel state for the root model.
@@ -26,7 +27,7 @@ type PlaylistsView struct {
 	renaming         bool               // true while the inline rename input is active
 	renameInput      textinput.Model    // current value of the inline rename field
 	selectedTrackIDs map[int64]struct{} // bulk-selected playlist track row IDs at TrackLevel
-	sortState        SortState
+	sortState        sorting.SortState
 	sortedPlaylists  []db.PlaylistRow       // sorted copy for list level (nil when default)
 	sortedTrackOrder []int                  // index permutation for track level (nil when default)
 	smartQuery       *db.SmartPlaylistQuery // non-nil when TrackLevel shows a smart playlist
@@ -94,11 +95,11 @@ func (v PlaylistsView) findTrackDisplayPosition(trackIdx int) int {
 // recomputePlaylistSort rebuilds the sorted playlist/track caches.
 func (v PlaylistsView) recomputePlaylistSort() PlaylistsView {
 	if v.level == pltui.ListLevel {
-		v.sortedPlaylists = SortPlaylists(v.playlists, v.sortState.Field, v.sortState.Dir)
+		v.sortedPlaylists = sorting.SortPlaylists(v.playlists, v.sortState.Field, v.sortState.Dir)
 		v.sortedTrackOrder = nil
 	} else {
 		v.sortedPlaylists = nil
-		v.sortedTrackOrder = SortPlaylistTrackIndices(v.tracks, v.sortState.Field, v.sortState.Dir)
+		v.sortedTrackOrder = sorting.SortPlaylistTrackIndices(v.tracks, v.sortState.Field, v.sortState.Dir)
 	}
 	return v
 }

@@ -5,6 +5,7 @@ import (
 
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
@@ -158,7 +159,7 @@ func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	m.favorites.cursor = 0
 	m.favorites.scrollOffset = 0
 	m.favorites.filter = filter.State{}
-	m.favorites.sortState = SortState{}
+	m.favorites.sortState = sorting.SortState{}
 	m.favorites.selectedItems = nil
 	return m
 }

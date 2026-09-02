@@ -11,6 +11,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -37,7 +38,7 @@ type TagsView struct {
 	height int
 
 	filter           filter.State
-	sortState        SortState
+	sortState        sorting.SortState
 	sortedTrackOrder []int // permutation for sorted track display; nil = natural order
 	selectedHashes   map[string]struct{}
 
@@ -52,8 +53,8 @@ func (v *TagsView) setSize(w, h int) { v.width = w; v.height = h }
 
 func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	var sortInd string
-	if v.sortState.Field != SortDefault {
-		sortInd = fmt.Sprintf("Sort: %s %s", SortFieldLabel(v.sortState.Field), SortDirIndicator(v.sortState.Dir))
+	if v.sortState.Field != sorting.SortDefault {
+		sortInd = fmt.Sprintf("Sort: %s %s", sorting.SortFieldLabel(v.sortState.Field), sorting.SortDirIndicator(v.sortState.Dir))
 	}
 
 	var createInputStr, renameInputStr string
@@ -113,7 +114,7 @@ func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}, nowPlay
 // HandleAction executes a pre-resolved tags action dispatched by root.Update.
 func (v TagsView) HandleAction(a action) TagsView {
 	var sortInd string
-	if v.sortState.Field != SortDefault {
+	if v.sortState.Field != sorting.SortDefault {
 		sortInd = "active"
 	}
 	view := tagtui.View{
@@ -171,7 +172,7 @@ func (v TagsView) openTracks(tag db.TagRow, tracks []db.PlaylistTrackRow) TagsVi
 	v.selectedTag = view.SelectedTag
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.sortedTrackOrder = nil
 	v.selectedHashes = nil
 	return v
@@ -196,7 +197,7 @@ func (v TagsView) back() TagsView {
 	v.scrollOffset = view.ScrollOffset
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.sortedTrackOrder = nil
 	v.selectedHashes = nil
 	return v
@@ -211,14 +212,14 @@ func (v TagsView) clampCursor() TagsView {
 		filtered := tagtui.View{Tags: v.tags, TagCounts: v.tagCounts, FilterText: v.filter.Text}.EffectiveTags()
 		n = len(filtered)
 	}
-	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
+	v.cursor, v.scrollOffset = sorting.ClampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 
 // recomputeTagsSort rebuilds the sorted track order cache.
 func (v TagsView) recomputeTagsSort() TagsView {
 	if v.level == tagtui.TrackLevel {
-		v.sortedTrackOrder = SortPlaylistTrackIndices(v.tracks, v.sortState.Field, v.sortState.Dir)
+		v.sortedTrackOrder = sorting.SortPlaylistTrackIndices(v.tracks, v.sortState.Field, v.sortState.Dir)
 	} else {
 		v.sortedTrackOrder = nil
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestFavoritesClampCursor_WithActiveFilter verifies that clampCursor accounts
@@ -122,7 +123,7 @@ func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
 		cursor:    0,
 		artists:   artists,
 		height:    12,
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v2 = v2.HandleAction(actionGoToBottom)
 	if v2.cursor != 19 {

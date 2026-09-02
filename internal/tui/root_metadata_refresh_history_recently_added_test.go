@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestRefreshDerivedViewsUpdatesHistoryTracks verifies that
@@ -45,7 +46,7 @@ func TestRefreshDerivedViewsRebuildsHistorySortCache(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Bravo", Album: "Alb"},
 		{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "Alpha", Album: "Alb"},
 	}
-	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	// Rename h1 so it sorts last.
@@ -132,7 +133,7 @@ func TestRefreshDerivedViewsRebuildsRecentlyAddedSortCache(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac", Artist: "Art", Title: "Bravo", Album: "Alb"},
 		{Hash: "h2", Path: "/b.flac", Artist: "Art", Title: "Alpha", Album: "Alb"},
 	}
-	m.library.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 
 	m.library.index.UpdateMetadata("h1", "Zulu", "Art", "Alb", "")

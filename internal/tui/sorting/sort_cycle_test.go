@@ -1,4 +1,4 @@
-package tui
+package sorting
 
 import "testing"
 
@@ -78,7 +78,7 @@ func TestSortCycleQueueAllFields(t *testing.T) {
 
 	expected := []SortField{SortTitle, SortArtist, SortAlbum, SortDuration, SortSource, SortDefault}
 	for _, want := range expected {
-		state.Field = CycleSortField(state.Field, queueSortFields)
+		state.Field = CycleSortField(state.Field, QueueSortFields)
 		if state.Field != want {
 			t.Errorf("expected %d, got %d", want, state.Field)
 		}
@@ -89,7 +89,7 @@ func TestSortCyclePlaylistListFields(t *testing.T) {
 	state := SortState{Field: SortDefault}
 	expected := []SortField{SortName, SortTrackCount, SortDefault}
 	for _, want := range expected {
-		state.Field = CycleSortField(state.Field, playlistListSortFields)
+		state.Field = CycleSortField(state.Field, PlaylistListSortFields)
 		if state.Field != want {
 			t.Errorf("expected %d, got %d", want, state.Field)
 		}
@@ -100,30 +100,9 @@ func TestSortCyclePlaylistTrackFields(t *testing.T) {
 	state := SortState{Field: SortDefault}
 	expected := []SortField{SortTitle, SortArtist, SortAlbum, SortDuration, SortDefault}
 	for _, want := range expected {
-		state.Field = CycleSortField(state.Field, playlistTrackSortFields)
+		state.Field = CycleSortField(state.Field, PlaylistTrackSortFields)
 		if state.Field != want {
 			t.Errorf("expected %d, got %d", want, state.Field)
-		}
-	}
-}
-
-func TestSortNotification(t *testing.T) {
-	tests := []struct {
-		state SortState
-		want  string
-	}{
-		{SortState{Field: SortDefault}, "Sort: default"},
-		{SortState{Field: SortArtist, Dir: SortAsc}, "Sort: Artist ▲"},
-		{SortState{Field: SortTitle, Dir: SortDesc}, "Sort: Title ▼"},
-		{SortState{Field: SortDuration, Dir: SortAsc}, "Sort: Duration ▲"},
-		{SortState{Field: SortName, Dir: SortDesc}, "Sort: Name ▼"},
-		{SortState{Field: SortTrackCount, Dir: SortAsc}, "Sort: Track Count ▲"},
-		{SortState{Field: SortSource, Dir: SortDesc}, "Sort: Source ▼"},
-	}
-	for _, tt := range tests {
-		got := sortNotification(tt.state)
-		if got != tt.want {
-			t.Errorf("sortNotification(%+v) = %q, want %q", tt.state, got, tt.want)
 		}
 	}
 }

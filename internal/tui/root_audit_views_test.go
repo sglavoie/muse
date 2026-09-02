@@ -10,6 +10,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -84,7 +85,7 @@ func TestDurationAuditBatchRecomputesSortedLibrary(t *testing.T) {
 	m := newDurationAuditModel()
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
-	m.library.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 	if len(m.library.sortedTracks) != 2 || m.library.sortedTracks[0].Hash != "h2" {
 		t.Fatalf("pre-audit sorted tracks = %+v; want h2 first", m.library.sortedTracks)
@@ -178,7 +179,7 @@ func TestDurationAuditBatchRecomputesQueueSortCache(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.mp3", Duration: 300.0})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.mp3", Duration: 100.0})
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.mp3", DurationMs: 300000}, {ID: 2, Hash: "h2", Path: "/b.mp3", DurationMs: 100000}}
-	m.queue.sortState = SortState{Field: SortDuration, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 	if len(m.queue.displayOrder) != 2 || m.queue.entries[m.queue.displayOrder[0]].Hash != "h2" {
 		t.Fatalf("pre-audit displayOrder = %v; want h2 first", m.queue.displayOrder)

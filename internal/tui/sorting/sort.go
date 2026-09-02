@@ -1,4 +1,4 @@
-package tui
+package sorting
 
 import (
 	"sort"
@@ -40,23 +40,23 @@ type SortState struct {
 
 // Sort field cycles per view+level.
 var (
-	librarySortFields       = []SortField{SortDefault, SortArtist, SortTitle, SortAlbum, SortDuration}
-	recentlyAddedSortFields = []SortField{SortDateAdded}
-	historySortFields       = []SortField{SortLastPlayed}
-	queueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration, SortSource}
-	playlistListSortFields  = []SortField{SortDefault, SortName, SortTrackCount}
-	playlistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
-	artistArtistSortFields  = []SortField{SortDefault, SortName}
-	artistAlbumSortFields   = []SortField{SortDefault, SortName}
-	artistTrackSortFields   = []SortField{SortDefault, SortTitle, SortDuration}
-	albumAlbumSortFields    = []SortField{SortDefault, SortName}
-	albumTrackSortFields    = []SortField{SortDefault, SortTitle, SortDuration}
-	favListSortFields       = []SortField{SortDefault, SortName}
-	favTrackSortFields      = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
-	genreGenreSortFields    = []SortField{SortDefault, SortName}
-	genreArtistSortFields   = []SortField{SortDefault, SortName}
-	genreTrackSortFields    = []SortField{SortDefault, SortTitle, SortDuration}
-	tagsTrackSortFields     = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
+	LibrarySortFields       = []SortField{SortDefault, SortArtist, SortTitle, SortAlbum, SortDuration}
+	RecentlyAddedSortFields = []SortField{SortDateAdded}
+	HistorySortFields       = []SortField{SortLastPlayed}
+	QueueSortFields         = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration, SortSource}
+	PlaylistListSortFields  = []SortField{SortDefault, SortName, SortTrackCount}
+	PlaylistTrackSortFields = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
+	ArtistArtistSortFields  = []SortField{SortDefault, SortName}
+	ArtistAlbumSortFields   = []SortField{SortDefault, SortName}
+	ArtistTrackSortFields   = []SortField{SortDefault, SortTitle, SortDuration}
+	AlbumAlbumSortFields    = []SortField{SortDefault, SortName}
+	AlbumTrackSortFields    = []SortField{SortDefault, SortTitle, SortDuration}
+	FavListSortFields       = []SortField{SortDefault, SortName}
+	FavTrackSortFields      = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
+	GenreGenreSortFields    = []SortField{SortDefault, SortName}
+	GenreArtistSortFields   = []SortField{SortDefault, SortName}
+	GenreTrackSortFields    = []SortField{SortDefault, SortTitle, SortDuration}
+	TagsTrackSortFields     = []SortField{SortDefault, SortTitle, SortArtist, SortAlbum, SortDuration}
 )
 
 // CycleSortField advances to the next field in the cycle, wrapping around.
@@ -134,13 +134,13 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 		a, b := sorted[i], sorted[j]
 		switch field {
 		case SortArtist:
-			return compareStringsUnknownLast(a.Artist, b.Artist, dir)
+			return CompareStringsUnknownLast(a.Artist, b.Artist, dir)
 		case SortTitle:
-			return compareStringsUnknownLast(a.Title, b.Title, dir)
+			return CompareStringsUnknownLast(a.Title, b.Title, dir)
 		case SortAlbum:
-			return compareStringsUnknownLast(a.Album, b.Album, dir)
+			return CompareStringsUnknownLast(a.Album, b.Album, dir)
 		case SortDuration:
-			return compareNumericZeroLast(a.Duration, b.Duration, dir)
+			return CompareNumericZeroLast(a.Duration, b.Duration, dir)
 		case SortDateAdded:
 			if dir == SortAsc {
 				return a.CreatedAt < b.CreatedAt
@@ -158,36 +158,6 @@ func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.
 	return sorted
 }
 
-// SortQueueIndices returns a permutation array where displayOrder[i] is the
-// index into entries for display row i. Returns nil when field is SortDefault.
-func SortQueueIndices(entries []QueueEntry, field SortField, dir SortDir) []int {
-	if field == SortDefault || len(entries) == 0 {
-		return nil
-	}
-	indices := make([]int, len(entries))
-	for i := range indices {
-		indices[i] = i
-	}
-	sort.SliceStable(indices, func(a, b int) bool {
-		ea, eb := entries[indices[a]], entries[indices[b]]
-		switch field {
-		case SortTitle:
-			return compareStringsUnknownLast(ea.Title, eb.Title, dir)
-		case SortArtist:
-			return compareStringsUnknownLast(ea.Artist, eb.Artist, dir)
-		case SortAlbum:
-			return compareStringsUnknownLast(ea.Album, eb.Album, dir)
-		case SortDuration:
-			return compareNumericZeroLast(ea.DurationMs, eb.DurationMs, dir)
-		case SortSource:
-			return compareStringsUnknownLast(ea.SourcePlaylist, eb.SourcePlaylist, dir)
-		default:
-			return false
-		}
-	})
-	return indices
-}
-
 // SortPlaylists returns a sorted copy of playlists by the given field and direction.
 func SortPlaylists(playlists []db.PlaylistRow, field SortField, dir SortDir) []db.PlaylistRow {
 	if field == SortDefault || len(playlists) == 0 {
@@ -199,7 +169,7 @@ func SortPlaylists(playlists []db.PlaylistRow, field SortField, dir SortDir) []d
 		a, b := sorted[i], sorted[j]
 		switch field {
 		case SortName:
-			return compareStringsUnknownLast(a.Name, b.Name, dir)
+			return CompareStringsUnknownLast(a.Name, b.Name, dir)
 		case SortTrackCount:
 			if dir == SortAsc {
 				return a.TrackCount < b.TrackCount
@@ -227,13 +197,13 @@ func SortPlaylistTrackIndices(tracks []db.PlaylistTrackRow, field SortField, dir
 		ta, tb := tracks[indices[a]], tracks[indices[b]]
 		switch field {
 		case SortTitle:
-			return compareStringsUnknownLast(ta.Title, tb.Title, dir)
+			return CompareStringsUnknownLast(ta.Title, tb.Title, dir)
 		case SortArtist:
-			return compareStringsUnknownLast(ta.Artist, tb.Artist, dir)
+			return CompareStringsUnknownLast(ta.Artist, tb.Artist, dir)
 		case SortAlbum:
-			return compareStringsUnknownLast(ta.Album, tb.Album, dir)
+			return CompareStringsUnknownLast(ta.Album, tb.Album, dir)
 		case SortDuration:
-			return compareNumericZeroLast(ta.DurationMs, tb.DurationMs, dir)
+			return CompareNumericZeroLast(ta.DurationMs, tb.DurationMs, dir)
 		default:
 			return false
 		}
@@ -250,15 +220,15 @@ func SortStrings(items []string, dir SortDir) []string {
 	sorted := make([]string, len(items))
 	copy(sorted, items)
 	sort.SliceStable(sorted, func(i, j int) bool {
-		return compareStringsUnknownLast(sorted[i], sorted[j], dir)
+		return CompareStringsUnknownLast(sorted[i], sorted[j], dir)
 	})
 	return sorted
 }
 
-// clampCursorToCount constrains cursor and scrollOffset to a list of count
+// ClampCursorToCount constrains cursor and scrollOffset to a list of count
 // items. When count is 0 both values reset to 0. Otherwise cursor is clamped
 // to [0, count-1] and scrollOffset is pulled down to cursor when it exceeds it.
-func clampCursorToCount(cursor, scrollOffset, count int) (int, int) {
+func ClampCursorToCount(cursor, scrollOffset, count int) (int, int) {
 	if count == 0 {
 		return 0, 0
 	}
@@ -277,8 +247,8 @@ func clampCursorToCount(cursor, scrollOffset, count int) (int, int) {
 	return cursor, scrollOffset
 }
 
-// adjustScroll adjusts scrollOffset so that cursor is within the visible window.
-func adjustScroll(cursor, scrollOffset, maxRows int) int {
+// AdjustScroll adjusts scrollOffset so that cursor is within the visible window.
+func AdjustScroll(cursor, scrollOffset, maxRows int) int {
 	if cursor < scrollOffset {
 		return cursor
 	}
@@ -288,11 +258,11 @@ func adjustScroll(cursor, scrollOffset, maxRows int) int {
 	return scrollOffset
 }
 
-// findStringPosition returns the index of name in items, or 0 if not found.
+// FindStringPosition returns the index of name in items, or 0 if not found.
 // An empty name returns 0 immediately so that an out-of-bounds cursor (which
 // leaves the captured name as "") never accidentally matches an empty string
 // inside items (e.g., an "unknown artist" entry rendered as "").
-func findStringPosition(items []string, name string) int {
+func FindStringPosition(items []string, name string) int {
 	if name == "" {
 		return 0
 	}
@@ -304,8 +274,8 @@ func findStringPosition(items []string, name string) int {
 	return 0
 }
 
-// findTrackHashPosition returns the index of the track with the given hash, or 0 if not found.
-func findTrackHashPosition(tracks []library.Track, hash string) int {
+// FindTrackHashPosition returns the index of the track with the given hash, or 0 if not found.
+func FindTrackHashPosition(tracks []library.Track, hash string) int {
 	if hash == "" {
 		return 0
 	}
@@ -317,8 +287,8 @@ func findTrackHashPosition(tracks []library.Track, hash string) int {
 	return 0
 }
 
-// findPlaylistPosition returns the index of the playlist with the given ID, or 0 if not found.
-func findPlaylistPosition(playlists []db.PlaylistRow, id int64) int {
+// FindPlaylistPosition returns the index of the playlist with the given ID, or 0 if not found.
+func FindPlaylistPosition(playlists []db.PlaylistRow, id int64) int {
 	for i, p := range playlists {
 		if p.ID == id {
 			return i
@@ -327,11 +297,11 @@ func findPlaylistPosition(playlists []db.PlaylistRow, id int64) int {
 	return 0
 }
 
-// compareNumericZeroLast compares two ordered numeric values (int64 or
+// CompareNumericZeroLast compares two ordered numeric values (int64 or
 // float64), pushing zero-or-negative (unknown/unset) values to the end
 // regardless of sort direction. This matches the behaviour of
-// compareStringsUnknownLast for string fields.
-func compareNumericZeroLast[T int64 | float64](a, b T, dir SortDir) bool {
+// CompareStringsUnknownLast for string fields.
+func CompareNumericZeroLast[T int64 | float64](a, b T, dir SortDir) bool {
 	aZero := a <= 0
 	bZero := b <= 0
 	if aZero != bZero {
@@ -346,9 +316,9 @@ func compareNumericZeroLast[T int64 | float64](a, b T, dir SortDir) bool {
 	return a > b
 }
 
-// compareStringsUnknownLast compares two strings, pushing unknown/empty values
+// CompareStringsUnknownLast compares two strings, pushing unknown/empty values
 // to the end regardless of sort direction.
-func compareStringsUnknownLast(a, b string, dir SortDir) bool {
+func CompareStringsUnknownLast(a, b string, dir SortDir) bool {
 	aUnknown := isUnknownValue(a)
 	bUnknown := isUnknownValue(b)
 	if aUnknown != bUnknown {

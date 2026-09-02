@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 func TestFormatTime(t *testing.T) {
@@ -27,8 +28,8 @@ func TestFormatTime(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if got := formatTime(tc.secs); got != tc.want {
-			t.Errorf("formatTime(%v) = %q, want %q", tc.secs, got, tc.want)
+		if got := text.FormatPositionSecs(tc.secs); got != tc.want {
+			t.Errorf("text.FormatPositionSecs(%v) = %q, want %q", tc.secs, got, tc.want)
 		}
 	}
 }
@@ -51,8 +52,8 @@ func TestTruncateTitle(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if got := truncateTitle(tc.input, tc.max); got != tc.expected {
-			t.Errorf("truncateTitle(%q, %d) = %q, want %q", tc.input, tc.max, got, tc.expected)
+		if got := text.Truncate(tc.input, tc.max); got != tc.expected {
+			t.Errorf("text.Truncate(%q, %d) = %q, want %q", tc.input, tc.max, got, tc.expected)
 		}
 	}
 }

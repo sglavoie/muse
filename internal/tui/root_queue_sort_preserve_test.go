@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestCutPastePreservesQueueSort verifies that handleQueuePastedMsg with
@@ -18,7 +20,7 @@ func TestCutPastePreservesQueueSort(t *testing.T) {
 	m.queue.entries = sampleQueueEntries()
 
 	// Activate a sort so that displayOrder is non-nil.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 	if m.queue.displayOrder == nil {
 		t.Fatal("precondition: displayOrder should be non-nil after sort")
@@ -62,7 +64,7 @@ func TestUndoBulkDequeuePreservesSort(t *testing.T) {
 	}
 
 	// Activate title sort.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	// Simulate removing entry ID=2 at index 1, then undoing.
@@ -105,7 +107,7 @@ func TestUndoBatchEnqueuePreservesSort(t *testing.T) {
 	}
 
 	// Activate sort.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	action := undoBatchEnqueueAction{
@@ -141,7 +143,7 @@ func TestUndoPastePreservesSort(t *testing.T) {
 	}
 
 	// Activate sort.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	action := undoPasteAction{
@@ -175,7 +177,7 @@ func TestUndoCutPastePreservesSort(t *testing.T) {
 	}
 
 	// Activate sort.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	action := undoCutPasteAction{
@@ -212,7 +214,7 @@ func TestUndoEnqueuePreservesSort(t *testing.T) {
 	}
 
 	// Activate sort.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	action := undoEnqueueAction{
@@ -246,7 +248,7 @@ func TestUndoDequeuePreservesSort(t *testing.T) {
 	}
 
 	// Activate sort.
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	action := undoDequeueAction{

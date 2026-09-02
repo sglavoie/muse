@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -104,7 +105,7 @@ func TestWatchBatchInvalidatesSortedTracks(t *testing.T) {
 	m.library.index.Insert(library.Track{Artist: "B", Title: "Beta", Path: "/b", Hash: "h2"})
 
 	// Activate sort by artist ascending.
-	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.library = m.library.recomputeSortedTracks()
 	if len(m.library.sortedTracks) != 3 {
 		t.Fatalf("setup: expected 3 sorted tracks, got %d", len(m.library.sortedTracks))

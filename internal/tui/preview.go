@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // PreviewOverlay renders a centered overlay box showing preview track info
@@ -23,7 +24,7 @@ type PreviewOverlay struct {
 // pass the current terminal dimensions so the box is positioned in the middle
 // of the screen.
 func (p PreviewOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
-	progress := fmt.Sprintf("▶ %s / %s", formatTime(p.elapsed), formatTime(p.total))
+	progress := fmt.Sprintf("▶ %s / %s", text.FormatPositionSecs(p.elapsed), text.FormatPositionSecs(p.total))
 	return renderTrackOverlay(p.title, p.artist, p.album, progress, p.playCount, p.tagsLine,
 		" ♪ Preview ", "space pause, arrows seek, shift+arrows long seek, P/esc dismiss", termWidth, termHeight, s)
 }

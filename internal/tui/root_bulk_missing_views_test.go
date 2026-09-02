@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -147,14 +148,14 @@ func TestEnqueueReplaceFromTags(t *testing.T) {
 // view sort state.
 func TestResetAllSortsClearsTagsSort(t *testing.T) {
 	m := New(context.Background())
-	m.tagsView.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.tagsView.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 
 	m = m.resetAllSorts()
 
-	if m.tagsView.sortState.Field != SortDefault {
+	if m.tagsView.sortState.Field != sorting.SortDefault {
 		t.Errorf("expected tags sort field to be SortDefault, got %v", m.tagsView.sortState.Field)
 	}
-	if m.tagsView.sortState.Dir != SortAsc {
+	if m.tagsView.sortState.Dir != sorting.SortAsc {
 		t.Errorf("expected tags sort dir to be SortAsc, got %v", m.tagsView.sortState.Dir)
 	}
 }

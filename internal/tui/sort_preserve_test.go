@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestDequeuePreservesSortOrder(t *testing.T) {
@@ -18,14 +19,14 @@ func TestDequeuePreservesSortOrder(t *testing.T) {
 		{ID: 20, Title: "Alpha"},
 		{ID: 30, Title: "Mike"},
 	}
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	// Delete underlying entry at index 1 ("Alpha")
 	next, _ := m.Update(DequeueTrackMsg{Index: 1})
 	nm := next.(Model)
 
-	if nm.queue.sortState.Field != SortTitle {
+	if nm.queue.sortState.Field != sorting.SortTitle {
 		t.Errorf("expected sort preserved as SortTitle, got %v", nm.queue.sortState.Field)
 	}
 	if nm.queue.displayOrder == nil {
@@ -49,7 +50,7 @@ func TestEnqueuePreservesSortOrder(t *testing.T) {
 		{ID: 10, Title: "Zulu"},
 		{ID: 20, Title: "Mike"},
 	}
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	m = m.handleTrackEnqueuedMsg(libtui.TrackEnqueuedMsg{
@@ -57,7 +58,7 @@ func TestEnqueuePreservesSortOrder(t *testing.T) {
 		QueueID: 30,
 	})
 
-	if m.queue.sortState.Field != SortTitle {
+	if m.queue.sortState.Field != sorting.SortTitle {
 		t.Errorf("expected sort preserved as SortTitle, got %v", m.queue.sortState.Field)
 	}
 	if m.queue.displayOrder == nil {
@@ -77,7 +78,7 @@ func TestBatchEnqueuePreservesSortOrder(t *testing.T) {
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Title: "Zulu"},
 	}
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	m = m.handleBatchEnqueuedMsg(BatchEnqueuedMsg{
@@ -87,7 +88,7 @@ func TestBatchEnqueuePreservesSortOrder(t *testing.T) {
 		},
 	})
 
-	if m.queue.sortState.Field != SortTitle {
+	if m.queue.sortState.Field != sorting.SortTitle {
 		t.Errorf("expected sort preserved, got %v", m.queue.sortState.Field)
 	}
 	if m.queue.displayOrder == nil {
@@ -106,12 +107,12 @@ func TestDedupPreservesSortOrder(t *testing.T) {
 		{ID: 20, Hash: "h2", Title: "Alpha"},
 		{ID: 30, Hash: "h1", Title: "Zulu"}, // duplicate
 	}
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	m, _ = m.handleQueueDedupMsg()
 
-	if m.queue.sortState.Field != SortTitle {
+	if m.queue.sortState.Field != sorting.SortTitle {
 		t.Errorf("expected sort preserved, got %v", m.queue.sortState.Field)
 	}
 	if m.queue.displayOrder == nil {
@@ -129,12 +130,12 @@ func TestShuffleStillResetsSortOrder(t *testing.T) {
 		{ID: 20, Title: "B"},
 		{ID: 30, Title: "C"},
 	}
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	m, _ = m.handleQueueShuffleMsg()
 
-	if m.queue.sortState.Field != SortDefault {
+	if m.queue.sortState.Field != sorting.SortDefault {
 		t.Errorf("expected sort reset after shuffle, got %v", m.queue.sortState.Field)
 	}
 	if m.queue.displayOrder != nil {
@@ -152,7 +153,7 @@ func TestDequeueWithNoSortIsNoop(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if nm.queue.sortState.Field != SortDefault {
+	if nm.queue.sortState.Field != sorting.SortDefault {
 		t.Errorf("expected sort to remain default, got %v", nm.queue.sortState.Field)
 	}
 	if nm.queue.displayOrder != nil {
@@ -169,11 +170,11 @@ func TestQueueSortDirPreservesFilteredFocusedEntry(t *testing.T) {
 		{ID: 30, Title: "Alpha", Artist: "skip"},
 	}
 	m.queue.filter.Text = "keep"
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 	m.queue.cursor = 1 // "Charlie" in the filtered ascending view.
 
-	next, _, ok := m.handleSortDir(SortDesc)
+	next, _, ok := m.handleSortDir(sorting.SortDesc)
 	if !ok {
 		t.Fatal("expected queue sort dir change to be handled")
 	}
@@ -196,7 +197,7 @@ func TestPlaylistDeletePreservesSortOrder(t *testing.T) {
 		{ID: 3, Name: "Middle"},
 	}))
 	m.activeView = viewPlaylists
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 	m.playlists.cursor = 0 // "Alpha" in sorted view
 
@@ -204,7 +205,7 @@ func TestPlaylistDeletePreservesSortOrder(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if nm.playlists.sortState.Field != SortName {
+	if nm.playlists.sortState.Field != sorting.SortName {
 		t.Errorf("expected sort preserved as SortName, got %v", nm.playlists.sortState.Field)
 	}
 	if nm.playlists.sortedPlaylists == nil {
@@ -222,7 +223,7 @@ func TestPlaylistTrackRemovePreservesSortOrder(t *testing.T) {
 		{ID: 20, Position: 2, Title: "Alpha", Artist: "B", DurationMs: 2000},
 		{ID: 30, Position: 3, Title: "Mike", Artist: "C", DurationMs: 3000},
 	}
-	m.playlists.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 	m.playlists.cursor = 0 // "Alpha" in sorted view
 
@@ -230,7 +231,7 @@ func TestPlaylistTrackRemovePreservesSortOrder(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if nm.playlists.sortState.Field != SortTitle {
+	if nm.playlists.sortState.Field != sorting.SortTitle {
 		t.Errorf("expected sort preserved as SortTitle, got %v", nm.playlists.sortState.Field)
 	}
 	if nm.playlists.sortedTrackOrder == nil {
@@ -250,12 +251,12 @@ func TestPlaylistShuffleStillResetsSortOrder(t *testing.T) {
 		{ID: 20, Position: 2, Title: "B"},
 		{ID: 30, Position: 3, Title: "C"},
 	}
-	m.playlists.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	m, _ = m.handlePlaylistShuffleMsg()
 
-	if m.playlists.sortState.Field != SortDefault {
+	if m.playlists.sortState.Field != sorting.SortDefault {
 		t.Errorf("expected sort reset after shuffle, got %v", m.playlists.sortState.Field)
 	}
 	if m.playlists.sortedTrackOrder != nil {

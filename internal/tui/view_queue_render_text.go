@@ -54,7 +54,7 @@ func padQueue(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	s = truncateTitle(s, width)
+	s = text.Truncate(s, width)
 	n := ansi.StringWidth(s)
 	if n < width {
 		return s + strings.Repeat(" ", width-n)

@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestRefreshDerivedViewsUpdatesArtistsTrackLevel verifies that
@@ -81,7 +82,7 @@ func TestRefreshDerivedViewsResortsArtistsAfterEdit(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Middle", Title: "T3"})
 	m.browse.artists.artists = arttui.DeriveArtists(m.library.index.Tracks())
 	m.browse.artists.level = arttui.ArtistLevel
-	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.artists = m.browse.artists.recomputeArtistsSort()
 	if len(m.browse.artists.artists) < 3 || m.browse.artists.artists[0] != "Zebra" {
 		t.Fatalf("pre-check: expected descending [Zebra, Middle, Alpha], got %v", m.browse.artists.artists)
@@ -106,7 +107,7 @@ func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "Art", Album: "Mid", Title: "T3"})
 	m.browse.albums.albums = albtui.DeriveAllAlbums(m.library.index.Tracks())
 	m.browse.albums.level = albtui.AlbumLevel
-	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortDesc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.albums = m.browse.albums.recomputeAlbumsSort()
 	if len(m.browse.albums.albums) < 3 || m.browse.albums.albums[0] != "Zen" {
 		t.Fatalf("pre-check: expected descending [Zen, Mid, Apex], got %v", m.browse.albums.albums)

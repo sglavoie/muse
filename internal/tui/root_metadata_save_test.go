@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestMetadataSaveUsesTrackDisplayForQueueEntryDisplay verifies that saving
@@ -138,7 +139,7 @@ func TestMetadataSavePreservesQueueSort(t *testing.T) {
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "Song2"},
 	}
 	// Sort queue by artist ascending: Alice, Zara → displayOrder = [1, 0]
-	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	if len(m.queue.displayOrder) != 2 {
@@ -170,7 +171,7 @@ func TestBulkMetadataSavePreservesQueueSort(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "Song1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Bob", Title: "Song2"},
 	}
-	m.queue.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.queue = m.queue.recomputeDisplayOrder()
 
 	ed := NewBulkMetadataEditor([]string{"h1", "h2"}, "CommonTitle", "", "", "", "")
@@ -194,7 +195,7 @@ func TestMetadataSavePreservesPlaylistSort(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Zara", Title: "T1"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Alice", Title: "T2"},
 	}
-	m.playlists.sortState = SortState{Field: SortArtist, Dir: SortAsc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	// Edit h1 artist — this goes through refreshDerivedViews which should

@@ -5,69 +5,70 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
-func artistsSortFieldsForLevel(level arttui.Level) []SortField {
+func artistsSortFieldsForLevel(level arttui.Level) []sorting.SortField {
 	switch level {
 	case arttui.ArtistLevel:
-		return artistArtistSortFields
+		return sorting.ArtistArtistSortFields
 	case arttui.AlbumLevel:
-		return artistAlbumSortFields
+		return sorting.ArtistAlbumSortFields
 	case arttui.TrackLevel:
-		return artistTrackSortFields
+		return sorting.ArtistTrackSortFields
 	default:
-		return artistArtistSortFields
+		return sorting.ArtistArtistSortFields
 	}
 }
 
-func albumsSortFieldsForLevel(level albtui.Level) []SortField {
+func albumsSortFieldsForLevel(level albtui.Level) []sorting.SortField {
 	switch level {
 	case albtui.AlbumLevel:
-		return albumAlbumSortFields
+		return sorting.AlbumAlbumSortFields
 	case albtui.TrackLevel:
-		return albumTrackSortFields
+		return sorting.AlbumTrackSortFields
 	default:
-		return albumAlbumSortFields
+		return sorting.AlbumAlbumSortFields
 	}
 }
 
-func favoritesSortFieldsForLevel(v FavoritesView) []SortField {
+func favoritesSortFieldsForLevel(v FavoritesView) []sorting.SortField {
 	switch v.level {
 	case favtui.CategoryLevel:
 		return nil
 	case favtui.ListLevel:
 		switch v.category {
 		case favtui.CategoryArtists, favtui.CategoryAlbums:
-			return favListSortFields
+			return sorting.FavListSortFields
 		case favtui.CategoryTracks:
-			return favTrackSortFields
+			return sorting.FavTrackSortFields
 		}
 		return nil
 	case favtui.TrackLevel:
-		return favTrackSortFields
+		return sorting.FavTrackSortFields
 	default:
 		return nil
 	}
 }
 
-func genresSortFieldsForLevel(level gentui.Level) []SortField {
+func genresSortFieldsForLevel(level gentui.Level) []sorting.SortField {
 	switch level {
 	case gentui.GenreLevel:
-		return genreGenreSortFields
+		return sorting.GenreGenreSortFields
 	case gentui.ArtistLevel:
-		return genreArtistSortFields
+		return sorting.GenreArtistSortFields
 	case gentui.TrackLevel:
-		return genreTrackSortFields
+		return sorting.GenreTrackSortFields
 	default:
-		return genreGenreSortFields
+		return sorting.GenreGenreSortFields
 	}
 }
 
-func tagsSortFieldsForLevel(level tagtui.Level) []SortField {
+func tagsSortFieldsForLevel(level tagtui.Level) []sorting.SortField {
 	switch level {
 	case tagtui.TrackLevel:
-		return tagsTrackSortFields
+		return sorting.TagsTrackSortFields
 	default:
 		return nil
 	}

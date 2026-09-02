@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestSmartPlaylistCountsUpdatesSortedCopy verifies that when smart playlist
@@ -22,7 +23,7 @@ func TestSmartPlaylistCountsUpdatesSortedCopy(t *testing.T) {
 	m = next.(Model)
 
 	// Sort by track count descending: Rock(10) before Smart(0).
-	m.playlists.sortState = SortState{Field: SortTrackCount, Dir: SortDesc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortTrackCount, Dir: sorting.SortDesc}
 	m.playlists = m.playlists.recomputePlaylistSort()
 
 	effective := m.playlists.effectivePlaylists()

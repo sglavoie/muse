@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // switchMode transitions the view to the given mode, saving the current
@@ -31,17 +32,17 @@ func (v LibraryView) switchMode(to LibraryMode) LibraryView {
 		v.showDateAdded = false
 		v.showPlayedAt = false
 		v.sourceTracks = nil
-		v.sortState = SortState{}
+		v.sortState = sorting.SortState{}
 		v.sortedTracks = nil
 	case LibraryModeRecent:
 		v.showDateAdded = true
 		v.showPlayedAt = false
-		v.sortState = SortState{Field: SortDateAdded, Dir: SortDesc}
+		v.sortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}
 		v.sortedTracks = nil
 	case LibraryModeHistory:
 		v.showDateAdded = false
 		v.showPlayedAt = true
-		v.sortState = SortState{Field: SortLastPlayed, Dir: SortDesc}
+		v.sortState = sorting.SortState{Field: sorting.SortLastPlayed, Dir: sorting.SortDesc}
 		v.sortedTracks = nil
 	}
 
@@ -87,22 +88,22 @@ func (v LibraryView) view() libtui.View {
 		StripViewLabel:  libraryStripLabel(v.mode),
 	}
 	switch {
-	case v.sortState.Field != SortDefault:
+	case v.sortState.Field != sorting.SortDefault:
 		lv.OverrideTracks = v.sortedTracks
 		lv.SortField = int(v.sortState.Field)
 		lv.SortDir = int(v.sortState.Dir)
-		lv.StripSortLabel = SortFieldLabel(v.sortState.Field)
-		lv.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
+		lv.StripSortLabel = sorting.SortFieldLabel(v.sortState.Field)
+		lv.StripSortIndicator = sorting.SortDirIndicator(v.sortState.Dir)
 	case v.sourceTracks != nil:
 		lv.OverrideTracks = v.sourceTracks
 	case len(v.tagFilterHashes) > 0:
 		lv.OverrideTracks = v.baseTracks()
 	}
-	if SortFieldHasBuckets(v.sortState.Field) {
+	if sorting.SortFieldHasBuckets(v.sortState.Field) {
 		field := v.sortState.Field
 		now := time.Now()
 		lv.BucketLabel = func(t library.Track) string {
-			return TrackBucket(field, t, now)
+			return sorting.TrackBucket(field, t, now)
 		}
 	}
 	return lv
@@ -111,11 +112,11 @@ func (v LibraryView) view() libtui.View {
 // cycleSortField advances to the next sort field from the given list, resets
 // the cursor, and recomputes the sorted/filtered caches. It returns the
 // updated view and the new SortState for notification purposes.
-func (v LibraryView) cycleSortField(fields []SortField) (LibraryView, SortState) {
-	next := CycleSortField(v.sortState.Field, fields)
+func (v LibraryView) cycleSortField(fields []sorting.SortField) (LibraryView, sorting.SortState) {
+	next := sorting.CycleSortField(v.sortState.Field, fields)
 	v.sortState.Field = next
-	if next == SortDefault {
-		v.sortState.Dir = SortAsc
+	if next == sorting.SortDefault {
+		v.sortState.Dir = sorting.SortAsc
 	}
 	v = v.refreshView()
 	v.cursor = 0
@@ -126,9 +127,9 @@ func (v LibraryView) cycleSortField(fields []SortField) (LibraryView, SortState)
 // applySortDir sets the sort direction, preserving the focused track position.
 // Returns (updated view, sort state, true) when applied, or (v, zero, false)
 // when the current sort field is SortDefault.
-func (v LibraryView) applySortDir(dir SortDir) (LibraryView, SortState, bool) {
-	if v.sortState.Field == SortDefault {
-		return v, SortState{}, false
+func (v LibraryView) applySortDir(dir sorting.SortDir) (LibraryView, sorting.SortState, bool) {
+	if v.sortState.Field == sorting.SortDefault {
+		return v, sorting.SortState{}, false
 	}
 	var focusedHash string
 	if t, ok := v.view().FocusedTrack(); ok {
@@ -137,18 +138,18 @@ func (v LibraryView) applySortDir(dir SortDir) (LibraryView, SortState, bool) {
 	v.sortState.Dir = dir
 	v = v.refreshView()
 	v.cursor = v.findTrackPosition(focusedHash)
-	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
+	v.scrollOffset = sorting.AdjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
 	return v, v.sortState, true
 }
 
 // recomputeSortedTracks rebuilds the sorted tracks cache based on the current
 // sort state. When sorting is default, the cache is cleared.
 func (v LibraryView) recomputeSortedTracks() LibraryView {
-	if v.sortState.Field == SortDefault {
+	if v.sortState.Field == sorting.SortDefault {
 		v.sortedTracks = nil
 		return v
 	}
-	v.sortedTracks = SortTracks(v.baseTracks(), v.sortState.Field, v.sortState.Dir)
+	v.sortedTracks = sorting.SortTracks(v.baseTracks(), v.sortState.Field, v.sortState.Dir)
 	return v
 }
 
@@ -223,6 +224,6 @@ func (v LibraryView) clampCursor() LibraryView {
 	if v.cursor < 0 {
 		v.cursor = 0
 	}
-	v.scrollOffset = adjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
+	v.scrollOffset = sorting.AdjustScroll(v.cursor, v.scrollOffset, layout.VisibleRows(v.height, libraryViewVisibleReserve(v)))
 	return v
 }

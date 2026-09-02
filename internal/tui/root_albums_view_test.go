@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestAlbumsViewWrapperHandleAction verifies that the AlbumsView HandleAction
@@ -276,7 +277,7 @@ func TestAlbumsGoToBottomScrollOffsetIndependentOfSort(t *testing.T) {
 		cursor:    0,
 		albums:    albums,
 		height:    12,
-		sortState: SortState{Field: SortTitle, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
 	v2 = v2.HandleAction(actionGoToBottom)
 	if v2.cursor != 19 {

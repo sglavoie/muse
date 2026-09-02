@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/filter"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestLibraryViewVisibleReserve(t *testing.T) {
@@ -62,12 +63,12 @@ func TestPlaylistsVisibleReserve(t *testing.T) {
 	}{
 		{
 			name: "list level no sort",
-			view: PlaylistsView{level: pltui.ListLevel, sortState: SortState{Field: SortDefault}},
+			view: PlaylistsView{level: pltui.ListLevel, sortState: sorting.SortState{Field: sorting.SortDefault}},
 			want: 1,
 		},
 		{
 			name: "list level with sort",
-			view: PlaylistsView{level: pltui.ListLevel, sortState: SortState{Field: SortName}},
+			view: PlaylistsView{level: pltui.ListLevel, sortState: sorting.SortState{Field: sorting.SortName}},
 			want: 2,
 		},
 		{
@@ -77,7 +78,7 @@ func TestPlaylistsVisibleReserve(t *testing.T) {
 		},
 		{
 			name: "track level ignores sort state",
-			view: PlaylistsView{level: pltui.TrackLevel, sortState: SortState{Field: SortArtist}},
+			view: PlaylistsView{level: pltui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortArtist}},
 			want: 4,
 		},
 	}

@@ -2,6 +2,7 @@ package tui
 
 import (
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -25,9 +26,9 @@ func (v PlaylistsView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 		SelectedTrackIDs: v.selectedTrackIDs,
 		IsSmartPlaylist:  v.smartQuery != nil,
 	}
-	if v.sortState.Field != SortDefault {
-		pv.SortField = SortFieldLabel(v.sortState.Field)
-		pv.SortDir = SortDirIndicator(v.sortState.Dir)
+	if v.sortState.Field != sorting.SortDefault {
+		pv.SortField = sorting.SortFieldLabel(v.sortState.Field)
+		pv.SortDir = sorting.SortDirIndicator(v.sortState.Dir)
 	}
 	pv.Styles = s
 	pv.FavoriteHashes = favHashes

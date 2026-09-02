@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestRemoveAllTagsFromTrack_ClearsAllTagFilterHashes verifies that
@@ -113,7 +114,7 @@ func TestLibraryView_TagFilterDefaultSort_FocusedTrack(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h3", Path: "/c.flac", Artist: "C"})
 
 	// Ensure default sort (zero value).
-	if m.library.sortState.Field != SortDefault {
+	if m.library.sortState.Field != sorting.SortDefault {
 		t.Fatal("expected library sort to be SortDefault")
 	}
 

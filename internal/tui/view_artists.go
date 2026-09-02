@@ -7,6 +7,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -42,7 +43,7 @@ type ArtistsView struct {
 	height int
 
 	filter         filter.State
-	sortState      SortState
+	sortState      sorting.SortState
 	selectedHashes map[string]struct{}
 }
 
@@ -50,20 +51,20 @@ type ArtistsView struct {
 func (v *ArtistsView) setSize(w, h int) { v.width = w; v.height = h }
 
 func (v ArtistsView) recomputeArtistsSort() ArtistsView {
-	if v.sortState.Field == SortDefault {
+	if v.sortState.Field == sorting.SortDefault {
 		return v
 	}
 	switch v.level {
 	case arttui.ArtistLevel:
 		if len(v.artists) > 0 {
-			v.artists = SortStrings(v.artists, v.sortState.Dir)
+			v.artists = sorting.SortStrings(v.artists, v.sortState.Dir)
 		}
 	case arttui.AlbumLevel:
 		if len(v.albums) > 0 {
-			v.albums = SortStrings(v.albums, v.sortState.Dir)
+			v.albums = sorting.SortStrings(v.albums, v.sortState.Dir)
 		}
 	case arttui.TrackLevel:
-		if sorted := SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
+		if sorted := sorting.SortTracks(v.tracks, v.sortState.Field, v.sortState.Dir); sorted != nil {
 			v.tracks = sorted
 		}
 	}
@@ -105,9 +106,9 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 		NowPlayingHash:  nowPlayingHash,
 		NowPlayingIcon:  nowPlayingIcon,
 	}
-	if v.sortState.Field != SortDefault {
-		av.StripSortLabel = SortFieldLabel(v.sortState.Field)
-		av.StripSortIndicator = SortDirIndicator(v.sortState.Dir)
+	if v.sortState.Field != sorting.SortDefault {
+		av.StripSortLabel = sorting.SortFieldLabel(v.sortState.Field)
+		av.StripSortIndicator = sorting.SortDirIndicator(v.sortState.Dir)
 	}
 	return av.Render()
 }
@@ -168,7 +169,7 @@ func (v ArtistsView) openAlbums(albums []string) ArtistsView {
 	v.artistScrollOffset = view.ArtistScrollOffset
 	v.albums = view.Albums
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedHashes = nil
 	return v
 }
@@ -189,7 +190,7 @@ func (v ArtistsView) openTracks(tracks []musiclib.Track) ArtistsView {
 	v.albumScrollOffset = view.AlbumScrollOffset
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedHashes = nil
 	return v
 }
@@ -221,7 +222,7 @@ func (v ArtistsView) back() ArtistsView {
 	v.albums = view.Albums
 	v.tracks = view.Tracks
 	v.filter = filter.State{}
-	v.sortState = SortState{}
+	v.sortState = sorting.SortState{}
 	v.selectedHashes = nil
 	return v
 }
@@ -240,7 +241,7 @@ func (v ArtistsView) clampCursor() ArtistsView {
 	default:
 		n = len(arttui.FilterStrings(v.artists, v.filter.Text))
 	}
-	v.cursor, v.scrollOffset = clampCursorToCount(v.cursor, v.scrollOffset, n)
+	v.cursor, v.scrollOffset = sorting.ClampCursorToCount(v.cursor, v.scrollOffset, n)
 	return v
 }
 

@@ -106,7 +106,7 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 
 	// Title row (centered). Truncate first so a MaxInnerWidth clamp narrower
 	// than the title cannot overflow and misalign the borders.
-	displayTitle := truncateTitle(o.Title, innerWidth)
+	displayTitle := text.Truncate(o.Title, innerWidth)
 	titlePad := max(0, innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
@@ -128,17 +128,17 @@ func (o OverlayBox) Render(termWidth, termHeight int, s styles.Styles) string {
 		if r.Label != "" {
 			// Right-align the label, then left-align the value.
 			valueWidth := max(0, contentWidth-maxLabelW-1) // 1 for the space between label and value
-			truncated := truncateTitle(r.Text, valueWidth)
+			truncated := text.Truncate(r.Text, valueWidth)
 			// Use text.PadLeft for the label and text.Pad for the value
 			// so that multi-byte characters are padded by display width,
 			// not byte count.
 			row = text.PadLeft(r.Label, maxLabelW) + " " + text.Pad(truncated, valueWidth)
 			// Truncate/pad the assembled content to contentWidth so a tiny
 			// MaxInnerWidth that cannot fit the label cannot overflow.
-			row = text.Pad(truncateTitle(row, contentWidth), contentWidth)
+			row = text.Pad(text.Truncate(row, contentWidth), contentWidth)
 			row = "  " + row + "  "
 		} else {
-			truncated := truncateTitle(r.Text, contentWidth)
+			truncated := text.Truncate(r.Text, contentWidth)
 			row = "  " + text.Pad(truncated, contentWidth) + "  "
 		}
 		if r.Styled {

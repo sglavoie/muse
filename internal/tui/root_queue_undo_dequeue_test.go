@@ -5,6 +5,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // TestUndoMsgRestoresDequeueWithinWindow verifies that receiving UndoMsg within
@@ -261,31 +263,31 @@ func TestHandleUndoResetsAllSorts(t *testing.T) {
 		idx:   0,
 	}, nil)
 
-	m.library.sortState = SortState{Field: SortArtist, Dir: SortAsc}
-	m.queue.sortState = SortState{Field: SortTitle, Dir: SortDesc}
-	m.playlists.sortState = SortState{Field: SortName, Dir: SortAsc}
-	m.browse.artists.sortState = SortState{Field: SortName, Dir: SortDesc}
-	m.browse.albums.sortState = SortState{Field: SortName, Dir: SortAsc}
-	m.favorites.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	m.library.sortState = sorting.SortState{Field: sorting.SortArtist, Dir: sorting.SortAsc}
+	m.queue.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
+	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.browse.artists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
+	m.browse.albums.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
+	m.favorites.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 
 	nm := m.handleUndo()
 
-	if nm.library.sortState.Field != SortDefault {
+	if nm.library.sortState.Field != sorting.SortDefault {
 		t.Errorf("library sort not reset: got field %d", nm.library.sortState.Field)
 	}
-	if nm.queue.sortState.Field != SortDefault {
+	if nm.queue.sortState.Field != sorting.SortDefault {
 		t.Errorf("queue sort not reset: got field %d", nm.queue.sortState.Field)
 	}
-	if nm.playlists.sortState.Field != SortDefault {
+	if nm.playlists.sortState.Field != sorting.SortDefault {
 		t.Errorf("playlists sort not reset: got field %d", nm.playlists.sortState.Field)
 	}
-	if nm.browse.artists.sortState.Field != SortDefault {
+	if nm.browse.artists.sortState.Field != sorting.SortDefault {
 		t.Errorf("artists sort not reset: got field %d", nm.browse.artists.sortState.Field)
 	}
-	if nm.browse.albums.sortState.Field != SortDefault {
+	if nm.browse.albums.sortState.Field != sorting.SortDefault {
 		t.Errorf("albums sort not reset: got field %d", nm.browse.albums.sortState.Field)
 	}
-	if nm.favorites.sortState.Field != SortDefault {
+	if nm.favorites.sortState.Field != sorting.SortDefault {
 		t.Errorf("favorites sort not reset: got field %d", nm.favorites.sortState.Field)
 	}
 }

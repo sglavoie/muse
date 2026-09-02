@@ -7,24 +7,25 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 func TestArtistsViewSortReset(t *testing.T) {
 	v := ArtistsView{
 		artists:   []string{"Charlie", "Alpha", "Bravo"},
-		sortState: SortState{Field: SortName, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 
 	t.Run("openAlbums resets sort", func(t *testing.T) {
 		v2 := v.openAlbums([]string{"Album1"})
-		if v2.sortState.Field != SortDefault {
+		if v2.sortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on openAlbums")
 		}
 	})
 
 	t.Run("openTracks resets sort", func(t *testing.T) {
 		v2 := v.openTracks([]library.Track{{Title: "T1"}})
-		if v2.sortState.Field != SortDefault {
+		if v2.sortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on openTracks")
 		}
 	})
@@ -33,9 +34,9 @@ func TestArtistsViewSortReset(t *testing.T) {
 		v2 := v
 		v2.level = 1
 		v2.albums = []string{"Album1"}
-		v2.sortState = SortState{Field: SortName, Dir: SortDesc}
+		v2.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 		v3 := v2.back()
-		if v3.sortState.Field != SortDefault {
+		if v3.sortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on back")
 		}
 	})
@@ -44,12 +45,12 @@ func TestArtistsViewSortReset(t *testing.T) {
 func TestAlbumsViewSortReset(t *testing.T) {
 	v := AlbumsView{
 		albums:    []string{"Zulu", "Alpha"},
-		sortState: SortState{Field: SortName, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 
 	t.Run("openTracks resets sort", func(t *testing.T) {
 		v2 := v.openTracks([]library.Track{{Title: "T1"}})
-		if v2.sortState.Field != SortDefault {
+		if v2.sortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on openTracks")
 		}
 	})
@@ -58,9 +59,9 @@ func TestAlbumsViewSortReset(t *testing.T) {
 		v2 := v
 		v2.level = 1
 		v2.tracks = []library.Track{{Title: "T1"}}
-		v2.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+		v2.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 		v3 := v2.back()
-		if v3.sortState.Field != SortDefault {
+		if v3.sortState.Field != sorting.SortDefault {
 			t.Error("sort should be reset on back")
 		}
 	})
@@ -70,7 +71,7 @@ func TestArtistsRecomputeSort(t *testing.T) {
 	t.Run("sort artists by name asc", func(t *testing.T) {
 		v := ArtistsView{
 			artists:   []string{"Charlie", "Alpha", "Bravo"},
-			sortState: SortState{Field: SortName, Dir: SortAsc},
+			sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 		}
 		v = v.recomputeArtistsSort()
 		if v.artists[0] != "Alpha" {
@@ -85,7 +86,7 @@ func TestArtistsRecomputeSort(t *testing.T) {
 		v := ArtistsView{
 			level:     1,
 			albums:    []string{"Alpha", "Charlie", "Bravo"},
-			sortState: SortState{Field: SortName, Dir: SortDesc},
+			sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc},
 		}
 		v = v.recomputeArtistsSort()
 		if v.albums[0] != "Charlie" {
@@ -100,7 +101,7 @@ func TestArtistsRecomputeSort(t *testing.T) {
 				{Title: "Zulu", Duration: 300},
 				{Title: "Alpha", Duration: 100},
 			},
-			sortState: SortState{Field: SortTitle, Dir: SortAsc},
+			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 		}
 		v = v.recomputeArtistsSort()
 		if v.tracks[0].Title != "Alpha" {
@@ -115,7 +116,7 @@ func TestArtistsRecomputeSort(t *testing.T) {
 				{Title: "A", Duration: 100},
 				{Title: "B", Duration: 300},
 			},
-			sortState: SortState{Field: SortDuration, Dir: SortDesc},
+			sortState: sorting.SortState{Field: sorting.SortDuration, Dir: sorting.SortDesc},
 		}
 		v = v.recomputeArtistsSort()
 		if v.tracks[0].Duration != 300 {
@@ -126,7 +127,7 @@ func TestArtistsRecomputeSort(t *testing.T) {
 	t.Run("default is no-op", func(t *testing.T) {
 		v := ArtistsView{
 			artists:   []string{"Charlie", "Alpha"},
-			sortState: SortState{Field: SortDefault},
+			sortState: sorting.SortState{Field: sorting.SortDefault},
 		}
 		v = v.recomputeArtistsSort()
 		if v.artists[0] != "Charlie" {
@@ -139,7 +140,7 @@ func TestAlbumsRecomputeSort(t *testing.T) {
 	t.Run("sort albums by name asc", func(t *testing.T) {
 		v := AlbumsView{
 			albums:    []string{"Zulu", "Alpha", "Bravo"},
-			sortState: SortState{Field: SortName, Dir: SortAsc},
+			sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 		}
 		v = v.recomputeAlbumsSort()
 		if v.albums[0] != "Alpha" {
@@ -154,7 +155,7 @@ func TestAlbumsRecomputeSort(t *testing.T) {
 				{Title: "Alpha", Duration: 100},
 				{Title: "Zulu", Duration: 300},
 			},
-			sortState: SortState{Field: SortTitle, Dir: SortDesc},
+			sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc},
 		}
 		v = v.recomputeAlbumsSort()
 		if v.tracks[0].Title != "Zulu" {
@@ -166,7 +167,7 @@ func TestAlbumsRecomputeSort(t *testing.T) {
 func TestSortResetOnArtistsDrillDown(t *testing.T) {
 	v := ArtistsView{
 		artists:   []string{"Charlie", "Alpha", "Bravo"},
-		sortState: SortState{Field: SortName, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 
 	v = v.recomputeArtistsSort()
@@ -175,19 +176,19 @@ func TestSortResetOnArtistsDrillDown(t *testing.T) {
 	}
 
 	v2 := v.openAlbums([]string{"Album1", "Album2"})
-	if v2.sortState.Field != SortDefault {
+	if v2.sortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on openAlbums")
 	}
 
-	v2.sortState = SortState{Field: SortName, Dir: SortDesc}
+	v2.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	v3 := v2.openTracks([]library.Track{{Title: "T1"}})
-	if v3.sortState.Field != SortDefault {
+	if v3.sortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on openTracks")
 	}
 
-	v3.sortState = SortState{Field: SortTitle, Dir: SortAsc}
+	v3.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
 	v4 := v3.back()
-	if v4.sortState.Field != SortDefault {
+	if v4.sortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on back")
 	}
 }
@@ -195,18 +196,18 @@ func TestSortResetOnArtistsDrillDown(t *testing.T) {
 func TestSortResetOnAlbumsDrillDown(t *testing.T) {
 	v := AlbumsView{
 		albums:    []string{"Zulu", "Alpha"},
-		sortState: SortState{Field: SortName, Dir: SortAsc},
+		sortState: sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc},
 	}
 	v = v.recomputeAlbumsSort()
 
 	v2 := v.openTracks([]library.Track{{Title: "T1"}})
-	if v2.sortState.Field != SortDefault {
+	if v2.sortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on openTracks")
 	}
 
-	v2.sortState = SortState{Field: SortTitle, Dir: SortDesc}
+	v2.sortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	v3 := v2.back()
-	if v3.sortState.Field != SortDefault {
+	if v3.sortState.Field != sorting.SortDefault {
 		t.Error("sort should reset on back")
 	}
 }
@@ -214,11 +215,11 @@ func TestSortResetOnAlbumsDrillDown(t *testing.T) {
 func TestArtistsSortFieldsForLevel(t *testing.T) {
 	tests := []struct {
 		level arttui.Level
-		want  []SortField
+		want  []sorting.SortField
 	}{
-		{arttui.ArtistLevel, artistArtistSortFields},
-		{arttui.AlbumLevel, artistAlbumSortFields},
-		{arttui.TrackLevel, artistTrackSortFields},
+		{arttui.ArtistLevel, sorting.ArtistArtistSortFields},
+		{arttui.AlbumLevel, sorting.ArtistAlbumSortFields},
+		{arttui.TrackLevel, sorting.ArtistTrackSortFields},
 	}
 	for _, tt := range tests {
 		got := artistsSortFieldsForLevel(tt.level)
@@ -237,10 +238,10 @@ func TestArtistsSortFieldsForLevel(t *testing.T) {
 func TestAlbumsSortFieldsForLevel(t *testing.T) {
 	tests := []struct {
 		level albtui.Level
-		want  []SortField
+		want  []sorting.SortField
 	}{
-		{albtui.AlbumLevel, albumAlbumSortFields},
-		{albtui.TrackLevel, albumTrackSortFields},
+		{albtui.AlbumLevel, sorting.AlbumAlbumSortFields},
+		{albtui.TrackLevel, sorting.AlbumTrackSortFields},
 	}
 	for _, tt := range tests {
 		got := albumsSortFieldsForLevel(tt.level)
@@ -264,12 +265,12 @@ func TestArtistsVisibleReserve(t *testing.T) {
 	}{
 		{"artist level no filter no sort", ArtistsView{level: arttui.ArtistLevel}, 1},
 		{"artist level with filter (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}}, 1},
-		{"artist level with sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, sortState: SortState{Field: SortName}}, 1},
-		{"artist level with filter and sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}, sortState: SortState{Field: SortName}}, 1},
+		{"artist level with sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
+		{"artist level with filter and sort (strip absorbs)", ArtistsView{level: arttui.ArtistLevel, filter: filter.State{Active: true}, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
 		{"album level no sort", ArtistsView{level: arttui.AlbumLevel}, 2},
-		{"album level with sort (strip absorbs)", ArtistsView{level: arttui.AlbumLevel, sortState: SortState{Field: SortName}}, 2},
+		{"album level with sort (strip absorbs)", ArtistsView{level: arttui.AlbumLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 2},
 		{"track level no sort", ArtistsView{level: arttui.TrackLevel}, 3},
-		{"track level with sort (strip absorbs)", ArtistsView{level: arttui.TrackLevel, sortState: SortState{Field: SortTitle}}, 3},
+		{"track level with sort (strip absorbs)", ArtistsView{level: arttui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -289,9 +290,9 @@ func TestAlbumsVisibleReserve(t *testing.T) {
 	}{
 		{"album level no filter no sort", AlbumsView{level: albtui.AlbumLevel}, 1},
 		{"album level with filter (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, filter: filter.State{Active: true}}, 1},
-		{"album level with sort (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, sortState: SortState{Field: SortName}}, 1},
+		{"album level with sort (strip absorbs)", AlbumsView{level: albtui.AlbumLevel, sortState: sorting.SortState{Field: sorting.SortName}}, 1},
 		{"track level no sort", AlbumsView{level: albtui.TrackLevel}, 3},
-		{"track level with sort (strip absorbs)", AlbumsView{level: albtui.TrackLevel, sortState: SortState{Field: SortTitle}}, 3},
+		{"track level with sort (strip absorbs)", AlbumsView{level: albtui.TrackLevel, sortState: sorting.SortState{Field: sorting.SortTitle}}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

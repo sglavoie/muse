@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/desktop"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -25,7 +26,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			ID:       "dir.open.config",
 			Name:     "Open config directory",
 			Category: "file",
-			Exec:     func() tea.Cmd { return openDir(m.appCtx, dir) },
+			Exec:     func() tea.Cmd { return desktop.OpenDir(m.appCtx, dir) },
 		})
 	}
 
@@ -35,7 +36,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			ID:       "dir.open.data",
 			Name:     "Open database directory",
 			Category: "file",
-			Exec:     func() tea.Cmd { return openDir(m.appCtx, dir) },
+			Exec:     func() tea.Cmd { return desktop.OpenDir(m.appCtx, dir) },
 		})
 	}
 
@@ -59,7 +60,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 		ID:       "metadata.export.reveal",
 		Name:     "Reveal metadata export file",
 		Category: "lib",
-		Exec:     func() tea.Cmd { return revealFile(m.appCtx, metadataExportPath(m.dataDir)) },
+		Exec:     func() tea.Cmd { return desktop.RevealFile(m.appCtx, metadataExportPath(m.dataDir)) },
 		Enabled:  func() bool { return metadataExportExists(m.dataDir) },
 	})
 
@@ -94,7 +95,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			if !found {
 				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
 			}
-			return revealFile(m.appCtx, path)
+			return desktop.RevealFile(m.appCtx, path)
 		},
 		Enabled: trackFocused,
 	})
@@ -109,7 +110,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
 			}
 			text := fmt.Sprintf("%s \u2013 %s", artist, title)
-			return copyToClipboard(m.appCtx, text)
+			return desktop.CopyToClipboard(m.appCtx, text)
 		},
 		Enabled: trackFocused,
 	})
@@ -123,7 +124,7 @@ func (m Model) buildPaletteCommands() []PaletteCommand {
 			if !found {
 				return func() tea.Msg { return TransientNotifyMsg("No track focused") }
 			}
-			return copyToClipboard(m.appCtx, path)
+			return desktop.CopyToClipboard(m.appCtx, path)
 		},
 		Enabled: trackFocused,
 	})

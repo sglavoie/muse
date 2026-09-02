@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -416,11 +417,11 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case navigateBrowseModeMsg:
 		return m.handleNavigateBrowseModeMsg(msg)
 
-	case clipboardResultMsg:
-		if msg.err != nil {
-			m.statusBar.notify("Copy failed: " + msg.err.Error())
+	case desktop.ClipboardResultMsg:
+		if msg.Err != nil {
+			m.statusBar.notify("Copy failed: " + msg.Err.Error())
 		} else {
-			m.statusBar.notify("Copied: " + msg.text)
+			m.statusBar.notify("Copied: " + msg.Text)
 		}
 
 	case metadataExportRequestedMsg:

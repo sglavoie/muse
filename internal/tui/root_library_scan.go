@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
 // rescanEntry holds per-track values snapshotted before a full rescan clears
@@ -76,7 +77,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// includes newly scanned tracks.
-	if m.library.sortState.Field != SortDefault {
+	if m.library.sortState.Field != sorting.SortDefault {
 		m.library = m.library.recomputeSortedTracks()
 	}
 	m = m.syncRecentlyAddedFromLibrary()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // NowPlayingOverlay renders a centered overlay box showing information about
@@ -36,7 +37,7 @@ func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) st
 		// idle state on tests or defensive paths would be misleading.
 		icon = "■"
 	}
-	progress := fmt.Sprintf("%s %s / %s", icon, formatTime(n.elapsed), formatTime(n.total))
+	progress := fmt.Sprintf("%s %s / %s", icon, text.FormatPositionSecs(n.elapsed), text.FormatPositionSecs(n.total))
 	return renderTrackOverlay(n.title, n.artist, n.album, progress, n.playCount, n.tagsLine,
 		" ♪ Now Playing ", "I or esc to dismiss", termWidth, termHeight, s)
 }

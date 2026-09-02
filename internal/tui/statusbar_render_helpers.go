@@ -8,25 +8,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/sglavoie/muse/internal/tui/styles"
-	"github.com/sglavoie/muse/internal/tui/text"
 )
-
-// formatTime converts a duration in seconds to M:SS or H:MM:SS format.
-// Unlike FormatDurationSecs, zero is treated as a valid position (start of
-// playback) and returns "0:00". NaN and infinite values are clamped to zero.
-func formatTime(secs float64) string {
-	if secs < 0 || math.IsNaN(secs) || math.IsInf(secs, 0) {
-		secs = 0
-	}
-	total := int(secs)
-	hours := total / 3600
-	minutes := (total % 3600) / 60
-	seconds := total % 60
-	if hours > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
-	}
-	return fmt.Sprintf("%d:%02d", minutes, seconds)
-}
 
 const progressCellSteps = 8
 
@@ -104,13 +86,6 @@ func renderProgressBar(elapsed, total float64, width int, st styles.Styles) stri
 	}
 	return st.ProgressFilled.Render(filled) +
 		st.ProgressEmpty.Render(strings.Repeat("░", emptyCells))
-}
-
-// truncateTitle shortens s so its display width (measured in terminal columns)
-// does not exceed maxWidth. When truncation occurs an ellipsis "…" (width 1)
-// is appended. Returns an empty string when maxWidth <= 0.
-func truncateTitle(s string, maxWidth int) string {
-	return text.Truncate(s, maxWidth)
 }
 
 // modeLabels returns the editorial chip labels (visual mode, yank/cut count,

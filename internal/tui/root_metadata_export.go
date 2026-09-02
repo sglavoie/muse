@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/fsutil"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/metaexport"
@@ -118,7 +119,7 @@ func (m Model) handleExportPathCopyKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 	}
 	path := m.exportCopyHint.path
 	m.exportCopyHint = exportPathCopy{}
-	return m, copyToClipboard(m.appCtx, path), true
+	return m, desktop.CopyToClipboard(m.appCtx, path), true
 }
 
 // metadataExportDocument turns visible rows into an export document, returning
