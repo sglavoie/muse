@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -15,12 +16,12 @@ func TestBulkSelectionToggleExitsVisualMode(t *testing.T) {
 	m.library.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active before toggle")
 	}
 
-	m, _, _ = m.handleNavigationAction(actionBulkSelectionToggle)
+	m, _, _ = m.handleNavigationAction(keys.ActionBulkSelectionToggle)
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit on bulk-selection toggle")
 	}
@@ -85,7 +86,7 @@ func TestPlaylistBulkDeleteExitsVisualMode(t *testing.T) {
 	m.playlists.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active before delete")
 	}
@@ -114,7 +115,7 @@ func TestFavoritesBulkActionExitsVisualMode(t *testing.T) {
 	m.favorites.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 	if !m.visual.active {
 		t.Fatal("expected visual mode active before bulk action")
 	}

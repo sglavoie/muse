@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // stubRepeatShuffler implements repeatShuffler (SetRepeat/SetShuffle) on top of
@@ -48,7 +50,7 @@ func TestShuffleToggle_Success(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 
-	next, _, handled := m.handlePlaybackKeyAction(actionShuffleToggle)
+	next, _, handled := m.handlePlaybackKeyAction(keys.ActionShuffleToggle)
 	if !handled {
 		t.Fatal("actionShuffleToggle not handled")
 	}
@@ -76,7 +78,7 @@ func TestShuffleToggle_RuntimeFailureReverts(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 
-	next, _, _ := m.handlePlaybackKeyAction(actionShuffleToggle)
+	next, _, _ := m.handlePlaybackKeyAction(keys.ActionShuffleToggle)
 	nm := next.(Model)
 
 	if nm.playback.shuffle {
@@ -98,7 +100,7 @@ func TestShuffleToggle_PersistenceFailureWarnsNotSaved(t *testing.T) {
 	sw := &stubErrSessionWriter{writeShuffleErr: errors.New("disk full")}
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 
-	next, _, _ := m.handlePlaybackKeyAction(actionShuffleToggle)
+	next, _, _ := m.handlePlaybackKeyAction(keys.ActionShuffleToggle)
 	nm := next.(Model)
 
 	// Runtime shuffle remains enabled even though persistence failed.

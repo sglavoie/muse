@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestCutThenPasteRemovesOriginals verifies that pasting a cut buffer moves
@@ -16,12 +18,12 @@ func TestCutThenPasteRemovesOriginals(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Cut track A (ID=101).
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Move cursor to after D and paste.
 	m.queue.cursor = 3
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -62,12 +64,12 @@ func TestCutPasteAdjustsPlaybackIndex(t *testing.T) {
 
 	// Cut A (index 0, before currently playing).
 	m.queue.cursor = 0
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste at end.
 	m.queue.cursor = 3
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -95,12 +97,12 @@ func TestCutPasteSecondPasteDuplicates(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Cut A.
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// First paste (moves A).
 	m.queue.cursor = 3
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -110,7 +112,7 @@ func TestCutPasteSecondPasteDuplicates(t *testing.T) {
 	}
 
 	// Second paste should duplicate (yankIsCut is cleared).
-	rm, cmd, _ = m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ = m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg = cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -132,12 +134,12 @@ func TestCutPasteCursorPointsAtPastedEntry(t *testing.T) {
 	m.queue.cursor = 3                     // on D
 
 	// Cut D (last track).
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after A (cursor=0).
 	m.queue.cursor = 0
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -172,12 +174,12 @@ func TestCutPasteMultipleCursorPointsAtLastPasted(t *testing.T) {
 	m.queue.entries[2].Selected = true
 	m.queue.entries[3].Selected = true
 	m.queue.cursor = 2
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after A (cursor=0).
 	m.queue.cursor = 0
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -213,12 +215,12 @@ func TestCutPastePreservesPurgeCancelChannel(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Cut A.
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after D.
 	m.queue.cursor = 3
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -255,12 +257,12 @@ func TestCutPastePlayingTrackRelocatesCurrentIndex(t *testing.T) {
 
 	// Cut A (the currently playing track).
 	m.queue.cursor = 0
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after D (cursor=3, insertPos=4).
 	m.queue.cursor = 3
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)

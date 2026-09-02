@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -43,7 +44,7 @@ type helpEntry struct {
 // helpSection groups related keybinding entries under a named header.
 type helpSection struct {
 	title   string
-	context bindingContext
+	context keys.Context
 	entries []helpEntry
 }
 
@@ -64,7 +65,7 @@ func helpSections() []helpSection {
 			// them match the key that toggles them. The Global section below
 			// lists the toggle keys themselves.
 			title:   statusBarHelpSectionTitle,
-			context: contextGlobal,
+			context: keys.ContextGlobal,
 			entries: []helpEntry{
 				{"R / 1", "Repeat all / repeat one — toggle with r"},
 				{"S", "Shuffle — toggle with z"},
@@ -74,7 +75,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Global",
-			context: contextGlobal,
+			context: keys.ContextGlobal,
 			entries: []helpEntry{
 				{"ctrl+c", "Quit"},
 				{"space", "Play / Pause"},
@@ -125,7 +126,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)",
-			context: contextGlobal,
+			context: keys.ContextGlobal,
 			entries: []helpEntry{
 				{"j / k / down / up", "Move cursor down / up"},
 				{"ctrl+d / ctrl+u", "Half-page down / up"},
@@ -135,7 +136,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Library",
-			context: contextLibrary,
+			context: keys.ContextLibrary,
 			entries: []helpEntry{
 				{"` / ~", "Cycle sub-mode forward / backward (All ↔ Recently Added ↔ History)"},
 				{"/", "Filter tracks (prefixes: a: t: l: g:)"},
@@ -151,7 +152,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Playlists",
-			context: contextPlaylists,
+			context: keys.ContextPlaylists,
 			entries: []helpEntry{
 				{"enter", "Open playlist / enqueue track"},
 				{"N", "Play next (insert after current track)"},
@@ -173,7 +174,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Smart Rule Editor overlay",
-			context: contextPlaylists,
+			context: keys.ContextPlaylists,
 			entries: []helpEntry{
 				{"enter", "Next step / confirm rule"},
 				{"esc", "Back one step / close overlay"},
@@ -188,7 +189,7 @@ func helpSections() []helpSection {
 		// Library and Playlists appear above; the rest follow here.
 		{
 			title:   "Queue",
-			context: contextQueue,
+			context: keys.ContextQueue,
 			entries: []helpEntry{
 				{"/", "Filter queue"},
 				{"esc", "Clear committed filter"},
@@ -207,7 +208,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Browse (Artists)",
-			context: contextArtists,
+			context: keys.ContextArtists,
 			entries: []helpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
@@ -223,7 +224,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Browse (Albums)",
-			context: contextAlbums,
+			context: keys.ContextAlbums,
 			entries: []helpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
@@ -239,7 +240,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Browse (Genres)",
-			context: contextGenres,
+			context: keys.ContextGenres,
 			entries: []helpEntry{
 				{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
 				{"/", "Filter current list"},
@@ -255,7 +256,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Favorites",
-			context: contextFavorites,
+			context: keys.ContextFavorites,
 			entries: []helpEntry{
 				{"/", "Filter current list"},
 				{"enter", "Open category / drill into tracks / enqueue"},
@@ -271,7 +272,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Tags",
-			context: contextTags,
+			context: keys.ContextTags,
 			entries: []helpEntry{
 				{"6", "Switch to Tags"},
 				{"enter", "Drill into tag tracks / enqueue track"},
@@ -294,7 +295,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Mixes",
-			context: contextMixes,
+			context: keys.ContextMixes,
 			entries: []helpEntry{
 				{"enter", "Open mix / enqueue track"},
 				{"esc", "Back to mix list"},
@@ -316,7 +317,7 @@ func helpSections() []helpSection {
 		},
 		{
 			title:   "Insights",
-			context: contextInsights,
+			context: keys.ContextInsights,
 			entries: []helpEntry{
 				{"` / ~", "Next / previous panel"},
 				{"w / W", "Next / previous window, or bucket size on Momentum and Discovery"},
@@ -344,7 +345,7 @@ func helpSections() []helpSection {
 			// handled at the root level (outside the keybinding registry). The
 			// Modals section covers any future modal dialogs as well.
 			title:   "Modals / Help overlay",
-			context: contextModals,
+			context: keys.ContextModals,
 			entries: []helpEntry{
 				{"esc", "Dismiss modal or close this help overlay"},
 				{"space / left / right / shift+left / shift+right", "Preview pause / seek"},
@@ -360,7 +361,7 @@ func helpSections() []helpSection {
 // matches ctx. This powers the "view-specific" help mode toggled with "?".
 // The status-bar legend stays pinned first here too, so it keeps the same
 // position in both help modes.
-func filteredHelpSections(ctx bindingContext) []helpSection {
+func filteredHelpSections(ctx keys.Context) []helpSection {
 	all := helpSections()
 	// Legend first, then the view-specific sections, then global sections.
 	var pinned, viewSpecific, global []helpSection
@@ -375,7 +376,7 @@ func filteredHelpSections(ctx bindingContext) []helpSection {
 		switch sec.context {
 		case ctx:
 			viewSpecific = append(viewSpecific, sec)
-		case contextGlobal:
+		case keys.ContextGlobal:
 			global = append(global, sec)
 		}
 	}

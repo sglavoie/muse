@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // handleUndo processes the UndoMsg by reversing the most recent destructive
@@ -124,46 +125,46 @@ func (m Model) queuePasteCmd(insertPos int, entries []QueueEntry, cutIDs []int64
 // handleQueueKeyAction handles queue-related key actions (select, dequeue,
 // clear, move, save-as-playlist, undo). It returns true in the third value
 // when the action was handled.
-func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
-	case actionUndo:
+	case keys.ActionUndo:
 		return m, func() tea.Msg { return UndoMsg{} }, true
-	case actionDequeue:
+	case keys.ActionDequeue:
 		if m.queue.hasSelection() {
 			return m.handleSelectedQueueDequeueAction()
 		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
-	case actionClearQueue:
+	case keys.ActionClearQueue:
 		if len(m.queue.entries) == 0 {
 			return m, nil, true
 		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
-	case actionSelect:
+	case keys.ActionSelect:
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
-	case actionMoveTrackUp, actionMoveTrackDown:
+	case keys.ActionMoveTrackUp, keys.ActionMoveTrackDown:
 		if m.activeView != viewQueue {
 			return m, nil, false
 		}
 		var cmd tea.Cmd
 		m.queue, cmd = m.queue.HandleAction(action)
 		return m, cmd, true
-	case actionFocusNowPlaying:
+	case keys.ActionFocusNowPlaying:
 		if m.activeView != viewQueue {
 			m = m.switchToView(viewQueue)
 		}
 		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
 		return m, nil, true
-	case actionYank:
+	case keys.ActionYank:
 		return m.yankOrCutQueueTracks(false)
-	case actionCut:
+	case keys.ActionCut:
 		return m.yankOrCutQueueTracks(true)
-	case actionPaste:
+	case keys.ActionPaste:
 		if len(m.yankBuffer) == 0 {
 			m.statusBar.notify("Nothing to paste")
 			return m, nil, true
@@ -186,7 +187,7 @@ func (m Model) handleQueueKeyAction(action action) (tea.Model, tea.Cmd, bool) {
 			}
 		}
 		return m, m.queuePasteCmd(insertPos, buffer, cutIDs), true
-	case actionSaveQueueAsPlaylist:
+	case keys.ActionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
 			m.statusBar.notify("Queue is empty — nothing to save")
 		} else {

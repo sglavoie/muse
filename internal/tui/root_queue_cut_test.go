@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestCutSingleTrack verifies that ctrl+x with no selection cuts the focused
@@ -15,7 +17,7 @@ func TestCutSingleTrack(t *testing.T) {
 	m.queue.entries = sampleQueueEntries()
 	m.queue.cursor = 1
 
-	rm, _, handled := m.handleQueueKeyAction(actionCut)
+	rm, _, handled := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	if !handled {
@@ -50,7 +52,7 @@ func TestCutBulkSelection(t *testing.T) {
 	m.queue.entries[2].Selected = true
 	m.queue.cursor = 0
 
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	if len(m.yankBuffer) != 2 {
@@ -74,7 +76,7 @@ func TestYankAfterCutClearsCutFlag(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Cut.
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 	if !m.yankIsCut {
 		t.Fatal("yankIsCut should be true after cut")
@@ -82,7 +84,7 @@ func TestYankAfterCutClearsCutFlag(t *testing.T) {
 
 	// Now yank a different track.
 	m.queue.cursor = 1
-	rm, _, _ = m.handleQueueKeyAction(actionYank)
+	rm, _, _ = m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 
 	if m.yankIsCut {

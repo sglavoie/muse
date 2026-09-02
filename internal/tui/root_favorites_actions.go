@@ -2,24 +2,25 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // handleFavoriteKeyAction handles favorites-specific key actions.
 // Returns (model, cmd, true) when the action was handled.
-func (m Model) handleFavoriteKeyAction(action action) (Model, tea.Cmd, bool) {
+func (m Model) handleFavoriteKeyAction(action keys.Action) (Model, tea.Cmd, bool) {
 	switch action {
-	case actionFavoritesOpen:
+	case keys.ActionFavoritesOpen:
 		return m.handleFavoritesOpen()
-	case actionFavoritesBack:
+	case keys.ActionFavoritesBack:
 		if m.activeView == viewFavorites {
 			m = exitVisualMode(m)
 			m.favorites = m.favorites.back()
 			return m, nil, true
 		}
 		return m, nil, false
-	case actionToggleFavorite:
+	case keys.ActionToggleFavorite:
 		return m.handleToggleFavorite()
-	case actionBulkAction:
+	case keys.ActionBulkAction:
 		if m.activeView == viewFavorites {
 			return m.handleFavoritesBulkAction()
 		}

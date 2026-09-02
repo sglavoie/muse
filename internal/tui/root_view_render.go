@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -211,12 +212,12 @@ func (m Model) renderFooterHint() string {
 	if m.hasActiveOverlay() || !m.showFooterHints {
 		return ""
 	}
-	mode := HintModeDefault
+	mode := keys.HintModeDefault
 	switch {
 	case m.visual.active:
-		mode = HintModeVisual
+		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:
-		mode = HintModeSelection
+		mode = keys.HintModeSelection
 	}
-	return RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
+	return keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
 }

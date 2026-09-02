@@ -6,6 +6,7 @@ import (
 	musiclib "github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -114,7 +115,7 @@ func (v ArtistsView) render(s styles.Styles, favHashes, favArtists, favAlbums ma
 }
 
 // HandleAction executes a pre-resolved artists action dispatched by root.Update.
-func (v ArtistsView) HandleAction(a action) ArtistsView {
+func (v ArtistsView) HandleAction(a keys.Action) ArtistsView {
 	view := arttui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -131,21 +132,21 @@ func (v ArtistsView) HandleAction(a action) ArtistsView {
 		FilterText:         v.filter.Text,
 	}
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		view = view.CursorUp()
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		view = view.CursorDown()
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		view = view.HalfPageDown()
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		view = view.HalfPageUp()
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		view = view.FullPageDown()
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		view = view.FullPageUp()
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		view = view.GoToTop()
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
 	}
 	v.cursor = view.Cursor

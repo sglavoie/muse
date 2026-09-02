@@ -2,6 +2,7 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
@@ -41,26 +42,26 @@ func (v LibraryView) ClearSelection() LibraryView {
 }
 
 // HandleAction executes a pre-resolved library action dispatched by root.Update.
-func (v LibraryView) HandleAction(a action) LibraryView {
+func (v LibraryView) HandleAction(a keys.Action) LibraryView {
 	view := v.view()
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		view = view.CursorUp()
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		view = view.CursorDown()
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		view = view.HalfPageDown()
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		view = view.HalfPageUp()
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		view = view.FullPageDown()
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		view = view.FullPageUp()
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		view = view.GoToTop()
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
-	case actionBulkSelectionToggle:
+	case keys.ActionBulkSelectionToggle:
 		if t, ok := view.FocusedTrack(); ok {
 			return v.ToggleBulkSelection(t.Hash)
 		}

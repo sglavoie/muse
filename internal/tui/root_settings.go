@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // settingsSavedMsg is dispatched after config.Save completes.
@@ -286,7 +287,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	// If library dirs or excluded paths changed, update roots and trigger a rescan.
 	if !slices.Equal(oldRoots, cfg.MusicDirectories) || !slices.Equal(oldExcluded, cfg.ExcludedPaths) {
 		m.libraryRoots = cfg.MusicDirectories
-		rescanModel, rescanCmd, _ := m.handleLibraryKeyAction(actionRescan)
+		rescanModel, rescanCmd, _ := m.handleLibraryKeyAction(keys.ActionRescan)
 		if rescanCmd != nil {
 			return rescanModel.(Model), tea.Batch(saveCmd, rescanCmd)
 		}

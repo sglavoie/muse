@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/sglavoie/muse/internal/tui/keys"
+
 // viewID identifies which primary view is active.
 type viewID int
 
@@ -80,32 +82,32 @@ func (m Model) viewDisplayName(id viewID) string {
 }
 
 // viewToContext maps a viewID to its corresponding bindingContext.
-func viewToContext(id viewID) bindingContext {
+func viewToContext(id viewID) keys.Context {
 	switch id {
 	case viewLibrary:
-		return contextLibrary
+		return keys.ContextLibrary
 	case viewPlaylists:
-		return contextPlaylists
+		return keys.ContextPlaylists
 	case viewQueue:
-		return contextQueue
+		return keys.ContextQueue
 	case viewBrowse:
-		return contextBrowse
+		return keys.ContextBrowse
 	case viewArtists:
-		return contextArtists
+		return keys.ContextArtists
 	case viewAlbums:
-		return contextAlbums
+		return keys.ContextAlbums
 	case viewGenres:
-		return contextGenres
+		return keys.ContextGenres
 	case viewFavorites:
-		return contextFavorites
+		return keys.ContextFavorites
 	case viewTags:
-		return contextTags
+		return keys.ContextTags
 	case viewMixes:
-		return contextMixes
+		return keys.ContextMixes
 	case viewInsights:
-		return contextInsights
+		return keys.ContextInsights
 	default:
-		return contextGlobal
+		return keys.ContextGlobal
 	}
 }
 

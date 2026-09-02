@@ -1,4 +1,4 @@
-package tui
+package keys
 
 import (
 	"sort"
@@ -10,7 +10,7 @@ import (
 //
 // Each row shows the action a key resolves to in each view context. "=" means
 // the global binding pass-through (no view-local override). "—" means no
-// binding (resolve returns actionNone). Capitals matter — j != J. Navigation
+// binding (Resolve returns ActionNone). Capitals matter — j != J. Navigation
 // keys (j k g G ctrl+d ctrl+u ctrl+f ctrl+b up down) are registered uniformly
 // per context via registerNavigation and behave identically everywhere.
 //
@@ -70,192 +70,192 @@ import (
 // surfaced as the override's justification. Same-action rebinds (Tags F)
 // are treated as harmless redundancy and not flagged.
 
-// bindingContext identifies the context in which key bindings are resolved.
+// Context identifies the context in which key bindings are resolved.
 // The registry checks the view-local context first, then falls back to Global.
-type bindingContext int
+type Context int
 
 const (
-	contextGlobal    bindingContext = iota // applies in every view
-	contextLibrary                         // applies only in the Library view
-	contextPlaylists                       // applies only in the Playlists view
-	contextQueue                           // applies only in the Queue view
-	contextArtists                         // applies only in the Artists view
-	contextAlbums                          // applies only in the Albums view
-	contextFavorites                       // applies only in the Favorites view
-	contextGenres                          // applies only in the Genres view
-	contextTags                            // applies only in the Tags view
-	contextModals                          // applies only when a modal is active
-	contextMixes                           // applies only in the Mixes view
-	contextBrowse                          // applies only in the Browse view (fallback; real sub-context resolved dynamically)
-	contextInsights                        // applies only in the Insights view
+	ContextGlobal    Context = iota // applies in every view
+	ContextLibrary                  // applies only in the Library view
+	ContextPlaylists                // applies only in the Playlists view
+	ContextQueue                    // applies only in the Queue view
+	ContextArtists                  // applies only in the Artists view
+	ContextAlbums                   // applies only in the Albums view
+	ContextFavorites                // applies only in the Favorites view
+	ContextGenres                   // applies only in the Genres view
+	ContextTags                     // applies only in the Tags view
+	ContextModals                   // applies only when a modal is active
+	ContextMixes                    // applies only in the Mixes view
+	ContextBrowse                   // applies only in the Browse view (fallback; real sub-context resolved dynamically)
+	ContextInsights                 // applies only in the Insights view
 )
 
-// action represents a named TUI action that a key binding triggers.
-type action int
+// Action represents a named TUI action that a key binding triggers.
+type Action int
 
 const (
-	actionNone action = iota
+	ActionNone Action = iota
 
 	// Global actions — available in every view unless a view-local binding
 	// shadows the same key.
-	actionQuit
-	actionPlayPause
-	actionStop
-	actionResetPosition
-	actionNext
-	actionPrevious
-	actionSeekBack
-	actionSeekForward
-	actionSeekBackLong
-	actionSeekForwardLong
-	actionVolumeUp
-	actionVolumeDown
-	actionSwitchLibrary
-	actionSwitchPlaylists
-	actionSwitchQueue
-	actionRescan
-	actionRepeatCycle      // 'r': cycle repeat mode off→all→one→off
-	actionShuffleToggle    // 'z': toggle shuffle mode
-	actionUndo             // 'u': dispatch undo
-	actionFilterBar        // '/': activate filter bar in active view
-	actionHelp             // '?': show help overlay
-	actionSettings         // 'ctrl+,': open settings overlay
-	actionDebug            // 'ctrl+g': show debug panel
-	actionNextView         // tab: cycle to next view
-	actionPrevView         // shift+tab: cycle to previous view
-	actionPreview          // 'P': preview focused track
-	actionNowPlayingInfo   // 'I': show now-playing info overlay
-	actionEditMetadata     // 'M': edit metadata of focused track
-	actionTrackInfo        // 'i': show track info overlay (exiftool)
-	actionStopAfterCurrent // ctrl+n: toggle "stop after current track"
-	actionQueueSummary     // 'q': show queue summary overlay
-	actionModesLegend      // ';': show the playback-mode legend overlay
-	actionCommandPalette   // ':': open command palette
-	actionTagPicker        // 't': open tag picker overlay
-	actionTagFilter        // ctrl+t: open/clear cross-view tag filter
-	actionRadioToggle      // 'A': toggle radio / auto-DJ mode
-	actionFocusNowPlaying  // 'f': jump cursor to the currently playing track
+	ActionQuit
+	ActionPlayPause
+	ActionStop
+	ActionResetPosition
+	ActionNext
+	ActionPrevious
+	ActionSeekBack
+	ActionSeekForward
+	ActionSeekBackLong
+	ActionSeekForwardLong
+	ActionVolumeUp
+	ActionVolumeDown
+	ActionSwitchLibrary
+	ActionSwitchPlaylists
+	ActionSwitchQueue
+	ActionRescan
+	ActionRepeatCycle      // 'r': cycle repeat mode off→all→one→off
+	ActionShuffleToggle    // 'z': toggle shuffle mode
+	ActionUndo             // 'u': dispatch undo
+	ActionFilterBar        // '/': activate filter bar in active view
+	ActionHelp             // '?': show help overlay
+	ActionSettings         // 'ctrl+,': open settings overlay
+	ActionDebug            // 'ctrl+g': show debug panel
+	ActionNextView         // tab: cycle to next view
+	ActionPrevView         // shift+tab: cycle to previous view
+	ActionPreview          // 'P': preview focused track
+	ActionNowPlayingInfo   // 'I': show now-playing info overlay
+	ActionEditMetadata     // 'M': edit metadata of focused track
+	ActionTrackInfo        // 'i': show track info overlay (exiftool)
+	ActionStopAfterCurrent // ctrl+n: toggle "stop after current track"
+	ActionQueueSummary     // 'q': show queue summary overlay
+	ActionModesLegend      // ';': show the playback-mode legend overlay
+	ActionCommandPalette   // ':': open command palette
+	ActionTagPicker        // 't': open tag picker overlay
+	ActionTagFilter        // ctrl+t: open/clear cross-view tag filter
+	ActionRadioToggle      // 'A': toggle radio / auto-DJ mode
+	ActionFocusNowPlaying  // 'f': jump cursor to the currently playing track
 
-	actionSwitchBrowse
-	actionSwitchArtists // legacy — no longer bound to a key; kept for existing dispatch cases
-	actionSwitchAlbums  // legacy — no longer bound to a key; kept for existing dispatch cases
-	actionSwitchFavorites
-	actionToggleFavorite
-	actionLibraryModeNext // '`': cycle Library sub-mode forward (All → Recent → History → All)
-	actionLibraryModePrev // '~': cycle Library sub-mode backward
-	actionBrowseModeNext  // '`': cycle Browse sub-mode forward (Artists → Albums → Genres → Artists)
-	actionBrowseModePrev  // '~': cycle Browse sub-mode backward
-	actionGoTo            // 'o': open Go To navigation popup
+	ActionSwitchBrowse
+	ActionSwitchArtists // legacy — no longer bound to a key; kept for existing dispatch cases
+	ActionSwitchAlbums  // legacy — no longer bound to a key; kept for existing dispatch cases
+	ActionSwitchFavorites
+	ActionToggleFavorite
+	ActionLibraryModeNext // '`': cycle Library sub-mode forward (All → Recent → History → All)
+	ActionLibraryModePrev // '~': cycle Library sub-mode backward
+	ActionBrowseModeNext  // '`': cycle Browse sub-mode forward (Artists → Albums → Genres → Artists)
+	ActionBrowseModePrev  // '~': cycle Browse sub-mode backward
+	ActionGoTo            // 'o': open Go To navigation popup
 
 	// Favorites-local actions.
-	actionFavoritesOpen // enter: drill into category/list or enqueue track
-	actionFavoritesBack // esc: go back one level
+	ActionFavoritesOpen // enter: drill into category/list or enqueue track
+	ActionFavoritesBack // esc: go back one level
 
 	// Library-local actions.
-	actionLibraryEnqueue        // enter: append the focused or selected tracks to the play queue
-	actionLibraryEnqueueReplace // shift+enter: clear queue and enqueue focused track
-	actionLibraryFilterClear    // esc: clear a committed filter in the library view
-	actionPlayNext              // 'N': insert the focused track right after the currently playing track
+	ActionLibraryEnqueue        // enter: append the focused or selected tracks to the play queue
+	ActionLibraryEnqueueReplace // shift+enter: clear queue and enqueue focused track
+	ActionLibraryFilterClear    // esc: clear a committed filter in the library view
+	ActionPlayNext              // 'N': insert the focused track right after the currently playing track
 
 	// Queue-local actions.
-	actionCursorUp
-	actionCursorDown
-	actionSelect
-	actionDequeue             // 'd': remove the selected track from the queue
-	actionBulkSelectionToggle // 'x': toggle bulk-selection on the selected entry
-	actionClearSelection      // 'X': clear all bulk-selected entries
-	actionVisualMode          // 'v': toggle visual line selection mode
-	actionClearQueue          // 'C': clear all entries from the queue
-	actionMoveTrackUp         // 'K': move selected track one position earlier
-	actionMoveTrackDown       // 'J': move selected track one position later
-	actionSaveQueueAsPlaylist // 'S': save entire queue as a new playlist
-	actionYank                // ctrl+y: copy focused/selected tracks to yank buffer
-	actionPaste               // ctrl+p: paste yanked tracks below cursor
-	actionCut                 // ctrl+x: cut focused/selected tracks (move on paste)
+	ActionCursorUp
+	ActionCursorDown
+	ActionSelect
+	ActionDequeue             // 'd': remove the selected track from the queue
+	ActionBulkSelectionToggle // 'x': toggle bulk-selection on the selected entry
+	ActionClearSelection      // 'X': clear all bulk-selected entries
+	ActionVisualMode          // 'v': toggle visual line selection mode
+	ActionClearQueue          // 'C': clear all entries from the queue
+	ActionMoveTrackUp         // 'K': move selected track one position earlier
+	ActionMoveTrackDown       // 'J': move selected track one position later
+	ActionSaveQueueAsPlaylist // 'S': save entire queue as a new playlist
+	ActionYank                // ctrl+y: copy focused/selected tracks to yank buffer
+	ActionPaste               // ctrl+p: paste yanked tracks below cursor
+	ActionCut                 // ctrl+x: cut focused/selected tracks (move on paste)
 
 	// Playlists-local actions.
-	actionPlaylistRename
-	actionPlaylistCreate // 'c': create new playlist
-	actionPlaylistOpen   // 'enter': open playlist to display its tracks
-	actionPlaylistBack   // 'esc': return to the playlist list from track level
-	actionPlaylistDelete // 'd': delete focused playlist (list level) or remove focused track (track level)
+	ActionPlaylistRename
+	ActionPlaylistCreate // 'c': create new playlist
+	ActionPlaylistOpen   // 'enter': open playlist to display its tracks
+	ActionPlaylistBack   // 'esc': return to the playlist list from track level
+	ActionPlaylistDelete // 'd': delete focused playlist (list level) or remove focused track (track level)
 
-	actionPlaylistEnqueueAll // 'E': enqueue all tracks from the focused playlist
+	ActionPlaylistEnqueueAll // 'E': enqueue all tracks from the focused playlist
 
 	// Smart-playlist actions (keybindings wired in Session 3).
-	actionSmartPlaylistCreate // 'S': create a new smart playlist
-	actionSmartPlaylistEdit   // 'e': edit rules for the focused smart playlist
+	ActionSmartPlaylistCreate // 'S': create a new smart playlist
+	ActionSmartPlaylistEdit   // 'e': edit rules for the focused smart playlist
 
 	// Artists-local actions.
-	actionArtistOpen // enter: drill into albums/tracks or enqueue
-	actionArtistBack // esc: go back one level
+	ActionArtistOpen // enter: drill into albums/tracks or enqueue
+	ActionArtistBack // esc: go back one level
 
 	// Albums-local actions.
-	actionAlbumOpen // enter: drill into tracks or enqueue
-	actionAlbumBack // esc: go back one level
+	ActionAlbumOpen // enter: drill into tracks or enqueue
+	ActionAlbumBack // esc: go back one level
 
 	// Genres-local actions.
-	actionSwitchGenres // legacy — no longer bound to a key; kept for existing dispatch cases
-	actionGenreOpen    // enter: drill into artists/tracks or enqueue
-	actionGenreBack    // esc: go back one level
+	ActionSwitchGenres // legacy — no longer bound to a key; kept for existing dispatch cases
+	ActionGenreOpen    // enter: drill into artists/tracks or enqueue
+	ActionGenreBack    // esc: go back one level
 
 	// Bulk-selection action — triggered by 'a' when tracks are selected.
-	// actionBulkAction applies in Library (append selected tracks to queue).
-	actionBulkAction // 'a': apply context-appropriate bulk action and clear selection
+	// ActionBulkAction applies in Library (append selected tracks to queue).
+	ActionBulkAction // 'a': apply context-appropriate bulk action and clear selection
 
 	// Vim-style scrolling actions — shared across Library, Queue, and Playlists.
-	actionHalfPageDown // ctrl+d: move cursor half a page down
-	actionHalfPageUp   // ctrl+u: move cursor half a page up
-	actionFullPageDown // ctrl+f: move cursor a full page down
-	actionFullPageUp   // ctrl+b: move cursor a full page up
-	actionGoToTop      // g: move cursor to the first row
-	actionGoToBottom   // G: move cursor to the last row
+	ActionHalfPageDown // ctrl+d: move cursor half a page down
+	ActionHalfPageUp   // ctrl+u: move cursor half a page up
+	ActionFullPageDown // ctrl+f: move cursor a full page down
+	ActionFullPageUp   // ctrl+b: move cursor a full page up
+	ActionGoToTop      // g: move cursor to the first row
+	ActionGoToBottom   // G: move cursor to the last row
 
 	// Sort actions.
-	actionSortCycle // ctrl+s: cycle to next sort field
-	actionSortAsc   // shift+up: set sort direction to ascending
-	actionSortDesc  // shift+down: set sort direction to descending
+	ActionSortCycle // ctrl+s: cycle to next sort field
+	ActionSortAsc   // shift+up: set sort direction to ascending
+	ActionSortDesc  // shift+down: set sort direction to descending
 
 	// Tags view actions.
-	actionSwitchTags    // '6': switch to Tags view
-	actionTagOpen       // enter: drill into tag tracks (or enqueue at TrackLevel)
-	actionTagBack       // backspace/h: go back to tag list
-	actionTagCreate     // 'c': create a new tag (inline input)
-	actionTagRename     // 'r': rename the focused tag (inline input)
-	actionTagDelete     // 'd': soft-delete the focused tag (5s undo)
-	actionTagEnqueueAll // 'E': enqueue all tracks with the focused tag
-	actionTagMerge      // 'm': merge focused tag into another (opens merge picker)
+	ActionSwitchTags    // '6': switch to Tags view
+	ActionTagOpen       // enter: drill into tag tracks (or enqueue at TrackLevel)
+	ActionTagBack       // backspace/h: go back to tag list
+	ActionTagCreate     // 'c': create a new tag (inline input)
+	ActionTagRename     // 'r': rename the focused tag (inline input)
+	ActionTagDelete     // 'd': soft-delete the focused tag (5s undo)
+	ActionTagEnqueueAll // 'E': enqueue all tracks with the focused tag
+	ActionTagMerge      // 'm': merge focused tag into another (opens merge picker)
 
 	// Mixes-local actions.
-	actionSwitchMixes       // '7': switch to Mixes view
-	actionMixOpen           // enter: drill into mix track list
-	actionMixBack           // esc: go back from track list to mix list
-	actionMixEnqueueAll     // 'E': enqueue all tracks from the focused mix
-	actionSaveMixAsPlaylist // 'S': save current mix as a static playlist
-	actionMixRadioSeed      // 'A': start radio seeded from the focused mix's aggregate metadata
-	actionMixDismiss        // 'x': dismiss focused track from recommendations
-	actionMixUndismiss      // 'X': undismiss focused track
+	ActionSwitchMixes       // '7': switch to Mixes view
+	ActionMixOpen           // enter: drill into mix track list
+	ActionMixBack           // esc: go back from track list to mix list
+	ActionMixEnqueueAll     // 'E': enqueue all tracks from the focused mix
+	ActionSaveMixAsPlaylist // 'S': save current mix as a static playlist
+	ActionMixRadioSeed      // 'A': start radio seeded from the focused mix's aggregate metadata
+	ActionMixDismiss        // 'x': dismiss focused track from recommendations
+	ActionMixUndismiss      // 'X': undismiss focused track
 
 	// Insights-local actions.
-	actionSwitchInsights       // '8': switch to Insights view
-	actionInsightsPanelNext    // '`': cycle to the next panel
-	actionInsightsPanelPrev    // '~': cycle to the previous panel
-	actionInsightsWindowNext   // 'w': advance the panel's window or bucket size
-	actionInsightsWindowPrev   // 'W': step the panel's window or bucket size back
-	actionInsightsOpen         // enter: drill into the focused row's tracks
-	actionInsightsBack         // esc: return from the drill-down to the panel
-	actionInsightsEnqueueAll   // 'E': enqueue every track behind the focused row
-	actionInsightsAntiRut      // '!': enqueue unheard tracks from the focused shelf
-	actionInsightsRadioSeed    // 'A': start radio seeded from the focused row
-	actionInsightsJumpBrowse   // 'b': jump to the focused row's artist in Browse
-	actionInsightsSavePlaylist // 'S': save the drilled-in tracks as a playlist
-	actionInsightsMergeGenre   // 'm': fold a Data Health genre collision into one spelling
+	ActionSwitchInsights       // '8': switch to Insights view
+	ActionInsightsPanelNext    // '`': cycle to the next panel
+	ActionInsightsPanelPrev    // '~': cycle to the previous panel
+	ActionInsightsWindowNext   // 'w': advance the panel's window or bucket size
+	ActionInsightsWindowPrev   // 'W': step the panel's window or bucket size back
+	ActionInsightsOpen         // enter: drill into the focused row's tracks
+	ActionInsightsBack         // esc: return from the drill-down to the panel
+	ActionInsightsEnqueueAll   // 'E': enqueue every track behind the focused row
+	ActionInsightsAntiRut      // '!': enqueue unheard tracks from the focused shelf
+	ActionInsightsRadioSeed    // 'A': start radio seeded from the focused row
+	ActionInsightsJumpBrowse   // 'b': jump to the focused row's artist in Browse
+	ActionInsightsSavePlaylist // 'S': save the drilled-in tracks as a playlist
+	ActionInsightsMergeGenre   // 'm': fold a Data Health genre collision into one spelling
 )
 
-// registryKey is the composite map key for registry lookups.
-type registryKey struct {
-	ctx bindingContext
-	key string
+// RegistryKey is the composite map key for registry lookups.
+type RegistryKey struct {
+	Ctx Context
+	Key string
 }
 
 // primaryHint is a single (key, label) pair shown in the footer hint strip.
@@ -279,26 +279,26 @@ const (
 
 // primaryHintKey is the composite map key for per-context, per-mode hint sets.
 type primaryHintKey struct {
-	ctx  bindingContext
+	ctx  Context
 	mode HintMode
 }
 
 // Registry maps (context, key) → action. The zero value is not usable;
-// use newRegistry to obtain a pre-populated instance.
+// use NewRegistry to obtain a pre-populated instance.
 //
 // domainReasons records the justification for a view-local override that
 // shadows a global binding with a different action. The audit test
 // (TestNoSilentlyShadowedGlobalBindings) requires every such override to
 // have a non-empty reason here, so any silently shadowed key fails CI.
 type Registry struct {
-	bindings      map[registryKey]action
+	Bindings      map[RegistryKey]Action
 	primaries     map[primaryHintKey][]primaryHint
-	domainReasons map[registryKey]string
+	domainReasons map[RegistryKey]string
 }
 
 // Primaries returns the ordered list of default-mode primary keybinding
 // hints for ctx. Equivalent to PrimariesForMode(ctx, HintModeDefault).
-func (r Registry) Primaries(ctx bindingContext) []primaryHint {
+func (r Registry) Primaries(ctx Context) []primaryHint {
 	return r.primaries[primaryHintKey{ctx: ctx, mode: HintModeDefault}]
 }
 
@@ -306,7 +306,7 @@ func (r Registry) Primaries(ctx bindingContext) []primaryHint {
 // is non-default and no hints are registered for it, falls back to the
 // default-mode set so the footer never goes empty just because a mode-
 // specific set wasn't customized for this view.
-func (r Registry) PrimariesForMode(ctx bindingContext, mode HintMode) []primaryHint {
+func (r Registry) PrimariesForMode(ctx Context, mode HintMode) []primaryHint {
 	if hints, ok := r.primaries[primaryHintKey{ctx: ctx, mode: mode}]; ok && len(hints) > 0 {
 		return hints
 	}
@@ -315,52 +315,52 @@ func (r Registry) PrimariesForMode(ctx bindingContext, mode HintMode) []primaryH
 
 // registerNavigation registers the shared cursor/scroll navigation bindings
 // (j/k, up/down, half/full page, go-to-top/bottom) for the given context.
-func (r *Registry) registerNavigation(ctx bindingContext) {
-	r.register(ctx, "j", actionCursorDown)
-	r.register(ctx, "k", actionCursorUp)
-	r.register(ctx, "up", actionCursorUp)
-	r.register(ctx, "down", actionCursorDown)
-	r.register(ctx, "ctrl+d", actionHalfPageDown)
-	r.register(ctx, "ctrl+u", actionHalfPageUp)
-	r.register(ctx, "ctrl+f", actionFullPageDown)
-	r.register(ctx, "ctrl+b", actionFullPageUp)
-	r.register(ctx, "g", actionGoToTop)
-	r.register(ctx, "G", actionGoToBottom)
+func (r *Registry) registerNavigation(ctx Context) {
+	r.register(ctx, "j", ActionCursorDown)
+	r.register(ctx, "k", ActionCursorUp)
+	r.register(ctx, "up", ActionCursorUp)
+	r.register(ctx, "down", ActionCursorDown)
+	r.register(ctx, "ctrl+d", ActionHalfPageDown)
+	r.register(ctx, "ctrl+u", ActionHalfPageUp)
+	r.register(ctx, "ctrl+f", ActionFullPageDown)
+	r.register(ctx, "ctrl+b", ActionFullPageUp)
+	r.register(ctx, "g", ActionGoToTop)
+	r.register(ctx, "G", ActionGoToBottom)
 }
 
 // register adds a (context, key) → action entry to the registry.
-func (r *Registry) register(ctx bindingContext, key string, a action) {
-	r.bindings[registryKey{ctx: ctx, key: key}] = a
+func (r *Registry) register(ctx Context, key string, a Action) {
+	r.Bindings[RegistryKey{Ctx: ctx, Key: key}] = a
 }
 
 // registerWithReason registers a view-local binding that intentionally
 // shadows a global binding with a different action. The reason is recorded
 // in domainReasons; TestNoSilentlyShadowedGlobalBindings asserts that any
 // shadowed key has a non-empty reason.
-func (r *Registry) registerWithReason(ctx bindingContext, key string, a action, reason string) {
+func (r *Registry) registerWithReason(ctx Context, key string, a Action, reason string) {
 	r.register(ctx, key, a)
-	r.domainReasons[registryKey{ctx: ctx, key: key}] = reason
+	r.domainReasons[RegistryKey{Ctx: ctx, Key: key}] = reason
 }
 
 // addPrimary records (key, label) as a default-mode primary hint without
 // (re)binding the key. Use this when the binding already exists in another
 // context (e.g. a global binding that we want to surface in a view-local
 // hint strip).
-func (r *Registry) addPrimary(ctx bindingContext, key, label string) {
+func (r *Registry) addPrimary(ctx Context, key, label string) {
 	r.addPrimaryMode(ctx, HintModeDefault, key, label)
 }
 
 // addPrimaryMode records (key, label) as a primary hint for the given
 // (context, mode) pair without (re)binding the key. Used to surface
 // selection-aware and visual-mode hint sets in the footer strip.
-func (r *Registry) addPrimaryMode(ctx bindingContext, mode HintMode, key, label string) {
+func (r *Registry) addPrimaryMode(ctx Context, mode HintMode, key, label string) {
 	k := primaryHintKey{ctx: ctx, mode: mode}
 	r.primaries[k] = append(r.primaries[k], primaryHint{Key: key, Label: label})
 }
 
-// lookup returns the action bound to (ctx, key), or actionNone if not found.
-func (r Registry) lookup(ctx bindingContext, key string) action {
-	return r.bindings[registryKey{ctx: ctx, key: key}]
+// Lookup returns the action bound to (ctx, key), or actionNone if not found.
+func (r Registry) Lookup(ctx Context, key string) Action {
+	return r.Bindings[RegistryKey{Ctx: ctx, Key: key}]
 }
 
 // keyRank classifies a key string for display ordering: 0 for a single
@@ -381,16 +381,16 @@ func keyRank(key string) int {
 	return 2
 }
 
-// keysFor returns every key bound to a in ctx, in stable display order.
+// KeysFor returns every key bound to a in ctx, in stable display order.
 // Unlike resolve there is no contextGlobal fallback: callers that want one
 // ask for contextGlobal explicitly. Results are sorted by
 // (rank, length, lexical) so that map iteration order never reaches
 // rendered output.
-func (r Registry) keysFor(ctx bindingContext, a action) []string {
+func (r Registry) KeysFor(ctx Context, a Action) []string {
 	keys := make([]string, 0, 4)
-	for rk, bound := range r.bindings {
-		if rk.ctx == ctx && bound == a {
-			keys = append(keys, rk.key)
+	for rk, bound := range r.Bindings {
+		if rk.Ctx == ctx && bound == a {
+			keys = append(keys, rk.Key)
 		}
 	}
 	sort.Slice(keys, func(i, j int) bool {
@@ -406,13 +406,13 @@ func (r Registry) keysFor(ctx bindingContext, a action) []string {
 	return keys
 }
 
-// resolve returns the effective action for key in the given view context.
+// Resolve returns the effective action for key in the given view context.
 // The view-local context is checked first; if no binding is found there the
 // global context is consulted. This gives view-local bindings precedence over
 // global ones for the same key.
-func (r Registry) resolve(viewCtx bindingContext, key string) action {
-	if a := r.lookup(viewCtx, key); a != actionNone {
+func (r Registry) Resolve(viewCtx Context, key string) Action {
+	if a := r.Lookup(viewCtx, key); a != ActionNone {
 		return a
 	}
-	return r.lookup(contextGlobal, key)
+	return r.Lookup(ContextGlobal, key)
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -19,22 +20,22 @@ func TestAlbumsViewWrapperHandleAction(t *testing.T) {
 		height: 20,
 	}
 
-	v = v.HandleAction(actionCursorDown)
+	v = v.HandleAction(keys.ActionCursorDown)
 	if v.cursor != 1 {
 		t.Errorf("CursorDown: expected 1, got %d", v.cursor)
 	}
 
-	v = v.HandleAction(actionCursorUp)
+	v = v.HandleAction(keys.ActionCursorUp)
 	if v.cursor != 0 {
 		t.Errorf("CursorUp: expected 0, got %d", v.cursor)
 	}
 
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 3 {
 		t.Errorf("GoToBottom: expected 3, got %d", v.cursor)
 	}
 
-	v = v.HandleAction(actionGoToTop)
+	v = v.HandleAction(keys.ActionGoToTop)
 	if v.cursor != 0 {
 		t.Errorf("GoToTop: expected 0, got %d", v.cursor)
 	}
@@ -266,7 +267,7 @@ func TestAlbumsGoToBottomScrollOffsetIndependentOfSort(t *testing.T) {
 		albums: albums,
 		height: 12,
 	}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 19 {
 		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.cursor)
 	}
@@ -279,7 +280,7 @@ func TestAlbumsGoToBottomScrollOffsetIndependentOfSort(t *testing.T) {
 		height:    12,
 		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
-	v2 = v2.HandleAction(actionGoToBottom)
+	v2 = v2.HandleAction(keys.ActionGoToBottom)
 	if v2.cursor != 19 {
 		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
 	}

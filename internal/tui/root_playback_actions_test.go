@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestSpacePauseResumeFromAnyView verifies that pressing space while paused
@@ -164,7 +165,7 @@ func TestVolumeUpNoUpdateOnError(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 	m.playback.volume = 50
 
-	next, _, _ := m.handlePlaybackKeyAction(actionVolumeUp)
+	next, _, _ := m.handlePlaybackKeyAction(keys.ActionVolumeUp)
 	nm := next.(Model)
 
 	if nm.playback.volume != 50 {
@@ -183,7 +184,7 @@ func TestVolumeDownNoUpdateOnError(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
 	m.playback.volume = 50
 
-	next, _, _ := m.handlePlaybackKeyAction(actionVolumeDown)
+	next, _, _ := m.handlePlaybackKeyAction(keys.ActionVolumeDown)
 	nm := next.(Model)
 
 	if nm.playback.volume != 50 {

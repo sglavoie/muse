@@ -1,6 +1,10 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
+)
 
 // stubFileExistsTrue replaces the package-level fileExists check with
 // one that always returns true for the duration of the test. Tests that
@@ -41,7 +45,7 @@ func TestMarkMissingFlagsAllDuplicateEntries(t *testing.T) {
 // handler in QueueView does not panic when the cursor exceeds the entries slice.
 func TestQueueSelectNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
-	_, cmd := q.HandleAction(actionSelect)
+	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd != nil {
 		t.Fatal("actionSelect with out-of-bounds cursor must return nil cmd")
 	}
@@ -51,7 +55,7 @@ func TestQueueSelectNoPanicWhenCursorOutOfBounds(t *testing.T) {
 // handler in QueueView does not panic when the cursor exceeds the entries slice.
 func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
-	_, cmd := q.HandleAction(actionDequeue)
+	_, cmd := q.HandleAction(keys.ActionDequeue)
 	if cmd != nil {
 		t.Fatal("actionDequeue with out-of-bounds cursor must return nil cmd")
 	}
@@ -59,15 +63,15 @@ func TestQueueDequeueNoPanicWhenCursorOutOfBounds(t *testing.T) {
 
 func TestQueueHandleActionCursorUpDown(t *testing.T) {
 	q := QueueView{entries: make([]QueueEntry, 5), cursor: 0, width: 80}
-	q, _ = q.HandleAction(actionCursorDown)
+	q, _ = q.HandleAction(keys.ActionCursorDown)
 	if q.cursor != 1 {
 		t.Errorf("CursorDown: expected 1, got %d", q.cursor)
 	}
-	q, _ = q.HandleAction(actionCursorDown)
+	q, _ = q.HandleAction(keys.ActionCursorDown)
 	if q.cursor != 2 {
 		t.Errorf("CursorDown: expected 2, got %d", q.cursor)
 	}
-	q, _ = q.HandleAction(actionCursorUp)
+	q, _ = q.HandleAction(keys.ActionCursorUp)
 	if q.cursor != 1 {
 		t.Errorf("CursorUp: expected 1, got %d", q.cursor)
 	}
@@ -75,12 +79,12 @@ func TestQueueHandleActionCursorUpDown(t *testing.T) {
 
 func TestQueueHandleActionCursorClampsAtBounds(t *testing.T) {
 	q := QueueView{entries: make([]QueueEntry, 3), cursor: 0, width: 80}
-	q, _ = q.HandleAction(actionCursorUp)
+	q, _ = q.HandleAction(keys.ActionCursorUp)
 	if q.cursor != 0 {
 		t.Errorf("CursorUp at 0: expected 0, got %d", q.cursor)
 	}
 	q.cursor = 2
-	q, _ = q.HandleAction(actionCursorDown)
+	q, _ = q.HandleAction(keys.ActionCursorDown)
 	if q.cursor != 2 {
 		t.Errorf("CursorDown at end: expected 2, got %d", q.cursor)
 	}
@@ -88,11 +92,11 @@ func TestQueueHandleActionCursorClampsAtBounds(t *testing.T) {
 
 func TestQueueHandleActionGoToTopBottom(t *testing.T) {
 	q := QueueView{entries: make([]QueueEntry, 10), cursor: 5, width: 80}
-	q, _ = q.HandleAction(actionGoToTop)
+	q, _ = q.HandleAction(keys.ActionGoToTop)
 	if q.cursor != 0 || q.scrollOffset != 0 {
 		t.Errorf("GoToTop: cursor=%d scroll=%d, want 0,0", q.cursor, q.scrollOffset)
 	}
-	q, _ = q.HandleAction(actionGoToBottom)
+	q, _ = q.HandleAction(keys.ActionGoToBottom)
 	if q.cursor != 9 {
 		t.Errorf("GoToBottom: expected cursor=9, got %d", q.cursor)
 	}
@@ -101,11 +105,11 @@ func TestQueueHandleActionGoToTopBottom(t *testing.T) {
 func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
 	// visibleRows = height(14) - reserve(3) = 11; HalfPageDown = 11/2 = 5
 	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
-	q, _ = q.HandleAction(actionHalfPageDown)
+	q, _ = q.HandleAction(keys.ActionHalfPageDown)
 	if q.cursor != 5 {
 		t.Errorf("HalfPageDown: expected 5, got %d", q.cursor)
 	}
-	q, _ = q.HandleAction(actionHalfPageUp)
+	q, _ = q.HandleAction(keys.ActionHalfPageUp)
 	if q.cursor != 0 {
 		t.Errorf("HalfPageUp: expected 0, got %d", q.cursor)
 	}
@@ -114,11 +118,11 @@ func TestQueueHandleActionHalfPageDownUp(t *testing.T) {
 func TestQueueHandleActionFullPageDownUp(t *testing.T) {
 	// visibleRows = height(14) - reserve(3) = 11; FullPageDown = 11
 	q := QueueView{entries: make([]QueueEntry, 20), cursor: 0, height: 14, width: 80}
-	q, _ = q.HandleAction(actionFullPageDown)
+	q, _ = q.HandleAction(keys.ActionFullPageDown)
 	if q.cursor != 11 {
 		t.Errorf("FullPageDown: expected 11, got %d", q.cursor)
 	}
-	q, _ = q.HandleAction(actionFullPageUp)
+	q, _ = q.HandleAction(keys.ActionFullPageUp)
 	if q.cursor != 0 {
 		t.Errorf("FullPageUp: expected 0, got %d", q.cursor)
 	}
@@ -126,7 +130,7 @@ func TestQueueHandleActionFullPageDownUp(t *testing.T) {
 
 func TestQueueHandleActionClearQueue(t *testing.T) {
 	q := QueueView{entries: make([]QueueEntry, 3)}
-	_, cmd := q.HandleAction(actionClearQueue)
+	_, cmd := q.HandleAction(keys.ActionClearQueue)
 	if cmd == nil {
 		t.Fatal("ClearQueue: expected non-nil cmd")
 	}
@@ -138,7 +142,7 @@ func TestQueueHandleActionClearQueue(t *testing.T) {
 
 func TestQueueHandleActionMoveTrackUp(t *testing.T) {
 	q := QueueView{entries: make([]QueueEntry, 3), cursor: 1}
-	_, cmd := q.HandleAction(actionMoveTrackUp)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Fatal("MoveTrackUp: expected non-nil cmd")
 	}
@@ -150,7 +154,7 @@ func TestQueueHandleActionMoveTrackUp(t *testing.T) {
 
 func TestQueueHandleActionMoveTrackDown(t *testing.T) {
 	q := QueueView{entries: make([]QueueEntry, 3), cursor: 1}
-	_, cmd := q.HandleAction(actionMoveTrackDown)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Fatal("MoveTrackDown: expected non-nil cmd")
 	}
@@ -164,7 +168,7 @@ func TestQueueHandleActionMoveTrackDown(t *testing.T) {
 // actionBulkSelectionToggle handler does not panic when cursor is out of bounds.
 func TestQueueBulkSelectionToggleNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	q := QueueView{entries: []QueueEntry{{Path: "/a.flac", Display: "A"}}, cursor: 5}
-	_, cmd := q.HandleAction(actionBulkSelectionToggle)
+	_, cmd := q.HandleAction(keys.ActionBulkSelectionToggle)
 	if cmd != nil {
 		t.Fatal("actionBulkSelectionToggle with out-of-bounds cursor must return nil cmd")
 	}
@@ -185,7 +189,7 @@ func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
 		cursor:       0,
 		height:       20,
 	}
-	v2, cmd := v.HandleAction(actionSelect)
+	v2, cmd := v.HandleAction(keys.ActionSelect)
 	_ = v2
 	if cmd == nil {
 		t.Fatal("actionSelect should return a command")
@@ -213,7 +217,7 @@ func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.HandleAction(actionSelect)
+	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd == nil {
 		t.Fatal("actionSelect must return a non-nil cmd")
 	}
@@ -231,7 +235,7 @@ func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
 // on an empty queue does not emit a PlayQueueIndexMsg.
 func TestQueueViewHandleActionEnterOnEmptyQueueIsNoOp(t *testing.T) {
 	q := QueueView{}
-	_, cmd := q.HandleAction(actionSelect)
+	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd != nil {
 		t.Fatal("actionSelect on empty queue must return nil cmd")
 	}
@@ -247,7 +251,7 @@ func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.HandleAction(actionDequeue)
+	_, cmd := q.HandleAction(keys.ActionDequeue)
 	if cmd == nil {
 		t.Fatal("actionDequeue must return a non-nil cmd")
 	}
@@ -264,7 +268,7 @@ func TestQueueViewUpdateDSendsDequeueTrackMsg(t *testing.T) {
 // empty queue does not emit a DequeueTrackMsg.
 func TestQueueViewUpdateDOnEmptyQueueIsNoOp(t *testing.T) {
 	q := QueueView{}
-	_, cmd := q.HandleAction(actionDequeue)
+	_, cmd := q.HandleAction(keys.ActionDequeue)
 	if cmd != nil {
 		t.Fatal("actionDequeue on empty queue must return nil cmd")
 	}
@@ -281,7 +285,7 @@ func TestQueueViewUpdateXSendsBulkSelectionToggleMsg(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	_, cmd := q.HandleAction(actionBulkSelectionToggle)
+	_, cmd := q.HandleAction(keys.ActionBulkSelectionToggle)
 	if cmd == nil {
 		t.Fatal("actionBulkSelectionToggle must return a non-nil cmd")
 	}
@@ -302,7 +306,7 @@ func TestQueueViewUpdateCSendsClearQueueMsg(t *testing.T) {
 			{Path: "/music/a.flac", Display: "A"},
 		},
 	}
-	_, cmd := q.HandleAction(actionClearQueue)
+	_, cmd := q.HandleAction(keys.ActionClearQueue)
 	if cmd == nil {
 		t.Fatal("actionClearQueue must return a non-nil cmd")
 	}
@@ -321,7 +325,7 @@ func TestQueueViewUpdateKSendsMoveTrackUpMsg(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.HandleAction(actionMoveTrackUp)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Fatal("actionMoveTrackUp must return a non-nil cmd")
 	}
@@ -344,7 +348,7 @@ func TestQueueViewUpdateKAtTopIsNoOp(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	_, cmd := q.HandleAction(actionMoveTrackUp)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd != nil {
 		t.Fatal("actionMoveTrackUp at top entry must return nil cmd")
 	}
@@ -360,7 +364,7 @@ func TestQueueViewUpdateJSendsMoveTrackDownMsg(t *testing.T) {
 		},
 		cursor: 0,
 	}
-	_, cmd := q.HandleAction(actionMoveTrackDown)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Fatal("actionMoveTrackDown must return a non-nil cmd")
 	}
@@ -383,7 +387,7 @@ func TestQueueViewUpdateJAtBottomIsNoOp(t *testing.T) {
 		},
 		cursor: 1,
 	}
-	_, cmd := q.HandleAction(actionMoveTrackDown)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd != nil {
 		t.Fatal("actionMoveTrackDown at bottom entry must return nil cmd")
 	}

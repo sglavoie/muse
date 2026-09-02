@@ -1,6 +1,10 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
+)
 
 func TestVisualModeEnterSelectsAnchor(t *testing.T) {
 	m := newLibraryModel(5)
@@ -22,9 +26,9 @@ func TestVisualModeExtendDownward(t *testing.T) {
 	m.library.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 
 	if m.library.cursor != 3 {
 		t.Fatalf("expected cursor at 3, got %d", m.library.cursor)
@@ -37,10 +41,10 @@ func TestVisualModeRangeShrinks(t *testing.T) {
 	m.library.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorUp)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorUp)
 
 	assertSelectedHashesExact(t, m.library.selectedHashes, "h0", "h1", "h2")
 }
@@ -50,8 +54,8 @@ func TestVisualModeExitPreservesSelections(t *testing.T) {
 	m.library.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 	m = doVisual(m)
 
 	if m.visual.active {
@@ -65,8 +69,8 @@ func TestVisualModeClearSelectionExitsMode(t *testing.T) {
 	m.library.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
-	m, _, _ = m.handleNavigationAction(actionClearSelection)
+	m = doNav(m, keys.ActionCursorDown)
+	m, _, _ = m.handleNavigationAction(keys.ActionClearSelection)
 
 	if m.visual.active {
 		t.Fatal("expected visual mode to exit on X")
@@ -81,7 +85,7 @@ func TestVisualModeViewSwitchExits(t *testing.T) {
 	m.library.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 	m = m.switchToView(viewQueue)
 
 	if m.visual.active {
@@ -96,7 +100,7 @@ func TestVisualModePreexistingSelectionsPreserved(t *testing.T) {
 	m.library.cursor = 1
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 
 	assertSelectedHashesExact(t, m.library.selectedHashes, "h1", "h2", "h5")
 }
@@ -113,7 +117,7 @@ func TestVisualModeAnchorClamp(t *testing.T) {
 
 	m.library.sourceTracks = makeNTracks(3)
 	m.library.cursor = 2
-	m = doNav(m, actionCursorUp)
+	m = doNav(m, keys.ActionCursorUp)
 
 	if m.visual.anchor > 2 {
 		t.Errorf("anchor should be clamped to ≤2 after list shrink, got %d", m.visual.anchor)

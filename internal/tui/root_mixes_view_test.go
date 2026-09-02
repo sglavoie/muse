@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -338,7 +339,7 @@ func TestMixesViewHelpSection(t *testing.T) {
 	sections := helpSections()
 	var found bool
 	for _, s := range sections {
-		if s.title == "Mixes" && s.context == contextMixes {
+		if s.title == "Mixes" && s.context == keys.ContextMixes {
 			found = true
 			break
 		}
@@ -349,7 +350,7 @@ func TestMixesViewHelpSection(t *testing.T) {
 }
 
 func TestMixesViewFilteredHelp(t *testing.T) {
-	sections := filteredHelpSections(contextMixes)
+	sections := filteredHelpSections(keys.ContextMixes)
 	// The status-bar legend is pinned ahead of everything; the view-specific
 	// section still leads the rest, before any global section.
 	if len(sections) < 2 {

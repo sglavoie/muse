@@ -9,6 +9,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -98,7 +99,7 @@ func (v FavoritesView) render(s styles.Styles, favHashes, favArtists, favAlbums 
 }
 
 // HandleAction executes a pre-resolved favorites action dispatched by root.Update.
-func (v FavoritesView) HandleAction(a action) FavoritesView {
+func (v FavoritesView) HandleAction(a keys.Action) FavoritesView {
 	var sortInd string
 	if v.sortState.Field != sorting.SortDefault {
 		sortInd = "active" // non-empty triggers reserve in visibleRows
@@ -119,21 +120,21 @@ func (v FavoritesView) HandleAction(a action) FavoritesView {
 		SortIndicator:   sortInd,
 	}
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		view = view.CursorUp()
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		view = view.CursorDown()
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		view = view.HalfPageDown()
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		view = view.HalfPageUp()
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		view = view.FullPageDown()
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		view = view.FullPageUp()
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		view = view.GoToTop()
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
 	}
 	v.cursor = view.Cursor

@@ -1,4 +1,4 @@
-package tui
+package keys
 
 import (
 	"strings"
@@ -29,7 +29,7 @@ const footerHintSep = " · "
 // The returned string is at most width display columns wide. Pairs that
 // don't fit are dropped from the right; any partially-rendered pair is
 // elided with "…" so the strip never wraps.
-func RenderFooterHints(width int, ctx bindingContext, mode HintMode, r Registry, s styles.Styles) string {
+func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styles.Styles) string {
 	if width <= 0 {
 		return ""
 	}

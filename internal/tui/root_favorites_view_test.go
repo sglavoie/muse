@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -111,7 +112,7 @@ func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
 		artists:  artists,
 		height:   12,
 	}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 19 {
 		t.Fatalf("GoToBottom without sort: expected cursor=19, got %d", v.cursor)
 	}
@@ -125,7 +126,7 @@ func TestFavoritesGoToBottomWithSortAccountsForReserve(t *testing.T) {
 		height:    12,
 		sortState: sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc},
 	}
-	v2 = v2.HandleAction(actionGoToBottom)
+	v2 = v2.HandleAction(keys.ActionGoToBottom)
 	if v2.cursor != 19 {
 		t.Fatalf("GoToBottom with sort: expected cursor=19, got %d", v2.cursor)
 	}

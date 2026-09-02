@@ -8,6 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -166,18 +167,18 @@ func TestResetAllSorts(t *testing.T) {
 }
 
 func TestSortKeybindingsRegistered(t *testing.T) {
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 
 	tests := []struct {
 		key  string
-		want action
+		want keys.Action
 	}{
-		{"ctrl+s", actionSortCycle},
-		{"shift+up", actionSortAsc},
-		{"shift+down", actionSortDesc},
+		{"ctrl+s", keys.ActionSortCycle},
+		{"shift+up", keys.ActionSortAsc},
+		{"shift+down", keys.ActionSortDesc},
 	}
 	for _, tt := range tests {
-		got := reg.resolve(contextGlobal, tt.key)
+		got := reg.Resolve(keys.ContextGlobal, tt.key)
 		if got != tt.want {
 			t.Errorf("resolve(contextGlobal, %q) = %v, want %v", tt.key, got, tt.want)
 		}
@@ -185,25 +186,25 @@ func TestSortKeybindingsRegistered(t *testing.T) {
 }
 
 func TestCtrlDResolvesCorrectlyPerContext(t *testing.T) {
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 
 	contexts := []struct {
 		name string
-		ctx  bindingContext
+		ctx  keys.Context
 	}{
-		{"library", contextLibrary},
-		{"library", contextLibrary},
-		{"queue", contextQueue},
-		{"playlists", contextPlaylists},
-		{"artists", contextArtists},
-		{"albums", contextAlbums},
-		{"favorites", contextFavorites},
-		{"genres", contextGenres},
+		{"library", keys.ContextLibrary},
+		{"library", keys.ContextLibrary},
+		{"queue", keys.ContextQueue},
+		{"playlists", keys.ContextPlaylists},
+		{"artists", keys.ContextArtists},
+		{"albums", keys.ContextAlbums},
+		{"favorites", keys.ContextFavorites},
+		{"genres", keys.ContextGenres},
 	}
 
 	for _, tc := range contexts {
-		got := reg.resolve(tc.ctx, "ctrl+d")
-		if got != actionHalfPageDown {
+		got := reg.Resolve(tc.ctx, "ctrl+d")
+		if got != keys.ActionHalfPageDown {
 			t.Errorf("resolve(%s, ctrl+d) = %v, want actionHalfPageDown", tc.name, got)
 		}
 	}

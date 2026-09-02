@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -102,7 +103,7 @@ func TestRescanResetsCursorScrollOffsetAndFilter(t *testing.T) {
 	nm := next.(Model)
 	// Move cursor to position 10.
 	for range 10 {
-		nm.library = nm.library.HandleAction(actionCursorDown)
+		nm.library = nm.library.HandleAction(keys.ActionCursorDown)
 	}
 	if nm.library.cursor != 10 {
 		t.Fatalf("setup: expected cursor=10, got %d", nm.library.cursor)

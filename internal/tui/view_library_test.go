@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 )
 
@@ -52,19 +53,19 @@ func TestLibraryViewHandleActionNavigation(t *testing.T) {
 	}
 	v := LibraryView{index: idx, width: 80, height: 24}
 
-	v = v.HandleAction(actionCursorDown)
+	v = v.HandleAction(keys.ActionCursorDown)
 	if v.cursor != 1 {
 		t.Errorf("CursorDown: expected 1, got %d", v.cursor)
 	}
-	v = v.HandleAction(actionCursorUp)
+	v = v.HandleAction(keys.ActionCursorUp)
 	if v.cursor != 0 {
 		t.Errorf("CursorUp: expected 0, got %d", v.cursor)
 	}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 9 {
 		t.Errorf("GoToBottom: expected 9, got %d", v.cursor)
 	}
-	v = v.HandleAction(actionGoToTop)
+	v = v.HandleAction(keys.ActionGoToTop)
 	if v.cursor != 0 {
 		t.Errorf("GoToTop: expected 0, got %d", v.cursor)
 	}
@@ -76,7 +77,7 @@ func TestLibraryViewHandleActionBulkToggle(t *testing.T) {
 	idx.Insert(library.Track{Artist: "B", Title: "T2", Hash: "h2"})
 
 	v := LibraryView{index: idx, cursor: 0}
-	v = v.HandleAction(actionBulkSelectionToggle)
+	v = v.HandleAction(keys.ActionBulkSelectionToggle)
 	if len(v.selectedHashes) != 1 {
 		t.Errorf("BulkToggle: expected 1 selected, got %d", len(v.selectedHashes))
 	}

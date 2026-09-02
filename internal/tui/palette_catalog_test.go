@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // minActionCount is a plausibility floor for the number of parsed action
@@ -27,9 +28,9 @@ func actionNames(t *testing.T) []string {
 	t.Helper()
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "keybindings.go", nil, 0)
+	file, err := parser.ParseFile(fset, "keys/keybindings.go", nil, 0)
 	if err != nil {
-		t.Fatalf("parse keybindings.go: %v", err)
+		t.Fatalf("parse keys/keybindings.go: %v", err)
 	}
 
 	var names []string
@@ -48,7 +49,7 @@ func actionNames(t *testing.T) []string {
 			}
 			for _, ident := range value.Names {
 				block = append(block, ident.Name)
-				if ident.Name == "actionNone" {
+				if ident.Name == "ActionNone" {
 					found = true
 				}
 			}
@@ -60,10 +61,10 @@ func actionNames(t *testing.T) []string {
 	}
 
 	if names == nil {
-		t.Fatal("no const block containing actionNone found in keybindings.go")
+		t.Fatal("no const block containing ActionNone found in keys/keybindings.go")
 	}
-	if names[0] != "actionNone" {
-		t.Fatalf("first action constant is %q, want actionNone: index no longer equals action value", names[0])
+	if names[0] != "ActionNone" {
+		t.Fatalf("first action constant is %q, want ActionNone: index no longer equals action value", names[0])
 	}
 	if len(names) <= minActionCount {
 		t.Fatalf("parsed only %d action names (want > %d): the enum is probably split across several const declarations", len(names), minActionCount)
@@ -75,13 +76,13 @@ func TestActionNamesRoundTrip(t *testing.T) {
 	names := actionNames(t)
 
 	cases := []struct {
-		a    action
+		a    keys.Action
 		want string
 	}{
-		{actionNone, "actionNone"},
-		{actionQuit, "actionQuit"},
-		{actionMixUndismiss, "actionMixUndismiss"},
-		{actionInsightsMergeGenre, "actionInsightsMergeGenre"},
+		{keys.ActionNone, "ActionNone"},
+		{keys.ActionQuit, "ActionQuit"},
+		{keys.ActionMixUndismiss, "ActionMixUndismiss"},
+		{keys.ActionInsightsMergeGenre, "ActionInsightsMergeGenre"},
 	}
 	for _, tc := range cases {
 		if int(tc.a) >= len(names) {
@@ -92,14 +93,14 @@ func TestActionNamesRoundTrip(t *testing.T) {
 		}
 	}
 
-	if last := names[len(names)-1]; last != "actionInsightsMergeGenre" {
-		t.Errorf("last action constant is %q, want actionInsightsMergeGenre", last)
+	if last := names[len(names)-1]; last != "ActionInsightsMergeGenre" {
+		t.Errorf("last action constant is %q, want ActionInsightsMergeGenre", last)
 	}
 }
 
 // actionLabel names an action for readable failure output, falling back to the
 // numeric value when the AST-parsed name list does not reach it.
-func actionLabel(names []string, a action) string {
+func actionLabel(names []string, a keys.Action) string {
 	if int(a) >= 0 && int(a) < len(names) {
 		return names[a]
 	}
@@ -107,8 +108,8 @@ func actionLabel(names []string, a action) string {
 }
 
 // paletteCatalogActions returns the set of actions declared in paletteCatalog.
-func paletteCatalogActions() map[action]struct{} {
-	out := make(map[action]struct{}, len(paletteCatalog))
+func paletteCatalogActions() map[keys.Action]struct{} {
+	out := make(map[keys.Action]struct{}, len(paletteCatalog))
 	for _, e := range paletteCatalog {
 		out[e.act] = struct{}{}
 	}
@@ -136,9 +137,9 @@ func TestPaletteCatalogCoversRegistryActions(t *testing.T) {
 	names := actionNames(t)
 	catalog := paletteCatalogActions()
 
-	reported := make(map[action]struct{})
-	for _, a := range newRegistry().bindings {
-		if a == actionNone {
+	reported := make(map[keys.Action]struct{})
+	for _, a := range keys.NewRegistry().Bindings {
+		if a == keys.ActionNone {
 			continue
 		}
 		if _, seen := reported[a]; seen {
@@ -170,14 +171,14 @@ func TestPaletteCatalogMapsAreDisjoint(t *testing.T) {
 // shortcut for an entry that is meant to have one.
 func TestPaletteCatalogEntriesResolveToAKey(t *testing.T) {
 	names := actionNames(t)
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 
 	for _, e := range paletteCatalog {
-		keys := reg.keysFor(e.ctx, e.act)
-		if len(keys) == 0 && e.ctx != contextGlobal {
-			keys = reg.keysFor(contextGlobal, e.act)
+		bound := reg.KeysFor(e.ctx, e.act)
+		if len(bound) == 0 && e.ctx != keys.ContextGlobal {
+			bound = reg.KeysFor(keys.ContextGlobal, e.act)
 		}
-		if len(keys) == 0 {
+		if len(bound) == 0 {
 			t.Errorf("catalog entry %q (%s) resolves to no key in ctx %v or contextGlobal", e.id, actionLabel(names, e.act), e.ctx)
 		}
 	}
@@ -231,14 +232,14 @@ func TestPaletteCommandIDsAreUnique(t *testing.T) {
 func TestPaletteCatalogShortcutsRoundTrip(t *testing.T) {
 	names := actionNames(t)
 	m := paletteTriageModel()
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 
 	for _, e := range paletteCatalog {
 		shortcut := m.paletteShortcutFor(e)
 		if shortcut == "" {
 			continue
 		}
-		if got := reg.resolve(e.ctx, shortcut); got != e.act {
+		if got := reg.Resolve(e.ctx, shortcut); got != e.act {
 			t.Errorf("catalog entry %q advertises %q, which resolves to %s in ctx %v, want %s",
 				e.id, shortcut, actionLabel(names, got), e.ctx, actionLabel(names, e.act))
 		}
@@ -249,13 +250,13 @@ func TestPaletteCatalogShortcutsRoundTrip(t *testing.T) {
 // key that is actually bound to the entry's action in its own context.
 func TestPaletteCatalogPreferKeysAreBound(t *testing.T) {
 	names := actionNames(t)
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 
 	for _, e := range paletteCatalog {
 		if e.preferKey == "" {
 			continue
 		}
-		if got := reg.lookup(e.ctx, e.preferKey); got != e.act {
+		if got := reg.Lookup(e.ctx, e.preferKey); got != e.act {
 			t.Errorf("catalog entry %q prefers key %q, which is bound to %s in ctx %v, want %s",
 				e.id, e.preferKey, actionLabel(names, got), e.ctx, actionLabel(names, e.act))
 		}
@@ -289,8 +290,8 @@ func TestEveryDeclaredActionHasAPaletteDecision(t *testing.T) {
 	catalog := paletteCatalogActions()
 
 	for i, name := range names {
-		a := action(i)
-		if a == actionNone {
+		a := keys.Action(i)
+		if a == keys.ActionNone {
 			continue
 		}
 		_, inCatalog := catalog[a]

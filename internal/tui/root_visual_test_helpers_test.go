@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 func makeNTracks(n int) []library.Track {
@@ -28,11 +29,11 @@ func newLibraryModel(n int) Model {
 }
 
 func doVisual(m Model) Model {
-	m, _, _ = m.handleNavigationAction(actionVisualMode)
+	m, _, _ = m.handleNavigationAction(keys.ActionVisualMode)
 	return m
 }
 
-func doNav(m Model, a action) Model {
+func doNav(m Model, a keys.Action) Model {
 	m, _, _ = m.handleNavigationAction(a)
 	return m
 }

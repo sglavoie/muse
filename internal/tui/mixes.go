@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -93,7 +94,7 @@ func (v *MixesView) back() {
 
 // handleCursorAction moves the cursor at list level 0 or delegates to the
 // embedded trackView at level 1.
-func (v MixesView) handleCursorAction(a action) MixesView {
+func (v MixesView) handleCursorAction(a keys.Action) MixesView {
 	if v.level == 1 {
 		v.trackView = v.trackView.HandleAction(a)
 		return v
@@ -104,21 +105,21 @@ func (v MixesView) handleCursorAction(a action) MixesView {
 	}
 	half := max(v.height/2, 1)
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		v.selectedMix--
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		v.selectedMix++
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		v.selectedMix -= half
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		v.selectedMix += half
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		v.selectedMix -= v.height
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		v.selectedMix += v.height
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		v.selectedMix = 0
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		v.selectedMix = n - 1
 	}
 	v.clampCursor()

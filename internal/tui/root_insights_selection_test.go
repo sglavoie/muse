@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/insights"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // insightsNotified reports whether any live notification carries substr.
@@ -62,11 +63,11 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 	}
 	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
 
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h3", "h5")
 
 	// Shrinking the range restores the snapshot rather than leaving h3 behind.
-	m = doNav(m, actionCursorUp)
+	m = doNav(m, keys.ActionCursorUp)
 	assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, "h2", "h5")
 
 	m.showFooterHints = true
@@ -165,7 +166,7 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 			m.termWidth = 200
 
 			m = doVisual(m)
-			m = doNav(m, actionCursorDown)
+			m = doNav(m, keys.ActionCursorDown)
 			m = doVisual(m)
 			assertSelectedHashesExact(t, m.insights.trackView.selectedHashes, tc.wantSelected...)
 
@@ -226,7 +227,7 @@ func TestInsightsSelectionFooterMatchesEnterAction(t *testing.T) {
 }
 
 func TestInsightsHelpSection(t *testing.T) {
-	sections := filteredHelpSections(contextInsights)
+	sections := filteredHelpSections(keys.ContextInsights)
 	// The status-bar legend is pinned ahead of everything; the view-specific
 	// section still leads the rest, before any global section.
 	if len(sections) < 2 {

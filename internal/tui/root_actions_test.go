@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestActionGoToWithEmptyOptionsNotifiesUser verifies that pressing the Go To
@@ -31,7 +32,7 @@ func TestActionGoToWithEmptyOptionsNotifiesUser(t *testing.T) {
 		t.Fatalf("precondition: expected zero jump options, got %d", len(opts))
 	}
 
-	nextModel, _ := m.handleKeyAction(actionGoTo)
+	nextModel, _ := m.handleKeyAction(keys.ActionGoTo)
 	nm := nextModel.(Model)
 
 	if nm.overlay.goTo != nil {
@@ -47,7 +48,7 @@ func TestActionGoToWithEmptyOptionsNotifiesUser(t *testing.T) {
 func TestActionGoToNotFoundNotifies(t *testing.T) {
 	m := New(context.Background()) // empty library, library FocusedTrack returns !ok
 
-	nextModel, _ := m.handleKeyAction(actionGoTo)
+	nextModel, _ := m.handleKeyAction(keys.ActionGoTo)
 	nm := nextModel.(Model)
 
 	if nm.overlay.goTo != nil {
@@ -67,7 +68,7 @@ func TestActionHelpHandlesZeroTermHeight(t *testing.T) {
 	m.termWidth = 80
 	m.termHeight = 0 // simulate WindowSizeMsg not yet received
 
-	nextModel, _ := m.handleKeyAction(actionHelp)
+	nextModel, _ := m.handleKeyAction(keys.ActionHelp)
 	nm := nextModel.(Model)
 
 	if !nm.helpVisible {

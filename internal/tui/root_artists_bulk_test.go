@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -98,7 +99,7 @@ func TestBulkActionArtistLevelUnknownArtistCollectsTracks(t *testing.T) {
 	}
 	m.browse.artists.cursor = unknownIdx
 
-	next, _, handled := m.handleLibraryKeyAction(actionBulkAction)
+	next, _, handled := m.handleLibraryKeyAction(keys.ActionBulkAction)
 	if !handled {
 		t.Fatal("actionBulkAction should be handled")
 	}

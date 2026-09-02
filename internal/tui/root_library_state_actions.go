@@ -8,12 +8,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
-func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
-	case actionRescan:
+	case keys.ActionRescan:
 		if len(m.libraryRoots) > 0 && m.extractor != nil && !m.scanning {
 			if m.userEditedReader != nil {
 				rows, err := m.userEditedReader.ReadUserEditedTracks()
@@ -65,7 +66,7 @@ func (m Model) handleLibraryStateAction(action action) (tea.Model, tea.Cmd, bool
 			return m, tea.Batch(waitForNextBatch(ch), countAudioFiles(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths)), true
 		}
 		return m, nil, true
-	case actionLibraryFilterClear:
+	case keys.ActionLibraryFilterClear:
 		// Clearing a committed filter changes the visible list, so exit
 		// visual mode to prevent the stale anchor from selecting wrong items.
 		m = exitVisualMode(m)

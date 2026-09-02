@@ -6,6 +6,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/recommendation"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 func makeTestMixes(n int) []MixInfo {
@@ -28,12 +29,12 @@ func TestMixesViewHandleCursorClampsToBounds(t *testing.T) {
 		mixes:  makeTestMixes(3),
 		height: 10,
 	}
-	actions := []action{
-		actionCursorUp, actionCursorUp, actionCursorUp,
-		actionCursorDown, actionCursorDown, actionCursorDown, actionCursorDown,
-		actionHalfPageUp, actionHalfPageDown,
-		actionFullPageUp, actionFullPageDown,
-		actionGoToTop, actionGoToBottom,
+	actions := []keys.Action{
+		keys.ActionCursorUp, keys.ActionCursorUp, keys.ActionCursorUp,
+		keys.ActionCursorDown, keys.ActionCursorDown, keys.ActionCursorDown, keys.ActionCursorDown,
+		keys.ActionHalfPageUp, keys.ActionHalfPageDown,
+		keys.ActionFullPageUp, keys.ActionFullPageDown,
+		keys.ActionGoToTop, keys.ActionGoToBottom,
 	}
 	for _, a := range actions {
 		v = v.handleCursorAction(a)
@@ -48,7 +49,7 @@ func TestMixesViewHandleCursorClampsToBounds(t *testing.T) {
 // an invalid state.
 func TestMixesViewHandleCursorEmptyDoesNotPanic(t *testing.T) {
 	v := MixesView{}
-	for _, a := range []action{actionCursorDown, actionGoToBottom, actionFullPageDown} {
+	for _, a := range []keys.Action{keys.ActionCursorDown, keys.ActionGoToBottom, keys.ActionFullPageDown} {
 		v = v.handleCursorAction(a)
 	}
 	if v.selectedMix != 0 {

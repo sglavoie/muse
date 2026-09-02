@@ -10,6 +10,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // buildPaletteCommands returns the list of commands available in the palette.
@@ -385,12 +386,12 @@ func (m Model) paletteShortcutFor(e paletteEntry) string {
 	if e.preferKey != "" {
 		return e.preferKey
 	}
-	if keys := m.registry.keysFor(e.ctx, e.act); len(keys) > 0 {
-		return keys[0]
+	if bound := m.registry.KeysFor(e.ctx, e.act); len(bound) > 0 {
+		return bound[0]
 	}
-	if e.ctx != contextGlobal {
-		if keys := m.registry.keysFor(contextGlobal, e.act); len(keys) > 0 {
-			return keys[0]
+	if e.ctx != keys.ContextGlobal {
+		if bound := m.registry.KeysFor(keys.ContextGlobal, e.act); len(bound) > 0 {
+			return bound[0]
 		}
 	}
 	return ""

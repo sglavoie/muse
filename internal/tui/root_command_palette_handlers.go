@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -65,15 +66,15 @@ func onOff(b bool) string {
 // The legacy sub-view IDs (viewArtists/viewAlbums/viewGenres) are absent
 // because they have no switch action and are not in viewOrder; a message
 // naming one runs its action in place.
-var viewSwitchActions = map[viewID]action{
-	viewLibrary:   actionSwitchLibrary,
-	viewPlaylists: actionSwitchPlaylists,
-	viewQueue:     actionSwitchQueue,
-	viewBrowse:    actionSwitchBrowse,
-	viewFavorites: actionSwitchFavorites,
-	viewTags:      actionSwitchTags,
-	viewMixes:     actionSwitchMixes,
-	viewInsights:  actionSwitchInsights,
+var viewSwitchActions = map[viewID]keys.Action{
+	viewLibrary:   keys.ActionSwitchLibrary,
+	viewPlaylists: keys.ActionSwitchPlaylists,
+	viewQueue:     keys.ActionSwitchQueue,
+	viewBrowse:    keys.ActionSwitchBrowse,
+	viewFavorites: keys.ActionSwitchFavorites,
+	viewTags:      keys.ActionSwitchTags,
+	viewMixes:     keys.ActionSwitchMixes,
+	viewInsights:  keys.ActionSwitchInsights,
 }
 
 // handleCommandPaletteAction replays a palette action, switching to target
@@ -86,12 +87,12 @@ var viewSwitchActions = map[viewID]action{
 // The already-active guard is load-bearing: switchToView resets every sort,
 // exits visual mode and cancels in-flight create/rename inputs, so switching
 // to the view the user is already in would silently discard that state.
-func (m Model) handleCommandPaletteAction(act action, target viewID) (tea.Model, tea.Cmd) {
+func (m Model) handleCommandPaletteAction(act keys.Action, target viewID) (tea.Model, tea.Cmd) {
 	// The "Delete playlist" row names a single target, but the handler behind
 	// actionPlaylistDelete removes the focused or selected tracks at playlist
 	// track level. Refuse it there instead of deleting what the row never
 	// promised.
-	if act == actionPlaylistDelete && !atPlaylistListLevel(m) {
+	if act == keys.ActionPlaylistDelete && !atPlaylistListLevel(m) {
 		m.statusBar.notify("Open the playlist list to delete a playlist")
 		return m, nil
 	}
@@ -117,14 +118,14 @@ func (m Model) handleCommandPaletteAction(act action, target viewID) (tea.Model,
 // The active-view check keeps the drill-out tied to the view the action will
 // run in: a create action dispatched without a target view still no-ops in
 // place rather than reshaping a view the user is not looking at.
-func (m Model) atCollectionLevelFor(act action) Model {
+func (m Model) atCollectionLevelFor(act keys.Action) Model {
 	switch act {
-	case actionPlaylistCreate, actionSmartPlaylistCreate:
+	case keys.ActionPlaylistCreate, keys.ActionSmartPlaylistCreate:
 		if m.activeView == viewPlaylists && !m.playlists.atListLevel() {
 			m = exitVisualMode(m)
 			m.playlists = m.playlists.backToList()
 		}
-	case actionTagCreate:
+	case keys.ActionTagCreate:
 		if m.activeView == viewTags && m.tagsView.level == tagtui.TrackLevel {
 			m = exitVisualMode(m)
 			m.tagsView = m.tagsView.back()

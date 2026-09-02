@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestQueueFilterActivatesOnSlash verifies that pressing '/' in the queue view
@@ -175,7 +177,7 @@ func TestQueueCursorClampedAgainstFilteredEntriesAfterBulkDequeue(t *testing.T) 
 	m.queue.cursor = 1 // pointing at "Alpha Two" in filtered view
 
 	// Bulk dequeue all selected (actionDequeue with selection).
-	next, _ := m.handleKeyAction(actionDequeue)
+	next, _ := m.handleKeyAction(keys.ActionDequeue)
 	nm := next.(Model)
 
 	// Both "Alpha" entries are removed. Filter "alpha" matches nothing.

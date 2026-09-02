@@ -5,25 +5,26 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
-func (m Model) handleLibraryNavigationAction(action action) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleLibraryNavigationAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
-	case actionArtistOpen:
+	case keys.ActionArtistOpen:
 		return m.handleArtistOpenAction()
-	case actionArtistBack:
+	case keys.ActionArtistBack:
 		m = exitVisualMode(m)
 		m.browse.artists = m.browse.artists.back()
 		return m, nil, true
-	case actionAlbumOpen:
+	case keys.ActionAlbumOpen:
 		return m.handleAlbumOpenAction()
-	case actionAlbumBack:
+	case keys.ActionAlbumBack:
 		m = exitVisualMode(m)
 		m.browse.albums = m.browse.albums.back()
 		return m, nil, true
-	case actionGenreOpen:
+	case keys.ActionGenreOpen:
 		return m.handleGenreOpenAction()
-	case actionGenreBack:
+	case keys.ActionGenreBack:
 		m = exitVisualMode(m)
 		m.browse.genres = m.browse.genres.back()
 		return m, nil, true

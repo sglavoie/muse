@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestEnqueueReplaceEmptyLibraryDoesNotClearQueue verifies that
@@ -16,7 +18,7 @@ func TestEnqueueReplaceEmptyLibraryDoesNotClearQueue(t *testing.T) {
 		{ID: 1, Hash: "h1", Title: "Existing", Artist: "A"},
 	}
 
-	next, _ := m.handleKeyAction(actionLibraryEnqueueReplace)
+	next, _ := m.handleKeyAction(keys.ActionLibraryEnqueueReplace)
 	nm := next.(Model)
 	if len(nm.queue.entries) == 0 {
 		t.Fatal("queue must not be cleared when library is empty")
@@ -37,7 +39,7 @@ func TestEnqueueReplaceFavoritesCategoryLevelDoesNotClearQueue(t *testing.T) {
 		{ID: 1, Hash: "h1", Title: "Existing", Artist: "A"},
 	}
 
-	next, _ := m.handleKeyAction(actionLibraryEnqueueReplace)
+	next, _ := m.handleKeyAction(keys.ActionLibraryEnqueueReplace)
 	nm := next.(Model)
 	if len(nm.queue.entries) == 0 {
 		t.Fatal("queue must not be cleared at favorites CategoryLevel")

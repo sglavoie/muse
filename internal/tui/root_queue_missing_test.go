@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError verifies that
@@ -44,7 +46,7 @@ func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	dequeuer := &stubQueueDequeuer{}
 	m.undoer = dequeuer
 
-	v, cmd := m.queue.HandleAction(actionSelect)
+	v, cmd := m.queue.HandleAction(keys.ActionSelect)
 	m.queue = v
 	if cmd == nil {
 		t.Fatal("expected a command from selecting a missing track")
@@ -104,7 +106,7 @@ func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
 	}
 	m.queue.cursor = 0
 
-	v, cmd := m.queue.HandleAction(actionSelect)
+	v, cmd := m.queue.HandleAction(keys.ActionSelect)
 	m.queue = v
 	if cmd == nil {
 		t.Fatal("expected a command from actionSelect")

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/insights"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 func TestHealthPanelReportsEveryFindingKind(t *testing.T) {
@@ -222,7 +223,7 @@ func TestEditMetadataOnHealthRowOpensBulkEditor(t *testing.T) {
 	i := healthRowIndex(t, m, healthGenreCollision)
 	m.insights.cursor = i
 
-	m, _, handled := m.handleMetadataKeyAction(actionEditMetadata)
+	m, _, handled := m.handleMetadataKeyAction(keys.ActionEditMetadata)
 	if !handled {
 		t.Fatal("M should be consumed on a health row")
 	}

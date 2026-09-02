@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -114,23 +115,23 @@ func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
 func TestModeIndicatorsDescribeToggleKeys(t *testing.T) {
 	want := []struct {
 		name, key string
-		action    action
+		action    keys.Action
 	}{
-		{"Repeat", "r", actionRepeatCycle},
-		{"Shuffle", "z", actionShuffleToggle},
-		{"Stop after current", "ctrl+n", actionStopAfterCurrent},
-		{"Radio (Auto-DJ)", "A", actionRadioToggle},
+		{"Repeat", "r", keys.ActionRepeatCycle},
+		{"Shuffle", "z", keys.ActionShuffleToggle},
+		{"Stop after current", "ctrl+n", keys.ActionStopAfterCurrent},
+		{"Radio (Auto-DJ)", "A", keys.ActionRadioToggle},
 	}
 	indicators := modeIndicators(RepeatOff, false, false, false)
 	if len(indicators) != len(want) {
 		t.Fatalf("got %d indicators, want %d", len(indicators), len(want))
 	}
-	registry := newRegistry()
+	registry := keys.NewRegistry()
 	for i, ind := range indicators {
 		if ind.name != want[i].name || ind.key != want[i].key {
 			t.Errorf("indicator %d: name=%q key=%q, want name=%q key=%q", i, ind.name, ind.key, want[i].name, want[i].key)
 		}
-		if got := registry.lookup(contextGlobal, ind.key); got != want[i].action {
+		if got := registry.Lookup(keys.ContextGlobal, ind.key); got != want[i].action {
 			t.Errorf("indicator %d (%s): key %q binds to action %v, want %v", i, ind.name, ind.key, got, want[i].action)
 		}
 	}

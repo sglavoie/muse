@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -182,7 +183,7 @@ type Model struct {
 	statusBar        StatusBar
 	termWidth        int
 	termHeight       int
-	registry         Registry
+	registry         keys.Registry
 	helpVisible      bool           // true while the help overlay is shown
 	helpViewport     viewport.Model // scrollable viewport for the help overlay
 	helpFiltered     bool           // true when showing only current-view keybindings
@@ -332,7 +333,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		cfg:             config.Defaults(),
 		library:         LibraryView{fuzzy: library.SahilmFuzzySearcher{}},
 		playback:        playbackInfo{currentIndex: -1},
-		registry:        newRegistry(),
+		registry:        keys.NewRegistry(),
 		styles:          &initialStyles,
 		insightsPending: &insightsPendingWrites{},
 		metadataWrites:  newMetadataWriteQueue(),

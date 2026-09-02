@@ -2,6 +2,8 @@ package tui
 
 import (
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestQueueFilterSelectMapsToCorrectEntry verifies that selecting an entry
@@ -23,7 +25,7 @@ func TestQueueFilterSelectMapsToCorrectEntry(t *testing.T) {
 
 	// Cursor 0 in filtered view should be "Beta" (real index 1).
 	q.cursor = 0
-	_, cmd := q.HandleAction(actionSelect)
+	_, cmd := q.HandleAction(keys.ActionSelect)
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd")
 	}
@@ -52,7 +54,7 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 	q.cursor = 0
 	q.scrollOffset = 0
 
-	_, cmd := q.HandleAction(actionMoveTrackDown)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Error("move-down when filtered should return a TransientNotifyMsg cmd")
 	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
@@ -60,7 +62,7 @@ func TestQueueFilterMoveDisabled(t *testing.T) {
 	}
 
 	q.cursor = 1
-	_, cmd = q.HandleAction(actionMoveTrackUp)
+	_, cmd = q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Error("move-up when filtered should return a TransientNotifyMsg cmd")
 	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
@@ -82,7 +84,7 @@ func TestQueueTagFilterMoveDisabled(t *testing.T) {
 		cursor:          0,
 	}
 
-	_, cmd := q.HandleAction(actionMoveTrackDown)
+	_, cmd := q.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Fatal("move-down when tag-filtered should return a TransientNotifyMsg cmd")
 	}
@@ -91,7 +93,7 @@ func TestQueueTagFilterMoveDisabled(t *testing.T) {
 	}
 
 	q.cursor = 1
-	_, cmd = q.HandleAction(actionMoveTrackUp)
+	_, cmd = q.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Fatal("move-up when tag-filtered should return a TransientNotifyMsg cmd")
 	}

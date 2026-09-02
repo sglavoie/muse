@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -24,7 +25,7 @@ func TestBulkActionTagsTrackLevel(t *testing.T) {
 	m.tagsView.width = 80
 	m.tagsView.height = 40
 
-	next, _, handled := m.handleLibraryKeyAction(actionBulkAction)
+	next, _, handled := m.handleLibraryKeyAction(keys.ActionBulkAction)
 	if !handled {
 		t.Fatal("actionBulkAction should be handled")
 	}
@@ -54,7 +55,7 @@ func TestBulkActionTagsTrackLevelWithSelection(t *testing.T) {
 	m.tagsView.width = 80
 	m.tagsView.height = 40
 
-	next, _, handled := m.handleLibraryKeyAction(actionBulkAction)
+	next, _, handled := m.handleLibraryKeyAction(keys.ActionBulkAction)
 	if !handled {
 		t.Fatal("actionBulkAction should be handled")
 	}
@@ -79,7 +80,7 @@ func TestBulkActionFavoritesTrackLevel(t *testing.T) {
 	m.favorites.width = 80
 	m.favorites.height = 40
 
-	next, _, handled := m.handleLibraryKeyAction(actionBulkAction)
+	next, _, handled := m.handleLibraryKeyAction(keys.ActionBulkAction)
 	if !handled {
 		t.Fatal("actionBulkAction should be handled")
 	}
@@ -108,7 +109,7 @@ func TestBulkActionFavoritesListLevelTracks(t *testing.T) {
 	m.favorites.width = 80
 	m.favorites.height = 40
 
-	next, _, handled := m.handleLibraryKeyAction(actionBulkAction)
+	next, _, handled := m.handleLibraryKeyAction(keys.ActionBulkAction)
 	if !handled {
 		t.Fatal("actionBulkAction should be handled")
 	}

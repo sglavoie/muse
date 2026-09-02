@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/sglavoie/muse/internal/tui/sorting"
+import (
+	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/sorting"
+)
 
 // Panel, window and cursor movement: the controls that decide what the briefing
 // is pointed at, without knowing what any of it means. Everything here is
@@ -83,7 +86,7 @@ func (v InsightsView) bodyRows() int {
 	return max(v.height-v.headerHeight(), 1)
 }
 
-func (v InsightsView) handleCursorAction(a action) InsightsView {
+func (v InsightsView) handleCursorAction(a keys.Action) InsightsView {
 	if v.atTracks() {
 		v.trackView = v.trackView.HandleAction(a)
 		return v
@@ -100,7 +103,7 @@ func (v InsightsView) handleCursorAction(a action) InsightsView {
 	return v
 }
 
-func (v InsightsView) handleSessionCursorAction(a action) InsightsView {
+func (v InsightsView) handleSessionCursorAction(a keys.Action) InsightsView {
 	n := len(v.sessionList)
 	if n == 0 {
 		return v
@@ -112,23 +115,23 @@ func (v InsightsView) handleSessionCursorAction(a action) InsightsView {
 
 // moveInsightsCursor applies one cursor action. The result is left unclamped
 // for the caller's clampCursor, which also owns the scroll offset.
-func moveInsightsCursor(cursor, n, page int, a action) int {
+func moveInsightsCursor(cursor, n, page int, a keys.Action) int {
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		cursor--
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		cursor++
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		cursor -= max(page/2, 1)
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		cursor += max(page/2, 1)
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		cursor -= page
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		cursor += page
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		cursor = 0
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		cursor = n - 1
 	}
 	return cursor

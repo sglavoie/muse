@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -70,17 +71,17 @@ func TestShiftArrowKeysControlSortDirection(t *testing.T) {
 }
 
 func TestBracketKeysSwitchViewsAndAltAliasesAreUnbound(t *testing.T) {
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 
-	if got := reg.resolve(contextGlobal, "["); got != actionPrevView {
+	if got := reg.Resolve(keys.ContextGlobal, "["); got != keys.ActionPrevView {
 		t.Fatalf("resolve(contextGlobal, \"[\") = %v, want actionPrevView", got)
 	}
-	if got := reg.resolve(contextGlobal, "]"); got != actionNextView {
+	if got := reg.Resolve(keys.ContextGlobal, "]"); got != keys.ActionNextView {
 		t.Fatalf("resolve(contextGlobal, \"]\") = %v, want actionNextView", got)
 	}
 
 	for _, key := range []string{"alt+left", "alt+right", "alt+b", "alt+f"} {
-		if got := reg.resolve(contextGlobal, key); got != actionNone {
+		if got := reg.Resolve(keys.ContextGlobal, key); got != keys.ActionNone {
 			t.Fatalf("resolve(contextGlobal, %q) = %v, want actionNone", key, got)
 		}
 	}

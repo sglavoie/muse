@@ -6,25 +6,26 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
 // handleNavigationAction handles cursor movement, selection toggle,
 // and selection clear across all views.
 // Returns (model, cmd, true) when the action was consumed.
-func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
+func (m Model) handleNavigationAction(action keys.Action) (Model, tea.Cmd, bool) {
 	switch action {
-	case actionVisualMode:
+	case keys.ActionVisualMode:
 		if m.visual.active {
 			m = exitVisualMode(m)
 		} else {
 			m = enterVisualMode(m)
 		}
 		return m, nil, true
-	case actionCursorUp, actionCursorDown,
-		actionHalfPageDown, actionHalfPageUp,
-		actionFullPageDown, actionFullPageUp,
-		actionGoToTop, actionGoToBottom:
+	case keys.ActionCursorUp, keys.ActionCursorDown,
+		keys.ActionHalfPageDown, keys.ActionHalfPageUp,
+		keys.ActionFullPageDown, keys.ActionFullPageUp,
+		keys.ActionGoToTop, keys.ActionGoToBottom:
 		switch m.activeView {
 		case viewLibrary:
 			m.library = m.library.HandleAction(action)
@@ -59,7 +60,7 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			m = updateVisualSelection(m)
 		}
 		return m, nil, true
-	case actionBulkSelectionToggle:
+	case keys.ActionBulkSelectionToggle:
 		// Exit visual mode first: while active the next cursor move restores
 		// the pre-visual snapshot and re-applies the range, which silently
 		// throws away any toggle issued inside the range. Treating the toggle
@@ -121,7 +122,7 @@ func (m Model) handleNavigationAction(action action) (Model, tea.Cmd, bool) {
 			return m, cmd, true
 		}
 		return m, nil, true
-	case actionClearSelection:
+	case keys.ActionClearSelection:
 		m = exitVisualMode(m)
 		m = m.clearActiveViewSelection()
 		return m, nil, true

@@ -3,6 +3,7 @@ package tui
 import (
 	"testing"
 
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -146,7 +147,7 @@ func TestQueueMoveDisabledWhenSorted(t *testing.T) {
 		displayOrder: []int{1, 0},
 	}
 
-	v2, cmd := v.HandleAction(actionMoveTrackDown)
+	v2, cmd := v.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Error("move down when sorted should return a TransientNotifyMsg cmd")
 	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
@@ -155,7 +156,7 @@ func TestQueueMoveDisabledWhenSorted(t *testing.T) {
 	_ = v2
 
 	v.cursor = 1
-	v3, cmd := v.HandleAction(actionMoveTrackUp)
+	v3, cmd := v.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Error("move up when sorted should return a TransientNotifyMsg cmd")
 	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
@@ -180,7 +181,7 @@ func TestQueueSortDequeueCorrectEntry(t *testing.T) {
 	}
 
 	v.cursor = 0
-	_, cmd := v.HandleAction(actionDequeue)
+	_, cmd := v.HandleAction(keys.ActionDequeue)
 	if cmd == nil {
 		t.Fatal("expected a cmd for dequeue")
 	}
@@ -195,7 +196,7 @@ func TestQueueSortDequeueCorrectEntry(t *testing.T) {
 	}
 
 	v.cursor = 2
-	_, cmd = v.HandleAction(actionDequeue)
+	_, cmd = v.HandleAction(keys.ActionDequeue)
 	msg = cmd()
 	deqMsg = msg.(DequeueTrackMsg)
 	if v.entries[deqMsg.Index].Title != "Zulu" {
@@ -215,7 +216,7 @@ func TestQueueSortDisablesMoveUpDown(t *testing.T) {
 		cursor:       0,
 	}
 
-	_, cmd := v.HandleAction(actionMoveTrackDown)
+	_, cmd := v.HandleAction(keys.ActionMoveTrackDown)
 	if cmd == nil {
 		t.Error("move down when sorted should return a TransientNotifyMsg cmd")
 	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
@@ -223,7 +224,7 @@ func TestQueueSortDisablesMoveUpDown(t *testing.T) {
 	}
 
 	v.cursor = 2
-	_, cmd = v.HandleAction(actionMoveTrackUp)
+	_, cmd = v.HandleAction(keys.ActionMoveTrackUp)
 	if cmd == nil {
 		t.Error("move up when sorted should return a TransientNotifyMsg cmd")
 	} else if _, ok := cmd().(TransientNotifyMsg); !ok {
@@ -243,7 +244,7 @@ func TestQueueSortSelectCorrectEntry(t *testing.T) {
 	v = v.recomputeDisplayOrder()
 
 	v.cursor = 0
-	_, cmd := v.HandleAction(actionSelect)
+	_, cmd := v.HandleAction(keys.ActionSelect)
 	if cmd == nil {
 		t.Fatal("expected cmd for select")
 	}
@@ -268,7 +269,7 @@ func TestQueueBulkSelectionToggleWithSort(t *testing.T) {
 	v = v.recomputeDisplayOrder()
 
 	v.cursor = 0
-	_, cmd := v.HandleAction(actionBulkSelectionToggle)
+	_, cmd := v.HandleAction(keys.ActionBulkSelectionToggle)
 	if cmd == nil {
 		t.Fatal("expected cmd for bulk selection toggle")
 	}

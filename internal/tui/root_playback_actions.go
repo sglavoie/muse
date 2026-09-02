@@ -6,14 +6,15 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // handlePlaybackKeyAction handles playback-related key actions (play/pause,
 // stop, next, previous, seek, volume, repeat, shuffle, preview, now-playing).
 // It returns true in the third value when the action was handled.
-func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool) {
+func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
-	case actionTrackInfo:
+	case keys.ActionTrackInfo:
 		if m.overlay.trackInfo != nil {
 			m.overlay.trackInfo = nil
 			return m, nil, true
@@ -33,7 +34,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			return m, nil, true
 		}
 		return m, trackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
-	case actionNowPlayingInfo:
+	case keys.ActionNowPlayingInfo:
 		if m.overlay.nowPlaying != nil {
 			m.overlay.nowPlaying = nil
 			return m, nil, true
@@ -64,7 +65,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		m.overlay.nowPlaying = &overlay
 		return m, nil, true
-	case actionPreview:
+	case keys.ActionPreview:
 		if m.overlay.preview != nil {
 			m = m.dismissPreview()
 			return m, nil, true
@@ -82,7 +83,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			m.playback.state = PlaybackPaused
 		}
 		return m, m.startPreviewCmd(track), true
-	case actionPlayPause:
+	case keys.ActionPlayPause:
 		if m.player != nil {
 			switch {
 			case m.playback.state == PlaybackPlaying:
@@ -114,7 +115,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		return m, nil, true
-	case actionStop:
+	case keys.ActionStop:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Stop(); err != nil {
 				slog.Warn("stop failed", "err", err)
@@ -133,7 +134,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		return m, nil, true
-	case actionResetPosition:
+	case keys.ActionResetPosition:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.SeekAbsolute(0); err != nil {
 				slog.Warn("reset position failed", "err", err)
@@ -142,7 +143,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		return m, m.sessionPositionCmd(), true
-	case actionNext:
+	case keys.ActionNext:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Next(); err != nil {
 				slog.Warn("next failed", "err", err)
@@ -150,7 +151,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		return m, nil, true
-	case actionPrevious:
+	case keys.ActionPrevious:
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Previous(); err != nil {
 				slog.Warn("previous failed", "err", err)
@@ -158,19 +159,19 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 			}
 		}
 		return m, nil, true
-	case actionSeekBack:
+	case keys.ActionSeekBack:
 		return m.handleSeek(-m.cfg.SeekOffsetShort)
-	case actionSeekForward:
+	case keys.ActionSeekForward:
 		return m.handleSeek(m.cfg.SeekOffsetShort)
-	case actionSeekBackLong:
+	case keys.ActionSeekBackLong:
 		return m.handleSeek(-m.cfg.SeekOffsetLong)
-	case actionSeekForwardLong:
+	case keys.ActionSeekForwardLong:
 		return m.handleSeek(m.cfg.SeekOffsetLong)
-	case actionVolumeUp:
+	case keys.ActionVolumeUp:
 		return m.handleVolume(1)
-	case actionVolumeDown:
+	case keys.ActionVolumeDown:
 		return m.handleVolume(-1)
-	case actionRepeatCycle:
+	case keys.ActionRepeatCycle:
 		switch m.playback.repeatMode {
 		case RepeatOff:
 			m.playback.repeatMode = RepeatAll
@@ -191,7 +192,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		m.statusBar.pushMsg(m.modeToggleMsg("Repeat", modeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
-	case actionShuffleToggle:
+	case keys.ActionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
 		label := modeState(m.playback.shuffle)
 		// Surface a runtime failure to the user: the traversal order did not
@@ -215,7 +216,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		m.statusBar.pushMsg(m.modeToggleMsg("Shuffle", modeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
-	case actionStopAfterCurrent:
+	case keys.ActionStopAfterCurrent:
 		if m.playback.state != PlaybackPlaying && m.playback.state != PlaybackPaused {
 			m.statusBar.notify("No track playing")
 			return m, nil, true
@@ -226,7 +227,7 @@ func (m Model) handlePlaybackKeyAction(action action) (tea.Model, tea.Cmd, bool)
 		}
 		m.statusBar.pushMsg(m.modeToggleMsg("Stop after current", modeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
-	case actionRadioToggle:
+	case keys.ActionRadioToggle:
 		return m.radioToggle()
 	}
 	return m, nil, false

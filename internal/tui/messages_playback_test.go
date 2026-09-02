@@ -1,16 +1,20 @@
 package tui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
+)
 
 // TestRemoteActionKnownNames verifies that every documented remote action name
 // maps to its expected action constant.
 func TestRemoteActionKnownNames(t *testing.T) {
-	cases := map[string]action{
-		"toggle-play": actionPlayPause,
-		"next":        actionNext,
-		"previous":    actionPrevious,
-		"volume-up":   actionVolumeUp,
-		"volume-down": actionVolumeDown,
+	cases := map[string]keys.Action{
+		"toggle-play": keys.ActionPlayPause,
+		"next":        keys.ActionNext,
+		"previous":    keys.ActionPrevious,
+		"volume-up":   keys.ActionVolumeUp,
+		"volume-down": keys.ActionVolumeDown,
 	}
 	for name, want := range cases {
 		if got := remoteAction(name); got != want {
@@ -33,7 +37,7 @@ func TestRemoteActionUnknownNameReturnsNone(t *testing.T) {
 		"future-feature-not-known", // protocol drift
 	}
 	for _, name := range unknowns {
-		if got := remoteAction(name); got != actionNone {
+		if got := remoteAction(name); got != keys.ActionNone {
 			t.Errorf("remoteAction(%q) = %v, want actionNone (no silent play/pause fallback)", name, got)
 		}
 	}

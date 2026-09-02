@@ -7,6 +7,7 @@ import (
 
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // handleMetadataEditorKeyPress handles key events while the metadata editor
@@ -32,8 +33,8 @@ func (m Model) handleMetadataEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 }
 
 // handleMetadataKeyAction handles actionEditMetadata.
-func (m Model) handleMetadataKeyAction(a action) (Model, tea.Cmd, bool) {
-	if a != actionEditMetadata {
+func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
+	if a != keys.ActionEditMetadata {
 		return m, nil, false
 	}
 

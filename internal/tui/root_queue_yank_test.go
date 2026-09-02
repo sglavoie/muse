@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestYankSingleTrack verifies that ctrl+y with no selection yanks the focused track.
@@ -14,7 +16,7 @@ func TestYankSingleTrack(t *testing.T) {
 	m.queue.entries = sampleQueueEntries()
 	m.queue.cursor = 1
 
-	rm, _, handled := m.handleQueueKeyAction(actionYank)
+	rm, _, handled := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 
 	if !handled {
@@ -42,7 +44,7 @@ func TestYankBulkSelection(t *testing.T) {
 	m.queue.entries[2].Selected = true
 	m.queue.cursor = 0
 
-	rm, _, handled := m.handleQueueKeyAction(actionYank)
+	rm, _, handled := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 
 	if !handled {
@@ -67,14 +69,14 @@ func TestYankReplacesBuffer(t *testing.T) {
 	m.queue.entries = sampleQueueEntries()
 	m.queue.cursor = 0
 
-	rm, _, _ := m.handleQueueKeyAction(actionYank)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 	if m.yankBuffer[0].Hash != "h1" {
 		t.Fatal("first yank should capture h1")
 	}
 
 	m.queue.cursor = 3
-	rm, _, _ = m.handleQueueKeyAction(actionYank)
+	rm, _, _ = m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 	if len(m.yankBuffer) != 1 || m.yankBuffer[0].Hash != "h4" {
 		t.Errorf("second yank should replace buffer with h4, got %v", m.yankBuffer)
@@ -86,7 +88,7 @@ func TestYankEmptyQueue(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewQueue
 
-	rm, _, handled := m.handleQueueKeyAction(actionYank)
+	rm, _, handled := m.handleQueueKeyAction(keys.ActionYank)
 	m = rm.(Model)
 
 	if !handled {

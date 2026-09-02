@@ -3,6 +3,7 @@ package tui
 import (
 	"log/slog"
 
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -12,19 +13,19 @@ import (
 // the registry can check view-local bindings before falling back to global.
 // For viewBrowse, the real sub-context (contextArtists/Albums/Genres) is resolved
 // based on the active browse mode so that sub-view keybindings work correctly.
-func (m Model) activeViewContext() bindingContext {
+func (m Model) activeViewContext() keys.Context {
 	if m.activeView == viewBrowse {
 		switch m.browse.mode {
 		case BrowseModeArtists:
-			return contextArtists
+			return keys.ContextArtists
 		case BrowseModeAlbums:
-			return contextAlbums
+			return keys.ContextAlbums
 		case BrowseModeGenres:
-			return contextGenres
+			return keys.ContextGenres
 		}
 	}
 	ctx := viewToContext(m.activeView)
-	if ctx == contextGlobal {
+	if ctx == keys.ContextGlobal {
 		slog.Warn("activeViewContext: unhandled viewID, falling back to global bindings",
 			"viewID", int(m.activeView))
 	}

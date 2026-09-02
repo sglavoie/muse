@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/sglavoie/muse/internal/tui/keys"
+
 // playRecordedMsg is dispatched after a successful RecordListen call so the
 // History view can be updated in realtime without a full DB reload.
 type playRecordedMsg struct {
@@ -66,20 +68,20 @@ type RemoteActionMsg struct{ ActionName string }
 // Unknown names return actionNone so handlePlaybackKeyAction treats them as a
 // no-op rather than silently performing play/pause (which would mask typos and
 // future-protocol drift between the remote client and the running instance).
-func remoteAction(name string) action {
+func remoteAction(name string) keys.Action {
 	switch name {
 	case "toggle-play":
-		return actionPlayPause
+		return keys.ActionPlayPause
 	case "next":
-		return actionNext
+		return keys.ActionNext
 	case "previous":
-		return actionPrevious
+		return keys.ActionPrevious
 	case "volume-up":
-		return actionVolumeUp
+		return keys.ActionVolumeUp
 	case "volume-down":
-		return actionVolumeDown
+		return keys.ActionVolumeDown
 	default:
-		return actionNone
+		return keys.ActionNone
 	}
 }
 

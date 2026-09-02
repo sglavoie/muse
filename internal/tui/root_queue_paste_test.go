@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestPasteSingleTrack verifies that ctrl+p inserts a copy below the cursor.
@@ -15,7 +17,7 @@ func TestPasteSingleTrack(t *testing.T) {
 	m.queue.cursor = 1
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
-	rm, cmd, handled := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, handled := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 
 	if !handled {
@@ -67,7 +69,7 @@ func TestPastePersistsFinalQueueOrder(t *testing.T) {
 	m.queue.cursor = 1
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -96,7 +98,7 @@ func TestPasteMultipleTracks(t *testing.T) {
 	m.queue.cursor = 0
 	m.yankBuffer = []QueueEntry{m.queue.entries[2], m.queue.entries[3]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -123,7 +125,7 @@ func TestPasteTwice(t *testing.T) {
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
 	// First paste.
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 	if len(m.queue.entries) != 5 {
@@ -131,7 +133,7 @@ func TestPasteTwice(t *testing.T) {
 	}
 
 	// Second paste (cursor moved to 1 after first paste).
-	_, cmd, _ = m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ = m.handleQueueKeyAction(keys.ActionPaste)
 	msg = cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 	if len(m.queue.entries) != 6 {
@@ -146,7 +148,7 @@ func TestPasteEmptyBuffer(t *testing.T) {
 	m.activeView = viewQueue
 	m.queue.entries = sampleQueueEntries()
 
-	rm, cmd, handled := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, handled := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 
 	if !handled {
@@ -169,7 +171,7 @@ func TestPasteWhileSorted(t *testing.T) {
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 	m.queue.displayOrder = []int{3, 2, 1, 0} // non-nil = sorted
 
-	rm, cmd, handled := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, handled := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 
 	if !handled {
@@ -192,7 +194,7 @@ func TestPasteWhileFiltered(t *testing.T) {
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 	m.queue.filter.Text = "artist"
 
-	rm, cmd, handled := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, handled := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 
 	if !handled {
@@ -217,7 +219,7 @@ func TestPasteWhileTagFiltered(t *testing.T) {
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 	m.queue.tagFilterHashes = map[string]struct{}{"h2": {}, "h3": {}}
 
-	rm, cmd, handled := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, handled := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 
 	if !handled {
@@ -242,7 +244,7 @@ func TestPasteAdjustsCurrentIndex(t *testing.T) {
 	m.queue.cursor = 0
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -262,7 +264,7 @@ func TestPasteAtEndOfQueue(t *testing.T) {
 	m.queue.cursor = 3 // last entry
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -287,7 +289,7 @@ func TestPasteSetsUndoSlot(t *testing.T) {
 	m.queue.cursor = 1
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -313,7 +315,7 @@ func TestUndoPasteRemovesPastedEntries(t *testing.T) {
 	m.queue.cursor = 1
 	m.yankBuffer = []QueueEntry{m.queue.entries[0], m.queue.entries[2]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -355,7 +357,7 @@ func TestUndoPasteAdjustsCurrentIndex(t *testing.T) {
 	m.queue.cursor = 0
 	m.yankBuffer = []QueueEntry{m.queue.entries[0]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 

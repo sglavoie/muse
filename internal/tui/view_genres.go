@@ -7,6 +7,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -113,7 +114,7 @@ func (v GenresView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 }
 
 // HandleAction executes a pre-resolved genres action dispatched by root.Update.
-func (v GenresView) HandleAction(a action) GenresView {
+func (v GenresView) HandleAction(a keys.Action) GenresView {
 	view := gentui.View{
 		Level:              v.level,
 		Cursor:             v.cursor,
@@ -130,21 +131,21 @@ func (v GenresView) HandleAction(a action) GenresView {
 		FilterText:         v.filter.Text,
 	}
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		view = view.CursorUp()
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		view = view.CursorDown()
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		view = view.HalfPageDown()
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		view = view.HalfPageUp()
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		view = view.FullPageDown()
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		view = view.FullPageUp()
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		view = view.GoToTop()
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
 	}
 	v.cursor = view.Cursor

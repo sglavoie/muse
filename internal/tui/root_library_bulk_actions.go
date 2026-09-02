@@ -7,12 +7,13 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
-func (m Model) handleLibraryBulkAction(action action) (tea.Model, tea.Cmd, bool) {
-	if action != actionBulkAction {
+func (m Model) handleLibraryBulkAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
+	if action != keys.ActionBulkAction {
 		return m, nil, false
 	}
 	if m.activeView == viewPlaylists {

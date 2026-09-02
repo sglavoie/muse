@@ -4,16 +4,17 @@ import (
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
-func (m Model) handleLibraryQueueAction(action action) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleLibraryQueueAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
-	case actionLibraryEnqueue:
+	case keys.ActionLibraryEnqueue:
 		return m.handleLibraryEnqueueAction()
-	case actionPlayNext:
+	case keys.ActionPlayNext:
 		return m.handleLibraryPlayNextAction()
-	case actionLibraryEnqueueReplace:
+	case keys.ActionLibraryEnqueueReplace:
 		return m.handleLibraryEnqueueReplaceAction()
 	default:
 		return m, nil, false

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -153,7 +154,7 @@ func TestLibraryView_TagFilterDefaultSort_GoToBottom(t *testing.T) {
 	m.library.tagFilterHashes = map[string]struct{}{"h1": {}, "h3": {}}
 	m.library.height = 100 // large enough to show all
 
-	m.library = m.library.HandleAction(actionGoToBottom)
+	m.library = m.library.HandleAction(keys.ActionGoToBottom)
 
 	// Cursor should be at index 1 (last of 2 filtered tracks), not 3.
 	if m.library.cursor != 1 {

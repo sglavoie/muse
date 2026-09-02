@@ -25,7 +25,7 @@ func (m Model) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if model, cmd, ok := m.routeKeyPress(msg); ok {
 		return model, cmd
 	}
-	return m.handleKeyAction(m.registry.resolve(m.activeViewContext(), msg.String()))
+	return m.handleKeyAction(m.registry.Resolve(m.activeViewContext(), msg.String()))
 }
 
 func (m Model) handleUnhandledMsg(msg tea.Msg) (tea.Model, tea.Cmd) {

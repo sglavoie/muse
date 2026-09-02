@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -67,7 +68,7 @@ func TestPlaylistDeleteClampsScrollOffset(t *testing.T) {
 	m.playlists.cursor = 1
 	m.playlists.scrollOffset = 1
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	if n := len(nm.playlists.playlists); n != 1 {
@@ -87,7 +88,7 @@ func TestPlaylistDeleteAllClampsScrollOffsetToZero(t *testing.T) {
 	m.playlists.cursor = 0
 	m.playlists.scrollOffset = 0
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	if nm.playlists.scrollOffset != 0 {
@@ -107,7 +108,7 @@ func TestPlaylistTrackDeleteClampsScrollOffset(t *testing.T) {
 	m.playlists.cursor = 1
 	m.playlists.scrollOffset = 1
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	if n := len(nm.playlists.tracks); n != 1 {
@@ -131,7 +132,7 @@ func TestBulkRemovePlaylistTracksClampsScrollOffset(t *testing.T) {
 	m.playlists.cursor = 2
 	m.playlists.scrollOffset = 2
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	if n := len(nm.playlists.tracks); n != 1 {
@@ -154,7 +155,7 @@ func TestBulkRemovePlaylistTracksSoftDeletesAndSchedulesPurge(t *testing.T) {
 	m.playlists.tracks = []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "A", Artist: "X", DurationMs: 1000}, {ID: 20, Position: 2, Title: "B", Artist: "Y", DurationMs: 2000}, {ID: 30, Position: 3, Title: "C", Artist: "Z", DurationMs: 3000}}
 	m.playlists.selectedTrackIDs = map[int64]struct{}{10: {}, 30: {}}
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	_ = next.(Model)
 
 	if got := len(pd.removePlaylistTrackSoftCalls); got != 2 {
@@ -177,7 +178,7 @@ func TestPlaylistDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	m.playlists.playlists = []db.PlaylistRow{{ID: 1, Name: "A"}}
 	m.playlists.cursor = 5
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	_ = next
 }
 
@@ -190,7 +191,7 @@ func TestPlaylistTrackDeleteNoPanicWhenCursorOutOfBounds(t *testing.T) {
 	m.playlists.tracks = []db.PlaylistTrackRow{{ID: 1, Title: "A"}}
 	m.playlists.cursor = 5
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	_ = next
 }
 
@@ -274,7 +275,7 @@ func TestPlaylistDeleteWithSortActiveDeletesCorrectEntry(t *testing.T) {
 	m.playlists = m.playlists.recomputePlaylistSort()
 	m.playlists.cursor = 0
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	if len(pd.deletePlaylistSoftCalls) != 1 {
@@ -304,7 +305,7 @@ func TestPlaylistDeleteWithSortActiveUndoRestoresCorrectEntry(t *testing.T) {
 	m.playlists = m.playlists.recomputePlaylistSort()
 	m.playlists.cursor = 0
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 	if len(nm.playlists.playlists) != 2 {
 		t.Fatalf("expected 2 playlists after delete, got %d", len(nm.playlists.playlists))

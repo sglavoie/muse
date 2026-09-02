@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestModeToggleNotificationsNameTheGlyph verifies that each mode toggle tells
@@ -15,7 +17,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 		m := New(context.Background())
 		want := []string{"Repeat: all (R)", "Repeat: one (1)", "Repeat: off (R)"}
 		for i, w := range want {
-			next, _, handled := m.handlePlaybackKeyAction(actionRepeatCycle)
+			next, _, handled := m.handlePlaybackKeyAction(keys.ActionRepeatCycle)
 			if !handled {
 				t.Fatalf("press %d: actionRepeatCycle not handled", i+1)
 			}
@@ -29,7 +31,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 	t.Run("shuffle", func(t *testing.T) {
 		m := New(context.Background(), WithPlayer(&stubRepeatShuffler{}), WithSessionWriter(&stubSessionWriter{}))
 		for i, w := range []string{"Shuffle: on (S)", "Shuffle: off (S)"} {
-			next, _, handled := m.handlePlaybackKeyAction(actionShuffleToggle)
+			next, _, handled := m.handlePlaybackKeyAction(keys.ActionShuffleToggle)
 			if !handled {
 				t.Fatalf("press %d: actionShuffleToggle not handled", i+1)
 			}
@@ -44,7 +46,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 		m := New(context.Background(), WithPlayer(&stubStopAfterPlayer{}))
 		m.playback.state = PlaybackPlaying
 		for i, w := range []string{"Stop after current: on (N)", "Stop after current: off (N)"} {
-			next, _, handled := m.handlePlaybackKeyAction(actionStopAfterCurrent)
+			next, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 			if !handled {
 				t.Fatalf("press %d: actionStopAfterCurrent not handled", i+1)
 			}
@@ -58,7 +60,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 	t.Run("radio", func(t *testing.T) {
 		m := New(context.Background())
 		for i, w := range []string{"Radio mode: on (D)", "Radio mode: off (D)"} {
-			next, _, handled := m.handlePlaybackKeyAction(actionRadioToggle)
+			next, _, handled := m.handlePlaybackKeyAction(keys.ActionRadioToggle)
 			if !handled {
 				t.Fatalf("press %d: actionRadioToggle not handled", i+1)
 			}

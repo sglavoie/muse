@@ -10,6 +10,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // helpState returns the sections and title to display in the help overlay,
@@ -216,13 +217,13 @@ func (m Model) deriveCurrentBrowseData() Model {
 
 // hintForAction returns a contextual hint for actions that are only valid in
 // specific views. Returns empty string when no hint applies.
-func hintForAction(a action, view viewID, _ BrowseMode) string {
+func hintForAction(a keys.Action, view viewID, _ BrowseMode) string {
 	switch a {
-	case actionDequeue:
+	case keys.ActionDequeue:
 		if view != viewQueue {
 			return "d removes tracks in Queue — press 3 to go there"
 		}
-	case actionClearQueue:
+	case keys.ActionClearQueue:
 		if view != viewQueue {
 			return "C clears the Queue — press 3 to go there"
 		}
@@ -231,7 +232,7 @@ func hintForAction(a action, view viewID, _ BrowseMode) string {
 }
 
 // handleKeyAction dispatches a resolved KeyAction to the appropriate handler.
-func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	if model, cmd, ok := m.handleSortAction(action); ok {
 		return model, cmd
 	}
@@ -258,139 +259,139 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 	}
 
 	switch action {
-	case actionSettings:
+	case keys.ActionSettings:
 		return m.handleSettingsOpen()
-	case actionDebug:
+	case keys.ActionDebug:
 		m.debugPrevView = m.activeView
 		m.debugVisible = true
 		m.debugViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-2, 0)))
 		panel := collectDebugInfo(m)
 		m.debugViewport.SetContent(panel.render(*m.styles))
 		m.debugViewport.SetYOffset(0)
-	case actionQueueSummary:
+	case keys.ActionQueueSummary:
 		if m.overlay.queueSummary != nil {
 			m.overlay.queueSummary = nil
 		} else {
 			m.overlay.queueSummary = m.buildQueueSummary()
 		}
-	case actionModesLegend:
+	case keys.ActionModesLegend:
 		if m.overlay.modesLegend != nil {
 			m.overlay.modesLegend = nil
 		} else {
 			m.overlay.modesLegend = m.buildModesLegend()
 		}
-	case actionHelp:
+	case keys.ActionHelp:
 		m.prevActiveView = m.activeView
 		m.helpVisible = true
 		m.helpFiltered = true
 		m.helpSearchFilter = filter.State{}
 		m.helpViewport = viewport.New(viewport.WithWidth(m.termWidth), viewport.WithHeight(max(m.termHeight-2, 0)))
 		m.refreshHelpViewport()
-	case actionNextView:
+	case keys.ActionNextView:
 		next := nextView(m.activeView)
 		loadCmd := m.viewLazyLoadCmd(next)
 		m = m.switchToView(next)
 		if loadCmd != nil {
 			return m, loadCmd
 		}
-	case actionPrevView:
+	case keys.ActionPrevView:
 		prev := prevView(m.activeView)
 		loadCmd := m.viewLazyLoadCmd(prev)
 		m = m.switchToView(prev)
 		if loadCmd != nil {
 			return m, loadCmd
 		}
-	case actionQuit:
+	case keys.ActionQuit:
 		m.overlay.nowPlaying = nil
 		m.overlay.queueSummary = nil
 		m.overlay.modesLegend = nil
 		m.overlay.trackInfo = nil
 		m = m.dismissPreview()
 		return m, tea.Quit
-	case actionFilterBar:
+	case keys.ActionFilterBar:
 		return m, func() tea.Msg { return FilterBarMsg{} }
-	case actionSwitchLibrary:
+	case keys.ActionSwitchLibrary:
 		m = m.switchToView(viewLibrary)
-	case actionSwitchPlaylists:
+	case keys.ActionSwitchPlaylists:
 		m = m.switchToView(viewPlaylists)
-	case actionSwitchQueue:
+	case keys.ActionSwitchQueue:
 		m = m.switchToView(viewQueue)
 		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
-	case actionSwitchBrowse:
+	case keys.ActionSwitchBrowse:
 		m = m.switchToView(viewBrowse)
-	case actionSwitchFavorites:
+	case keys.ActionSwitchFavorites:
 		m = m.switchToView(viewFavorites)
-	case actionLibraryModeNext:
+	case keys.ActionLibraryModeNext:
 		return m.handleLibraryModeNext()
-	case actionLibraryModePrev:
+	case keys.ActionLibraryModePrev:
 		return m.handleLibraryModePrev()
-	case actionBrowseModeNext:
+	case keys.ActionBrowseModeNext:
 		return m.handleBrowseModeNext()
-	case actionBrowseModePrev:
+	case keys.ActionBrowseModePrev:
 		return m.handleBrowseModePrev()
-	case actionSwitchTags:
+	case keys.ActionSwitchTags:
 		m = m.switchToView(viewTags)
-	case actionSwitchMixes:
+	case keys.ActionSwitchMixes:
 		cmd := m.mixesMaybeLoadCmd()
 		m = m.switchToView(viewMixes)
 		return m, cmd
-	case actionSwitchInsights:
+	case keys.ActionSwitchInsights:
 		cmd := m.insightsEnterCmd()
 		m = m.switchToView(viewInsights)
 		return m, cmd
-	case actionInsightsPanelNext:
+	case keys.ActionInsightsPanelNext:
 		return m.handleInsightsPanelCycle(1), nil
-	case actionInsightsPanelPrev:
+	case keys.ActionInsightsPanelPrev:
 		return m.handleInsightsPanelCycle(-1), nil
-	case actionInsightsWindowNext:
+	case keys.ActionInsightsWindowNext:
 		return m.handleInsightsWindowCycle(1)
-	case actionInsightsWindowPrev:
+	case keys.ActionInsightsWindowPrev:
 		return m.handleInsightsWindowCycle(-1)
-	case actionInsightsOpen:
+	case keys.ActionInsightsOpen:
 		return m.handleInsightsOpen()
-	case actionInsightsBack:
+	case keys.ActionInsightsBack:
 		return m.handleInsightsBack(), nil
-	case actionInsightsEnqueueAll:
+	case keys.ActionInsightsEnqueueAll:
 		return m.handleInsightsEnqueueAll()
-	case actionInsightsAntiRut:
+	case keys.ActionInsightsAntiRut:
 		return m.handleInsightsAntiRut()
-	case actionInsightsRadioSeed:
+	case keys.ActionInsightsRadioSeed:
 		return m.handleInsightsRadioSeed()
-	case actionInsightsJumpBrowse:
+	case keys.ActionInsightsJumpBrowse:
 		return m.handleInsightsJumpBrowse(), nil
-	case actionInsightsSavePlaylist:
+	case keys.ActionInsightsSavePlaylist:
 		return m.handleInsightsSavePlaylist()
-	case actionInsightsMergeGenre:
+	case keys.ActionInsightsMergeGenre:
 		return m.handleInsightsMergeGenre(), nil
-	case actionTagOpen:
+	case keys.ActionTagOpen:
 		return m.handleTagOpen()
-	case actionTagBack:
+	case keys.ActionTagBack:
 		m = m.handleTagBack()
-	case actionTagCreate:
+	case keys.ActionTagCreate:
 		return m.handleTagCreate()
-	case actionTagRename:
+	case keys.ActionTagRename:
 		return m.handleTagRename()
-	case actionTagDelete:
+	case keys.ActionTagDelete:
 		return m.handleTagDelete()
-	case actionTagEnqueueAll:
+	case keys.ActionTagEnqueueAll:
 		return m.handleTagEnqueueAll()
-	case actionTagMerge:
+	case keys.ActionTagMerge:
 		return m.handleTagMerge()
-	case actionMixOpen:
+	case keys.ActionMixOpen:
 		return m.handleMixOpen()
-	case actionMixBack:
+	case keys.ActionMixBack:
 		m = m.handleMixBack()
-	case actionMixEnqueueAll:
+	case keys.ActionMixEnqueueAll:
 		return m.handleMixEnqueueAll()
-	case actionSaveMixAsPlaylist:
+	case keys.ActionSaveMixAsPlaylist:
 		return m.handleMixesSaveMixAsPlaylist()
-	case actionMixRadioSeed:
+	case keys.ActionMixRadioSeed:
 		return m.handleMixesRadioSeed()
-	case actionMixDismiss:
+	case keys.ActionMixDismiss:
 		return m.handleMixDismiss()
-	case actionMixUndismiss:
+	case keys.ActionMixUndismiss:
 		return m.handleMixUndismiss()
-	case actionGoTo:
+	case keys.ActionGoTo:
 		ctx := m.focusedGoToContext()
 		if !ctx.found {
 			m.statusBar.notify("No track focused")
@@ -407,16 +408,16 @@ func (m Model) handleKeyAction(action action) (tea.Model, tea.Cmd) {
 				m.statusBar.notify("No jump targets available")
 			}
 		}
-	case actionCommandPalette:
+	case keys.ActionCommandPalette:
 		commands := m.buildPaletteCommands()
 		if len(commands) > 0 {
 			palette, cmd := NewCommandPalette(commands, m.paletteUsage)
 			m.overlay.commandPalette = &palette
 			return m, cmd
 		}
-	case actionTagPicker:
+	case keys.ActionTagPicker:
 		return m.openTagPicker()
-	case actionTagFilter:
+	case keys.ActionTagFilter:
 		return m.handleTagFilterAction()
 	}
 	if hint := hintForAction(action, m.activeView, m.browse.mode); hint != "" {

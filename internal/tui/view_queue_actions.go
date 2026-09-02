@@ -7,25 +7,26 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 // HandleAction executes a pre-resolved queue action dispatched by root.Update.
 // Root resolves the raw key to an action via the keybinding registry and calls
 // this method, keeping key-to-action mapping in one authoritative location.
-func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
+func (v QueueView) HandleAction(a keys.Action) (QueueView, tea.Cmd) {
 	filtered := v.filteredEntries()
 	n := len(filtered)
 
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		if v.cursor > 0 {
 			v.cursor--
 		}
 		if v.cursor < v.scrollOffset {
 			v.scrollOffset = v.cursor
 		}
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		if v.cursor < n-1 {
 			v.cursor++
 		}
@@ -33,18 +34,18 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 		if v.cursor >= v.scrollOffset+maxRows {
 			v.scrollOffset = v.cursor - maxRows + 1
 		}
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		v = v.moveQueueCursor(v.visibleRows() / 2)
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		v = v.moveQueueCursor(-v.visibleRows() / 2)
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		v = v.moveQueueCursor(v.visibleRows())
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		v = v.moveQueueCursor(-v.visibleRows())
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		v.cursor = 0
 		v.scrollOffset = 0
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		if n > 0 {
 			v.cursor = n - 1
 			maxRows := v.visibleRows()
@@ -52,7 +53,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 				v.scrollOffset = v.cursor - maxRows + 1
 			}
 		}
-	case actionSelect:
+	case keys.ActionSelect:
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
 			idx := e.origIdx
@@ -68,21 +69,21 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			}
 			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
 		}
-	case actionDequeue:
+	case keys.ActionDequeue:
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
 			idx := e.origIdx
 			return v, func() tea.Msg { return DequeueTrackMsg{Index: idx} }
 		}
-	case actionBulkSelectionToggle:
+	case keys.ActionBulkSelectionToggle:
 		if v.cursor >= 0 && v.cursor < n {
 			e := filtered[v.cursor]
 			idx := e.origIdx
 			return v, func() tea.Msg { return BulkSelectionToggleMsg{Index: idx} }
 		}
-	case actionClearQueue:
+	case keys.ActionClearQueue:
 		return v, func() tea.Msg { return ClearQueueMsg{} }
-	case actionMoveTrackUp:
+	case keys.ActionMoveTrackUp:
 		if v.displayOrder != nil || v.filter.Text != "" || len(v.tagFilterHashes) > 0 {
 			return v, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 		}
@@ -90,7 +91,7 @@ func (v QueueView) HandleAction(a action) (QueueView, tea.Cmd) {
 			idx := v.cursor
 			return v, func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
 		}
-	case actionMoveTrackDown:
+	case keys.ActionMoveTrackDown:
 		if v.displayOrder != nil || v.filter.Text != "" || len(v.tagFilterHashes) > 0 {
 			return v, func() tea.Msg { return TransientNotifyMsg("Cannot reorder while sorted/filtered") }
 		}

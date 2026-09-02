@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -27,7 +28,7 @@ func TestCommandPaletteActionSwitchesToViewThenRuns(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
 
-	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: actionTagCreate, view: viewTags})
+	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionTagCreate, view: viewTags})
 
 	if out.activeView != viewTags {
 		t.Fatalf("activeView = %v, want viewTags", out.activeView)
@@ -41,7 +42,7 @@ func TestCommandPaletteActionWithoutViewRunsInPlace(t *testing.T) {
 	m := New(context.Background())
 	m.activeView = viewLibrary
 
-	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: actionTagCreate})
+	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionTagCreate})
 
 	if out.activeView != viewLibrary {
 		t.Fatalf("activeView = %v, want viewLibrary", out.activeView)
@@ -60,7 +61,7 @@ func TestCommandPaletteActionSameViewKeepsState(t *testing.T) {
 	m.playlists.sortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.playlists = m.playlists.startRename("Mix tape")
 
-	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: actionQueueSummary, view: viewPlaylists})
+	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionQueueSummary, view: viewPlaylists})
 
 	if out.playlists.sortState != (sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}) {
 		t.Errorf("playlists sortState = %+v, want it preserved", out.playlists.sortState)
@@ -80,7 +81,7 @@ func TestCommandPaletteActionSwitchToMixesKeepsLoadCmd(t *testing.T) {
 	m := New(context.Background(), WithRecommendationReader(&stubRecReader{sufficient: true}))
 	m.activeView = viewLibrary
 
-	next, cmd := m.Update(commandPaletteActionMsg{action: actionQueueSummary, view: viewMixes})
+	next, cmd := m.Update(commandPaletteActionMsg{action: keys.ActionQueueSummary, view: viewMixes})
 	out, ok := next.(Model)
 	if !ok {
 		t.Fatalf("Update returned %T, want Model", next)
@@ -111,7 +112,7 @@ func TestCommandPaletteActionSwitchToQueueFocusesNowPlaying(t *testing.T) {
 	}
 	m.playback.currentIndex = 2
 
-	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: actionQueueSummary, view: viewQueue})
+	out := dispatchPaletteAction(t, m, commandPaletteActionMsg{action: keys.ActionQueueSummary, view: viewQueue})
 
 	if out.activeView != viewQueue {
 		t.Fatalf("activeView = %v, want viewQueue", out.activeView)

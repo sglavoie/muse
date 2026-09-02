@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestPasteResumesPlaybackWhenQueueExhausted verifies that pasting tracks after
@@ -22,7 +24,7 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 
 	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]} // yank C
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -75,7 +77,7 @@ func TestPasteExhaustedResumeResetsPlaybackFields(t *testing.T) {
 
 	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
@@ -114,7 +116,7 @@ func TestPasteDoesNotResumeWhenUserStopped(t *testing.T) {
 
 	m.yankBuffer = []QueueEntry{sampleQueueEntries()[2]}
 
-	_, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	_, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 

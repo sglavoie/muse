@@ -3,13 +3,14 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // handlePlaylistKeyAction handles playlist-specific key actions.
 // Returns (model, cmd, true) when the action was consumed.
-func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
+func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool) {
 	switch action {
-	case actionPlaylistRename:
+	case keys.ActionPlaylistRename:
 		if !m.playlists.atListLevel() && m.playlists.smartQuery != nil && m.smartEval != nil {
 			q := *m.playlists.smartQuery
 			evaluator := m.smartEval
@@ -23,34 +24,34 @@ func (m Model) handlePlaylistKeyAction(action action) (Model, tea.Cmd, bool) {
 			}, true
 		}
 		return m, func() tea.Msg { return PlaylistRenameMsg{} }, true
-	case actionPlaylistCreate:
+	case keys.ActionPlaylistCreate:
 		return m, func() tea.Msg { return PlaylistCreateMsg{} }, true
-	case actionPlaylistOpen:
+	case keys.ActionPlaylistOpen:
 		return m.handlePlaylistOpen()
-	case actionPlaylistBack:
+	case keys.ActionPlaylistBack:
 		if !m.playlists.atListLevel() {
 			m = exitVisualMode(m)
 			m.playlists = m.playlists.backToList()
 		}
 		return m, nil, true
-	case actionPlaylistEnqueueAll:
+	case keys.ActionPlaylistEnqueueAll:
 		return m.handlePlaylistEnqueueAll()
-	case actionPlaylistDelete:
+	case keys.ActionPlaylistDelete:
 		m, cmd := m.handlePlaylistDelete()
 		return m, cmd, true
-	case actionSmartPlaylistCreate:
+	case keys.ActionSmartPlaylistCreate:
 		if m.activeView == viewPlaylists && m.playlists.atListLevel() {
 			editor := newSmartRuleEditor()
 			m.overlay.smartRuleEditor = &editor
 		}
 		return m, nil, true
-	case actionMoveTrackUp:
+	case keys.ActionMoveTrackUp:
 		m, cmd := m.handlePlaylistMoveTrackUp()
 		return m, cmd, true
-	case actionMoveTrackDown:
+	case keys.ActionMoveTrackDown:
 		m, cmd := m.handlePlaylistMoveTrackDown()
 		return m, cmd, true
-	case actionSmartPlaylistEdit:
+	case keys.ActionSmartPlaylistEdit:
 		if m.activeView == viewPlaylists && m.playlists.atListLevel() {
 			pl, ok := m.playlists.focusedPlaylist()
 			if ok && pl.IsSmart {

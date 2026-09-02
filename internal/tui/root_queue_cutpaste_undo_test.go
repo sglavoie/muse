@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestCutPasteSetsUndoSlot verifies that a cut-paste sets an undoKindCutPaste
@@ -16,11 +18,11 @@ func TestCutPasteSetsUndoSlot(t *testing.T) {
 	m.queue.entries = sampleQueueEntries()
 	m.queue.cursor = 0
 
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	m.queue.cursor = 2
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -47,12 +49,12 @@ func TestUndoCutPasteRestoresOriginals(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Cut A.
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after C (cursor=2 in the original, but we move it).
 	m.queue.cursor = 2
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -94,7 +96,7 @@ func TestUndoCutPasteMultipleNonAdjacentRestoresOrder(t *testing.T) {
 	m.queue.entries[3].Selected = true
 
 	// Cut the selection.
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 	if len(m.yankBuffer) != 2 {
 		t.Fatalf("expected 2 cut entries, got %d", len(m.yankBuffer))
@@ -102,7 +104,7 @@ func TestUndoCutPasteMultipleNonAdjacentRestoresOrder(t *testing.T) {
 
 	// Paste after A (cursor=0 -> insertPos=1). Queue is [A, C] before paste.
 	m.queue.cursor = 0
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -139,12 +141,12 @@ func TestUndoCutPasteThenPasteMoves(t *testing.T) {
 	m.queue.cursor = 0
 
 	// Cut A.
-	rm, _, _ := m.handleQueueKeyAction(actionCut)
+	rm, _, _ := m.handleQueueKeyAction(keys.ActionCut)
 	m = rm.(Model)
 
 	// Paste after D.
 	m.queue.cursor = 3
-	rm, cmd, _ := m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ := m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
@@ -162,7 +164,7 @@ func TestUndoCutPasteThenPasteMoves(t *testing.T) {
 
 	// Paste again after C - should move, not duplicate.
 	m.queue.cursor = 2
-	rm, cmd, _ = m.handleQueueKeyAction(actionPaste)
+	rm, cmd, _ = m.handleQueueKeyAction(keys.ActionPaste)
 	m = rm.(Model)
 	msg = cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)

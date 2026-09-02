@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -112,7 +113,7 @@ func (v TagsView) render(s styles.Styles, favHashes map[string]struct{}, nowPlay
 }
 
 // HandleAction executes a pre-resolved tags action dispatched by root.Update.
-func (v TagsView) HandleAction(a action) TagsView {
+func (v TagsView) HandleAction(a keys.Action) TagsView {
 	var sortInd string
 	if v.sortState.Field != sorting.SortDefault {
 		sortInd = "active"
@@ -130,21 +131,21 @@ func (v TagsView) HandleAction(a action) TagsView {
 		SortIndicator: sortInd,
 	}
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		view = view.CursorUp()
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		view = view.CursorDown()
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		view = view.HalfPageDown()
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		view = view.HalfPageUp()
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		view = view.FullPageDown()
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		view = view.FullPageUp()
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		view = view.GoToTop()
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
 	}
 	v.cursor = view.Cursor

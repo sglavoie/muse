@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -11,15 +12,15 @@ import (
 // handleSortAction handles sort-related key actions. Returns (model, cmd, true)
 // when the action was handled, or (zero, nil, false) to let the caller continue
 // the handler chain.
-func (m Model) handleSortAction(a action) (tea.Model, tea.Cmd, bool) {
+func (m Model) handleSortAction(a keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch a {
-	case actionSortCycle:
+	case keys.ActionSortCycle:
 		m = exitVisualMode(m)
 		return m.handleSortCycle()
-	case actionSortAsc:
+	case keys.ActionSortAsc:
 		m = exitVisualMode(m)
 		return m.handleSortDir(sorting.SortAsc)
-	case actionSortDesc:
+	case keys.ActionSortDesc:
 		m = exitVisualMode(m)
 		return m.handleSortDir(sorting.SortDesc)
 	default:

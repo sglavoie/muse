@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -20,7 +21,7 @@ func TestHandleActionReservesFilterBarLine_Artists(t *testing.T) {
 		artists[i] = fmt.Sprintf("Artist %02d", i)
 	}
 	v := ArtistsView{height: 12, artists: artists, filter: filter.State{Active: true}}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 19 {
 		t.Fatalf("expected cursor=19, got %d", v.cursor)
 	}
@@ -36,7 +37,7 @@ func TestHandleActionReservesFilterBarLine_Albums(t *testing.T) {
 		albums[i] = fmt.Sprintf("Album %02d", i)
 	}
 	v := AlbumsView{height: 12, albums: albums, filter: filter.State{Active: true}}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 19 {
 		t.Fatalf("expected cursor=19, got %d", v.cursor)
 	}
@@ -52,7 +53,7 @@ func TestHandleActionReservesFilterBarLine_Genres(t *testing.T) {
 		genres[i] = fmt.Sprintf("Genre %02d", i)
 	}
 	v := GenresView{height: 12, genres: genres, filter: filter.State{Active: true}}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 19 {
 		t.Fatalf("expected cursor=19, got %d", v.cursor)
 	}
@@ -109,7 +110,7 @@ func TestHandleActionReservesFilterBarLine_Favorites(t *testing.T) {
 		artists:  artists,
 		filter:   filter.State{Active: true},
 	}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 19 {
 		t.Fatalf("expected cursor=19, got %d", v.cursor)
 	}

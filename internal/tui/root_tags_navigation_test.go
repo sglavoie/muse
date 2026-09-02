@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -30,7 +31,7 @@ func TestBulkSelectionToggleTagsTrackLevel(t *testing.T) {
 	m := newTagsTrackLevelModel()
 	m.tagsView.cursor = 0
 
-	m, _, _ = m.handleNavigationAction(actionBulkSelectionToggle)
+	m, _, _ = m.handleNavigationAction(keys.ActionBulkSelectionToggle)
 
 	if len(m.tagsView.selectedHashes) != 1 {
 		t.Fatalf("after first x: expected 1 selected hash, got %d", len(m.tagsView.selectedHashes))
@@ -39,7 +40,7 @@ func TestBulkSelectionToggleTagsTrackLevel(t *testing.T) {
 		t.Errorf("expected hash th1 selected, got: %v", m.tagsView.selectedHashes)
 	}
 
-	m, _, _ = m.handleNavigationAction(actionBulkSelectionToggle)
+	m, _, _ = m.handleNavigationAction(keys.ActionBulkSelectionToggle)
 	if len(m.tagsView.selectedHashes) != 0 {
 		t.Errorf("after second x: expected 0 selected hashes, got %d", len(m.tagsView.selectedHashes))
 	}
@@ -52,7 +53,7 @@ func TestBulkSelectionToggleTagsNoOpAtTagLevel(t *testing.T) {
 	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	m.tagsView.tagCounts = map[int64]int{1: 3}
 
-	m, _, _ = m.handleNavigationAction(actionBulkSelectionToggle)
+	m, _, _ = m.handleNavigationAction(keys.ActionBulkSelectionToggle)
 	if len(m.tagsView.selectedHashes) != 0 {
 		t.Errorf("expected no selection at TagLevel, got %d", len(m.tagsView.selectedHashes))
 	}
@@ -62,7 +63,7 @@ func TestClearSelectionTags(t *testing.T) {
 	m := newTagsTrackLevelModel()
 	m.tagsView.selectedHashes = map[string]struct{}{"th1": {}, "th2": {}}
 
-	m, _, _ = m.handleNavigationAction(actionClearSelection)
+	m, _, _ = m.handleNavigationAction(keys.ActionClearSelection)
 	if len(m.tagsView.selectedHashes) != 0 {
 		t.Errorf("after X: expected 0 selected hashes, got %d", len(m.tagsView.selectedHashes))
 	}
@@ -84,8 +85,8 @@ func TestVisualModeTagsTrackLevel(t *testing.T) {
 		t.Error("expected th1 to be selected at anchor")
 	}
 
-	m = doNav(m, actionCursorDown)
-	m = doNav(m, actionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
+	m = doNav(m, keys.ActionCursorDown)
 
 	if len(m.tagsView.selectedHashes) != 3 {
 		t.Errorf("expected 3 selected hashes after extending, got %d", len(m.tagsView.selectedHashes))
@@ -114,9 +115,9 @@ func TestVisualModeTagsRangeShrinks(t *testing.T) {
 	m.tagsView.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown) // cursor 1
-	m = doNav(m, actionCursorDown) // cursor 2
-	m = doNav(m, actionCursorUp)   // cursor 1
+	m = doNav(m, keys.ActionCursorDown) // cursor 1
+	m = doNav(m, keys.ActionCursorDown) // cursor 2
+	m = doNav(m, keys.ActionCursorUp)   // cursor 1
 
 	if len(m.tagsView.selectedHashes) != 2 {
 		t.Errorf("expected 2 selected after shrink, got %d", len(m.tagsView.selectedHashes))
@@ -131,8 +132,8 @@ func TestVisualModeTagsExitPreservesSelections(t *testing.T) {
 	m.tagsView.cursor = 0
 
 	m = doVisual(m)
-	m = doNav(m, actionCursorDown) // range: th1..th2
-	m = doVisual(m)                // exit
+	m = doNav(m, keys.ActionCursorDown) // range: th1..th2
+	m = doVisual(m)                     // exit
 
 	if m.visual.active {
 		t.Fatal("expected visual mode to be inactive after second v")

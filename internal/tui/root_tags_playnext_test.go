@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -21,7 +22,7 @@ func TestPlayNextTagsTrackLevel(t *testing.T) {
 	m.tagsView.cursor = 1
 	m.tagsView.height = 40
 
-	_, cmd, handled := m.handleLibraryQueueAction(actionPlayNext)
+	_, cmd, handled := m.handleLibraryQueueAction(keys.ActionPlayNext)
 	if !handled {
 		t.Fatal("expected actionPlayNext to be handled")
 	}
@@ -38,7 +39,7 @@ func TestPlayNextTagsNoOpAtTagLevel(t *testing.T) {
 	m.tagsView.tags = []db.TagRow{{ID: 1, Name: "T1"}}
 	m.tagsView.tagCounts = map[int64]int{1: 3}
 
-	_, cmd, handled := m.handleLibraryQueueAction(actionPlayNext)
+	_, cmd, handled := m.handleLibraryQueueAction(keys.ActionPlayNext)
 	if !handled {
 		t.Fatal("expected actionPlayNext to be handled")
 	}

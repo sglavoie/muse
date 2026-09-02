@@ -1,4 +1,4 @@
-package tui
+package keys
 
 import (
 	"slices"
@@ -8,27 +8,27 @@ import (
 // TestPlaylistsBindingsResolve verifies that every key registered under
 // contextPlaylists resolves to the expected action via registry.resolve.
 func TestPlaylistsBindingsResolve(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
 	cases := []struct {
 		key  string
-		want action
+		want Action
 	}{
-		{"j", actionCursorDown},
-		{"k", actionCursorUp},
-		{"up", actionCursorUp},
-		{"down", actionCursorDown},
-		{"enter", actionPlaylistOpen},
-		{"esc", actionPlaylistBack},
-		{"r", actionPlaylistRename},
-		{"c", actionPlaylistCreate},
-		{"d", actionPlaylistDelete},
-		{"x", actionBulkSelectionToggle},
-		{"a", actionBulkAction},
+		{"j", ActionCursorDown},
+		{"k", ActionCursorUp},
+		{"up", ActionCursorUp},
+		{"down", ActionCursorDown},
+		{"enter", ActionPlaylistOpen},
+		{"esc", ActionPlaylistBack},
+		{"r", ActionPlaylistRename},
+		{"c", ActionPlaylistCreate},
+		{"d", ActionPlaylistDelete},
+		{"x", ActionBulkSelectionToggle},
+		{"a", ActionBulkAction},
 	}
 
 	for _, tc := range cases {
-		got := reg.resolve(contextPlaylists, tc.key)
+		got := reg.Resolve(ContextPlaylists, tc.key)
 		if got != tc.want {
 			t.Errorf("resolve(contextPlaylists, %q) = %v, want %v", tc.key, got, tc.want)
 		}
@@ -38,26 +38,26 @@ func TestPlaylistsBindingsResolve(t *testing.T) {
 // TestQueueBindingsResolve verifies that every key registered under
 // contextQueue resolves to the expected action via registry.resolve.
 func TestQueueBindingsResolve(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
 	cases := []struct {
 		key  string
-		want action
+		want Action
 	}{
-		{"j", actionCursorDown},
-		{"k", actionCursorUp},
-		{"up", actionCursorUp},
-		{"down", actionCursorDown},
-		{"enter", actionSelect},
-		{"d", actionDequeue},
-		{"x", actionBulkSelectionToggle},
-		{"C", actionClearQueue},
-		{"K", actionMoveTrackUp},
-		{"J", actionMoveTrackDown},
+		{"j", ActionCursorDown},
+		{"k", ActionCursorUp},
+		{"up", ActionCursorUp},
+		{"down", ActionCursorDown},
+		{"enter", ActionSelect},
+		{"d", ActionDequeue},
+		{"x", ActionBulkSelectionToggle},
+		{"C", ActionClearQueue},
+		{"K", ActionMoveTrackUp},
+		{"J", ActionMoveTrackDown},
 	}
 
 	for _, tc := range cases {
-		got := reg.resolve(contextQueue, tc.key)
+		got := reg.Resolve(ContextQueue, tc.key)
 		if got != tc.want {
 			t.Errorf("resolve(contextQueue, %q) = %v, want %v", tc.key, got, tc.want)
 		}
@@ -67,33 +67,33 @@ func TestQueueBindingsResolve(t *testing.T) {
 // TestArtistsBindingsResolve verifies that every key registered under
 // contextArtists resolves to the expected action via registry.resolve.
 func TestArtistsBindingsResolve(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
 	cases := []struct {
 		key  string
-		want action
+		want Action
 	}{
-		{"j", actionCursorDown},
-		{"k", actionCursorUp},
-		{"up", actionCursorUp},
-		{"down", actionCursorDown},
-		{"enter", actionArtistOpen},
-		{"esc", actionArtistBack},
-		{"x", actionBulkSelectionToggle},
-		{"X", actionClearSelection},
-		{"a", actionBulkAction},
-		{"ctrl+d", actionHalfPageDown},
-		{"ctrl+u", actionHalfPageUp},
-		{"ctrl+f", actionFullPageDown},
-		{"ctrl+b", actionFullPageUp},
-		{"shift+up", actionSortAsc},
-		{"shift+down", actionSortDesc},
-		{"g", actionGoToTop},
-		{"G", actionGoToBottom},
+		{"j", ActionCursorDown},
+		{"k", ActionCursorUp},
+		{"up", ActionCursorUp},
+		{"down", ActionCursorDown},
+		{"enter", ActionArtistOpen},
+		{"esc", ActionArtistBack},
+		{"x", ActionBulkSelectionToggle},
+		{"X", ActionClearSelection},
+		{"a", ActionBulkAction},
+		{"ctrl+d", ActionHalfPageDown},
+		{"ctrl+u", ActionHalfPageUp},
+		{"ctrl+f", ActionFullPageDown},
+		{"ctrl+b", ActionFullPageUp},
+		{"shift+up", ActionSortAsc},
+		{"shift+down", ActionSortDesc},
+		{"g", ActionGoToTop},
+		{"G", ActionGoToBottom},
 	}
 
 	for _, tc := range cases {
-		got := reg.resolve(contextArtists, tc.key)
+		got := reg.Resolve(ContextArtists, tc.key)
 		if got != tc.want {
 			t.Errorf("resolve(contextArtists, %q) = %v, want %v", tc.key, got, tc.want)
 		}
@@ -103,33 +103,33 @@ func TestArtistsBindingsResolve(t *testing.T) {
 // TestAlbumsBindingsResolve verifies that every key registered under
 // contextAlbums resolves to the expected action via registry.resolve.
 func TestAlbumsBindingsResolve(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
 	cases := []struct {
 		key  string
-		want action
+		want Action
 	}{
-		{"j", actionCursorDown},
-		{"k", actionCursorUp},
-		{"up", actionCursorUp},
-		{"down", actionCursorDown},
-		{"enter", actionAlbumOpen},
-		{"esc", actionAlbumBack},
-		{"x", actionBulkSelectionToggle},
-		{"X", actionClearSelection},
-		{"a", actionBulkAction},
-		{"ctrl+d", actionHalfPageDown},
-		{"ctrl+u", actionHalfPageUp},
-		{"ctrl+f", actionFullPageDown},
-		{"ctrl+b", actionFullPageUp},
-		{"shift+up", actionSortAsc},
-		{"shift+down", actionSortDesc},
-		{"g", actionGoToTop},
-		{"G", actionGoToBottom},
+		{"j", ActionCursorDown},
+		{"k", ActionCursorUp},
+		{"up", ActionCursorUp},
+		{"down", ActionCursorDown},
+		{"enter", ActionAlbumOpen},
+		{"esc", ActionAlbumBack},
+		{"x", ActionBulkSelectionToggle},
+		{"X", ActionClearSelection},
+		{"a", ActionBulkAction},
+		{"ctrl+d", ActionHalfPageDown},
+		{"ctrl+u", ActionHalfPageUp},
+		{"ctrl+f", ActionFullPageDown},
+		{"ctrl+b", ActionFullPageUp},
+		{"shift+up", ActionSortAsc},
+		{"shift+down", ActionSortDesc},
+		{"g", ActionGoToTop},
+		{"G", ActionGoToBottom},
 	}
 
 	for _, tc := range cases {
-		got := reg.resolve(contextAlbums, tc.key)
+		got := reg.Resolve(ContextAlbums, tc.key)
 		if got != tc.want {
 			t.Errorf("resolve(contextAlbums, %q) = %v, want %v", tc.key, got, tc.want)
 		}
@@ -139,9 +139,9 @@ func TestAlbumsBindingsResolve(t *testing.T) {
 // TestSwitchBrowseGlobalBinding verifies that '4' resolves to
 // actionSwitchBrowse in the global context.
 func TestSwitchBrowseGlobalBinding(t *testing.T) {
-	reg := newRegistry()
-	got := reg.resolve(contextGlobal, "4")
-	if got != actionSwitchBrowse {
+	reg := NewRegistry()
+	got := reg.Resolve(ContextGlobal, "4")
+	if got != ActionSwitchBrowse {
 		t.Errorf("resolve(contextGlobal, \"4\") = %v, want actionSwitchBrowse", got)
 	}
 }
@@ -149,9 +149,9 @@ func TestSwitchBrowseGlobalBinding(t *testing.T) {
 // TestSwitchFavoritesGlobalBinding verifies that '5' resolves to
 // actionSwitchFavorites in the global context.
 func TestSwitchFavoritesGlobalBinding(t *testing.T) {
-	reg := newRegistry()
-	got := reg.resolve(contextGlobal, "5")
-	if got != actionSwitchFavorites {
+	reg := NewRegistry()
+	got := reg.Resolve(ContextGlobal, "5")
+	if got != ActionSwitchFavorites {
 		t.Errorf("resolve(contextGlobal, \"5\") = %v, want actionSwitchFavorites", got)
 	}
 }
@@ -159,9 +159,9 @@ func TestSwitchFavoritesGlobalBinding(t *testing.T) {
 // TestSwitchTagsGlobalBinding verifies that '6' resolves to
 // actionSwitchTags in the global context.
 func TestSwitchTagsGlobalBinding(t *testing.T) {
-	reg := newRegistry()
-	got := reg.resolve(contextGlobal, "6")
-	if got != actionSwitchTags {
+	reg := NewRegistry()
+	got := reg.Resolve(ContextGlobal, "6")
+	if got != ActionSwitchTags {
 		t.Errorf("resolve(contextGlobal, \"6\") = %v, want actionSwitchTags", got)
 	}
 }
@@ -169,9 +169,9 @@ func TestSwitchTagsGlobalBinding(t *testing.T) {
 // TestLibraryEscResolvesToFilterClear verifies that 'esc' in the library
 // context resolves to actionLibraryFilterClear.
 func TestLibraryEscResolvesToFilterClear(t *testing.T) {
-	reg := newRegistry()
-	got := reg.resolve(contextLibrary, "esc")
-	if got != actionLibraryFilterClear {
+	reg := NewRegistry()
+	got := reg.Resolve(ContextLibrary, "esc")
+	if got != ActionLibraryFilterClear {
 		t.Errorf("resolve(contextLibrary, \"esc\") = %v, want actionLibraryFilterClear", got)
 	}
 }
@@ -179,9 +179,9 @@ func TestLibraryEscResolvesToFilterClear(t *testing.T) {
 // TestQueueEscResolvesToFilterClear verifies that 'esc' in the queue
 // context resolves to actionLibraryFilterClear.
 func TestQueueEscResolvesToFilterClear(t *testing.T) {
-	reg := newRegistry()
-	got := reg.resolve(contextQueue, "esc")
-	if got != actionLibraryFilterClear {
+	reg := NewRegistry()
+	got := reg.Resolve(ContextQueue, "esc")
+	if got != ActionLibraryFilterClear {
 		t.Errorf("resolve(contextQueue, \"esc\") = %v, want actionLibraryFilterClear", got)
 	}
 }
@@ -189,9 +189,9 @@ func TestQueueEscResolvesToFilterClear(t *testing.T) {
 // TestDebugGlobalBinding verifies that 'ctrl+g' resolves to actionDebug in
 // the global context.
 func TestDebugGlobalBinding(t *testing.T) {
-	reg := newRegistry()
-	got := reg.resolve(contextGlobal, "ctrl+g")
-	if got != actionDebug {
+	reg := NewRegistry()
+	got := reg.Resolve(ContextGlobal, "ctrl+g")
+	if got != ActionDebug {
 		t.Errorf("resolve(contextGlobal, \"ctrl+g\") = %v, want actionDebug", got)
 	}
 }
@@ -202,13 +202,13 @@ func TestDebugGlobalBinding(t *testing.T) {
 // (they cause no semantic divergence). This guards the keymap consistency
 // audit performed in Session 9 against silent regressions.
 func TestNoSilentlyShadowedGlobalBindings(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
-	for rk, viewAction := range reg.bindings {
-		if rk.ctx == contextGlobal {
+	for rk, viewAction := range reg.Bindings {
+		if rk.Ctx == ContextGlobal {
 			continue
 		}
-		globalAction, hasGlobal := reg.bindings[registryKey{ctx: contextGlobal, key: rk.key}]
+		globalAction, hasGlobal := reg.Bindings[RegistryKey{Ctx: ContextGlobal, Key: rk.Key}]
 		if !hasGlobal {
 			continue
 		}
@@ -217,7 +217,7 @@ func TestNoSilentlyShadowedGlobalBindings(t *testing.T) {
 		}
 		if reg.domainReasons[rk] == "" {
 			t.Errorf("silent shadow: context=%v key=%q view-action=%v shadows global-action=%v without a domain reason — use registerWithReason or remove the override",
-				rk.ctx, rk.key, viewAction, globalAction)
+				rk.Ctx, rk.Key, viewAction, globalAction)
 		}
 	}
 }
@@ -227,25 +227,25 @@ func TestNoSilentlyShadowedGlobalBindings(t *testing.T) {
 // runs repeatedly because Go randomises map iteration order per range, so a
 // missing sort would only fail intermittently.
 func TestKeysForReturnsStableOrder(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
 	cases := []struct {
 		name string
-		ctx  bindingContext
-		act  action
+		ctx  Context
+		act  Action
 		want []string
 	}{
-		{"next view", contextGlobal, actionNextView, []string{"]", "tab"}},
-		{"prev view", contextGlobal, actionPrevView, []string{"[", "shift+tab"}},
-		{"tag back", contextTags, actionTagBack, []string{"h", "esc", "backspace"}},
-		{"cursor down", contextLibrary, actionCursorDown, []string{"j", "down"}},
-		{"unbound in context", contextLibrary, actionTagBack, []string{}},
-		{"unbound anywhere", contextGlobal, actionNone, []string{}},
+		{"next view", ContextGlobal, ActionNextView, []string{"]", "tab"}},
+		{"prev view", ContextGlobal, ActionPrevView, []string{"[", "shift+tab"}},
+		{"tag back", ContextTags, ActionTagBack, []string{"h", "esc", "backspace"}},
+		{"cursor down", ContextLibrary, ActionCursorDown, []string{"j", "down"}},
+		{"unbound in context", ContextLibrary, ActionTagBack, []string{}},
+		{"unbound anywhere", ContextGlobal, ActionNone, []string{}},
 	}
 
 	for _, tc := range cases {
 		for i := range 20 {
-			got := reg.keysFor(tc.ctx, tc.act)
+			got := reg.KeysFor(tc.ctx, tc.act)
 			if !slices.Equal(got, tc.want) {
 				t.Fatalf("%s: keysFor(%v, %v) = %v, want %v (iteration %d)", tc.name, tc.ctx, tc.act, got, tc.want, i)
 			}
@@ -285,16 +285,16 @@ func TestKeysForRanksModifierCombosLast(t *testing.T) {
 // actionPlaylistRename (not actionRepeatCycle) when the Playlists view is
 // active, locking in the view-local shadowing behaviour.
 func TestPlaylistsRShadowsGlobalRepeat(t *testing.T) {
-	reg := newRegistry()
+	reg := NewRegistry()
 
-	got := reg.resolve(contextPlaylists, "r")
-	if got != actionPlaylistRename {
+	got := reg.Resolve(ContextPlaylists, "r")
+	if got != ActionPlaylistRename {
 		t.Errorf("resolve(contextPlaylists, \"r\") = %v, want actionPlaylistRename; global repeat binding must not bleed through", got)
 	}
 
 	// Sanity-check: 'r' in a view without a local binding still returns the global action.
-	got = reg.resolve(contextQueue, "r")
-	if got != actionRepeatCycle {
+	got = reg.Resolve(ContextQueue, "r")
+	if got != ActionRepeatCycle {
 		t.Errorf("resolve(contextQueue, \"r\") = %v, want actionRepeatCycle", got)
 	}
 }

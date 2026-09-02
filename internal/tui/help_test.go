@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -12,7 +13,7 @@ import (
 // newRegistry() appears in the corresponding helpSections() entry, preventing
 // the static help overlay from drifting as new actions are added.
 func TestHelpSectionsMatchRegistry(t *testing.T) {
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 	sections := helpSections()
 
 	// Build a map of section title → set of individual key strings.
@@ -30,16 +31,16 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	// Map the binding contexts that have a direct corresponding section.
 	// contextModals dismiss is handled in root.Update directly and is
 	// intentionally absent from the registry.
-	ctxSection := map[bindingContext]string{
-		contextGlobal:    "Global",
-		contextLibrary:   "Library",
-		contextQueue:     "Queue",
-		contextPlaylists: "Playlists",
-		contextArtists:   "Browse (Artists)",
-		contextAlbums:    "Browse (Albums)",
-		contextFavorites: "Favorites",
-		contextGenres:    "Browse (Genres)",
-		contextTags:      "Tags",
+	ctxSection := map[keys.Context]string{
+		keys.ContextGlobal:    "Global",
+		keys.ContextLibrary:   "Library",
+		keys.ContextQueue:     "Queue",
+		keys.ContextPlaylists: "Playlists",
+		keys.ContextArtists:   "Browse (Artists)",
+		keys.ContextAlbums:    "Browse (Albums)",
+		keys.ContextFavorites: "Favorites",
+		keys.ContextGenres:    "Browse (Genres)",
+		keys.ContextTags:      "Tags",
 	}
 
 	// The "Navigation" section covers keys shared across all row-based views.
@@ -55,14 +56,14 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 		}
 	}
 
-	for rk := range reg.bindings {
-		secTitle, ok := ctxSection[rk.ctx]
+	for rk := range reg.Bindings {
+		secTitle, ok := ctxSection[rk.Ctx]
 		if !ok {
 			continue
 		}
-		if !sectionKeys[secTitle][rk.key] {
+		if !sectionKeys[secTitle][rk.Key] {
 			t.Errorf("registry key (context=%s, key=%q) is not listed in helpSections() %q section",
-				secTitle, rk.key, secTitle)
+				secTitle, rk.Key, secTitle)
 		}
 	}
 
@@ -77,20 +78,20 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 	// in root.Update directly. The Navigation section covers keys shared
 	// across Library, Queue, and Playlists — each key must exist in at least
 	// one of those contexts.
-	reverseCtx := map[string]bindingContext{
-		"Global":           contextGlobal,
-		"Library":          contextLibrary,
-		"Queue":            contextQueue,
-		"Playlists":        contextPlaylists,
-		"Browse — Artists": contextArtists,
-		"Browse — Albums":  contextAlbums,
-		"Favorites":        contextFavorites,
-		"Browse — Genres":  contextGenres,
-		"Tags":             contextTags,
+	reverseCtx := map[string]keys.Context{
+		"Global":           keys.ContextGlobal,
+		"Library":          keys.ContextLibrary,
+		"Queue":            keys.ContextQueue,
+		"Playlists":        keys.ContextPlaylists,
+		"Browse — Artists": keys.ContextArtists,
+		"Browse — Albums":  keys.ContextAlbums,
+		"Favorites":        keys.ContextFavorites,
+		"Browse — Genres":  keys.ContextGenres,
+		"Tags":             keys.ContextTags,
 	}
 	// Navigation keys are shared; check that each appears in at least one
 	// of the view contexts.
-	navContexts := []bindingContext{contextLibrary, contextQueue, contextPlaylists, contextArtists, contextAlbums, contextFavorites, contextGenres, contextTags}
+	navContexts := []keys.Context{keys.ContextLibrary, keys.ContextQueue, keys.ContextPlaylists, keys.ContextArtists, keys.ContextAlbums, keys.ContextFavorites, keys.ContextGenres, keys.ContextTags}
 	for _, sec := range sections {
 		ctx, directMatch := reverseCtx[sec.title]
 		isNav := sec.title == "Navigation (Library / Queue / Playlists / Browse / Favorites / Tags / Mixes)"
@@ -103,14 +104,14 @@ func TestHelpSectionsMatchRegistry(t *testing.T) {
 			for _, part := range parts {
 				k := strings.TrimSpace(part)
 				if directMatch {
-					if reg.lookup(ctx, k) != actionNone || reg.lookup(contextGlobal, k) != actionNone {
+					if reg.Lookup(ctx, k) != keys.ActionNone || reg.Lookup(keys.ContextGlobal, k) != keys.ActionNone {
 						anyFound = true
 						break
 					}
 				} else {
 					// Navigation section: check all three view contexts.
 					for _, nc := range navContexts {
-						if reg.lookup(nc, k) != actionNone {
+						if reg.Lookup(nc, k) != keys.ActionNone {
 							anyFound = true
 							break
 						}
@@ -180,7 +181,7 @@ func TestHelpOverlayRendersRepresentativeEntries(t *testing.T) {
 }
 
 func TestFilteredHelpSections(t *testing.T) {
-	sections := filteredHelpSections(contextLibrary)
+	sections := filteredHelpSections(keys.ContextLibrary)
 
 	// Should contain the pinned status-bar legend, Global, Navigation, and
 	// Library — but not Queue, Playlists, etc.
@@ -201,10 +202,10 @@ func TestFilteredHelpSections(t *testing.T) {
 }
 
 // helpContexts is every bindingContext a help overlay can be filtered by.
-var helpContexts = []bindingContext{
-	contextGlobal, contextLibrary, contextPlaylists, contextQueue,
-	contextArtists, contextAlbums, contextFavorites, contextGenres,
-	contextTags, contextModals, contextMixes, contextBrowse, contextInsights,
+var helpContexts = []keys.Context{
+	keys.ContextGlobal, keys.ContextLibrary, keys.ContextPlaylists, keys.ContextQueue,
+	keys.ContextArtists, keys.ContextAlbums, keys.ContextFavorites, keys.ContextGenres,
+	keys.ContextTags, keys.ContextModals, keys.ContextMixes, keys.ContextBrowse, keys.ContextInsights,
 }
 
 // The status-bar legend explains glyphs that match no keybinding, so it is
@@ -250,12 +251,12 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 	want := []struct {
 		glyph  string
 		toggle string
-		act    action
+		act    keys.Action
 	}{
-		{"R / 1", "r", actionRepeatCycle},
-		{"S", "z", actionShuffleToggle},
-		{"N", "ctrl+n", actionStopAfterCurrent},
-		{"D", "A", actionRadioToggle},
+		{"R / 1", "r", keys.ActionRepeatCycle},
+		{"S", "z", keys.ActionShuffleToggle},
+		{"N", "ctrl+n", keys.ActionStopAfterCurrent},
+		{"D", "A", keys.ActionRadioToggle},
 	}
 
 	var sec helpSection
@@ -269,7 +270,7 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 		t.Fatalf("%q section has %d entries, want %d", statusBarHelpSectionTitle, len(sec.entries), len(want))
 	}
 
-	reg := newRegistry()
+	reg := keys.NewRegistry()
 	for i, w := range want {
 		e := sec.entries[i]
 		if e.key != w.glyph {
@@ -278,7 +279,7 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 		if !strings.Contains(e.desc, "toggle with "+w.toggle) {
 			t.Errorf("entry %q: desc %q does not name toggle key %q", e.key, e.desc, w.toggle)
 		}
-		if got := reg.lookup(contextGlobal, w.toggle); got != w.act {
+		if got := reg.Lookup(keys.ContextGlobal, w.toggle); got != w.act {
 			t.Errorf("entry %q: key %q resolves to action %d, want %d", e.key, w.toggle, got, w.act)
 		}
 	}
@@ -421,7 +422,7 @@ func TestHelpOverlayWrapsLongDescriptions(t *testing.T) {
 	sections := []helpSection{
 		{
 			title:   "Test Section With A Very Long Title That Should Wrap",
-			context: contextGlobal,
+			context: keys.ContextGlobal,
 			entries: []helpEntry{
 				{"key", "Short desc"},
 				{"/", "Filter (Library / Queue / Artists / Albums / Favorites / Genres)"},
@@ -445,7 +446,7 @@ func TestHelpOverlayWrapsLongDescriptions(t *testing.T) {
 }
 
 func TestFilteredHelpRender(t *testing.T) {
-	sections := filteredHelpSections(contextQueue)
+	sections := filteredHelpSections(keys.ContextQueue)
 	out := HelpOverlay{}.render(styles.Styles{}, sections, "Keybindings — Queue", 0)
 
 	// Check that Queue section is present as a standalone section header.

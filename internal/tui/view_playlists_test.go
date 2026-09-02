@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -148,11 +149,11 @@ func TestFocusedPlaylistReturnsFalseWhenCursorNegative(t *testing.T) {
 
 func TestPlaylistsHandleActionCursorUpDown(t *testing.T) {
 	v := PlaylistsView{level: pltui.ListLevel, cursor: 0, playlists: make([]db.PlaylistRow, 5)}
-	v = v.HandleAction(actionCursorDown)
+	v = v.HandleAction(keys.ActionCursorDown)
 	if v.cursor != 1 {
 		t.Errorf("CursorDown: expected 1, got %d", v.cursor)
 	}
-	v = v.HandleAction(actionCursorUp)
+	v = v.HandleAction(keys.ActionCursorUp)
 	if v.cursor != 0 {
 		t.Errorf("CursorUp: expected 0, got %d", v.cursor)
 	}
@@ -160,11 +161,11 @@ func TestPlaylistsHandleActionCursorUpDown(t *testing.T) {
 
 func TestPlaylistsHandleActionGoToTopBottom(t *testing.T) {
 	v := PlaylistsView{level: pltui.ListLevel, cursor: 0, playlists: make([]db.PlaylistRow, 10)}
-	v = v.HandleAction(actionGoToBottom)
+	v = v.HandleAction(keys.ActionGoToBottom)
 	if v.cursor != 9 {
 		t.Errorf("GoToBottom: expected 9, got %d", v.cursor)
 	}
-	v = v.HandleAction(actionGoToTop)
+	v = v.HandleAction(keys.ActionGoToTop)
 	if v.cursor != 0 {
 		t.Errorf("GoToTop: expected 0, got %d", v.cursor)
 	}
@@ -172,7 +173,7 @@ func TestPlaylistsHandleActionGoToTopBottom(t *testing.T) {
 
 func TestPlaylistsHandleActionHalfPage(t *testing.T) {
 	v := PlaylistsView{level: pltui.ListLevel, cursor: 0, height: 13, playlists: make([]db.PlaylistRow, 20)}
-	v = v.HandleAction(actionHalfPageDown)
+	v = v.HandleAction(keys.ActionHalfPageDown)
 	if v.cursor != 6 {
 		t.Errorf("HalfPageDown: expected 6, got %d", v.cursor)
 	}
@@ -180,7 +181,7 @@ func TestPlaylistsHandleActionHalfPage(t *testing.T) {
 
 func TestPlaylistsHandleActionFullPage(t *testing.T) {
 	v := PlaylistsView{level: pltui.ListLevel, cursor: 0, height: 13, playlists: make([]db.PlaylistRow, 20)}
-	v = v.HandleAction(actionFullPageDown)
+	v = v.HandleAction(keys.ActionFullPageDown)
 	if v.cursor != 12 {
 		t.Errorf("FullPageDown: expected 12, got %d", v.cursor)
 	}

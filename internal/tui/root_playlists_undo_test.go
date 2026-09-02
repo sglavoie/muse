@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestUndoDeletePlaylistScrollsToRestoredEntry verifies that undoing a playlist
@@ -17,7 +18,7 @@ func TestUndoDeletePlaylistScrollsToRestoredEntry(t *testing.T) {
 	m.activeView = viewPlaylists
 	m.playlists.cursor = 0
 	m.playlists.scrollOffset = 0
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	nm.playlists.scrollOffset = 3
@@ -39,7 +40,7 @@ func TestUndoDeletePlaylistShowsNotification(t *testing.T) {
 	m.activeView = viewPlaylists
 	m.playlists.cursor = 0
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	nm2 := nm.handleUndo()
@@ -58,7 +59,7 @@ func TestUndoRemovePlaylistTrackShowsNotification(t *testing.T) {
 	m := New(context.Background(), WithPlaylistDeleter(pd))
 	m = drillIntoPlaylistTrackLevel(m, []db.PlaylistTrackRow{{ID: 10, Position: 1, Title: "Song A"}, {ID: 20, Position: 2, Title: "Song B"}})
 
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	nm2 := nm.handleUndo()
@@ -112,7 +113,7 @@ func TestUndoDeletePlaylistCursorVisibleBelowViewport(t *testing.T) {
 
 	m.playlists.cursor = 19
 	m.playlists.scrollOffset = 14
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	nm.playlists.cursor = 0
@@ -148,7 +149,7 @@ func TestUndoRemovePlaylistTrackCursorVisibleBelowViewport(t *testing.T) {
 
 	m.playlists.cursor = 19
 	m.playlists.scrollOffset = 14
-	next, _ := m.handleKeyAction(actionPlaylistDelete)
+	next, _ := m.handleKeyAction(keys.ActionPlaylistDelete)
 	nm := next.(Model)
 
 	nm.playlists.cursor = 0

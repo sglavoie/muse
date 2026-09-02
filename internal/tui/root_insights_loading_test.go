@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -265,7 +266,7 @@ func newBrokenInsightsModel(t *testing.T) (Model, *brokenInsightsReader) {
 // a failed read, and returns the load it issued.
 func enterInsights(t *testing.T, m Model) (Model, insightsLoadedMsg) {
 	t.Helper()
-	next, cmd := m.handleKeyAction(actionSwitchInsights)
+	next, cmd := m.handleKeyAction(keys.ActionSwitchInsights)
 	updated, ok := next.(Model)
 	if !ok {
 		t.Fatalf("handleKeyAction returned %T", next)

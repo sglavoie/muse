@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -35,7 +36,7 @@ func TestWatchBatchInvalidatesFilterCache(t *testing.T) {
 
 	// Move cursor to the last match.
 	for range 2 {
-		m.library = m.library.HandleAction(actionCursorDown)
+		m.library = m.library.HandleAction(keys.ActionCursorDown)
 	}
 	if m.library.cursor != 2 {
 		t.Fatalf("setup: expected cursor=2, got %d", m.library.cursor)

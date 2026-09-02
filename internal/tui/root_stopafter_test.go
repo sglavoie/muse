@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -26,7 +27,7 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	m.playback.state = PlaybackPlaying
 
 	// Toggle on.
-	rm, _, handled := m.handlePlaybackKeyAction(actionStopAfterCurrent)
+	rm, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 	if !handled {
 		t.Fatal("actionStopAfterCurrent should be handled")
 	}
@@ -42,7 +43,7 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	}
 
 	// Toggle off.
-	rm, _, _ = m.handlePlaybackKeyAction(actionStopAfterCurrent)
+	rm, _, _ = m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 	m = rm.(Model)
 	if m.playback.stopAfterCurrent {
 		t.Error("expected stopAfterCurrent to be false after second toggle")
@@ -62,7 +63,7 @@ func TestStopAfterCurrentRequiresPlayback(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = PlaybackIdle
 
-	rm, _, handled := m.handlePlaybackKeyAction(actionStopAfterCurrent)
+	rm, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 	if !handled {
 		t.Fatal("actionStopAfterCurrent should be handled even when idle")
 	}
@@ -128,7 +129,7 @@ func TestStopAfterCurrentClearsOnManualStop(t *testing.T) {
 	m.playback.stopAfterCurrent = true
 	p.stopAfter = true
 
-	rm, _, _ := m.handlePlaybackKeyAction(actionStop)
+	rm, _, _ := m.handlePlaybackKeyAction(keys.ActionStop)
 	m = rm.(Model)
 
 	if m.playback.stopAfterCurrent {

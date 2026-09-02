@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -21,8 +22,8 @@ func (v PlaylistsView) focusedPlaylist() (db.PlaylistRow, bool) {
 }
 
 // HandleAction executes a pre-resolved playlists action dispatched by root.Update.
-func (v PlaylistsView) HandleAction(a action) PlaylistsView {
-	if a == actionBulkSelectionToggle {
+func (v PlaylistsView) HandleAction(a keys.Action) PlaylistsView {
+	if a == keys.ActionBulkSelectionToggle {
 		if v.level == pltui.TrackLevel && len(v.tracks) > 0 && v.cursor < len(v.tracks) {
 			id := v.tracks[v.trackIndex(v.cursor)].ID
 			view := pltui.View{SelectedTrackIDs: v.selectedTrackIDs}.ToggleBulkSelection(id)
@@ -46,21 +47,21 @@ func (v PlaylistsView) HandleAction(a action) PlaylistsView {
 		SortDir:      sortDir,
 	}
 	switch a {
-	case actionCursorUp:
+	case keys.ActionCursorUp:
 		view = view.CursorUp()
-	case actionCursorDown:
+	case keys.ActionCursorDown:
 		view = view.CursorDown()
-	case actionHalfPageDown:
+	case keys.ActionHalfPageDown:
 		view = view.HalfPageDown()
-	case actionHalfPageUp:
+	case keys.ActionHalfPageUp:
 		view = view.HalfPageUp()
-	case actionFullPageDown:
+	case keys.ActionFullPageDown:
 		view = view.FullPageDown()
-	case actionFullPageUp:
+	case keys.ActionFullPageUp:
 		view = view.FullPageUp()
-	case actionGoToTop:
+	case keys.ActionGoToTop:
 		view = view.GoToTop()
-	case actionGoToBottom:
+	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
 	}
 	v.level = view.Level

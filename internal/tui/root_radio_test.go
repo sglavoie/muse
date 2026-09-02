@@ -5,6 +5,8 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/keys"
 )
 
 // TestRadioToggleOnOff verifies that actionRadioToggle flips radio.enabled and
@@ -14,7 +16,7 @@ func TestRadioToggleOnOff(t *testing.T) {
 	m := New(context.Background(), WithSessionWriter(sw))
 
 	// Toggle on.
-	rm, _, handled := m.handlePlaybackKeyAction(actionRadioToggle)
+	rm, _, handled := m.handlePlaybackKeyAction(keys.ActionRadioToggle)
 	if !handled {
 		t.Fatal("actionRadioToggle should be handled")
 	}
@@ -30,7 +32,7 @@ func TestRadioToggleOnOff(t *testing.T) {
 	}
 
 	// Toggle off.
-	rm, _, _ = m.handlePlaybackKeyAction(actionRadioToggle)
+	rm, _, _ = m.handlePlaybackKeyAction(keys.ActionRadioToggle)
 	m = rm.(Model)
 	if m.radio.enabled {
 		t.Error("expected radio.enabled=false after second toggle")
@@ -239,7 +241,7 @@ func TestRadioEnqueuePendingSetByToggle(t *testing.T) {
 	}
 	m.playback.currentIndex = 0
 
-	rm, _, _ := m.handlePlaybackKeyAction(actionRadioToggle)
+	rm, _, _ := m.handlePlaybackKeyAction(keys.ActionRadioToggle)
 	nm := rm.(Model)
 
 	if !nm.radio.enabled {
