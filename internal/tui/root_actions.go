@@ -12,6 +12,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // helpState returns the sections and title to display in the help overlay,
@@ -153,12 +154,12 @@ func (m Model) shiftLibraryMode(delta LibraryMode) (Model, tea.Cmd) {
 	switch next {
 	case LibraryModeRecent:
 		m = m.syncRecentlyAddedFromLibrary()
-		m.statusBar.notifyInfo("Library: Recently Added")
+		m.statusBar.NotifyInfo("Library: Recently Added")
 	case LibraryModeHistory:
 		m = m.loadLibraryHistoryData()
-		m.statusBar.notifyInfo("Library: History")
+		m.statusBar.NotifyInfo("Library: History")
 	default:
-		m.statusBar.notifyInfo("Library: All tracks")
+		m.statusBar.NotifyInfo("Library: All tracks")
 	}
 	return m, nil
 }
@@ -181,11 +182,11 @@ func (m Model) shiftBrowseMode(delta BrowseMode) (Model, tea.Cmd) {
 	m = m.deriveCurrentBrowseData()
 	switch m.browse.mode {
 	case BrowseModeAlbums:
-		m.statusBar.notifyInfo("Browse: Albums")
+		m.statusBar.NotifyInfo("Browse: Albums")
 	case BrowseModeGenres:
-		m.statusBar.notifyInfo("Browse: Genres")
+		m.statusBar.NotifyInfo("Browse: Genres")
 	default:
-		m.statusBar.notifyInfo("Browse: Artists")
+		m.statusBar.NotifyInfo("Browse: Artists")
 	}
 	return m, nil
 }
@@ -395,7 +396,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	case keys.ActionGoTo:
 		ctx := m.focusedGoToContext()
 		if !ctx.found {
-			m.statusBar.notify("No track focused")
+			m.statusBar.Notify("No track focused")
 		} else {
 			options := m.buildGoToOptions(ctx)
 			if len(options) > 0 {
@@ -406,7 +407,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 				// track missing artist/album/genre, or current view has no
 				// applicable targets). Silently swallowing the keypress
 				// leaves the user wondering whether the key was received.
-				m.statusBar.notify("No jump targets available")
+				m.statusBar.Notify("No jump targets available")
 			}
 		}
 	case keys.ActionCommandPalette:
@@ -422,7 +423,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		return m.handleTagFilterAction()
 	}
 	if hint := hintForAction(action, m.activeView, m.browse.mode); hint != "" {
-		m.statusBar.pushMsg(hint, 3*time.Second, notifInfo)
+		m.statusBar.PushMsg(hint, 3*time.Second, statusbar.NotifInfo)
 	}
 	return m, nil
 }

@@ -43,8 +43,8 @@ func TestBulkDequeueCreatesUndoSlot(t *testing.T) {
 	if len(bulkAction.indices) != 2 || bulkAction.indices[0] != 1 || bulkAction.indices[1] != 3 {
 		t.Fatalf("bulkDequeueIndices = %v, want [1 3]", bulkAction.indices)
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "undo") {
-		t.Fatalf("notification should contain undo hint, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "undo") {
+		t.Fatalf("notification should contain undo hint, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	if len(d.dequeueTrackSoftCalls) != 2 {
 		t.Fatalf("DequeueTrackSoft calls = %d, want 2", len(d.dequeueTrackSoftCalls))
@@ -60,8 +60,8 @@ func TestBulkDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	m.activeView = viewQueue
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123", Selected: true},
 		{ID: 20, Path: "/music/a.flac", Display: "A (dup)", Hash: "abc123"},
@@ -87,8 +87,8 @@ func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	m.activeView = viewQueue
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123", Selected: true},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},

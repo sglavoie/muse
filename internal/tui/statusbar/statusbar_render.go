@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import (
 	"strings"
@@ -106,14 +106,14 @@ func (c statusBarRenderContext) dimLine() string {
 	return c.styles.Dim.Render("─")
 }
 
-// render builds the full status bar string.
-func (s StatusBar) render(width int, st styles.Styles) string {
-	ctx := newStatusBarRenderContext(width, st, s.playbackState)
+// Render builds the full status bar string.
+func (s StatusBar) Render(width int, st styles.Styles) string {
+	ctx := newStatusBarRenderContext(width, st, s.PlaybackState)
 	right := s.renderRightZone(ctx)
-	if s.playbackState == playback.StateIdle && s.queueEmpty {
+	if s.PlaybackState == playback.StateIdle && s.QueueEmpty {
 		return ctx.rightAlign(ctx.r("Queue is empty — press 1 to browse Library"), right) + "\n" + ctx.dimLine()
 	}
-	if s.playbackState == playback.StateIdle && s.artist == "" && s.title == "" {
+	if s.PlaybackState == playback.StateIdle && s.Artist == "" && s.Title == "" {
 		return ctx.rightAlign("", right) + "\n" + ctx.dimLine()
 	}
 	return s.renderLine1(ctx, right) + "\n" + s.renderLine2(ctx)

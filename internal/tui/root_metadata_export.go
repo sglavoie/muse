@@ -59,17 +59,17 @@ type metadataExportedMsg struct {
 // directory (every test model) cannot touch the filesystem.
 func (m Model) handleMetadataExportRequest() (tea.Model, tea.Cmd) {
 	if m.dataDir == "" {
-		m.statusBar.notify("Cannot export: no data directory configured")
+		m.statusBar.Notify("Cannot export: no data directory configured")
 		return m, nil
 	}
 	tracks, label, ok := m.visibleTracks()
 	if !ok {
-		m.statusBar.notify(label)
+		m.statusBar.Notify(label)
 		return m, nil
 	}
 	doc, skipped := m.metadataExportDocument(tracks, label)
 	if len(doc.Rows) == 0 {
-		m.statusBar.notify("Nothing to export from " + label)
+		m.statusBar.Notify("Nothing to export from " + label)
 		return m, nil
 	}
 	return m, writeMetadataExportCmd(metadataExportPath(m.dataDir), doc, label, skipped)
@@ -89,7 +89,7 @@ func (e exportPathCopy) armed() bool {
 
 func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notify("Export failed: " + msg.err.Error())
+		m.statusBar.Notify("Export failed: " + msg.err.Error())
 		return m
 	}
 	notice := fmt.Sprintf("Exported %d %s from %s",
@@ -104,9 +104,9 @@ func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 	notice += " · y copies path"
 	m.exportCopyHint = exportPathCopy{
 		path:      msg.path,
-		expiresAt: time.Now().Add(m.statusBar.notifyDuration()),
+		expiresAt: time.Now().Add(m.statusBar.NotifyDuration()),
 	}
-	m.statusBar.notify(notice)
+	m.statusBar.Notify(notice)
 	return m
 }
 

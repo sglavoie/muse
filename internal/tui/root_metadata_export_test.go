@@ -39,7 +39,7 @@ func TestMetadataExportRefusesWithoutDataDirAndReturnsNoCmd(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("an empty data directory must not produce a write command")
 	}
-	if msg := next.(Model).statusBar.topNotification().msg; !strings.Contains(msg, "data directory") {
+	if msg := next.(Model).statusBar.TopNotification().Msg; !strings.Contains(msg, "data directory") {
 		t.Fatalf("expected a refusal notification, got %q", msg)
 	}
 }
@@ -54,7 +54,7 @@ func TestMetadataExportRefusalNotifiesWithTheViewsReason(t *testing.T) {
 		t.Fatal("a view with no track list must not produce a write command")
 	}
 	_, reason, _ := m.visibleTracks()
-	if msg := next.(Model).statusBar.topNotification().msg; msg != reason {
+	if msg := next.(Model).statusBar.TopNotification().Msg; msg != reason {
 		t.Fatalf("expected the collector's reason %q, got %q", reason, msg)
 	}
 }
@@ -138,7 +138,7 @@ func TestMetadataExportWritesTheFileAndNotifies(t *testing.T) {
 	}
 
 	notified := next.(Model).handleMetadataExportedMsg(msg)
-	got := notified.statusBar.topNotification().msg
+	got := notified.statusBar.TopNotification().Msg
 	if !strings.Contains(got, "Exported 2 tracks") || !strings.Contains(got, "y copies path") {
 		t.Fatalf("notification must name the count and offer the copy key, got %q", got)
 	}
@@ -158,7 +158,7 @@ func TestMetadataExportedNotificationWarnsOnHugeExports(t *testing.T) {
 		count:   metadataExportWarnRows + 1,
 		skipped: 3,
 	})
-	got := m.statusBar.topNotification().msg
+	got := m.statusBar.TopNotification().Msg
 	if !strings.Contains(got, "3 rows skipped") {
 		t.Fatalf("expected the skipped count, got %q", got)
 	}

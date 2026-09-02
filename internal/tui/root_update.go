@@ -62,7 +62,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleScanDoneMsg()
 
 	case library.ScanErrorMsg:
-		m.statusBar.notify(fmt.Sprintf("Scan error: %v", msg.Err))
+		m.statusBar.Notify(fmt.Sprintf("Scan error: %v", msg.Err))
 		if m.scanErrCh != nil {
 			return m, waitForScanErr(m.scanErrCh)
 		}
@@ -76,9 +76,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !msg.Available {
 			m.watchDegraded = true
 			if msg.Err != nil {
-				m.statusBar.notify("File watcher failed to start; use manual rescan (Shift+R)")
+				m.statusBar.Notify("File watcher failed to start; use manual rescan (Shift+R)")
 			} else {
-				m.statusBar.notify("File watcher unavailable; use manual rescan (Shift+R)")
+				m.statusBar.Notify("File watcher unavailable; use manual rescan (Shift+R)")
 			}
 		}
 
@@ -136,7 +136,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case overlay.TrackInfoMsg:
 		if msg.Err != nil {
-			m.statusBar.notify("Track info failed: " + msg.Err.Error())
+			m.statusBar.Notify("Track info failed: " + msg.Err.Error())
 		} else {
 			var userTags []db.TagRow
 			if m.tagReader != nil && msg.Hash != "" {
@@ -192,7 +192,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleQueuePastedMsg(msg)
 
 	case TransientNotifyMsg:
-		m.statusBar.notify(string(msg))
+		m.statusBar.Notify(string(msg))
 
 	case settingsSavedMsg:
 		m = m.handleSettingsSavedMsg(msg)
@@ -259,7 +259,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case metadataEditedMsg:
 		if msg.err != nil {
-			m.statusBar.notify("Metadata save failed: " + msg.err.Error())
+			m.statusBar.Notify("Metadata save failed: " + msg.err.Error())
 		}
 		// Genres, health findings and every library-derived shelf read the
 		// values this edit changed. The index was rewritten before the write was
@@ -329,7 +329,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.autoDeletedTagIDs) > 0 && m.tagWriter != nil {
 			scheduleStandalonePurge(m.tagWriter.PurgeDeletedTags)
 		}
-		m.statusBar.notify("All tags removed from track")
+		m.statusBar.Notify("All tags removed from track")
 
 	case tagsRefreshedMsg:
 		m = m.handleTagsRefreshed(msg)
@@ -396,19 +396,19 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleMixSavedAsPlaylistMsg(msg)
 
 	case mixSaveAsPlaylistErrorMsg:
-		m.statusBar.notify("Save mix failed: " + msg.err.Error())
+		m.statusBar.Notify("Save mix failed: " + msg.err.Error())
 
 	case mixDismissedMsg:
 		m = m.handleMixDismissedMsg(msg)
 
 	case mixDismissErrorMsg:
-		m.statusBar.notify("Dismiss failed: " + msg.err.Error())
+		m.statusBar.Notify("Dismiss failed: " + msg.err.Error())
 
 	case mixUndismissedMsg:
 		m = m.handleMixUndismissedMsg(msg)
 
 	case mixUndismissErrorMsg:
-		m.statusBar.notify("Undismiss failed: " + msg.err.Error())
+		m.statusBar.Notify("Undismiss failed: " + msg.err.Error())
 
 	case commandPaletteActionMsg:
 		return m.handleCommandPaletteAction(msg.action, msg.view)
@@ -421,9 +421,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case desktop.ClipboardResultMsg:
 		if msg.Err != nil {
-			m.statusBar.notify("Copy failed: " + msg.Err.Error())
+			m.statusBar.Notify("Copy failed: " + msg.Err.Error())
 		} else {
-			m.statusBar.notify("Copied: " + msg.Text)
+			m.statusBar.Notify("Copied: " + msg.Text)
 		}
 
 	case metadataExportRequestedMsg:

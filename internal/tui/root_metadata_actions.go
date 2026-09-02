@@ -60,7 +60,7 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
-		m.statusBar.notify("No track to edit")
+		m.statusBar.Notify("No track to edit")
 		return m, nil, true
 	}
 	if full, found := m.library.index.FindByHash(track.Hash); found {
@@ -165,7 +165,7 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 			}
 		}
 		n := len(hashes)
-		m.statusBar.notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
+		m.statusBar.Notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
 	case editorModeRenameAlbum:
 		if dirtyAlbum != nil {
 			newName := *dirtyAlbum
@@ -194,7 +194,7 @@ func (m Model) metadataSaveNotification(mode editorMode, hashes []string, dirtyA
 			}
 		}
 		n := len(hashes)
-		m.statusBar.notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
+		m.statusBar.Notify(fmt.Sprintf("Renamed %d %s", n, text.Pluralize(n, "track", "tracks")))
 	}
 	return m
 }

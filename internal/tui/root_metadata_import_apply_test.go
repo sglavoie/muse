@@ -136,7 +136,7 @@ func TestMetadataImportApplyStandsDownForASupersedingEdit(t *testing.T) {
 	}
 
 	m = m.handleMetadataImportAppliedMsg(applied)
-	if got := m.statusBar.topNotification().msg; !strings.Contains(got, "Applied 0 of 1") ||
+	if got := m.statusBar.TopNotification().Msg; !strings.Contains(got, "Applied 0 of 1") ||
 		!strings.Contains(got, "superseded") {
 		t.Fatalf("expected a partial-outcome notification, got %q", got)
 	}
@@ -145,11 +145,11 @@ func TestMetadataImportApplyStandsDownForASupersedingEdit(t *testing.T) {
 func TestMetadataImportAppliedNotifiesOnFailureOnly(t *testing.T) {
 	var m Model
 	m = m.handleMetadataImportAppliedMsg(metadataImportAppliedMsg{applied: 3})
-	if got := m.statusBar.topNotification().msg; got != "" {
+	if got := m.statusBar.TopNotification().Msg; got != "" {
 		t.Fatalf("a clean run must leave the undo hint standing, got %q", got)
 	}
 	m = m.handleMetadataImportAppliedMsg(metadataImportAppliedMsg{applied: 2, failed: 1})
-	if got := m.statusBar.topNotification().msg; !strings.Contains(got, "Applied 2 of 3") ||
+	if got := m.statusBar.TopNotification().Msg; !strings.Contains(got, "Applied 2 of 3") ||
 		!strings.Contains(got, "1 failed") {
 		t.Fatalf("expected the failure count, got %q", got)
 	}
@@ -172,7 +172,7 @@ func TestMetadataImportApplyRederivesAgainstTheLiveIndex(t *testing.T) {
 	if next.undo.slot.action != nil {
 		t.Fatal("nothing changed, so no undo slot may be armed")
 	}
-	if got := next.statusBar.topNotification().msg; !strings.Contains(got, "already matches") {
+	if got := next.statusBar.TopNotification().Msg; !strings.Contains(got, "already matches") {
 		t.Fatalf("expected a no-op notification, got %q", got)
 	}
 }
@@ -193,7 +193,7 @@ func TestMetadataImportEscapeAppliesNothing(t *testing.T) {
 	if got, _ := next.library.index.FindByHash("h1"); got.Artist != "" {
 		t.Fatalf("esc must not touch the index, got %+v", got)
 	}
-	if msg := next.statusBar.topNotification().msg; !strings.Contains(msg, "canceled") {
+	if msg := next.statusBar.TopNotification().Msg; !strings.Contains(msg, "canceled") {
 		t.Fatalf("expected a cancel notification, got %q", msg)
 	}
 }

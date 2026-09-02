@@ -107,6 +107,6 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		}()
 	}
 	n := len(a.originals)
-	m.statusBar.notify(fmt.Sprintf("Undone metadata import for %d %s", n, text.Pluralize(n, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Undone metadata import for %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }

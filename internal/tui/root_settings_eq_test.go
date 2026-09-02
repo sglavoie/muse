@@ -86,8 +86,8 @@ func TestEQLivePreviewFailureRestoresOverlayState(t *testing.T) {
 	if nm.overlay.settings.fields[settingsTabEqualizer][0].Value != 0 {
 		t.Fatal("live preview: expected EQ enabled toggle to revert on failure")
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
-		t.Fatalf("live preview: expected failure notification, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "failed") {
+		t.Fatalf("live preview: expected failure notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	if len(stub.calls) != 2 {
 		t.Fatalf("live preview: expected failed apply + rollback, got %d calls", len(stub.calls))

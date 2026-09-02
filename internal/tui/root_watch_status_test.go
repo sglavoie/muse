@@ -23,7 +23,7 @@ func TestWatchStatusMsg_UnavailableMarksDegraded(t *testing.T) {
 	if !nm.watchDegraded {
 		t.Error("watchDegraded = false, want true after an unavailable watcher status")
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "unavailable") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "unavailable") {
 		t.Errorf("notification = %q, want it to mention the watcher is unavailable", msg)
 	}
 }
@@ -39,7 +39,7 @@ func TestWatchStatusMsg_ErrorMarksDegraded(t *testing.T) {
 	if !nm.watchDegraded {
 		t.Error("watchDegraded = false, want true after a failed watcher status")
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "failed to start") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "failed to start") {
 		t.Errorf("notification = %q, want it to mention the watcher failed to start", msg)
 	}
 }
@@ -55,7 +55,7 @@ func TestWatchStatusMsg_AvailableLeavesHealthy(t *testing.T) {
 	if nm.watchDegraded {
 		t.Error("watchDegraded = true, want false after a healthy watcher status")
 	}
-	if msg := nm.statusBar.topNotification().msg; msg != "" {
+	if msg := nm.statusBar.TopNotification().Msg; msg != "" {
 		t.Errorf("notification = %q, want none for a healthy watcher", msg)
 	}
 }

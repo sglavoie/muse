@@ -96,7 +96,7 @@ func enterVisualMode(m Model) Model {
 		// briefing and the session list are neither, and the view advertises v,
 		// so say what is missing rather than swallowing the key.
 		if !m.insights.atTracks() {
-			m.statusBar.notify("Visual selection needs a track list — press enter to drill in")
+			m.statusBar.Notify("Visual selection needs a track list — press enter to drill in")
 			return m
 		}
 	case viewMixes:

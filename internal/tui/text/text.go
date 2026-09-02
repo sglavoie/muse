@@ -344,3 +344,26 @@ func Pluralize(n int, singular, plural string) string {
 	}
 	return plural
 }
+
+// FormatCount formats n with comma separators (e.g. 1234 → "1,234").
+func FormatCount(n int) string {
+	raw := fmt.Sprintf("%d", n)
+	sign := ""
+	digits := raw
+	if len(raw) > 0 && raw[0] == '-' {
+		sign = "-"
+		digits = raw[1:]
+	}
+	if len(digits) <= 3 {
+		return sign + digits
+	}
+	offset := len(digits) % 3
+	var result []byte
+	for i := range len(digits) {
+		if i > 0 && (i-offset)%3 == 0 {
+			result = append(result, ',')
+		}
+		result = append(result, digits[i])
+	}
+	return sign + string(result)
+}

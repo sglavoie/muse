@@ -55,7 +55,7 @@ func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 			m = m.resetPlaybackState()
 		}
 	}
-	m.statusBar.notify("Undone: removed " + a.entry.Display)
+	m.statusBar.Notify("Undone: removed " + a.entry.Display)
 	return m, nil
 }
 
@@ -109,7 +109,7 @@ func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 	m.syncPlayerQueue()
-	m.statusBar.notify("Undone: restored removed track")
+	m.statusBar.Notify("Undone: restored removed track")
 	return m, nil
 }
 
@@ -144,7 +144,7 @@ func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
 		is.SetCurrentIndex(a.savedIndex)
 	}
 	n := len(a.entries)
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, text.Pluralize(n, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Undone: restored %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -186,7 +186,7 @@ func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
 	m.clampQueueCursorAndScroll()
 	m.syncPlayerQueue()
 	n := len(a.entries)
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d %s", n, text.Pluralize(n, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Undone: restored %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -265,7 +265,7 @@ func (a undoBatchEnqueueAction) description() string {
 func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.softRemoveQueueEntries(a.ids, "undo batch enqueue: soft-delete failed")
 	n := a.count
-	m.statusBar.notify(fmt.Sprintf("Undone: removed %d %s", n, text.Pluralize(n, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Undone: removed %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -286,7 +286,7 @@ func (a undoPasteAction) description() string {
 func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.softRemoveQueueEntries(a.ids, "undo paste: soft-delete failed")
 	n := a.count
-	m.statusBar.notify(fmt.Sprintf("Undone: removed %d pasted %s", n, text.Pluralize(n, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Undone: removed %d pasted %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }
 
@@ -401,6 +401,6 @@ func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
 		m = m.resetPlaybackState()
 	}
 	n := a.count
-	m.statusBar.notify(fmt.Sprintf("Undone: restored %d moved %s", n, text.Pluralize(n, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Undone: restored %d moved %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
 }

@@ -168,7 +168,7 @@ func (v InsightsView) headerHeight() int {
 func (v InsightsView) renderStrip(s styles.Styles) string {
 	spec := v.panelSpec()
 	summary := fmt.Sprintf("%s plays · %s · %d %s",
-		formatCount(v.snap.TotalPlays),
+		text.FormatCount(v.snap.TotalPlays),
 		text.FormatListeningTime(v.snap.TotalSecs),
 		v.snap.SpanDays, text.Pluralize(v.snap.SpanDays, "day", "days"))
 	line := strip.Render(v.width, []string{"Insights", summary},
@@ -232,7 +232,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 	case panelCoverage:
 		c := snap.Coverage
 		return fmt.Sprintf("%s of %s tracks never played · %s unheard",
-			formatCount(c.UnheardTracks), formatCount(c.TotalTracks),
+			text.FormatCount(c.UnheardTracks), text.FormatCount(c.TotalTracks),
 			text.FormatListeningTime(int(c.UnheardSecs)))
 	case panelRhythm:
 		r := snap.Rhythm
@@ -291,7 +291,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 		default:
 			return fmt.Sprintf("%d %s · %s %s affected",
 				n, text.Pluralize(n, "finding", "findings"),
-				formatCount(v.healthAffectedTracks()),
+				text.FormatCount(v.healthAffectedTracks()),
 				text.Pluralize(v.healthAffectedTracks(), "track", "tracks"))
 		}
 	}
@@ -348,7 +348,7 @@ func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
 		"",
 		s.TextPrimary.Render(fmt.Sprintf("In %d %s you played %s tracks. You own %s.",
 			v.snap.SpanDays, text.Pluralize(v.snap.SpanDays, "day", "days"),
-			formatCount(c.HeardTracks), formatCount(c.TotalTracks))),
+			text.FormatCount(c.HeardTracks), text.FormatCount(c.TotalTracks))),
 		"",
 	}
 	if !v.compact() {
@@ -356,7 +356,7 @@ func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
 	}
 	lines = append(lines,
 		s.TextSecondary.Render(fmt.Sprintf("heard %s · unheard %s · %s unheard",
-			formatCount(c.HeardTracks), formatCount(c.UnheardTracks),
+			text.FormatCount(c.HeardTracks), text.FormatCount(c.UnheardTracks),
 			text.FormatListeningTime(int(c.UnheardSecs)))),
 		"",
 	)

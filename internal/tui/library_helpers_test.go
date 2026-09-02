@@ -3,6 +3,8 @@ package tui
 import (
 	"math"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 func TestFormatCount(t *testing.T) {
@@ -24,7 +26,7 @@ func TestFormatCount(t *testing.T) {
 		{-1234567, "-1,234,567"},
 	}
 	for _, tt := range tests {
-		got := formatCount(tt.input)
+		got := text.FormatCount(tt.input)
 		if got != tt.want {
 			t.Errorf("formatCount(%d) = %q, want %q", tt.input, got, tt.want)
 		}
@@ -34,7 +36,7 @@ func TestFormatCount(t *testing.T) {
 // formatCount previously recursed via formatCount(-n), which for math.MinInt
 // overflows back to math.MinInt and loops forever. Guard against regressions.
 func TestFormatCount_MinInt(t *testing.T) {
-	got := formatCount(math.MinInt)
+	got := text.FormatCount(math.MinInt)
 	if got == "" || got[0] != '-' {
 		t.Fatalf("formatCount(math.MinInt) = %q; expected non-empty negative", got)
 	}

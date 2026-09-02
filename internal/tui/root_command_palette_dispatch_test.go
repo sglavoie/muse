@@ -167,7 +167,7 @@ func TestPaletteDeletePlaylistOnlyAtListLevel(t *testing.T) {
 		if len(pd.deletePlaylistSoftCalls) != 0 {
 			t.Errorf("DeletePlaylistSoft calls = %v, want none", pd.deletePlaylistSoftCalls)
 		}
-		if out.statusBar.topNotification().msg == "" {
+		if out.statusBar.TopNotification().Msg == "" {
 			t.Error("the refusal is silent: no notification was shown")
 		}
 	})

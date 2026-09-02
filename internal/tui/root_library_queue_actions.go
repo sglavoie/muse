@@ -27,12 +27,12 @@ func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
 	case viewLibrary:
 		if len(m.library.selectedHashes) > 0 {
 			if m.batchEnqueuer == nil {
-				m.statusBar.notify("Enqueue not available")
+				m.statusBar.Notify("Enqueue not available")
 				return m, nil, true
 			}
 			tracks := m.bulkLibraryTracks()
 			if len(tracks) == 0 {
-				m.statusBar.notify("No selected tracks available")
+				m.statusBar.Notify("No selected tracks available")
 				return m, nil, true
 			}
 			cmd = m.batchEnqueueTracksCmd(tracks, "", "Queue")

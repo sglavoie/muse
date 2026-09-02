@@ -15,8 +15,8 @@ import (
 
 // insightsNotified reports whether any live notification carries substr.
 func insightsNotified(m Model, substr string) bool {
-	for _, n := range m.statusBar.notifications {
-		if strings.Contains(n.msg, substr) {
+	for _, n := range m.statusBar.Notifications {
+		if strings.Contains(n.Msg, substr) {
 			return true
 		}
 	}
@@ -33,7 +33,7 @@ func TestInsightsVisualSelectionWorksAtTrackLevel(t *testing.T) {
 		t.Fatal("visual mode must not enter on the Insights briefing")
 	}
 	if !insightsNotified(m, "track list") {
-		t.Errorf("expected a refusal naming the missing track list, got %+v", m.statusBar.notifications)
+		t.Errorf("expected a refusal naming the missing track list, got %+v", m.statusBar.Notifications)
 	}
 
 	// A session list is a list of sessions, not of tracks, and refuses too.

@@ -11,10 +11,6 @@ const undoWindowDuration = 10 * time.Second
 // returning a ScanBatchMsg to the update loop.
 const scanBatchSize = 100
 
-// transientDuration is how long a transient notification stays visible before
-// the 1-second tick clears it.
-const transientDuration = 5 * time.Second
-
 // minTerminalWidth and minTerminalHeight are the smallest terminal dimensions
 // where Muse supports rendering the normal TUI. Below this floor the root view
 // renders a compact resize prompt instead of treating normal layout overflow as

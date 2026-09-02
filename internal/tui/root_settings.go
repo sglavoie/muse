@@ -9,6 +9,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // settingsSavedMsg is dispatched after config.Save completes.
@@ -186,7 +187,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		); err != nil {
 			restored := previous
 			m.overlay.settings = &restored
-			m.statusBar.notify("Settings cancel failed: " + err.Error())
+			m.statusBar.Notify("Settings cancel failed: " + err.Error())
 			return m, cmd, true
 		}
 		m.overlay.settings = nil
@@ -200,7 +201,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if err := applyPlayerStep(m.equalizerApplyStep(prevEnabled, prevBands, nextEnabled, nextBands)); err != nil {
 			restored := previous
 			m.overlay.settings = &restored
-			m.statusBar.notify("Equalizer preview failed: " + err.Error())
+			m.statusBar.Notify("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	case settingsStereoLive:
@@ -209,7 +210,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if err := applyPlayerStep(m.stereoWideApplyStep(prevEnabled, prevAmount, nextEnabled, nextAmount)); err != nil {
 			restored := previous
 			m.overlay.settings = &restored
-			m.statusBar.notify("Stereo widening preview failed: " + err.Error())
+			m.statusBar.Notify("Stereo widening preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	case settingsEQSave:
@@ -235,7 +236,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 			restored := previous
 			restored.eqConfirmDel = false
 			m.overlay.settings = &restored
-			m.statusBar.notify("Equalizer preview failed: " + err.Error())
+			m.statusBar.Notify("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	}
@@ -266,11 +267,11 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 		m.equalizerApplyStep(oldCfg.EQEnabled, oldCfg.EQBands, cfg.EQEnabled, cfg.EQBands),
 		m.stereoWideApplyStep(oldCfg.StereoWideEnabled, oldCfg.StereoWideAmount, cfg.StereoWideEnabled, cfg.StereoWideAmount),
 	); err != nil {
-		m.statusBar.notify("Settings save failed: " + err.Error())
+		m.statusBar.Notify("Settings save failed: " + err.Error())
 		return m, nil
 	}
 	m.cfg = cfg
-	m.statusBar.transientDur = time.Duration(cfg.TransientDurationSecs) * time.Second
+	m.statusBar.TransientDur = time.Duration(cfg.TransientDurationSecs) * time.Second
 	// Keep the runtime mirror in step with the Display tab's Track notify row,
 	// otherwise the saved setting would not take effect until the next launch.
 	m.notifyOnTrackChange = cfg.NotifyOnTrackChange
@@ -299,9 +300,9 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 // handleSettingsSavedMsg shows a notification after config.Save completes.
 func (m Model) handleSettingsSavedMsg(msg settingsSavedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notify("Settings save failed: " + msg.err.Error())
+		m.statusBar.Notify("Settings save failed: " + msg.err.Error())
 	} else {
-		m.statusBar.pushMsg("Settings saved", time.Duration(m.cfg.TransientDurationSecs)*time.Second, notifNormal)
+		m.statusBar.PushMsg("Settings saved", time.Duration(m.cfg.TransientDurationSecs)*time.Second, statusbar.NotifNormal)
 	}
 	return m
 }

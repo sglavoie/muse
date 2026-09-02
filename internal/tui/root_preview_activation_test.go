@@ -33,8 +33,8 @@ func TestPreviewKeyNoTrackShowsNotification(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil command when no track to preview")
 	}
-	if nm.statusBar.topNotification().msg != "No track to preview" {
-		t.Fatalf("expected 'No track to preview' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "No track to preview" {
+		t.Fatalf("expected 'No track to preview' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -72,8 +72,8 @@ func TestPreviewStartErrorMsgShowsNotification(t *testing.T) {
 	next, _ := m.Update(previewStartErrorMsg{err: errTest("boom")})
 	nm := next.(Model)
 
-	if nm.statusBar.topNotification().msg != "Preview error: boom" {
-		t.Fatalf("expected error notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "Preview error: boom" {
+		t.Fatalf("expected error notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 

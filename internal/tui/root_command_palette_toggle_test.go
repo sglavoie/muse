@@ -62,11 +62,11 @@ func TestConfigToggleMsg_NotifyContent(t *testing.T) {
 	m.cfg.NormalizeVolume = false
 
 	result, _ := m.handleConfigToggleMsg(configToggleMsg{field: toggleNormalize})
-	if !strings.Contains(result.statusBar.topNotification().msg, "normalization") {
-		t.Errorf("expected 'normalization' in notification, got %q", result.statusBar.topNotification().msg)
+	if !strings.Contains(result.statusBar.TopNotification().Msg, "normalization") {
+		t.Errorf("expected 'normalization' in notification, got %q", result.statusBar.TopNotification().Msg)
 	}
-	if !strings.Contains(result.statusBar.topNotification().msg, "On") {
-		t.Errorf("expected 'On' in notification, got %q", result.statusBar.topNotification().msg)
+	if !strings.Contains(result.statusBar.TopNotification().Msg, "On") {
+		t.Errorf("expected 'On' in notification, got %q", result.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -90,8 +90,8 @@ func TestConfigToggleMsg_NormalizeApplyFailureDoesNotPersist(t *testing.T) {
 	if result.cfg.NormalizeVolume {
 		t.Fatal("expected NormalizeVolume to remain false after failure")
 	}
-	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
-		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
+	if !strings.Contains(result.statusBar.TopNotification().Msg, "failed") {
+		t.Fatalf("expected failure notification, got %q", result.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -115,8 +115,8 @@ func TestConfigToggleMsg_EQApplyFailureDoesNotPersist(t *testing.T) {
 	if result.cfg.EQEnabled {
 		t.Fatal("expected EQEnabled to remain false after failure")
 	}
-	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
-		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
+	if !strings.Contains(result.statusBar.TopNotification().Msg, "failed") {
+		t.Fatalf("expected failure notification, got %q", result.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -140,8 +140,8 @@ func TestConfigToggleMsg_StereoWideApplyFailureDoesNotPersist(t *testing.T) {
 	if result.cfg.StereoWideEnabled {
 		t.Fatal("expected StereoWideEnabled to remain false after failure")
 	}
-	if !strings.Contains(result.statusBar.topNotification().msg, "failed") {
-		t.Fatalf("expected failure notification, got %q", result.statusBar.topNotification().msg)
+	if !strings.Contains(result.statusBar.TopNotification().Msg, "failed") {
+		t.Fatalf("expected failure notification, got %q", result.statusBar.TopNotification().Msg)
 	}
 }
 

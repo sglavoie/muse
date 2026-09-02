@@ -80,7 +80,7 @@ func (m Model) shiftQueueTrack(idx, dir int) (Model, tea.Cmd) {
 // new order to the database when a queueShuffler is available.
 func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 	if len(m.queue.entries) <= 1 {
-		m.statusBar.notify("Queue too small to shuffle")
+		m.statusBar.Notify("Queue too small to shuffle")
 		return m, nil
 	}
 
@@ -116,7 +116,7 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 
 	m = m.resetQueueSort()
 	m.syncPlayerQueue()
-	m.statusBar.notify(fmt.Sprintf("Queue shuffled (%d tracks)", len(m.queue.entries)))
+	m.statusBar.Notify(fmt.Sprintf("Queue shuffled (%d tracks)", len(m.queue.entries)))
 
 	if shuffler, ok := m.reorderer.(queueShuffler); ok {
 		ids := make([]int64, len(m.queue.entries))
@@ -150,7 +150,7 @@ func (m Model) handleQueueDedupMsg() (Model, tea.Cmd) {
 	}
 
 	if len(removedIDs) == 0 {
-		m.statusBar.notify("No duplicates found")
+		m.statusBar.Notify("No duplicates found")
 		return m, nil
 	}
 

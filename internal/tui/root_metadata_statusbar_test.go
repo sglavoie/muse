@@ -15,8 +15,8 @@ func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OldArt", Title: "OldTitle", Album: "A"})
 	m.playback.currentHash = "playing"
-	m.statusBar.artist = "OldArt"
-	m.statusBar.title = "OldTitle"
+	m.statusBar.Artist = "OldArt"
+	m.statusBar.Title = "OldTitle"
 
 	ed := NewMetadataEditor("playing", "NewTitle", "NewArt", "A", "", 0)
 	m.overlay.metadataEditor = &ed
@@ -24,11 +24,11 @@ func TestMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.statusBar.artist != "NewArt" {
-		t.Errorf("status bar artist = %q, want %q", nm.statusBar.artist, "NewArt")
+	if nm.statusBar.Artist != "NewArt" {
+		t.Errorf("status bar artist = %q, want %q", nm.statusBar.Artist, "NewArt")
 	}
-	if nm.statusBar.title != "NewTitle" {
-		t.Errorf("status bar title = %q, want %q", nm.statusBar.title, "NewTitle")
+	if nm.statusBar.Title != "NewTitle" {
+		t.Errorf("status bar title = %q, want %q", nm.statusBar.Title, "NewTitle")
 	}
 }
 
@@ -40,8 +40,8 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m.library.index.Insert(library.Track{Hash: "h1", Path: "/a.flac", Artist: "OldA", Title: "OldT", Album: "A"})
 	m.library.index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Artist: "OldA", Title: "OldT", Album: "A"})
 	m.playback.currentHash = "h2"
-	m.statusBar.artist = "OldA"
-	m.statusBar.title = "OldT"
+	m.statusBar.Artist = "OldA"
+	m.statusBar.Title = "OldT"
 
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Artist: "OldA", Title: "OldT", Selected: true},
@@ -56,11 +56,11 @@ func TestBulkMetadataEditUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.statusBar.artist != "OldA" {
-		t.Errorf("status bar artist = %q, want %q (unchanged)", nm.statusBar.artist, "OldA")
+	if nm.statusBar.Artist != "OldA" {
+		t.Errorf("status bar artist = %q, want %q (unchanged)", nm.statusBar.Artist, "OldA")
 	}
-	if nm.statusBar.title != "OldTX" {
-		t.Errorf("status bar title = %q, want %q", nm.statusBar.title, "OldTX")
+	if nm.statusBar.Title != "OldTX" {
+		t.Errorf("status bar title = %q, want %q", nm.statusBar.Title, "OldTX")
 	}
 }
 
@@ -70,8 +70,8 @@ func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "playing", Path: "/p.flac", Artist: "OrigArt", Title: "OrigTitle", Album: "A"})
 	m.playback.currentHash = "playing"
-	m.statusBar.artist = "OrigArt"
-	m.statusBar.title = "OrigTitle"
+	m.statusBar.Artist = "OrigArt"
+	m.statusBar.Title = "OrigTitle"
 
 	ed := NewMetadataEditor("playing", "EditedTitle", "EditedArt", "A", "", 0)
 	m.overlay.metadataEditor = &ed
@@ -79,17 +79,17 @@ func TestMetadataUndoUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.statusBar.artist != "EditedArt" {
-		t.Fatalf("after save: status bar artist = %q, want %q", nm.statusBar.artist, "EditedArt")
+	if nm.statusBar.Artist != "EditedArt" {
+		t.Fatalf("after save: status bar artist = %q, want %q", nm.statusBar.Artist, "EditedArt")
 	}
 
 	nm = nm.handleUndo()
 
-	if nm.statusBar.artist != "OrigArt" {
-		t.Errorf("after undo: status bar artist = %q, want %q", nm.statusBar.artist, "OrigArt")
+	if nm.statusBar.Artist != "OrigArt" {
+		t.Errorf("after undo: status bar artist = %q, want %q", nm.statusBar.Artist, "OrigArt")
 	}
-	if nm.statusBar.title != "OrigTitle" {
-		t.Errorf("after undo: status bar title = %q, want %q", nm.statusBar.title, "OrigTitle")
+	if nm.statusBar.Title != "OrigTitle" {
+		t.Errorf("after undo: status bar title = %q, want %q", nm.statusBar.Title, "OrigTitle")
 	}
 }
 
@@ -99,8 +99,8 @@ func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	m := New(context.Background())
 	m.library.index.Insert(library.Track{Hash: "other", Path: "/o.flac", Artist: "X", Title: "Y", Album: "A"})
 	m.playback.currentHash = "playing"
-	m.statusBar.artist = "NowArt"
-	m.statusBar.title = "NowTitle"
+	m.statusBar.Artist = "NowArt"
+	m.statusBar.Title = "NowTitle"
 
 	ed := NewMetadataEditor("other", "NewY", "NewX", "A", "", 0)
 	m.overlay.metadataEditor = &ed
@@ -108,10 +108,10 @@ func TestMetadataEditDoesNotAffectStatusBarForOtherTrack(t *testing.T) {
 	result, _ := m.handleMetadataSave()
 	nm := result.(Model)
 
-	if nm.statusBar.artist != "NowArt" {
-		t.Errorf("status bar artist changed to %q, should remain %q", nm.statusBar.artist, "NowArt")
+	if nm.statusBar.Artist != "NowArt" {
+		t.Errorf("status bar artist changed to %q, should remain %q", nm.statusBar.Artist, "NowArt")
 	}
-	if nm.statusBar.title != "NowTitle" {
-		t.Errorf("status bar title changed to %q, should remain %q", nm.statusBar.title, "NowTitle")
+	if nm.statusBar.Title != "NowTitle" {
+		t.Errorf("status bar title changed to %q, should remain %q", nm.statusBar.Title, "NowTitle")
 	}
 }

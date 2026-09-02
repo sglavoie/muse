@@ -33,7 +33,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	newDuration, err := parseDurationFromEditor(durStr)
 	if err != nil {
-		m.statusBar.notify(fmt.Sprintf("Invalid duration: %s", err))
+		m.statusBar.Notify(fmt.Sprintf("Invalid duration: %s", err))
 		return m, nil
 	}
 
@@ -128,7 +128,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil && dirtyDuration == nil {
 		m.overlay.metadataEditor = nil
-		m.statusBar.notify("No changes")
+		m.statusBar.Notify("No changes")
 		return m, nil
 	}
 
@@ -137,7 +137,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		var err error
 		newDuration, err = parseDurationFromEditor(*dirtyDuration)
 		if err != nil {
-			m.statusBar.notify(fmt.Sprintf("Invalid duration: %s", err))
+			m.statusBar.Notify(fmt.Sprintf("Invalid duration: %s", err))
 			return m, nil
 		}
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -134,7 +135,7 @@ type Model struct {
 	// longOp tracks progress, ETA, and the rate-window samples for the
 	// currently active long-running operation (e.g. a library scan). The
 	// zero value (Active==false) means no long op is running.
-	longOp longOpState
+	longOp statusbar.LongOpState
 
 	// userEditedReader queries the DB for user-edited tracks so that
 	// rescan and watcher flows can preserve edited metadata in-memory.
@@ -182,7 +183,7 @@ type Model struct {
 	libraryRoots []string
 	extractor    library.MetadataExtractor
 
-	statusBar        StatusBar
+	statusBar        statusbar.StatusBar
 	termWidth        int
 	termHeight       int
 	registry         keys.Registry
@@ -366,14 +367,14 @@ func New(ctx context.Context, opts ...Option) Model {
 	// On-track-change notifications are opt-in (default false).
 	m.notifyOnTrackChange = m.cfg.NotifyOnTrackChange
 	// Sync statusBar fields from model state.
-	m.statusBar.transientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
-	m.statusBar.configPath = m.configPath
-	m.statusBar.configCreated = m.configCreated
+	m.statusBar.TransientDur = time.Duration(m.cfg.TransientDurationSecs) * time.Second
+	m.statusBar.ConfigPath = m.configPath
+	m.statusBar.ConfigCreated = m.configCreated
 	if len(m.configWarnings) > 0 {
-		m.statusBar.pushMsg("Config: "+strings.Join(m.configWarnings, "; "), 10*time.Second, notifNormal)
+		m.statusBar.PushMsg("Config: "+strings.Join(m.configWarnings, "; "), 10*time.Second, statusbar.NotifNormal)
 	}
 	if m.sessionCount > 0 && m.sessionCount <= 3 {
-		m.statusBar.pushMsg("Tip: press : to open command palette", 10*time.Second, notifInfo)
+		m.statusBar.PushMsg("Tip: press : to open command palette", 10*time.Second, statusbar.NotifInfo)
 	}
 	return m
 }
@@ -388,13 +389,13 @@ func (m Model) PlaybackCurrentIndex() int { return m.playback.currentIndex }
 func (m Model) PlaybackStateValue() playback.State { return m.playback.state }
 
 // StatusBarArtist returns the current status bar artist string.
-func (m Model) StatusBarArtist() string { return m.statusBar.artist }
+func (m Model) StatusBarArtist() string { return m.statusBar.Artist }
 
 // StatusBarTitle returns the current status bar title string.
-func (m Model) StatusBarTitle() string { return m.statusBar.title }
+func (m Model) StatusBarTitle() string { return m.statusBar.Title }
 
 // StatusBarPlaylistSource returns the current status bar playlist source string.
-func (m Model) StatusBarPlaylistSource() string { return m.statusBar.playlistSource }
+func (m Model) StatusBarPlaylistSource() string { return m.statusBar.PlaylistSource }
 
 // SessionTracksPlayed returns the number of tracks counted as played this session.
 func (m Model) SessionTracksPlayed() int { return m.sessionTracksPlayed }

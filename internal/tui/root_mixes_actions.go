@@ -51,7 +51,7 @@ func (m Model) handleMixesSaveMixAsPlaylist() (Model, tea.Cmd) {
 	}
 	tracks, ok := m.mixes.cachedMixes[m.mixes.activeMix]
 	if !ok || len(tracks) == 0 {
-		m.statusBar.notify("No tracks to save")
+		m.statusBar.Notify("No tracks to save")
 		return m, nil
 	}
 	var mixName string
@@ -70,7 +70,7 @@ func (m Model) handleMixesSaveMixAsPlaylist() (Model, tea.Cmd) {
 	pw := m.playlistWriter
 	pa := m.playlistAdder
 	if pw == nil {
-		m.statusBar.notify("Playlist writer not available")
+		m.statusBar.Notify("Playlist writer not available")
 		return m, nil
 	}
 	return m, func() tea.Msg {
@@ -102,12 +102,12 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 	}
 	be := m.batchEnqueuer
 	if be == nil {
-		m.statusBar.notify("Enqueue not available")
+		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
 	cached, ok := m.mixes.cachedMixes[mix.ID]
 	if !ok || len(cached) == 0 {
-		m.statusBar.notify("Load the mix first (press Enter)")
+		m.statusBar.Notify("Load the mix first (press Enter)")
 		return m, nil
 	}
 	wasEmpty := len(m.queue.entries) == 0
@@ -132,6 +132,6 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 func (m Model) handleMixSavedAsPlaylistMsg(msg mixSavedAsPlaylistMsg) Model {
 	m.playlists.playlists = msg.playlists
 	m = m.preservePlaylistsSort()
-	m.statusBar.notify(fmt.Sprintf("Saved as %q (%d %s)", msg.playlistName, msg.count, text.Pluralize(msg.count, "track", "tracks")))
+	m.statusBar.Notify(fmt.Sprintf("Saved as %q (%d %s)", msg.playlistName, msg.count, text.Pluralize(msg.count, "track", "tracks")))
 	return m
 }

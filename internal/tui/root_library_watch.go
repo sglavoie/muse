@@ -89,8 +89,8 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 			e.Missing = false
 		}
 		if m.playback.currentHash == t.Hash {
-			m.statusBar.artist = t.Artist
-			m.statusBar.title = t.Title
+			m.statusBar.Artist = t.Artist
+			m.statusBar.Title = t.Title
 		}
 	}
 	if queueDirty {

@@ -84,11 +84,11 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 		m.overlay.nowPlaying.Total = m.playback.totalSecs
 		m.overlay.nowPlaying.State = m.playback.state
 	}
-	m.statusBar.pruneNotifications()
+	m.statusBar.PruneNotifications()
 	// Schedule a precise fade tick at expiry-minus-fade-window for the
 	// soonest pending notification, when one is within the next tick window.
 	// The 1s tickCmd would otherwise miss the 250 ms fade window.
-	fadeCmd := notificationFadeCmd(m.statusBar.nextFadeAt())
+	fadeCmd := notificationFadeCmd(m.statusBar.NextFadeAt())
 	// The tick is the only hook every Insights invalidation reaches: undo
 	// performs on a path whose Cmd is discarded, so an eager reload at each
 	// invalidation site would miss it.

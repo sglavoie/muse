@@ -20,7 +20,7 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	case toggleNormalize:
 		next := !m.cfg.NormalizeVolume
 		if err := applyPlayerStep(m.normalizeApplyStep(m.cfg.NormalizeVolume, next)); err != nil {
-			m.statusBar.notify("Volume normalization failed: " + err.Error())
+			m.statusBar.Notify("Volume normalization failed: " + err.Error())
 			return m, nil
 		}
 		m.cfg.NormalizeVolume = next
@@ -29,7 +29,7 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	case toggleEQ:
 		next := !m.cfg.EQEnabled
 		if err := applyPlayerStep(m.equalizerApplyStep(m.cfg.EQEnabled, m.cfg.EQBands, next, m.cfg.EQBands)); err != nil {
-			m.statusBar.notify("Equalizer failed: " + err.Error())
+			m.statusBar.Notify("Equalizer failed: " + err.Error())
 			return m, nil
 		}
 		m.cfg.EQEnabled = next
@@ -38,14 +38,14 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	case toggleStereoWide:
 		next := !m.cfg.StereoWideEnabled
 		if err := applyPlayerStep(m.stereoWideApplyStep(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount, next, m.cfg.StereoWideAmount)); err != nil {
-			m.statusBar.notify("Stereo widening failed: " + err.Error())
+			m.statusBar.Notify("Stereo widening failed: " + err.Error())
 			return m, nil
 		}
 		m.cfg.StereoWideEnabled = next
 		note = "Stereo widening: " + onOff(m.cfg.StereoWideEnabled)
 	}
 
-	m.statusBar.notify(note)
+	m.statusBar.Notify(note)
 
 	if m.configPath == "" {
 		return m, nil
@@ -93,7 +93,7 @@ func (m Model) handleCommandPaletteAction(act keys.Action, target viewID) (tea.M
 	// track level. Refuse it there instead of deleting what the row never
 	// promised.
 	if act == keys.ActionPlaylistDelete && !atPlaylistListLevel(m) {
-		m.statusBar.notify("Open the playlist list to delete a playlist")
+		m.statusBar.Notify("Open the playlist list to delete a playlist")
 		return m, nil
 	}
 
@@ -169,7 +169,7 @@ func (m Model) handleRandomAlbumMsg() (Model, tea.Cmd) {
 	m = m.switchToView(viewBrowse)
 	m.browse.albums.filter = filter.State{}
 	if len(m.browse.albums.albums) == 0 {
-		m.statusBar.notify("Library is empty")
+		m.statusBar.Notify("Library is empty")
 		return m, nil
 	}
 	idx := rand.IntN(len(m.browse.albums.albums)) //nolint:gosec // non-security random for UI navigation
@@ -187,7 +187,7 @@ func (m Model) handleRandomArtistMsg() (Model, tea.Cmd) {
 	m = m.switchToView(viewBrowse)
 	m.browse.artists.filter = filter.State{}
 	if len(m.browse.artists.artists) == 0 {
-		m.statusBar.notify("Library is empty")
+		m.statusBar.Notify("Library is empty")
 		return m, nil
 	}
 	idx := rand.IntN(len(m.browse.artists.artists)) //nolint:gosec // non-security random for UI navigation
@@ -207,7 +207,7 @@ func (m Model) handleToggleFooterHintsMsg() (Model, tea.Cmd) {
 		m.setViewDimensions(m.termWidth, m.termHeight)
 		m.clampAllScrollOffsets()
 	}
-	m.statusBar.notify("Footer hints: " + onOff(m.showFooterHints))
+	m.statusBar.Notify("Footer hints: " + onOff(m.showFooterHints))
 
 	if m.configPath == "" {
 		return m, nil
@@ -221,7 +221,7 @@ func (m Model) handleToggleFooterHintsMsg() (Model, tea.Cmd) {
 func (m Model) handleToggleTrackNotifyMsg() (Model, tea.Cmd) {
 	m.notifyOnTrackChange = !m.notifyOnTrackChange
 	m.cfg.NotifyOnTrackChange = m.notifyOnTrackChange
-	m.statusBar.notify("Track notify: " + onOff(m.notifyOnTrackChange))
+	m.statusBar.Notify("Track notify: " + onOff(m.notifyOnTrackChange))
 
 	if m.configPath == "" {
 		return m, nil
@@ -239,7 +239,7 @@ func (m Model) handleToggleQueueFollowMsg() (Model, tea.Cmd) {
 	if m.followNowPlaying && m.activeView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(m.playback.currentIndex)
 	}
-	m.statusBar.notify("Queue follow: " + onOff(m.followNowPlaying))
+	m.statusBar.Notify("Queue follow: " + onOff(m.followNowPlaying))
 
 	if m.configPath == "" {
 		return m, nil
@@ -252,7 +252,7 @@ func (m Model) handleToggleQueueFollowMsg() (Model, tea.Cmd) {
 // currently-playing track, clearing any active filter first.
 func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 	if m.playback.currentHash == "" {
-		m.statusBar.notify("Nothing playing")
+		m.statusBar.Notify("Nothing playing")
 		return m, nil
 	}
 	m.library.filter = m.library.filter.Deactivate()
@@ -269,7 +269,7 @@ func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 // (ListLevel), and persists the new order when a playlistShuffler is available.
 func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
 	if m.activeView != viewPlaylists {
-		m.statusBar.notify("No playlist focused")
+		m.statusBar.Notify("No playlist focused")
 		return m, nil
 	}
 	if m.playlists.atListLevel() {
@@ -280,11 +280,11 @@ func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
 
 func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 	if m.playlists.smartQuery != nil {
-		m.statusBar.notify("Cannot shuffle smart playlist")
+		m.statusBar.Notify("Cannot shuffle smart playlist")
 		return m, nil
 	}
 	if len(m.playlists.tracks) <= 1 {
-		m.statusBar.notify("Playlist too small to shuffle")
+		m.statusBar.Notify("Playlist too small to shuffle")
 		return m, nil
 	}
 
@@ -298,7 +298,7 @@ func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 	m = m.resetPlaylistsSort()
 
 	n := len(tracks)
-	m.statusBar.notify(fmt.Sprintf("Playlist shuffled (%d tracks)", n))
+	m.statusBar.Notify(fmt.Sprintf("Playlist shuffled (%d tracks)", n))
 
 	var playlistID int64
 	if m.playlists.listCursor >= 0 && m.playlists.listCursor < len(m.playlists.playlists) {
@@ -322,15 +322,15 @@ func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
 	pl, ok := m.playlists.focusedPlaylist()
 	if !ok {
-		m.statusBar.notify("No playlist focused")
+		m.statusBar.Notify("No playlist focused")
 		return m, nil
 	}
 	if pl.IsSmart {
-		m.statusBar.notify("Cannot shuffle smart playlist")
+		m.statusBar.Notify("Cannot shuffle smart playlist")
 		return m, nil
 	}
 	if pl.TrackCount <= 1 {
-		m.statusBar.notify("Playlist too small to shuffle")
+		m.statusBar.Notify("Playlist too small to shuffle")
 		return m, nil
 	}
 	if m.playlistReader == nil {

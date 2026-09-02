@@ -34,7 +34,7 @@ func (m Model) handleTagMerge() (Model, tea.Cmd) {
 		return m, nil
 	}
 	if len(m.tags) < 2 {
-		m.statusBar.notify("Need at least 2 tags to merge")
+		m.statusBar.Notify("Need at least 2 tags to merge")
 		return m, nil
 	}
 	picker := NewTagMergePicker(tag, m.tags)
@@ -59,7 +59,7 @@ func (m Model) handleTagMergePicked(msg tagMergePickedMsg) (Model, tea.Cmd) {
 // handleTagMerged processes tagMergedMsg: refreshes the tag cache and notifies.
 func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 	if msg.err != nil {
-		m.statusBar.notify("Merge failed: " + msg.err.Error())
+		m.statusBar.Notify("Merge failed: " + msg.err.Error())
 		return m, nil
 	}
 
@@ -92,7 +92,7 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 		m.tagsView.tagCounts = counts
 	}
 	m.tagsView = m.tagsView.clampCursor()
-	m.statusBar.notify(
+	m.statusBar.Notify(
 		fmt.Sprintf("Merged %q into %q", msg.src.Name, msg.dest.Name))
 	return m, nil
 }

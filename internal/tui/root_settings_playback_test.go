@@ -144,8 +144,8 @@ func TestSettingsSaveNormalizeFailureKeepsOverlayOpen(t *testing.T) {
 	if nm.cfg.NormalizeVolume {
 		t.Error("ctrl+s: expected cfg.NormalizeVolume to remain false after failure")
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
-		t.Fatalf("ctrl+s: expected failure notification, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "failed") {
+		t.Fatalf("ctrl+s: expected failure notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	if len(stub.normalizeCalls) != 2 {
 		t.Fatalf("ctrl+s: expected failed apply + rollback, got %d calls", len(stub.normalizeCalls))
@@ -236,8 +236,8 @@ func TestStereoWideLivePreviewFailureRestoresOverlayState(t *testing.T) {
 	if nm.overlay.settings.fields[settingsTabPlayback][6].Value != 0 {
 		t.Fatal("live preview: expected stereo wide toggle to revert on failure")
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
-		t.Fatalf("live preview: expected failure notification, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "failed") {
+		t.Fatalf("live preview: expected failure notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	if len(stub.calls) != 2 {
 		t.Fatalf("live preview: expected failed apply + rollback, got %d calls", len(stub.calls))

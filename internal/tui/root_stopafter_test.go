@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -39,8 +40,8 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	if !p.stopAfter {
 		t.Error("expected player stopAfter to be true")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "on") {
-		t.Errorf("expected notification containing 'on', got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "on") {
+		t.Errorf("expected notification containing 'on', got %q", m.statusBar.TopNotification().Msg)
 	}
 
 	// Toggle off.
@@ -52,8 +53,8 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	if p.stopAfter {
 		t.Error("expected player stopAfter to be false")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "off") {
-		t.Errorf("expected notification containing 'off', got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "off") {
+		t.Errorf("expected notification containing 'off', got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -72,8 +73,8 @@ func TestStopAfterCurrentRequiresPlayback(t *testing.T) {
 	if m.playback.stopAfterCurrent {
 		t.Error("flag should remain false when idle")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "No track playing") {
-		t.Errorf("expected 'No track playing' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "No track playing") {
+		t.Errorf("expected 'No track playing' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -90,8 +91,8 @@ func TestStopAfterCurrentResetsOnPlaybackEnded(t *testing.T) {
 	if nm.playback.stopAfterCurrent {
 		t.Error("expected stopAfterCurrent to be cleared after PlaybackEndedMsg")
 	}
-	if nm.statusBar.topNotification().msg != "Stopped after track" {
-		t.Errorf("expected 'Stopped after track' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "Stopped after track" {
+		t.Errorf("expected 'Stopped after track' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle, got %v", nm.playback.state)
@@ -144,20 +145,20 @@ func TestStopAfterCurrentClearsOnManualStop(t *testing.T) {
 // TestStopAfterCurrentStatusBarIndicator verifies that the "N" indicator
 // appears in the status bar when the flag is set.
 func TestStopAfterCurrentStatusBarIndicator(t *testing.T) {
-	sb := StatusBar{
-		artist:           "Art",
-		title:            "Song",
-		playbackState:    playback.StatePlaying,
-		stopAfterCurrent: true,
+	sb := statusbar.StatusBar{
+		Artist:           "Art",
+		Title:            "Song",
+		PlaybackState:    playback.StatePlaying,
+		StopAfterCurrent: true,
 	}
-	out := sb.render(0, styles.Styles{})
+	out := sb.Render(0, styles.Styles{})
 	if !strings.Contains(out, "N") {
 		t.Errorf("expected 'N' indicator in status bar, got %q", out)
 	}
 
 	// Without the flag, "N" should not appear as an indicator.
-	sb.stopAfterCurrent = false
-	out = sb.render(0, styles.Styles{})
+	sb.StopAfterCurrent = false
+	out = sb.Render(0, styles.Styles{})
 	// The letters "N" could appear in artist/title, so check more specifically
 	// by verifying the bold "  N" pattern is absent. Since render uses styled
 	// output, we just verify the flag-on case differs from flag-off.

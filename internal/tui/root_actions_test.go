@@ -38,7 +38,7 @@ func TestActionGoToWithEmptyOptionsNotifiesUser(t *testing.T) {
 	if nm.overlay.goTo != nil {
 		t.Fatal("expected overlay.goTo to remain nil when no jump targets apply")
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "No jump targets") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "No jump targets") {
 		t.Fatalf("expected status notification mentioning 'No jump targets', got %q", msg)
 	}
 }
@@ -54,7 +54,7 @@ func TestActionGoToNotFoundNotifies(t *testing.T) {
 	if nm.overlay.goTo != nil {
 		t.Fatal("expected overlay.goTo to remain nil when no track focused")
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "No track focused") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "No track focused") {
 		t.Fatalf("expected status notification 'No track focused', got %q", msg)
 	}
 }

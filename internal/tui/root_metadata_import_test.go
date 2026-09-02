@@ -122,7 +122,7 @@ func TestMetadataImportRefusesWithoutDataDirOrFile(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("an empty data directory must not produce a read command")
 	}
-	if msg := next.(Model).statusBar.topNotification().msg; !strings.Contains(msg, "data directory") {
+	if msg := next.(Model).statusBar.TopNotification().Msg; !strings.Contains(msg, "data directory") {
 		t.Fatalf("expected a refusal notification, got %q", msg)
 	}
 
@@ -131,7 +131,7 @@ func TestMetadataImportRefusesWithoutDataDirOrFile(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("a missing export must not produce a read command")
 	}
-	if msg := next.(Model).statusBar.topNotification().msg; !strings.Contains(msg, "No export") {
+	if msg := next.(Model).statusBar.TopNotification().Msg; !strings.Contains(msg, "No export") {
 		t.Fatalf("expected a missing-file refusal, got %q", msg)
 	}
 }
@@ -173,7 +173,7 @@ func TestMetadataImportSurfacesWholeFileRejection(t *testing.T) {
 	if m.overlay.metadataImport != nil {
 		t.Fatal("a rejected file must not open the overlay")
 	}
-	if got := m.statusBar.topNotification().msg; !strings.Contains(got, "Import failed") {
+	if got := m.statusBar.TopNotification().Msg; !strings.Contains(got, "Import failed") {
 		t.Fatalf("expected the parser's own wording, got %q", got)
 	}
 }
@@ -189,7 +189,7 @@ func TestMetadataImportOfAnUnchangedFileReportsNoChanges(t *testing.T) {
 	if m.overlay.metadataImport != nil {
 		t.Fatal("an import with no changes must not open the overlay")
 	}
-	got := m.statusBar.topNotification().msg
+	got := m.statusBar.TopNotification().Msg
 	if !strings.Contains(got, "No changes") || !strings.Contains(got, "1 unknown hash") {
 		t.Fatalf("expected a no-op notification naming the stale hash, got %q", got)
 	}

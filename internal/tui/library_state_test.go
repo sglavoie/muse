@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // TestClampCursorReserveMatchesRenderer verifies that clampCursor uses the same
@@ -125,7 +126,7 @@ func TestFormatCountNegative(t *testing.T) {
 		-100:    "-100",
 	}
 	for in, want := range cases {
-		got := formatCount(in)
+		got := text.FormatCount(in)
 		if got != want {
 			t.Errorf("formatCount(%d) = %q, want %q", in, got, want)
 		}

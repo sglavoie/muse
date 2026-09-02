@@ -15,7 +15,7 @@ import (
 // action stored in the undo slot, if one exists and has not expired.
 func (m Model) handleUndo() Model {
 	if m.undo.slot.action == nil || !time.Now().Before(m.undo.slot.expiresAt) {
-		m.statusBar.notify("Nothing to undo")
+		m.statusBar.Notify("Nothing to undo")
 		return m
 	}
 	// Cancel any in-flight purge timer before delegating to perform(). This
@@ -166,11 +166,11 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 		return m.yankOrCutQueueTracks(true)
 	case keys.ActionPaste:
 		if len(m.yankBuffer) == 0 {
-			m.statusBar.notify("Nothing to paste")
+			m.statusBar.Notify("Nothing to paste")
 			return m, nil, true
 		}
 		if m.queue.displayOrder != nil || m.queue.filter.Text != "" || len(m.queue.tagFilterHashes) > 0 {
-			m.statusBar.notify("Cannot paste while sorted/filtered")
+			m.statusBar.Notify("Cannot paste while sorted/filtered")
 			return m, nil, true
 		}
 		if m.queueWriter == nil {
@@ -189,7 +189,7 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 		return m, m.queuePasteCmd(insertPos, buffer, cutIDs), true
 	case keys.ActionSaveQueueAsPlaylist:
 		if len(m.queue.entries) == 0 {
-			m.statusBar.notify("Queue is empty — nothing to save")
+			m.statusBar.Notify("Queue is empty — nothing to save")
 		} else {
 			fromSelection := m.queue.hasSelection()
 			m.queue = m.queue.startSaveAsPlaylist(fromSelection)
@@ -232,7 +232,7 @@ func (m Model) yankOrCutQueueTracks(isCut bool) (tea.Model, tea.Cmd, bool) {
 		if isCut {
 			verb = "Cut"
 		}
-		m.statusBar.notify(fmt.Sprintf("%s %d track(s)", verb, n))
+		m.statusBar.Notify(fmt.Sprintf("%s %d track(s)", verb, n))
 	}
 	return m, nil, true
 }

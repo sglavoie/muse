@@ -128,11 +128,11 @@ func TestTrackChangedHashNotInQueueUsesNegativeIndex(t *testing.T) {
 		t.Fatalf("expected currentIndex=-1 when hash not in queue, got %d", nm.playback.currentIndex)
 	}
 	// Status bar should still be updated with the message metadata.
-	if nm.statusBar.artist != "G" {
-		t.Errorf("expected artist %q, got %q", "G", nm.statusBar.artist)
+	if nm.statusBar.Artist != "G" {
+		t.Errorf("expected artist %q, got %q", "G", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "Gone" {
-		t.Errorf("expected title %q, got %q", "Gone", nm.statusBar.title)
+	if nm.statusBar.Title != "Gone" {
+		t.Errorf("expected title %q, got %q", "Gone", nm.statusBar.Title)
 	}
 }
 

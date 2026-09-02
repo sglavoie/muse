@@ -16,7 +16,7 @@ import (
 // appended to the end.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notify("Enqueue track failed: " + msg.Err.Error())
+		m.statusBar.Notify("Enqueue track failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -69,9 +69,9 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 			m.playback.currentHash = msg.Track.Hash
 			m.playback.currentIndex = enqueueIdx
 			m = m.resetPlaybackProgress()
-			m.statusBar.artist = msg.Track.Artist
-			m.statusBar.title = msg.Track.Title
-			m.statusBar.playlistSource = queueSourceName(msg.SourcePlaylist)
+			m.statusBar.Artist = msg.Track.Artist
+			m.statusBar.Title = msg.Track.Title
+			m.statusBar.PlaylistSource = queueSourceName(msg.SourcePlaylist)
 		}
 		m.playback.queueExhausted = false
 	}
@@ -82,12 +82,12 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 // to the queue and triggers playback if the queue was empty.
 func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notify("Enqueue failed: " + msg.Err.Error())
+		m.statusBar.Notify("Enqueue failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
 	if len(msg.Entries) == 0 {
-		m.statusBar.notify("Playlist is empty")
+		m.statusBar.Notify("Playlist is empty")
 		return m
 	}
 	batchStartIdx := len(m.queue.entries)
@@ -108,9 +108,9 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 			m.playback.currentHash = entry.Hash
 			m.playback.currentIndex = batchStartIdx
 			m = m.resetPlaybackProgress()
-			m.statusBar.artist = entry.Artist
-			m.statusBar.title = entry.Title
-			m.statusBar.playlistSource = queueSourceName(msg.PlaylistName)
+			m.statusBar.Artist = entry.Artist
+			m.statusBar.Title = entry.Title
+			m.statusBar.PlaylistSource = queueSourceName(msg.PlaylistName)
 		}
 		m.playback.queueExhausted = false
 	}
@@ -133,7 +133,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	}
 	if err := m.player.PlayFromIndex(0); err != nil {
 		m.playback.state = playback.StateIdle
-		m.statusBar.notify("Play failed: " + err.Error())
+		m.statusBar.Notify("Play failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -143,9 +143,9 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	// Clear elapsed/peak/durationCorrected from any prior track so the new
 	// track's progress bar and duration-correction logic start fresh.
 	m = m.resetPlaybackProgress()
-	m.statusBar.artist = artist
-	m.statusBar.title = title
-	m.statusBar.playlistSource = queueSourceName(source)
+	m.statusBar.Artist = artist
+	m.statusBar.Title = title
+	m.statusBar.PlaylistSource = queueSourceName(source)
 	return m
 }
 
@@ -181,9 +181,9 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	m.playback.currentHash = entry.Hash
 	m.playback.currentIndex = msg.Index
 	m = m.resetPlaybackProgress()
-	m.statusBar.artist = entry.Artist
-	m.statusBar.title = entry.Title
-	m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
+	m.statusBar.Artist = entry.Artist
+	m.statusBar.Title = entry.Title
+	m.statusBar.PlaylistSource = queueSourceName(entry.SourcePlaylist)
 
 	p := m.player
 	idx := msg.Index

@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 )
 
 func (s StatusBar) renderLine2(ctx statusBarRenderContext) string {
-	playbackActive := s.elapsed != "" && s.total != ""
-	longOpActive := s.longOp.Active
+	playbackActive := s.Elapsed != "" && s.Total != ""
+	longOpActive := s.LongOp.Active
 	switch {
 	case longOpActive && playbackActive && ctx.width > 0:
 		half := ctx.width / 2
@@ -33,15 +33,15 @@ func (s StatusBar) renderPlaybackLine(ctx statusBarRenderContext, targetWidth in
 	const line2Pad = 1
 	albumPart := ""
 	albumWidth := 0
-	if s.album != "" {
-		albumPart = ctx.styles.TextSecondary.Background(ctx.base.GetBackground()).Render(s.album)
-		albumWidth = ansi.StringWidth(s.album)
+	if s.Album != "" {
+		albumPart = ctx.styles.TextSecondary.Background(ctx.base.GetBackground()).Render(s.Album)
+		albumWidth = ansi.StringWidth(s.Album)
 	}
 	timePart := ""
 	timeWidth := 0
-	if s.elapsed != "" && s.total != "" {
-		timePart = ctx.r(s.elapsed + " / " + s.total)
-		timeWidth = len(s.elapsed) + 3 + len(s.total)
+	if s.Elapsed != "" && s.Total != "" {
+		timePart = ctx.r(s.Elapsed + " / " + s.Total)
+		timeWidth = len(s.Elapsed) + 3 + len(s.Total)
 	}
 	dotPart := ""
 	dotWidth := 0
@@ -58,23 +58,23 @@ func (s StatusBar) renderPlaybackLine(ctx statusBarRenderContext, targetWidth in
 	if progressWidth < 0 {
 		progressWidth = 0
 	}
-	return left + renderProgressBar(s.elapsedSecs, s.totalSecs, progressWidth, ctx.styles) + ctx.r(strings.Repeat(" ", line2Pad))
+	return left + renderProgressBar(s.ElapsedSecs, s.TotalSecs, progressWidth, ctx.styles) + ctx.r(strings.Repeat(" ", line2Pad))
 }
 
 func (s StatusBar) renderLongOpLine(ctx statusBarRenderContext, targetWidth int) string {
 	const line2Pad = 1
-	label := s.longOp.Label
+	label := s.LongOp.Label
 	if label == "" {
 		label = "Working"
 	}
-	done := s.longOp.Done
-	total := s.longOp.Total
-	counts := formatCount(done)
+	done := s.LongOp.Done
+	total := s.LongOp.Total
+	counts := text.FormatCount(done)
 	if total > 0 {
-		counts = fmt.Sprintf("%s/%s", formatCount(done), formatCount(total))
+		counts = fmt.Sprintf("%s/%s", text.FormatCount(done), text.FormatCount(total))
 	}
 	etaText := ""
-	if eta := s.longOp.etaSeconds(); eta > 0 {
+	if eta := s.LongOp.etaSeconds(); eta > 0 {
 		etaText = "ETA " + text.FormatPositionSecs(float64(eta))
 	}
 	cancelHint := "esc cancel"

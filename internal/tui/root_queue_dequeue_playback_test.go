@@ -14,9 +14,9 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
-	m.statusBar.playlistSource = "Queue"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
+	m.statusBar.PlaylistSource = "Queue"
 	m.playback.elapsedSecs = 42.0
 	m.playback.totalSecs = 180.0
 	m.queue.entries = []QueueEntry{
@@ -30,14 +30,14 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
-	if nm.statusBar.artist != "" {
-		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "" {
-		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.title)
+	if nm.statusBar.Title != "" {
+		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.Title)
 	}
-	if nm.statusBar.playlistSource != "" {
-		t.Errorf("statusBar.playlistSource = %q, want empty", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty", nm.statusBar.PlaylistSource)
 	}
 	if nm.playback.currentHash != "" {
 		t.Errorf("currentTrackHash = %q, want empty", nm.playback.currentHash)
@@ -61,8 +61,8 @@ func TestDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/a.flac", Display: "A (dup)", Hash: "abc123"},
@@ -78,8 +78,8 @@ func TestDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	if nm.playback.currentHash != "abc123" {
 		t.Errorf("currentHash = %q, want %q", nm.playback.currentHash, "abc123")
 	}
-	if nm.statusBar.artist != "Artist" {
-		t.Errorf("statusBar.artist = %q, want %q", nm.statusBar.artist, "Artist")
+	if nm.statusBar.Artist != "Artist" {
+		t.Errorf("statusBar.artist = %q, want %q", nm.statusBar.Artist, "Artist")
 	}
 	if p.stopCalls != 0 {
 		t.Errorf("Stop should not be called when another instance of the hash remains, got %d calls", p.stopCalls)
@@ -93,8 +93,8 @@ func TestDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
@@ -123,9 +123,9 @@ func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.playback.currentIndex = 0 // currently playing track at index 0
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
-	m.statusBar.playlistSource = "Queue"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
+	m.statusBar.PlaylistSource = "Queue"
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 		{ID: 20, Path: "/music/b.flac", Display: "B", Hash: "other"},
@@ -146,14 +146,14 @@ func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
 	if nm.playback.currentHash != "" {
 		t.Errorf("currentHash = %q, want empty (will be repopulated by start-file)", nm.playback.currentHash)
 	}
-	if nm.statusBar.artist != "" {
-		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "" {
-		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.title)
+	if nm.statusBar.Title != "" {
+		t.Errorf("statusBar.title = %q, want empty", nm.statusBar.Title)
 	}
-	if nm.statusBar.playlistSource != "" {
-		t.Errorf("statusBar.playlistSource = %q, want empty", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty", nm.statusBar.PlaylistSource)
 	}
 }
 
@@ -166,8 +166,8 @@ func TestDequeueCurrentIndexEmptyQueueStopsPlayback(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.playback.currentIndex = 0
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 	m.queue.entries = []QueueEntry{
 		{ID: 10, Path: "/music/a.flac", Display: "A", Hash: "abc123"},
 	}

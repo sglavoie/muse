@@ -77,8 +77,8 @@ func TestRenameArtistFromArtistsView(t *testing.T) {
 		t.Errorf("expected cursor on 'Alicia', got %q", m.browse.artists.artists[m.browse.artists.cursor])
 	}
 
-	if !strings.Contains(m.statusBar.topNotification().msg, "Renamed") {
-		t.Errorf("expected 'Renamed' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "Renamed") {
+		t.Errorf("expected 'Renamed' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -350,8 +350,8 @@ func TestRenameNoOpWhenEditorHasNoChanges(t *testing.T) {
 	if m.overlay.metadataEditor != nil {
 		t.Error("expected editor to close after save")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "No changes") {
-		t.Errorf("expected 'No changes' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "No changes") {
+		t.Errorf("expected 'No changes' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 
 // handlePlayerStatusMsg shows a transient player status notification.
 func (m Model) handlePlayerStatusMsg(msg playback.PlayerStatusMsg) Model {
-	m.statusBar.notify(msg.Text)
+	m.statusBar.Notify(msg.Text)
 	return m
 }
 
@@ -19,7 +19,7 @@ func (m Model) handlePlayerStatusMsg(msg playback.PlayerStatusMsg) Model {
 // track counter, and notifies the status bar.
 func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
 	m.queue.markMissing(msg.Path)
-	m.statusBar.handleMissingTrack(msg.Path)
+	m.statusBar.HandleMissingTrack(msg.Path)
 	m.missingTrackCount++
 	player.PlaySound(player.SoundError)
 	return m
@@ -35,17 +35,17 @@ func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
 func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMsg) (Model, tea.Cmd) {
 	idx := msg.Index
 	if idx < 0 || idx >= len(m.queue.entries) {
-		m.statusBar.notify("Cannot play — file is missing")
+		m.statusBar.Notify("Cannot play — file is missing")
 		return m, nil
 	}
 	entry := m.queue.entries[idx]
 	// Guard against a stale index (queue mutated between dispatch and Update).
 	if msg.Path != "" && entry.Path != msg.Path {
-		m.statusBar.notify("Cannot play — file is missing")
+		m.statusBar.Notify("Cannot play — file is missing")
 		return m, nil
 	}
 
-	m.statusBar.notify("Removed — file missing: " + entry.Display)
+	m.statusBar.Notify("Removed — file missing: " + entry.Display)
 	player.PlaySound(player.SoundError)
 
 	m.queue.entries = append(m.queue.entries[:idx], m.queue.entries[idx+1:]...)
@@ -102,7 +102,7 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 		return m
 	}
 	m = m.resetPlaybackState()
-	m.statusBar.notify("Play failed: " + msg.Err.Error())
+	m.statusBar.Notify("Play failed: " + msg.Err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }

@@ -128,7 +128,7 @@ func (m Model) handleDurationAuditBatchMsg(msg library.DurationAuditBatchMsg) (M
 func (m Model) handleDurationAuditDoneMsg(_ library.DurationAuditDoneMsg) (Model, tea.Cmd) {
 	corrected := m.auditCorrected
 	if corrected > 0 {
-		m.statusBar.notify(
+		m.statusBar.Notify(
 			fmt.Sprintf("Duration audit: corrected %d %s", corrected,
 				text.Pluralize(corrected, "track", "tracks")),
 		)

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -44,8 +45,8 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		sb := StatusBar{artist: "A", title: "T", playbackState: tc.state}
-		out := sb.render(0, styles.Styles{})
+		sb := statusbar.StatusBar{Artist: "A", Title: "T", PlaybackState: tc.state}
+		out := sb.Render(0, styles.Styles{})
 		if !strings.Contains(out, tc.want) {
 			t.Fatalf("state %v: expected %q in status bar; got: %s", tc.state, tc.want, out)
 		}
@@ -56,8 +57,8 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 83.0, total: 245.0}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 
 	nm, _ := updateModel(m, tickMsg{})
 	assertViewContains(t, nm, "1:23 / 4:05")
@@ -68,8 +69,8 @@ func TestStatusBarHidesStaleQueuePosition(t *testing.T) {
 	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac"}, {ID: 2, Path: "/b.flac"}}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = len(m.queue.entries)
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 	m.termWidth = 200
 
 	out := renderedStatusBar(m)
@@ -81,8 +82,8 @@ func TestStatusBarHidesStaleQueuePosition(t *testing.T) {
 func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 	m := New(context.Background())
 	m.playback.state = playback.StatePlaying
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
 
 	assertViewNotContains(t, m, " / ")
 }

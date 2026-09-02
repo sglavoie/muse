@@ -47,11 +47,11 @@ type metadataImportWrite struct {
 // index because the hashes an import touches are unknown until it is parsed.
 func (m Model) handleMetadataImportRequest() (tea.Model, tea.Cmd) {
 	if m.dataDir == "" {
-		m.statusBar.notify("Cannot import: no data directory configured")
+		m.statusBar.Notify("Cannot import: no data directory configured")
 		return m, nil
 	}
 	if !metadataExportExists(m.dataDir) {
-		m.statusBar.notify("No export to import — export visible tracks first")
+		m.statusBar.Notify("No export to import — export visible tracks first")
 		return m, nil
 	}
 	return m, readMetadataImportCmd(metadataExportPath(m.dataDir), m.metadataImportCurrent())
@@ -99,7 +99,7 @@ func readMetadataImportCmd(path string, cur map[string]metaexport.Current) tea.C
 // written until the user confirms there.
 func (m Model) handleMetadataImportParsedMsg(msg metadataImportParsedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.notify("Import failed: " + msg.err.Error())
+		m.statusBar.Notify("Import failed: " + msg.err.Error())
 		return m
 	}
 	// A parse that dropped rows or warned is not a clean no-op: an intended edit
@@ -110,7 +110,7 @@ func (m Model) handleMetadataImportParsedMsg(msg metadataImportParsedMsg) Model 
 		if n := len(msg.plan.Unknown); n > 0 {
 			notice += fmt.Sprintf(" · %d unknown %s", n, text.Pluralize(n, "hash", "hashes"))
 		}
-		m.statusBar.notify(notice)
+		m.statusBar.Notify(notice)
 		return m
 	}
 	overlay := newMetadataImportOverlay(msg.path, msg.plan, msg.skipped)
@@ -132,7 +132,7 @@ func (m Model) handleMetadataImportKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 		return m, tea.Quit, true
 	case "esc", "q", "n":
 		m.overlay.metadataImport = nil
-		m.statusBar.notify("Import canceled")
+		m.statusBar.Notify("Import canceled")
 		return m, nil, true
 	case "enter", "y":
 		if !o.canApply() {
@@ -234,7 +234,7 @@ func (m Model) applyMetadataImport(o MetadataImportOverlay) (Model, tea.Cmd, boo
 	}
 
 	if len(writes) == 0 {
-		m.statusBar.notify("Nothing left to import — every row already matches")
+		m.statusBar.Notify("Nothing left to import — every row already matches")
 		return m, nil, true
 	}
 
@@ -312,6 +312,6 @@ func (m Model) handleMetadataImportAppliedMsg(msg metadataImportAppliedMsg) Mode
 	if msg.superseded > 0 {
 		text += fmt.Sprintf(" · %d superseded by a later edit", msg.superseded)
 	}
-	m.statusBar.notify(text)
+	m.statusBar.Notify(text)
 	return m
 }

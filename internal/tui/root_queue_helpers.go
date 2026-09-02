@@ -103,9 +103,9 @@ func (m Model) resetPlaybackState() Model {
 	m = m.resetPlaybackProgress()
 	m.playback.stopAfterCurrent = false
 	m.playback.queueExhausted = false
-	m.statusBar.artist = ""
-	m.statusBar.title = ""
-	m.statusBar.playlistSource = ""
+	m.statusBar.Artist = ""
+	m.statusBar.Title = ""
+	m.statusBar.PlaylistSource = ""
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
 	m.missingTrackCount = 0

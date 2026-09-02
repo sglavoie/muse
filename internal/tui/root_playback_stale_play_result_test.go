@@ -20,8 +20,8 @@ func TestPlayFromIndexResultStaleAfterTrackJumpIsIgnored(t *testing.T) {
 	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 1
 	m.playback.currentHash = "track-1-hash"
-	m.statusBar.artist = "Current Artist"
-	m.statusBar.title = "Current Title"
+	m.statusBar.Artist = "Current Artist"
+	m.statusBar.Title = "Current Title"
 
 	// A late error for the abandoned track-0 attempt arrives.
 	stale := playback.PlayFromIndexResultMsg{
@@ -41,14 +41,14 @@ func TestPlayFromIndexResultStaleAfterTrackJumpIsIgnored(t *testing.T) {
 	if nm.playback.currentHash != "track-1-hash" {
 		t.Errorf("currentHash = %q, want %q", nm.playback.currentHash, "track-1-hash")
 	}
-	if nm.statusBar.artist != "Current Artist" {
-		t.Errorf("artist = %q, want %q", nm.statusBar.artist, "Current Artist")
+	if nm.statusBar.Artist != "Current Artist" {
+		t.Errorf("artist = %q, want %q", nm.statusBar.Artist, "Current Artist")
 	}
-	if nm.statusBar.title != "Current Title" {
-		t.Errorf("title = %q, want %q", nm.statusBar.title, "Current Title")
+	if nm.statusBar.Title != "Current Title" {
+		t.Errorf("title = %q, want %q", nm.statusBar.Title, "Current Title")
 	}
-	if nm.statusBar.topNotification().msg != "" {
-		t.Errorf("stale failure must not surface a notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "" {
+		t.Errorf("stale failure must not surface a notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -75,7 +75,7 @@ func TestPlayFromIndexResultStaleAfterQueueClearIsIgnored(t *testing.T) {
 	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playback state = %v, want PlaybackIdle (unchanged)", nm.playback.state)
 	}
-	if nm.statusBar.topNotification().msg != "" {
-		t.Errorf("stale failure after clear must not notify, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "" {
+		t.Errorf("stale failure after clear must not notify, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }

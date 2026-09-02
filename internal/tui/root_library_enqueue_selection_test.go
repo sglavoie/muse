@@ -108,7 +108,7 @@ func TestLibraryEnterSelectionUnavailablePreservesState(t *testing.T) {
 	if len(nm.library.selectedHashes) != 1 || nm.library.filter.Text != "one" {
 		t.Fatalf("selection/filter changed when enqueue unavailable: selection=%v filter=%q", nm.library.selectedHashes, nm.library.filter.Text)
 	}
-	if got := nm.statusBar.topNotification().msg; !strings.Contains(got, "Enqueue not available") {
+	if got := nm.statusBar.TopNotification().Msg; !strings.Contains(got, "Enqueue not available") {
 		t.Fatalf("notification = %q, want enqueue unavailable", got)
 	}
 }
@@ -135,7 +135,7 @@ func TestLibraryEnterSelectionBatchFailureLeavesQueueUnchanged(t *testing.T) {
 	if len(fm.queue.entries) != 1 || fm.queue.entries[0].Hash != "existing" {
 		t.Fatalf("queue changed after failed batch: %+v", fm.queue.entries)
 	}
-	got := fm.statusBar.topNotification().msg
+	got := fm.statusBar.TopNotification().Msg
 	if !strings.Contains(got, "Enqueue failed") || strings.Contains(got, "playlist") {
 		t.Fatalf("failure notification = %q", got)
 	}

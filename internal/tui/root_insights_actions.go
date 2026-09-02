@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // insightsAntiRutCount is how many unheard tracks the anti-rut shortcut pulls.
@@ -32,7 +33,7 @@ func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
 		if row.drill.opensSessions() {
 			sessions := insightsSessionsMatching(m.insights.sessions, row.drill, row.key)
 			if len(sessions) == 0 {
-				m.statusBar.notify("No sessions behind this row")
+				m.statusBar.Notify("No sessions behind this row")
 				return m, nil
 			}
 			m.insights.openSessionList(row.label, sessions)
@@ -40,14 +41,14 @@ func (m Model) handleInsightsOpen() (Model, tea.Cmd) {
 		}
 		tracks := m.insightsDrillTracks(*row)
 		if len(tracks) == 0 {
-			m.statusBar.notify("Nothing behind this row")
+			m.statusBar.Notify("Nothing behind this row")
 			return m, nil
 		}
 		m.insights.openDrill(row.label, tracks)
 	case insightsLevelSessions:
 		tracks, label := m.insightsSessionActionTracks()
 		if len(tracks) == 0 {
-			m.statusBar.notify("Nothing behind this session")
+			m.statusBar.Notify("Nothing behind this session")
 			return m, nil
 		}
 		m.insights.openDrill(label, tracks)
@@ -157,7 +158,7 @@ func (m Model) handleInsightsAntiRut() (Model, tea.Cmd) {
 		if len(tracks) == 0 {
 			// A library smaller than the rut has no outside, which is a different
 			// answer from "nothing to enqueue" and worth saying out loud.
-			m.statusBar.notify(fmt.Sprintf("Your whole library is inside your top %d artists", insightsRutTopArtists))
+			m.statusBar.Notify(fmt.Sprintf("Your whole library is inside your top %d artists", insightsRutTopArtists))
 			return m, nil
 		}
 		return m.insightsEnqueue(tracks, fmt.Sprintf("Outside your top %d artists", insightsRutTopArtists))
@@ -167,12 +168,12 @@ func (m Model) handleInsightsAntiRut() (Model, tea.Cmd) {
 
 func (m Model) insightsEnqueue(tracks []library.Track, label string) (Model, tea.Cmd) {
 	if len(tracks) == 0 {
-		m.statusBar.notify("Nothing to enqueue")
+		m.statusBar.Notify("Nothing to enqueue")
 		return m, nil
 	}
 	be := m.batchEnqueuer
 	if be == nil {
-		m.statusBar.notify("Enqueue not available")
+		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
 	wasEmpty := len(m.queue.entries) == 0
@@ -212,7 +213,7 @@ func (m Model) handleInsightsRadioSeed() (Model, tea.Cmd) {
 			slog.Warn("session: write radio mode", "err", err)
 		}
 	}
-	m.statusBar.pushMsg("Radio: seeded from "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+	m.statusBar.PushMsg("Radio: seeded from "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	cmd := m.radioMaybeEnqueueCmd()
 	if cmd != nil {
 		m.radio.enqueuePending = true
@@ -259,7 +260,7 @@ func (m Model) handleInsightsJumpBrowse() Model {
 		}
 	}
 	if artist == "" {
-		m.statusBar.notify("No artist to jump to")
+		m.statusBar.Notify("No artist to jump to")
 		return m
 	}
 	return m.jumpToArtist(artist)
@@ -272,12 +273,12 @@ func (m Model) handleInsightsSavePlaylist() (Model, tea.Cmd) {
 	}
 	tracks := m.insights.trackView.sourceTracks
 	if len(tracks) == 0 {
-		m.statusBar.notify("No tracks to save")
+		m.statusBar.Notify("No tracks to save")
 		return m, nil
 	}
 	pw := m.playlistWriter
 	if pw == nil {
-		m.statusBar.notify("Playlist writer not available")
+		m.statusBar.Notify("Playlist writer not available")
 		return m, nil
 	}
 	pa := m.playlistAdder

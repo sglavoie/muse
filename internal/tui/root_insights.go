@@ -224,9 +224,9 @@ func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
 		m.insights.loadErr = msg.err
 		m.insights.stale = true
 		if m.insights.loaded {
-			m.statusBar.notify("Insights: refresh failed, showing the last complete figures")
+			m.statusBar.Notify("Insights: refresh failed, showing the last complete figures")
 		} else {
-			m.statusBar.notify("Insights: could not read your listening history")
+			m.statusBar.Notify("Insights: could not read your listening history")
 		}
 		return m
 	}
@@ -262,7 +262,7 @@ func (m Model) handleInsightsPanelCycle(delta int) Model {
 func (m Model) handleInsightsWindowCycle(delta int) (Model, tea.Cmd) {
 	switch m.insights.panelSpec().class {
 	case classFixed:
-		m.statusBar.notify("This panel is always all-time")
+		m.statusBar.Notify("This panel is always all-time")
 		return m, nil
 	case classResolution:
 		m.insights = m.insights.shiftResolution(delta)

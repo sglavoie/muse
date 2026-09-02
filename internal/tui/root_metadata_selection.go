@@ -99,8 +99,8 @@ func commonValue(vals []string) string {
 // the persistent left zone reflects renamed metadata immediately.
 func (m Model) syncStatusBarMetadata(hash, artist, title string) Model {
 	if m.playback.currentHash != "" && m.playback.currentHash == hash {
-		m.statusBar.artist = artist
-		m.statusBar.title = title
+		m.statusBar.Artist = artist
+		m.statusBar.Title = title
 	}
 	return m
 }

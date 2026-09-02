@@ -57,9 +57,9 @@ func (m Model) handleDequeueTrackMsg(msg DequeueTrackMsg) Model {
 			// causing every next track to start paused until relaunch.
 			// Clear only the TUI bookkeeping; start-file will repopulate it.
 			m.playback.currentHash = ""
-			m.statusBar.artist = ""
-			m.statusBar.title = ""
-			m.statusBar.playlistSource = ""
+			m.statusBar.Artist = ""
+			m.statusBar.Title = ""
+			m.statusBar.PlaylistSource = ""
 		} else {
 			m = m.stopPlaybackIfCurrentMissing()
 		}
@@ -166,7 +166,7 @@ func (m Model) clearQueueForReplace() Model {
 // and adjusts the playback index.
 func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.notify("Paste failed: " + msg.Err.Error())
+		m.statusBar.Notify("Paste failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -243,9 +243,9 @@ func (m Model) resumeExhaustedPlayback(insertPos int, entry QueueEntry) Model {
 		m.playback.currentHash = entry.Hash
 		m.playback.currentIndex = insertPos
 		m = m.resetPlaybackProgress()
-		m.statusBar.artist = entry.Artist
-		m.statusBar.title = entry.Title
-		m.statusBar.playlistSource = queueSourceName(entry.SourcePlaylist)
+		m.statusBar.Artist = entry.Artist
+		m.statusBar.Title = entry.Title
+		m.statusBar.PlaylistSource = queueSourceName(entry.SourcePlaylist)
 	}
 	m.playback.queueExhausted = false
 	return m

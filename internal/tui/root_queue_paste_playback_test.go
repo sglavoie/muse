@@ -48,11 +48,11 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	if m.playback.currentIndex != 2 {
 		t.Errorf("currentIndex = %d, want 2", m.playback.currentIndex)
 	}
-	if m.statusBar.artist != pastedEntry.Artist {
-		t.Errorf("statusBar.artist = %q, want %q", m.statusBar.artist, pastedEntry.Artist)
+	if m.statusBar.Artist != pastedEntry.Artist {
+		t.Errorf("statusBar.artist = %q, want %q", m.statusBar.Artist, pastedEntry.Artist)
 	}
-	if m.statusBar.title != pastedEntry.Title {
-		t.Errorf("statusBar.title = %q, want %q", m.statusBar.title, pastedEntry.Title)
+	if m.statusBar.Title != pastedEntry.Title {
+		t.Errorf("statusBar.title = %q, want %q", m.statusBar.Title, pastedEntry.Title)
 	}
 }
 

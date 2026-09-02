@@ -52,8 +52,8 @@ func TestUndoRemoveFavorite_SingleFromFavoritesView(t *testing.T) {
 	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "artist") {
-		t.Errorf("expected notification mentioning 'artist', got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "artist") {
+		t.Errorf("expected notification mentioning 'artist', got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 

@@ -18,7 +18,7 @@ func (m Model) handleSmartPlaylistCreatedMsg(msg smartPlaylistCreatedMsg) (Model
 		}
 	}
 	m.playlists = m.playlists.ensureCursorVisible()
-	m.statusBar.notify("Smart playlist created")
+	m.statusBar.Notify("Smart playlist created")
 	return m, evalSmartPlaylistCountsCmd(msg.playlists, m.smartEval)
 }
 
@@ -28,7 +28,7 @@ func (m Model) handleSmartPlaylistEditedMsg(msg smartPlaylistEditedMsg) (Model, 
 	m.playlists.playlists = msg.playlists
 	m = m.preservePlaylistsSort()
 	m.playlists = m.playlists.ensureCursorVisible()
-	m.statusBar.notify("Smart playlist updated")
+	m.statusBar.Notify("Smart playlist updated")
 	return m, evalSmartPlaylistCountsCmd(msg.playlists, m.smartEval)
 }
 

@@ -23,7 +23,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 				t.Fatalf("press %d: actionRepeatCycle not handled", i+1)
 			}
 			m = next.(Model)
-			if got := m.statusBar.topNotification().msg; got != w {
+			if got := m.statusBar.TopNotification().Msg; got != w {
 				t.Errorf("press %d: notification = %q, want %q", i+1, got, w)
 			}
 		}
@@ -37,7 +37,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 				t.Fatalf("press %d: actionShuffleToggle not handled", i+1)
 			}
 			m = next.(Model)
-			if got := m.statusBar.topNotification().msg; got != w {
+			if got := m.statusBar.TopNotification().Msg; got != w {
 				t.Errorf("press %d: notification = %q, want %q", i+1, got, w)
 			}
 		}
@@ -52,7 +52,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 				t.Fatalf("press %d: actionStopAfterCurrent not handled", i+1)
 			}
 			m = next.(Model)
-			if got := m.statusBar.topNotification().msg; got != w {
+			if got := m.statusBar.TopNotification().Msg; got != w {
 				t.Errorf("press %d: notification = %q, want %q", i+1, got, w)
 			}
 		}
@@ -66,7 +66,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 				t.Fatalf("press %d: actionRadioToggle not handled", i+1)
 			}
 			m = next.(Model)
-			if got := m.statusBar.topNotification().msg; got != w {
+			if got := m.statusBar.TopNotification().Msg; got != w {
 				t.Errorf("press %d: notification = %q, want %q", i+1, got, w)
 			}
 		}

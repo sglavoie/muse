@@ -15,8 +15,8 @@ func setupPlayingModel(t *testing.T) Model {
 	t.Helper()
 	m := New(context.Background())
 	m.playback.state = playback.StatePlaying
-	m.statusBar.artist = "Test Artist"
-	m.statusBar.title = "Test Song"
+	m.statusBar.Artist = "Test Artist"
+	m.statusBar.Title = "Test Song"
 	m.playback.elapsedSecs = 30
 	m.playback.totalSecs = 180
 	m.playback.currentHash = "h1"
@@ -76,8 +76,8 @@ func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 	if nm.overlay.nowPlaying != nil {
 		t.Fatal("expected no overlay when idle")
 	}
-	if nm.statusBar.topNotification().msg != "No track playing" {
-		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "No track playing" {
+		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
 	if nm.overlay.nowPlaying != nil {
 		t.Fatal("expected no overlay when stopped")
 	}
-	if nm.statusBar.topNotification().msg != "No track playing" {
-		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "No track playing" {
+		t.Fatalf("expected 'No track playing' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 

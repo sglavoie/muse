@@ -8,6 +8,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // TestRadioToggleOnOff verifies that actionRadioToggle flips radio.enabled and
@@ -28,8 +29,8 @@ func TestRadioToggleOnOff(t *testing.T) {
 	if len(sw.radioModeCalls) != 1 || !sw.radioModeCalls[0] {
 		t.Errorf("expected WriteRadioMode(true), got radioModeCalls=%v", sw.radioModeCalls)
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "on") {
-		t.Errorf("expected notification containing 'on', got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "on") {
+		t.Errorf("expected notification containing 'on', got %q", m.statusBar.TopNotification().Msg)
 	}
 
 	// Toggle off.
@@ -41,8 +42,8 @@ func TestRadioToggleOnOff(t *testing.T) {
 	if len(sw.radioModeCalls) != 2 || sw.radioModeCalls[1] {
 		t.Errorf("expected WriteRadioMode(false), got radioModeCalls=%v", sw.radioModeCalls)
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "off") {
-		t.Errorf("expected notification containing 'off', got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "off") {
+		t.Errorf("expected notification containing 'off', got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -258,19 +259,19 @@ func TestRadioEnqueuePendingSetByToggle(t *testing.T) {
 // styling changes when radioMode toggles (verbose "DJ"/"Auto-DJ" forms are
 // gone). The cluster is always 4 columns wide for stable position.
 func TestRadioStatusBarIndicator(t *testing.T) {
-	sb := StatusBar{
-		artist:        "Art",
-		title:         "Song",
-		playbackState: playback.StatePlaying,
-		radioMode:     true,
+	sb := statusbar.StatusBar{
+		Artist:        "Art",
+		Title:         "Song",
+		PlaybackState: playback.StatePlaying,
+		RadioMode:     true,
 	}
-	out := sb.render(0, styles.Styles{})
+	out := sb.Render(0, styles.Styles{})
 	if !strings.Contains(out, "RSND") {
 		t.Errorf("expected RSND cluster in status bar when radioMode=true, got %q", out)
 	}
 
-	sb.radioMode = false
-	out = sb.render(0, styles.Styles{})
+	sb.RadioMode = false
+	out = sb.Render(0, styles.Styles{})
 	if !strings.Contains(out, "RSND") {
 		t.Errorf("expected RSND cluster (always shown) when radioMode=false, got %q", out)
 	}

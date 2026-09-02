@@ -12,9 +12,9 @@ import (
 func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	sp := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(sp))
-	m.statusBar.artist = "Old Artist"
-	m.statusBar.title = "Old Title"
-	m.statusBar.playlistSource = "Old Playlist"
+	m.statusBar.Artist = "Old Artist"
+	m.statusBar.Title = "Old Title"
+	m.statusBar.PlaylistSource = "Old Playlist"
 	m.playback.currentHash = "oldhash"
 	m.playback.state = playback.StatePlaying
 	m.queue.entries = []QueueEntry{{ID: 10, Path: "/a.flac", Display: "A"}}
@@ -22,14 +22,14 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	next, _ := m.Update(ClearQueueMsg{})
 	nm := next.(Model)
 
-	if nm.statusBar.artist != "" {
-		t.Errorf("statusBar.artist = %q, want empty after ClearQueueMsg", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty after ClearQueueMsg", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "" {
-		t.Errorf("statusBar.title = %q, want empty after ClearQueueMsg", nm.statusBar.title)
+	if nm.statusBar.Title != "" {
+		t.Errorf("statusBar.title = %q, want empty after ClearQueueMsg", nm.statusBar.Title)
 	}
-	if nm.statusBar.playlistSource != "" {
-		t.Errorf("statusBar.playlistSource = %q, want empty after ClearQueueMsg", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty after ClearQueueMsg", nm.statusBar.PlaylistSource)
 	}
 	if nm.playback.currentHash != "" {
 		t.Errorf("currentTrackHash = %q, want empty after ClearQueueMsg", nm.playback.currentHash)
@@ -40,9 +40,9 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 // resets the status bar artist, title, playlistSource, and currentTrackHash.
 func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 	m := New(context.Background(), WithPlayer(&stubPlayer{}))
-	m.statusBar.artist = "Old Artist"
-	m.statusBar.title = "Old Title"
-	m.statusBar.playlistSource = "Queue"
+	m.statusBar.Artist = "Old Artist"
+	m.statusBar.Title = "Old Title"
+	m.statusBar.PlaylistSource = "Queue"
 	m.playback.currentHash = "oldhash"
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatOff
@@ -53,14 +53,14 @@ func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
-	if nm.statusBar.artist != "" {
-		t.Errorf("statusBar.artist = %q, want empty after PlaybackEndedMsg", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty after PlaybackEndedMsg", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "" {
-		t.Errorf("statusBar.title = %q, want empty after PlaybackEndedMsg", nm.statusBar.title)
+	if nm.statusBar.Title != "" {
+		t.Errorf("statusBar.title = %q, want empty after PlaybackEndedMsg", nm.statusBar.Title)
 	}
-	if nm.statusBar.playlistSource != "" {
-		t.Errorf("statusBar.playlistSource = %q, want empty after PlaybackEndedMsg", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty after PlaybackEndedMsg", nm.statusBar.PlaylistSource)
 	}
 	if nm.playback.currentHash != "" {
 		t.Errorf("currentTrackHash = %q, want empty after PlaybackEndedMsg", nm.playback.currentHash)
@@ -122,9 +122,9 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	m.playback.currentHash = "old-hash"
 	m.playback.elapsedSecs = 42
 	m.playback.totalSecs = 180
-	m.statusBar.artist = "Old Artist"
-	m.statusBar.title = "Old Title"
-	m.statusBar.playlistSource = "Old Playlist"
+	m.statusBar.Artist = "Old Artist"
+	m.statusBar.Title = "Old Title"
+	m.statusBar.PlaylistSource = "Old Playlist"
 
 	next, cmd := m.Update(playback.PlayQueueIndexMsg{Index: 0})
 	if cmd == nil {
@@ -151,16 +151,16 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	if nm.playback.totalSecs != 0 {
 		t.Errorf("expected totalSecs=0, got %f", nm.playback.totalSecs)
 	}
-	if nm.statusBar.artist != "" {
-		t.Errorf("expected empty artist, got %q", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("expected empty artist, got %q", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "" {
-		t.Errorf("expected empty title, got %q", nm.statusBar.title)
+	if nm.statusBar.Title != "" {
+		t.Errorf("expected empty title, got %q", nm.statusBar.Title)
 	}
-	if nm.statusBar.playlistSource != "" {
-		t.Errorf("expected empty playlistSource, got %q", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "" {
+		t.Errorf("expected empty playlistSource, got %q", nm.statusBar.PlaylistSource)
 	}
-	if nm.statusBar.topNotification().msg == "" {
+	if nm.statusBar.TopNotification().Msg == "" {
 		t.Error("expected error notification")
 	}
 }

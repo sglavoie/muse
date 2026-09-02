@@ -37,8 +37,8 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	if len(nm.favorites.artists) != 1 {
 		t.Fatalf("artists list must be unchanged, got %v", nm.favorites.artists)
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "Nothing to undo") {
-		t.Errorf("expected 'Nothing to undo' notification, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Nothing to undo") {
+		t.Errorf("expected 'Nothing to undo' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 

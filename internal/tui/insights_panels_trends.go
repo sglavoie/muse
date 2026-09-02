@@ -148,7 +148,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 		rows = append(rows, insightsRow{
 			section: "Added but never played",
 			label:   "Everything unheard",
-			note: fmt.Sprintf("%s %s · %s", formatCount(c.UnheardTracks),
+			note: fmt.Sprintf("%s %s · %s", text.FormatCount(c.UnheardTracks),
 				text.Pluralize(c.UnheardTracks, "track", "tracks"), text.FormatListeningTime(int(c.UnheardSecs))),
 			fraction: 1,
 			drill:    drillUnheardAll,
@@ -184,7 +184,7 @@ func (v InsightsView) discoveryHeaderLines(s styles.Styles) []string {
 
 	tail := []string{
 		s.TextSecondary.Render(v.fit(fmt.Sprintf("%.1f new tracks a %s on average · %s still unheard",
-			t.AvgFirstPlays, t.Resolution.Period(), formatCount(v.snap.Coverage.UnheardTracks)))),
+			t.AvgFirstPlays, t.Resolution.Period(), text.FormatCount(v.snap.Coverage.UnheardTracks)))),
 		"",
 	}
 	if v.compact() {

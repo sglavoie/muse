@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // handlePlaybackKeyAction handles playback-related key actions (play/pause,
@@ -23,7 +24,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
-			m.statusBar.notify("No track to inspect")
+			m.statusBar.Notify("No track to inspect")
 			return m, nil, true
 		}
 		if track.Path == "" {
@@ -32,7 +33,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			}
 		}
 		if track.Path == "" {
-			m.statusBar.notify("Track path unknown")
+			m.statusBar.Notify("Track path unknown")
 			return m, nil, true
 		}
 		return m, overlay.TrackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
@@ -42,12 +43,12 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			return m, nil, true
 		}
 		if m.playback.state == playback.StateStopped || m.playback.state == playback.StateIdle {
-			m.statusBar.notify("No track playing")
+			m.statusBar.Notify("No track playing")
 			return m, nil, true
 		}
 		overlay := overlay.NowPlayingOverlay{
-			Artist:   m.statusBar.artist,
-			Title:    m.statusBar.title,
+			Artist:   m.statusBar.Artist,
+			Title:    m.statusBar.Title,
 			Elapsed:  m.playback.elapsedSecs,
 			Total:    m.playback.totalSecs,
 			State:    m.playback.state,
@@ -74,7 +75,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
-			m.statusBar.notify("No track to preview")
+			m.statusBar.Notify("No track to preview")
 			return m, nil, true
 		}
 		m.overlay.previewWasPlaying = m.playback.state == playback.StatePlaying
@@ -91,19 +92,19 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			case m.playback.state == playback.StatePlaying:
 				if err := m.player.Pause(); err != nil {
 					slog.Warn("pause failed", "err", err)
-					m.statusBar.notify("Pause failed: " + err.Error())
+					m.statusBar.Notify("Pause failed: " + err.Error())
 				} else {
 					m.playback.state = playback.StatePaused
 				}
 				return m, m.sessionPositionCmd(), true
 			case len(m.queue.entries) == 0:
-				m.statusBar.notify("Queue is empty")
+				m.statusBar.Notify("Queue is empty")
 				return m, nil, true
 			default:
 				if m.playback.state == playback.StatePaused {
 					if err := m.player.Play(); err != nil {
 						slog.Warn("play failed", "err", err)
-						m.statusBar.notify("Play failed: " + err.Error())
+						m.statusBar.Notify("Play failed: " + err.Error())
 					} else {
 						m.playback.state = playback.StatePlaying
 					}
@@ -121,7 +122,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Stop(); err != nil {
 				slog.Warn("stop failed", "err", err)
-				m.statusBar.notify("Stop failed: " + err.Error())
+				m.statusBar.Notify("Stop failed: " + err.Error())
 			} else {
 				m = m.endCurrentListen()
 				m.playback.state = playback.StateStopped
@@ -149,7 +150,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Next(); err != nil {
 				slog.Warn("next failed", "err", err)
-				m.statusBar.notify("Next failed: " + err.Error())
+				m.statusBar.Notify("Next failed: " + err.Error())
 			}
 		}
 		return m, nil, true
@@ -157,7 +158,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if cp, ok := m.player.(commandPlayer); ok {
 			if err := cp.Previous(); err != nil {
 				slog.Warn("previous failed", "err", err)
-				m.statusBar.notify("Previous failed: " + err.Error())
+				m.statusBar.Notify("Previous failed: " + err.Error())
 			}
 		}
 		return m, nil, true
@@ -192,7 +193,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				slog.Warn("write repeat mode failed", "err", err)
 			}
 		}
-		m.statusBar.pushMsg(m.modeToggleMsg("Repeat", playback.ModeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.PushMsg(m.modeToggleMsg("Repeat", playback.ModeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true
 	case keys.ActionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
@@ -203,7 +204,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			if err := rs.SetShuffle(m.playback.shuffle); err != nil {
 				slog.Warn("set shuffle failed", "err", err)
 				m.playback.shuffle = !m.playback.shuffle
-				m.statusBar.notify("Shuffle failed: " + err.Error())
+				m.statusBar.Notify("Shuffle failed: " + err.Error())
 				return m, nil, true
 			}
 		}
@@ -212,22 +213,22 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if m.sessionWriter != nil {
 			if err := m.sessionWriter.WriteShuffle(m.playback.shuffle); err != nil {
 				slog.Warn("write shuffle failed", "err", err)
-				m.statusBar.notify(fmt.Sprintf("Shuffle %s (not saved — won't survive restart)", label))
+				m.statusBar.Notify(fmt.Sprintf("Shuffle %s (not saved — won't survive restart)", label))
 				return m, nil, true
 			}
 		}
-		m.statusBar.pushMsg(m.modeToggleMsg("Shuffle", playback.ModeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.PushMsg(m.modeToggleMsg("Shuffle", playback.ModeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true
 	case keys.ActionStopAfterCurrent:
 		if m.playback.state != playback.StatePlaying && m.playback.state != playback.StatePaused {
-			m.statusBar.notify("No track playing")
+			m.statusBar.Notify("No track playing")
 			return m, nil, true
 		}
 		m.playback.stopAfterCurrent = !m.playback.stopAfterCurrent
 		if sat, ok := m.player.(stopAfterToggler); ok {
 			sat.SetStopAfterCurrent(m.playback.stopAfterCurrent)
 		}
-		m.statusBar.pushMsg(m.modeToggleMsg("Stop after current", playback.ModeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+		m.statusBar.PushMsg(m.modeToggleMsg("Stop after current", playback.ModeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true
 	case keys.ActionRadioToggle:
 		return m.radioToggle()
@@ -261,6 +262,17 @@ func (m Model) handleVolume(sign int) (tea.Model, tea.Cmd, bool) {
 			}
 		}
 	}
-	m.statusBar.pushMsg(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+	m.statusBar.PushMsg(fmt.Sprintf("Volume: %d%%", m.playback.volume), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	return m, nil, true
+}
+
+// modeToggleMsg renders the feedback for one mode toggle as
+// "<label>: <state> (<glyph>)" — e.g. "Shuffle: on (S)" — so the notification
+// teaches the letter the status-bar cluster shows. State and glyph are read
+// from modeIndicators, which is why they cannot drift from the cluster; the
+// label stays caller-supplied because these notifications predate the indicator
+// names and say "Radio mode" where the indicator says "Radio (Auto-DJ)".
+func (m Model) modeToggleMsg(label string, index int) string {
+	ind := playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)[index]
+	return label + ": " + ind.State + " (" + ind.Glyph + ")"
 }

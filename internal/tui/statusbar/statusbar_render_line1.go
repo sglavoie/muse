@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import (
 	"fmt"
@@ -16,16 +16,16 @@ func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
 	notif := ctx.styles.StatusNotification
 	notifErr := ctx.styles.StatusNotificationError
 	var segments []string
-	if s.configCreated {
-		segments = append(segments, notif.Render(fmt.Sprintf(" config created: %s ", s.configPath)))
+	if s.ConfigCreated {
+		segments = append(segments, notif.Render(fmt.Sprintf(" config created: %s ", s.ConfigPath)))
 	}
-	if s.watchDegraded {
+	if s.WatchDegraded {
 		segments = append(segments, notifErr.Render(" File watcher unavailable — press r to rescan manually "))
 	}
-	if top := s.topNotification(); top.msg != "" {
-		msg := top.msg
-		if !s.undoExpiresAt.IsZero() {
-			if remaining := time.Until(s.undoExpiresAt); remaining > 0 {
+	if top := s.TopNotification(); top.Msg != "" {
+		msg := top.Msg
+		if !s.UndoExpiresAt.IsZero() {
+			if remaining := time.Until(s.UndoExpiresAt); remaining > 0 {
 				msg = fmt.Sprintf("%s (%ds)", msg, int(math.Ceil(remaining.Seconds())))
 			}
 		}
@@ -46,11 +46,11 @@ func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string 
 	cluster, clusterWidth := s.renderModeCluster(ctx)
 	suffix, suffixWidth := s.renderSuffix(ctx, cluster, clusterWidth)
 	prefix, prefixWidth, sep, sepWidth := s.renderPrefix(ctx, stateIcon, stateIconWidth)
-	title := s.title
-	if ctx.width > 0 && s.title != "" {
+	title := s.Title
+	if ctx.width > 0 && s.Title != "" {
 		const minGap = 2
 		fixedWidth := prefixWidth + sepWidth + suffixWidth + minGap + ansi.StringWidth(right)
-		title = text.Truncate(s.title, ctx.width-fixedWidth)
+		title = text.Truncate(s.Title, ctx.width-fixedWidth)
 	}
 
 	var parts []string
@@ -68,7 +68,7 @@ func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string 
 }
 
 func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
-	switch s.playbackState {
+	switch s.PlaybackState {
 	case playback.StatePlaying:
 		return ctx.barSuccess.Bold(true).Render("▶"), 1
 	case playback.StatePaused:
@@ -80,21 +80,10 @@ func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 	}
 }
 
-// modeToggleMsg renders the feedback for one mode toggle as
-// "<label>: <state> (<glyph>)" — e.g. "Shuffle: on (S)" — so the notification
-// teaches the letter the status-bar cluster shows. State and glyph are read
-// from modeIndicators, which is why they cannot drift from the cluster; the
-// label stays caller-supplied because these notifications predate the indicator
-// names and say "Radio mode" where the indicator says "Radio (Auto-DJ)".
-func (m Model) modeToggleMsg(label string, index int) string {
-	ind := playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)[index]
-	return label + ": " + ind.State + " (" + ind.Glyph + ")"
-}
-
 func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 	clusterDim := ctx.styles.TextTertiary.Background(ctx.base.GetBackground())
 	activeStyles := []lipgloss.Style{ctx.barModeRepeat, ctx.barModeShuffle, ctx.barModeStopAfter, ctx.barModeRadio}
-	indicators := playback.ModeIndicators(s.repeatMode, s.shuffle, s.stopAfterCurrent, s.radioMode)
+	indicators := playback.ModeIndicators(s.RepeatMode, s.Shuffle, s.StopAfterCurrent, s.RadioMode)
 	var cluster strings.Builder
 	for i, ind := range indicators {
 		style := clusterDim
@@ -109,9 +98,9 @@ func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 func (s StatusBar) renderSuffix(ctx statusBarRenderContext, cluster string, clusterWidth int) (string, int) {
 	suffix := ""
 	suffixWidth := 0
-	if s.playlistSource != "" {
-		suffix += ctx.barDim.Render("  [" + s.playlistSource + "]")
-		suffixWidth += 2 + ansi.StringWidth(s.playlistSource) + 2
+	if s.PlaylistSource != "" {
+		suffix += ctx.barDim.Render("  [" + s.PlaylistSource + "]")
+		suffixWidth += 2 + ansi.StringWidth(s.PlaylistSource) + 2
 	}
 	suffix += ctx.r("  ") + cluster
 	suffixWidth += 2 + clusterWidth
@@ -147,10 +136,10 @@ func (s StatusBar) renderSuffix(ctx statusBarRenderContext, cluster string, clus
 func (s StatusBar) renderPrefix(ctx statusBarRenderContext, stateIcon string, stateIconWidth int) (string, int, string, int) {
 	qp := ""
 	qpWidth := 0
-	if s.queuePosition != "" {
-		posText := s.queuePosition
-		if s.bucketLabel != "" {
-			posText += " · " + s.bucketLabel
+	if s.QueuePosition != "" {
+		posText := s.QueuePosition
+		if s.BucketLabel != "" {
+			posText += " · " + s.BucketLabel
 		}
 		qp = ctx.barDim.Render(" (" + posText + ")")
 		qpWidth = ansi.StringWidth(" (" + posText + ")")
@@ -160,21 +149,21 @@ func (s StatusBar) renderPrefix(ctx statusBarRenderContext, stateIcon string, st
 	sep := ""
 	sepWidth := 0
 	switch {
-	case stateIcon != "" && s.artist != "":
-		prefix = stateIcon + qp + ctx.r(" "+s.artist)
-		prefixWidth = stateIconWidth + qpWidth + 1 + ansi.StringWidth(s.artist)
+	case stateIcon != "" && s.Artist != "":
+		prefix = stateIcon + qp + ctx.r(" "+s.Artist)
+		prefixWidth = stateIconWidth + qpWidth + 1 + ansi.StringWidth(s.Artist)
 		sep = " — "
 		sepWidth = 3
 	case stateIcon != "":
 		prefix = stateIcon + qp
 		prefixWidth = stateIconWidth + qpWidth
-	case s.artist != "":
-		prefix = ctx.r(s.artist)
-		prefixWidth = ansi.StringWidth(s.artist)
+	case s.Artist != "":
+		prefix = ctx.r(s.Artist)
+		prefixWidth = ansi.StringWidth(s.Artist)
 		sep = " — "
 		sepWidth = 3
 	}
-	if s.title == "" {
+	if s.Title == "" {
 		sep = ""
 		sepWidth = 0
 	}

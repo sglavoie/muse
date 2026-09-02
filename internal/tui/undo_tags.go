@@ -62,7 +62,7 @@ func (a undoTagToggleAction) perform(m Model) (Model, tea.Cmd) {
 		}
 	}
 
-	m.statusBar.notify("Undone: tag toggle")
+	m.statusBar.Notify("Undone: tag toggle")
 	return m, nil
 }
 
@@ -103,6 +103,6 @@ func (a undoDeleteTagAction) perform(m Model) (Model, tea.Cmd) {
 	m.tagsView.cursor = tvIdx
 	m.tagsView = m.tagsView.clampCursor()
 
-	m.statusBar.notify(fmt.Sprintf("Undone: restored tag %q", a.tag.Name))
+	m.statusBar.Notify(fmt.Sprintf("Undone: restored tag %q", a.tag.Name))
 	return m, nil
 }

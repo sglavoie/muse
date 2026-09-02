@@ -16,18 +16,18 @@ func TestWithConfigWarnings(t *testing.T) {
 		t.Fatalf("configWarnings = %v, want %v", m.configWarnings, warnings)
 	}
 
-	if m.statusBar.topNotification().msg == "" {
+	if m.statusBar.TopNotification().Msg == "" {
 		t.Fatal("expected statusBar.notification to be set after New() with config warnings")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "default_volume") {
-		t.Errorf("notification msg = %q, expected it to mention default_volume", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "default_volume") {
+		t.Errorf("notification msg = %q, expected it to mention default_volume", m.statusBar.TopNotification().Msg)
 	}
 }
 
 // TestWithConfigWarnings_Empty verifies that no notification is set when warnings is nil or empty.
 func TestWithConfigWarnings_Empty(t *testing.T) {
 	m := New(context.Background(), WithConfigWarnings(nil))
-	if m.statusBar.topNotification().msg != "" {
-		t.Fatalf("expected no notification for empty warnings, got %q", m.statusBar.topNotification().msg)
+	if m.statusBar.TopNotification().Msg != "" {
+		t.Fatalf("expected no notification for empty warnings, got %q", m.statusBar.TopNotification().Msg)
 	}
 }

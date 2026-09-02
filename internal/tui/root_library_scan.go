@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // rescanEntry holds per-track values snapshotted before a full rescan clears
@@ -21,9 +22,9 @@ type rescanEntry struct {
 
 // handleScanProgressMsg updates the status bar with the current scan progress.
 func (m Model) handleScanProgressMsg(msg library.ScanProgressMsg) Model {
-	m.statusBar.handleScanProgress(msg)
+	m.statusBar.HandleScanProgress(msg)
 	if m.longOp.Active {
-		m.longOp = m.longOp.update(msg.Scanned, msg.Total, time.Now())
+		m.longOp = m.longOp.Update(msg.Scanned, msg.Total, time.Now())
 	}
 	return m
 }
@@ -32,9 +33,9 @@ func (m Model) handleScanProgressMsg(msg library.ScanProgressMsg) Model {
 func (m Model) handleScanTotalMsg(msg library.ScanTotalMsg) Model {
 	m.scanTotal = msg.Total
 	if m.scanning {
-		m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
+		m.statusBar.HandleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
 		if m.longOp.Active {
-			m.longOp = m.longOp.update(m.scanned, m.scanTotal, time.Now())
+			m.longOp = m.longOp.Update(m.scanned, m.scanTotal, time.Now())
 		}
 	}
 	return m
@@ -71,9 +72,9 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 		m.library.index.UpsertByPath(t.Path, t)
 	}
 	m.scanned += len(msg.Tracks)
-	m.statusBar.handleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
+	m.statusBar.HandleScanProgress(library.ScanProgressMsg{Scanned: m.scanned, Total: m.scanTotal})
 	if m.longOp.Active {
-		m.longOp = m.longOp.update(m.scanned, m.scanTotal, time.Now())
+		m.longOp = m.longOp.Update(m.scanned, m.scanTotal, time.Now())
 	}
 	// Recompute sorted tracks if a sort is active so the cached copy
 	// includes newly scanned tracks.
@@ -123,7 +124,7 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	truncated := m.scanOutcome.Err()
 	if truncated != nil {
 		slog.Error("rescan incomplete: skipping deletion reconciliation", "err", truncated)
-		m.statusBar.notify("Rescan incomplete: some files could not be hashed; deletions were not reconciled")
+		m.statusBar.Notify("Rescan incomplete: some files could not be hashed; deletions were not reconciled")
 	}
 	// A canceled scan clears rescanPriorPaths before this message lands, and a
 	// normal completion still has m.scanning == true (only this handler flips it
@@ -141,7 +142,7 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 		m.scanCancel()
 		m.scanCancel = nil
 	}
-	m.longOp = longOpState{}
+	m.longOp = statusbar.LongOpState{}
 	// A scan moves the coverage denominator even when it was canceled partway:
 	// every batch it did deliver is already in the index and the database.
 	m.insightsInvalidate()

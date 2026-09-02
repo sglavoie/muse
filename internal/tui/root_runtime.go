@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // scheduleSoftDelete cancels any in-flight purge timer from the previous undo
@@ -111,7 +112,7 @@ func (m *Model) setUndoSlot(action undoAction, cancelPurge chan struct{}) {
 		expiresAt:   time.Now().Add(undoWindowDuration),
 		cancelPurge: cancelPurge,
 	}
-	m.statusBar.pushMsg(action.description(), undoWindowDuration, notifNormal)
+	m.statusBar.PushMsg(action.description(), undoWindowDuration, statusbar.NotifNormal)
 }
 
 // syncPositionCmd schedules one position-sync tick.

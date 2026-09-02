@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import (
 	"fmt"
@@ -96,33 +96,33 @@ func renderProgressBar(elapsed, total float64, width int, st styles.Styles) stri
 func (s StatusBar) modeLabels(abbreviated bool) []string {
 	var out []string
 	if abbreviated {
-		if s.visualMode {
+		if s.VisualMode {
 			out = append(out, "V")
 		}
-		if s.yankCount > 0 {
-			if s.yankIsCut {
-				out = append(out, fmt.Sprintf("Cut:%d", s.yankCount))
+		if s.YankCount > 0 {
+			if s.YankIsCut {
+				out = append(out, fmt.Sprintf("Cut:%d", s.YankCount))
 			} else {
-				out = append(out, fmt.Sprintf("Y:%d", s.yankCount))
+				out = append(out, fmt.Sprintf("Y:%d", s.YankCount))
 			}
 		}
-		if s.selectionCount > 0 {
-			out = append(out, fmt.Sprintf("Sel:%d", s.selectionCount))
+		if s.SelectionCount > 0 {
+			out = append(out, fmt.Sprintf("Sel:%d", s.SelectionCount))
 		}
 		return out
 	}
-	if s.visualMode {
+	if s.VisualMode {
 		out = append(out, "Visual")
 	}
-	if s.yankCount > 0 {
-		if s.yankIsCut {
-			out = append(out, fmt.Sprintf("Cut: %d", s.yankCount))
+	if s.YankCount > 0 {
+		if s.YankIsCut {
+			out = append(out, fmt.Sprintf("Cut: %d", s.YankCount))
 		} else {
-			out = append(out, fmt.Sprintf("Yank: %d", s.yankCount))
+			out = append(out, fmt.Sprintf("Yank: %d", s.YankCount))
 		}
 	}
-	if s.selectionCount > 0 {
-		out = append(out, fmt.Sprintf("Sel: %d", s.selectionCount))
+	if s.SelectionCount > 0 {
+		out = append(out, fmt.Sprintf("Sel: %d", s.SelectionCount))
 	}
 	return out
 }

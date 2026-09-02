@@ -157,8 +157,8 @@ func TestPasteEmptyBuffer(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil cmd when yank buffer is empty")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "Nothing to paste") {
-		t.Errorf("expected 'Nothing to paste' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "Nothing to paste") {
+		t.Errorf("expected 'Nothing to paste' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -180,8 +180,8 @@ func TestPasteWhileSorted(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil cmd when sorted")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "Cannot paste") {
-		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "Cannot paste") {
+		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -203,8 +203,8 @@ func TestPasteWhileFiltered(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil cmd when filtered")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "Cannot paste") {
-		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "Cannot paste") {
+		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -228,8 +228,8 @@ func TestPasteWhileTagFiltered(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil cmd when tag-filtered")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "Cannot paste") {
-		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "Cannot paste") {
+		t.Errorf("expected 'Cannot paste' notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 

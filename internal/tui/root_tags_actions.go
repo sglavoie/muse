@@ -26,7 +26,7 @@ func (m Model) handleTagOpen() (Model, tea.Cmd) {
 		}
 		tr := m.tagReader
 		if tr == nil {
-			m.statusBar.notify("Tag reader not available")
+			m.statusBar.Notify("Tag reader not available")
 			return m, nil
 		}
 		return m, func() tea.Msg {
@@ -161,7 +161,7 @@ func (m Model) handleTagEnqueueAll() (Model, tea.Cmd) {
 	tr := m.tagReader
 	be := m.batchEnqueuer
 	if tr == nil || be == nil {
-		m.statusBar.notify("Enqueue not available")
+		m.statusBar.Notify("Enqueue not available")
 		return m, nil
 	}
 	wasEmpty := len(m.queue.entries) == 0
@@ -213,7 +213,7 @@ func (m Model) handleTagCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		}
 		tw := m.tagWriter
 		if tw == nil {
-			m.statusBar.notify("Tag writer not available")
+			m.statusBar.Notify("Tag writer not available")
 			return m, nil, true
 		}
 		return m, func() tea.Msg {
@@ -246,7 +246,7 @@ func (m Model) handleTagRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		}
 		tw := m.tagWriter
 		if tw == nil {
-			m.statusBar.notify("Tag writer not available")
+			m.statusBar.Notify("Tag writer not available")
 			return m, nil, true
 		}
 		tagID := tag.ID

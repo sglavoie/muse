@@ -41,8 +41,8 @@ func TestTrackInfoKeyNoTrack(t *testing.T) {
 	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected no overlay when no track focused")
 	}
-	if nm.statusBar.topNotification().msg != "No track to inspect" {
-		t.Fatalf("expected 'No track to inspect' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "No track to inspect" {
+		t.Fatalf("expected 'No track to inspect' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestTrackInfoMsgError(t *testing.T) {
 	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected no overlay on error")
 	}
-	if nm.statusBar.topNotification().msg == "" {
+	if nm.statusBar.TopNotification().Msg == "" {
 		t.Fatal("expected error notification")
 	}
 }
@@ -208,8 +208,8 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 	if nm.overlay.trackInfo != nil {
 		t.Fatal("expected no overlay for unknown path")
 	}
-	if nm.statusBar.topNotification().msg != "Track path unknown" {
-		t.Fatalf("expected 'Track path unknown' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "Track path unknown" {
+		t.Fatalf("expected 'Track path unknown' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -229,7 +229,7 @@ func TestTrackInfoYankPath(t *testing.T) {
 	if nm.overlay.trackInfo == nil {
 		t.Fatal("overlay should remain active after yank")
 	}
-	if nm.statusBar.topNotification().msg != "Path copied to clipboard" {
-		t.Fatalf("expected 'Path copied to clipboard' notification, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "Path copied to clipboard" {
+		t.Fatalf("expected 'Path copied to clipboard' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }

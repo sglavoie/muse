@@ -76,7 +76,7 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
-	m.statusBar.playlistSource = "Old Source"
+	m.statusBar.PlaylistSource = "Old Source"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One", SourcePlaylist: "My Playlist"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two", SourcePlaylist: "My Playlist"},
@@ -86,8 +86,8 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource(t *testing.T) {
 	nm := next.(Model)
 
 	// Status bar source should remain unchanged; TrackChangedMsg will update it.
-	if nm.statusBar.playlistSource != "Old Source" {
-		t.Fatalf("RepeatAll wrap: expected playlistSource to remain %q, got %q", "Old Source", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "Old Source" {
+		t.Fatalf("RepeatAll wrap: expected playlistSource to remain %q, got %q", "Old Source", nm.statusBar.PlaylistSource)
 	}
 }
 
@@ -99,7 +99,7 @@ func TestPlaybackEndedMsgRepeatAllKeepsOldSource(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.playback.repeatMode = playback.RepeatAll
-	m.statusBar.playlistSource = "Queue"
+	m.statusBar.PlaylistSource = "Queue"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 	}
@@ -108,8 +108,8 @@ func TestPlaybackEndedMsgRepeatAllKeepsOldSource(t *testing.T) {
 	nm := next.(Model)
 
 	// Source should remain unchanged; TrackChangedMsg will update it.
-	if nm.statusBar.playlistSource != "Queue" {
-		t.Fatalf("RepeatAll wrap: expected playlistSource to remain %q, got %q", "Queue", nm.statusBar.playlistSource)
+	if nm.statusBar.PlaylistSource != "Queue" {
+		t.Fatalf("RepeatAll wrap: expected playlistSource to remain %q, got %q", "Queue", nm.statusBar.PlaylistSource)
 	}
 }
 
@@ -147,8 +147,8 @@ func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
 	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
-	if !strings.Contains(nm.statusBar.topNotification().msg, "Queue finished") {
-		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected 'Queue finished' notification, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Queue finished") {
+		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected 'Queue finished' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 

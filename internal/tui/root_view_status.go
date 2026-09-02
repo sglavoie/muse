@@ -12,35 +12,35 @@ import (
 // renderStatusBar builds the status bar line shown at the bottom of the view.
 func (m Model) renderStatusBar() string {
 	sb := m.statusBar
-	sb.playbackState = m.playback.state
-	sb.repeatMode = m.playback.repeatMode
-	sb.shuffle = m.playback.shuffle
-	sb.stopAfterCurrent = m.playback.stopAfterCurrent
-	sb.visualMode = m.visual.active
-	sb.radioMode = m.radio.enabled
-	sb.configCreated = m.configCreated
-	sb.watchDegraded = m.watchDegraded
-	sb.queueEmpty = len(m.queue.entries) == 0
+	sb.PlaybackState = m.playback.state
+	sb.RepeatMode = m.playback.repeatMode
+	sb.Shuffle = m.playback.shuffle
+	sb.StopAfterCurrent = m.playback.stopAfterCurrent
+	sb.VisualMode = m.visual.active
+	sb.RadioMode = m.radio.enabled
+	sb.ConfigCreated = m.configCreated
+	sb.WatchDegraded = m.watchDegraded
+	sb.QueueEmpty = len(m.queue.entries) == 0
 	if m.playback.state == playback.StatePlaying && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.entries) {
-		sb.queuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.entries))
+		sb.QueuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.entries))
 	} else {
-		sb.queuePosition = ""
+		sb.QueuePosition = ""
 	}
 	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
-		sb.elapsed = text.FormatPositionSecs(m.playback.elapsedSecs)
-		sb.total = text.FormatPositionSecs(m.playback.totalSecs)
+		sb.Elapsed = text.FormatPositionSecs(m.playback.elapsedSecs)
+		sb.Total = text.FormatPositionSecs(m.playback.totalSecs)
 	}
-	sb.elapsedSecs = m.playback.elapsedSecs
-	sb.totalSecs = m.playback.totalSecs
-	sb.yankCount = len(m.yankBuffer)
-	sb.yankIsCut = m.yankIsCut
-	sb.selectionCount = m.activeViewSelectionCount()
+	sb.ElapsedSecs = m.playback.elapsedSecs
+	sb.TotalSecs = m.playback.totalSecs
+	sb.YankCount = len(m.yankBuffer)
+	sb.YankIsCut = m.yankIsCut
+	sb.SelectionCount = m.activeViewSelectionCount()
 	if m.undo.slot.action != nil {
-		sb.undoExpiresAt = m.undo.slot.expiresAt
+		sb.UndoExpiresAt = m.undo.slot.expiresAt
 	}
-	sb.bucketLabel = m.focusedBucketLabel()
-	sb.longOp = m.longOp
-	return sb.render(m.termWidth, *m.styles)
+	sb.BucketLabel = m.focusedBucketLabel()
+	sb.LongOp = m.longOp
+	return sb.Render(m.termWidth, *m.styles)
 }
 
 // activeViewSelectionCount returns the bulk-selection size for the active view.

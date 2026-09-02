@@ -224,8 +224,8 @@ func TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved(t *testing.T) {
 	m.queue.entries = []QueueEntry{{ID: 42, Path: "/song.flac", Hash: "abc123", Display: "Artist – Song"}}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Song"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Song"
 
 	m.setUndoSlot(undoEnqueueAction{id: 42, entry: m.queue.entries[0], idx: 0}, nil)
 
@@ -240,11 +240,11 @@ func TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved(t *testing.T) {
 	if nm.playback.currentHash != "" {
 		t.Errorf("expected empty currentHash after undo enqueue, got %q", nm.playback.currentHash)
 	}
-	if nm.statusBar.artist != "" {
-		t.Errorf("expected empty status bar artist after undo enqueue, got %q", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("expected empty status bar artist after undo enqueue, got %q", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "" {
-		t.Errorf("expected empty status bar title after undo enqueue, got %q", nm.statusBar.title)
+	if nm.statusBar.Title != "" {
+		t.Errorf("expected empty status bar title after undo enqueue, got %q", nm.statusBar.Title)
 	}
 }
 
@@ -260,8 +260,8 @@ func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
 	}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "aaa"
-	m.statusBar.artist = "A"
-	m.statusBar.title = "Track A"
+	m.statusBar.Artist = "A"
+	m.statusBar.Title = "Track A"
 
 	m.setUndoSlot(undoEnqueueAction{id: 2, entry: m.queue.entries[1], idx: 1}, nil)
 
@@ -273,8 +273,8 @@ func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
 	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback should remain Playing when a non-playing track is removed, got %v", nm.playback.state)
 	}
-	if nm.statusBar.artist != "A" {
-		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.artist)
+	if nm.statusBar.Artist != "A" {
+		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.Artist)
 	}
 }
 
@@ -291,8 +291,8 @@ func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
 	}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "xxx"
-	m.statusBar.artist = "X-Artist"
-	m.statusBar.title = "X-Title"
+	m.statusBar.Artist = "X-Artist"
+	m.statusBar.Title = "X-Title"
 
 	m.setUndoSlot(undoBatchEnqueueAction{
 		ids:          []int64{100, 101},
@@ -312,8 +312,8 @@ func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
 	if nm.playback.currentHash != "" {
 		t.Errorf("expected empty currentHash after undo batch enqueue, got %q", nm.playback.currentHash)
 	}
-	if nm.statusBar.artist != "" {
-		t.Errorf("expected empty status bar artist, got %q", nm.statusBar.artist)
+	if nm.statusBar.Artist != "" {
+		t.Errorf("expected empty status bar artist, got %q", nm.statusBar.Artist)
 	}
 }
 
@@ -331,8 +331,8 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 	}
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "keep"
-	m.statusBar.artist = "Keeper-Artist"
-	m.statusBar.title = "Keeper-Title"
+	m.statusBar.Artist = "Keeper-Artist"
+	m.statusBar.Title = "Keeper-Title"
 
 	m.setUndoSlot(undoBatchEnqueueAction{
 		ids:          []int64{100, 101},
@@ -349,7 +349,7 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback should remain Playing when playing track survives, got %v", nm.playback.state)
 	}
-	if nm.statusBar.artist != "Keeper-Artist" {
-		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.artist)
+	if nm.statusBar.Artist != "Keeper-Artist" {
+		t.Errorf("status bar artist should be unchanged, got %q", nm.statusBar.Artist)
 	}
 }

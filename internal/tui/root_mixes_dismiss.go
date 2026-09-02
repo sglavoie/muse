@@ -43,7 +43,7 @@ func (m Model) handleMixDismiss() (Model, tea.Cmd) {
 	}
 	dw := m.dismissalWriter
 	if dw == nil {
-		m.statusBar.notify("Dismissal not available")
+		m.statusBar.Notify("Dismissal not available")
 		return m, nil
 	}
 	hash := t.Hash
@@ -78,7 +78,7 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 			m.mixes.trackView = m.mixes.trackView.refreshView().clampCursor()
 		}
 	}
-	m.statusBar.notify("Dismissed — won't appear in future mixes")
+	m.statusBar.Notify("Dismissed — won't appear in future mixes")
 	return m
 }
 
@@ -94,7 +94,7 @@ func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
 	}
 	dw := m.dismissalWriter
 	if dw == nil {
-		m.statusBar.notify("Dismissal not available")
+		m.statusBar.Notify("Dismissal not available")
 		return m, nil
 	}
 	hash := t.Hash
@@ -109,6 +109,6 @@ func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
 // handleMixUndismissedMsg removes the hash from in-memory dismissedHashes.
 func (m Model) handleMixUndismissedMsg(msg mixUndismissedMsg) Model {
 	delete(m.dismissedHashes, msg.hash)
-	m.statusBar.notify("Undismissed — will reappear on next mix load")
+	m.statusBar.Notify("Undismissed — will reappear on next mix load")
 	return m
 }

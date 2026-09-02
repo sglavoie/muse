@@ -208,8 +208,8 @@ func TestWatchBatchUpdatesStatusBarForCurrentTrack(t *testing.T) {
 			Artist: "OldArtist", Title: "OldTitle"},
 	}
 	m.playback.currentHash = "h1"
-	m.statusBar.artist = "OldArtist"
-	m.statusBar.title = "OldTitle"
+	m.statusBar.Artist = "OldArtist"
+	m.statusBar.Title = "OldTitle"
 
 	next, _ := m.Update(watchBatchMsg{
 		tracks: []library.Track{
@@ -219,11 +219,11 @@ func TestWatchBatchUpdatesStatusBarForCurrentTrack(t *testing.T) {
 	})
 	nm := next.(Model)
 
-	if nm.statusBar.artist != "NewArtist" {
-		t.Errorf("expected status bar artist=%q, got %q", "NewArtist", nm.statusBar.artist)
+	if nm.statusBar.Artist != "NewArtist" {
+		t.Errorf("expected status bar artist=%q, got %q", "NewArtist", nm.statusBar.Artist)
 	}
-	if nm.statusBar.title != "NewTitle" {
-		t.Errorf("expected status bar title=%q, got %q", "NewTitle", nm.statusBar.title)
+	if nm.statusBar.Title != "NewTitle" {
+		t.Errorf("expected status bar title=%q, got %q", "NewTitle", nm.statusBar.Title)
 	}
 }
 

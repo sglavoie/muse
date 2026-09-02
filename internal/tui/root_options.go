@@ -371,9 +371,9 @@ func WithCurrentIndex(index int) Option {
 // render after session restore shows artist, title, and playlist source.
 func WithStatusBarTrack(artist, title, source string) Option {
 	return func(m *Model) {
-		m.statusBar.artist = artist
-		m.statusBar.title = title
-		m.statusBar.playlistSource = source
+		m.statusBar.Artist = artist
+		m.statusBar.Title = title
+		m.statusBar.PlaylistSource = source
 	}
 }
 

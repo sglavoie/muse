@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 )
 
 func renderStatusBarForTest(sb StatusBar, width int) string {
-	return sb.render(width, styles.Styles{})
+	return sb.Render(width, styles.Styles{})
 }
 
 func renderStatusBarLines(t *testing.T, sb StatusBar, width int) []string {

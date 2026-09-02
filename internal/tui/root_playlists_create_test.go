@@ -139,8 +139,8 @@ func TestPlaylistCreateFlowErrorShowsNotification(t *testing.T) {
 	if m.playlists.isCreating() {
 		t.Error("expected isCreating=false after error")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "db locked") {
-		t.Errorf("expected error message in status bar, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "db locked") {
+		t.Errorf("expected error message in status bar, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -175,8 +175,8 @@ func TestPlaylistCreateDuplicateNameShowsNotification(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("Enter with duplicate name: expected nil cmd (no DB call)")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "already exists") {
-		t.Fatalf("expected duplicate warning, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "already exists") {
+		t.Fatalf("expected duplicate warning, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -210,8 +210,8 @@ func TestPlaylistCreateDuplicateNameCaseInsensitive(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("Enter with case-variant duplicate name: expected nil cmd (no DB call)")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "already exists") {
-		t.Fatalf("expected duplicate warning, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "already exists") {
+		t.Fatalf("expected duplicate warning, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -249,8 +249,8 @@ func TestPlaylistRenameDuplicateNameCaseInsensitive(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("Enter with case-variant duplicate name: expected nil cmd (no DB call)")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "already exists") {
-		t.Fatalf("expected duplicate warning, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "already exists") {
+		t.Fatalf("expected duplicate warning, got %q", m.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -360,7 +360,7 @@ func TestPlaylistCreateDuplicateWithWhitespace(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("Enter with duplicate name should not dispatch a create cmd")
 	}
-	if !strings.Contains(m.statusBar.topNotification().msg, "already exists") {
-		t.Errorf("expected duplicate notification, got %q", m.statusBar.topNotification().msg)
+	if !strings.Contains(m.statusBar.TopNotification().Msg, "already exists") {
+		t.Errorf("expected duplicate notification, got %q", m.statusBar.TopNotification().Msg)
 	}
 }

@@ -57,9 +57,9 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 			m.playback.queueExhausted = true
 			m.playback.state = playback.StateIdle
 			m = m.resetPlaybackProgress()
-			m.statusBar.artist = ""
-			m.statusBar.title = ""
-			m.statusBar.playlistSource = ""
+			m.statusBar.Artist = ""
+			m.statusBar.Title = ""
+			m.statusBar.PlaylistSource = ""
 			m.playback.currentHash = ""
 			m.playback.currentIndex = -1
 			m.missingTrackCount = 0
@@ -75,9 +75,9 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 
 	m.playback.state = playback.StateIdle
 	m = m.resetPlaybackProgress()
-	m.statusBar.artist = ""
-	m.statusBar.title = ""
-	m.statusBar.playlistSource = ""
+	m.statusBar.Artist = ""
+	m.statusBar.Title = ""
+	m.statusBar.PlaylistSource = ""
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
 
@@ -92,7 +92,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		msg = "Queue finished"
 	}
 	m.missingTrackCount = 0
-	m.statusBar.notify(msg)
+	m.statusBar.Notify(msg)
 	player.PlayQueueFinishedSound()
 	return m, nil
 }
@@ -104,7 +104,7 @@ func (m Model) handlePlayerDisconnectedMsg() Model {
 	m = m.endCurrentListen()
 	m.playback.state = playback.StateStopped
 	m = m.resetPlaybackProgress()
-	m.statusBar.notify("mpv disconnected, restarting…")
+	m.statusBar.Notify("mpv disconnected, restarting…")
 	return m
 }
 
@@ -135,7 +135,7 @@ func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
 
 // handlePreviewStartErrorMsg notifies the user and resumes main playback.
 func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
-	m.statusBar.notify("Preview error: " + msg.err.Error())
+	m.statusBar.Notify("Preview error: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	if m.overlay.previewWasPlaying && m.player != nil {
 		if err := m.player.Play(); err != nil {
@@ -192,20 +192,20 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	if m.followNowPlaying && m.activeView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(idx)
 	}
-	m.statusBar.artist = msg.Artist
-	m.statusBar.title = msg.Title
+	m.statusBar.Artist = msg.Artist
+	m.statusBar.Title = msg.Title
 	if t, ok := m.library.index.FindByHash(msg.Hash); ok {
-		m.statusBar.album = t.Album
+		m.statusBar.Album = t.Album
 	} else {
 		// Clear the previous track's album so it does not leak into the
 		// status bar when the new hash isn't in the library index.
-		m.statusBar.album = ""
+		m.statusBar.Album = ""
 	}
 	source := msg.PlaylistSource
 	if source == "" {
 		source = "Queue"
 	}
-	m.statusBar.playlistSource = source
+	m.statusBar.PlaylistSource = source
 	m.playback.state = playback.StatePlaying
 	m = m.resetPlaybackProgress()
 	m = m.armPendingListen(msg.Hash, msg.Artist)
@@ -256,7 +256,7 @@ func (m Model) trackNotifyCmd(msg playback.TrackChangedMsg, prevHash string) tea
 		return nil
 	}
 	notifier := m.notifier
-	title, artist, album := msg.Title, msg.Artist, m.statusBar.album
+	title, artist, album := msg.Title, msg.Artist, m.statusBar.Album
 	return func() tea.Msg {
 		if err := notifier.NotifyTrack(title, artist, album); err != nil {
 			slog.Warn("track notification failed", "err", err)

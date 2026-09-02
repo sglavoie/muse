@@ -62,7 +62,7 @@ func (m Model) handleInsightsMergeGenre() Model {
 	}
 	row := m.insights.focusedHealthRow()
 	if row == nil || row.kind != healthGenreCollision {
-		m.statusBar.notify("Only genre collisions can be merged")
+		m.statusBar.Notify("Only genre collisions can be merged")
 		return m
 	}
 	n := len(row.hashes)
@@ -87,7 +87,7 @@ func (m Model) handleInsightsMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd,
 	if key := msg.String(); key != "y" && key != "Y" {
 		m.insights.pendingMerge = nil
 		m.confirmationBar = ""
-		m.statusBar.notify("Merge canceled")
+		m.statusBar.Notify("Merge canceled")
 		return m, nil, true
 	}
 	return m.confirmInsightsGenreMerge()
@@ -123,13 +123,13 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 	}
 
 	if len(writes) == 0 {
-		m.statusBar.notify("Genres already agree")
+		m.statusBar.Notify("Genres already agree")
 		return m, nil, true
 	}
 
 	mw := m.metadataWriter
 	if mw == nil {
-		m.statusBar.notify("Genre merge needs a database connection")
+		m.statusBar.Notify("Genre merge needs a database connection")
 		return m, nil, true
 	}
 
@@ -203,16 +203,16 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 	lost := msg.failed + superseded
 	switch {
 	case done == 0 && msg.err != nil:
-		m.statusBar.notify(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
+		m.statusBar.Notify(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
 	case done == 0 && lost > 0:
-		m.statusBar.notify(fmt.Sprintf("Genre merge stood down: %d %s changed while it ran · m retries",
+		m.statusBar.Notify(fmt.Sprintf("Genre merge stood down: %d %s changed while it ran · m retries",
 			lost, text.Pluralize(lost, "track", "tracks")))
 	case lost > 0:
 		total := done + lost
-		m.statusBar.notify(fmt.Sprintf("Merged %d of %d %s into %s · m retries the rest",
+		m.statusBar.Notify(fmt.Sprintf("Merged %d of %d %s into %s · m retries the rest",
 			done, total, text.Pluralize(total, "track", "tracks"), msg.canonical))
 	default:
-		m.statusBar.notify(fmt.Sprintf("Merged %d %s into %s",
+		m.statusBar.Notify(fmt.Sprintf("Merged %d %s into %s",
 			done, text.Pluralize(done, "track", "tracks"), msg.canonical))
 	}
 	return m, m.insightsLoadCmd()

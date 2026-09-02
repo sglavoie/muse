@@ -65,7 +65,7 @@ func TestShuffleToggle_Success(t *testing.T) {
 	if len(sw.shuffleCalls) != 1 || !sw.shuffleCalls[0] {
 		t.Errorf("WriteShuffle calls = %v, want [true]", sw.shuffleCalls)
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "Shuffle: on (S)") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "Shuffle: on (S)") {
 		t.Errorf("status = %q, want it to contain 'Shuffle: on (S)'", msg)
 	}
 }
@@ -87,7 +87,7 @@ func TestShuffleToggle_RuntimeFailureReverts(t *testing.T) {
 	if len(sw.shuffleCalls) != 0 {
 		t.Errorf("WriteShuffle calls = %v, want none after runtime failure", sw.shuffleCalls)
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "Shuffle failed") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "Shuffle failed") {
 		t.Errorf("status = %q, want it to contain 'Shuffle failed'", msg)
 	}
 }
@@ -110,7 +110,7 @@ func TestShuffleToggle_PersistenceFailureWarnsNotSaved(t *testing.T) {
 	if len(p.shuffleCalls) != 1 || !p.shuffleCalls[0] {
 		t.Errorf("SetShuffle calls = %v, want [true]", p.shuffleCalls)
 	}
-	if msg := nm.statusBar.topNotification().msg; !strings.Contains(msg, "won't survive restart") {
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "won't survive restart") {
 		t.Errorf("status = %q, want it to warn 'won't survive restart'", msg)
 	}
 }

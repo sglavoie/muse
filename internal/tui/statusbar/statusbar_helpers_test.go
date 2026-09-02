@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import (
 	"math"
@@ -59,15 +59,15 @@ func TestTruncateTitle(t *testing.T) {
 }
 
 func TestNotifyUsesConfiguredDuration(t *testing.T) {
-	sb := StatusBar{transientDur: 15 * time.Second}
+	sb := StatusBar{TransientDur: 15 * time.Second}
 	before := time.Now()
-	sb.notify("test message")
+	sb.Notify("test message")
 
-	top := sb.topNotification()
-	if top.msg != "test message" {
-		t.Errorf("expected msg %q, got %q", "test message", top.msg)
+	top := sb.TopNotification()
+	if top.Msg != "test message" {
+		t.Errorf("expected msg %q, got %q", "test message", top.Msg)
 	}
-	if diff := top.expiresAt.Sub(before); diff < 14*time.Second || diff > 16*time.Second {
+	if diff := top.ExpiresAt.Sub(before); diff < 14*time.Second || diff > 16*time.Second {
 		t.Errorf("expected expiry ~15s from now, got %v", diff)
 	}
 }
@@ -75,9 +75,9 @@ func TestNotifyUsesConfiguredDuration(t *testing.T) {
 func TestNotifyFallsBackToDefault(t *testing.T) {
 	sb := StatusBar{}
 	before := time.Now()
-	sb.notify("fallback test")
+	sb.Notify("fallback test")
 
-	if diff := sb.topNotification().expiresAt.Sub(before); diff < 4*time.Second || diff > 6*time.Second {
+	if diff := sb.TopNotification().ExpiresAt.Sub(before); diff < 4*time.Second || diff > 6*time.Second {
 		t.Errorf("expected expiry ~5s (fallback) from now, got %v", diff)
 	}
 }

@@ -1,6 +1,10 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/statusbar"
+)
 
 // handleScanCancelKeyPress intercepts `esc` while a library scan is running
 // and asks the scanner pipeline to stop via its derived cancel context. The
@@ -20,11 +24,11 @@ func (m Model) handleScanCancelKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 		m.scanCancel = nil
 	}
 	m.scanning = false
-	m.longOp = longOpState{}
+	m.longOp = statusbar.LongOpState{}
 	// A canceled scan leaves the index only partially rebuilt, so the vanished
 	// paths it would compute are meaningless. Drop the prior-paths snapshot so
 	// the trailing ScanDoneMsg skips deletion reconciliation entirely.
 	m.rescanPriorPaths = nil
-	m.statusBar.notify("Scan canceled")
+	m.statusBar.Notify("Scan canceled")
 	return m, nil, true
 }

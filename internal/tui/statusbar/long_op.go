@@ -1,4 +1,4 @@
-package tui
+package statusbar
 
 import "time"
 
@@ -16,12 +16,12 @@ type longOpSample struct {
 	done int
 }
 
-// longOpState describes the currently active long-running operation. It is
+// LongOpState describes the currently active long-running operation. It is
 // generic over the kind of operation (library scan today, audit/import in
 // future) — the renderer reads Label, Done, Total, and the rate ring buffer.
 // Active is false (zero value) when no long op is running, which is the
 // signal the status bar uses to skip the line-2 progress render.
-type longOpState struct {
+type LongOpState struct {
 	Active    bool
 	Label     string
 	Done      int
@@ -30,7 +30,7 @@ type longOpState struct {
 	samples   []longOpSample
 }
 
-// update records the latest progress and pushes a sample onto the rate-window
+// Update records the latest progress and pushes a sample onto the rate-window
 // ring buffer, evicting samples older than longOpRateWindow.
 //
 // The new sample slice is always allocated independently of the receiver's
@@ -38,7 +38,7 @@ type longOpState struct {
 // longOpState is still alive elsewhere (e.g. a prior Model value retained by
 // a deferred tea.Cmd): mutating the shared backing array via append/copy
 // would otherwise corrupt the snapshot's view of its samples.
-func (s longOpState) update(done, total int, now time.Time) longOpState {
+func (s LongOpState) Update(done, total int, now time.Time) LongOpState {
 	s.Done = done
 	s.Total = total
 	cutoff := now.Add(-longOpRateWindow)
@@ -63,7 +63,7 @@ func (s longOpState) update(done, total int, now time.Time) longOpState {
 // rate returns the items-per-second throughput estimated from the rate-window
 // samples. Returns 0 when fewer than two samples are available or the window
 // span is zero.
-func (s longOpState) rate() float64 {
+func (s LongOpState) rate() float64 {
 	if len(s.samples) < 2 {
 		return 0
 	}
@@ -82,7 +82,7 @@ func (s longOpState) rate() float64 {
 
 // etaSeconds returns the estimated seconds remaining based on the current
 // rate. Returns 0 when the rate is unknown or the operation has finished.
-func (s longOpState) etaSeconds() int {
+func (s LongOpState) etaSeconds() int {
 	if s.Total <= 0 || s.Done >= s.Total {
 		return 0
 	}

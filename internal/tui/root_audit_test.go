@@ -59,7 +59,7 @@ func TestDurationAuditDoneShowsNotification(t *testing.T) {
 	)
 	nm := durationAuditDoneUpdate(t, m)
 
-	if nm.statusBar.topNotification().msg == "" {
+	if nm.statusBar.TopNotification().Msg == "" {
 		t.Error("expected a non-empty notification after audit with corrections, got empty")
 	}
 	if nm.auditCh != nil {
@@ -87,7 +87,7 @@ func TestDurationAuditCorrectedAccumulatesAcrossBatches(t *testing.T) {
 	if m.auditCorrected != 3 {
 		t.Fatalf("after batch 2: auditCorrected = %d, want 3", m.auditCorrected)
 	}
-	if nm := durationAuditDoneUpdate(t, m); nm.statusBar.topNotification().msg == "" {
+	if nm := durationAuditDoneUpdate(t, m); nm.statusBar.TopNotification().Msg == "" {
 		t.Error("expected notification after 3 corrections")
 	} else if nm.auditCorrected != 0 {
 		t.Errorf("auditCorrected should be reset after done, got %d", nm.auditCorrected)
@@ -118,8 +118,8 @@ func TestDurationAuditDoneSilentWhenNone(t *testing.T) {
 	m, _ := newDurationAuditModelWithChannel()
 	nm := durationAuditDoneUpdate(t, m)
 
-	if nm.statusBar.topNotification().msg != "" {
-		t.Errorf("expected no notification when corrected=0, got %q", nm.statusBar.topNotification().msg)
+	if nm.statusBar.TopNotification().Msg != "" {
+		t.Errorf("expected no notification when corrected=0, got %q", nm.statusBar.TopNotification().Msg)
 	}
 	if nm.auditCh != nil {
 		t.Error("expected auditCh to be nil after DurationAuditDoneMsg")

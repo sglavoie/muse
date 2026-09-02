@@ -127,7 +127,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	if nm.library.filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
 	}
-	if nm.statusBar.topNotification().msg == "" {
+	if nm.statusBar.TopNotification().Msg == "" {
 		t.Error("FilterBarMsg on playlists view should set a transient notification")
 	}
 }

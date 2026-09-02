@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/sorting"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
@@ -59,7 +60,7 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 			m.scanning = true
 			m.scanned = 0
 			m.scanTotal = 0
-			m.longOp = longOpState{Active: true, Label: "Scan", StartedAt: time.Now()}
+			m.longOp = statusbar.LongOpState{Active: true, Label: "Scan", StartedAt: time.Now()}
 			m.browse.artists = ArtistsView{width: m.browse.artists.width, height: m.browse.artists.height}
 			m.browse.albums = AlbumsView{width: m.browse.albums.width, height: m.browse.albums.height}
 			m.browse.genres = GenresView{width: m.browse.genres.width, height: m.browse.genres.height}

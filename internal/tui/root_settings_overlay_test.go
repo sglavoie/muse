@@ -128,7 +128,7 @@ func TestSettingsSavedMsgShowsNotification(t *testing.T) {
 	m := New(context.Background())
 	next, _ := m.Update(settingsSavedMsg{})
 	nm := next.(Model)
-	if nm.statusBar.topNotification().msg == "" {
+	if nm.statusBar.TopNotification().Msg == "" {
 		t.Error("settingsSavedMsg: expected notification to be set")
 	}
 }
@@ -138,8 +138,8 @@ func TestSettingsSavedMsgErrorShowsErrorNotification(t *testing.T) {
 	m := New(context.Background())
 	next, _ := m.Update(settingsSavedMsg{err: errors.New("save error")})
 	nm := next.(Model)
-	if !strings.Contains(nm.statusBar.topNotification().msg, "failed") {
-		t.Errorf("settingsSavedMsg with error: expected 'failed' in notification, got %q", nm.statusBar.topNotification().msg)
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "failed") {
+		t.Errorf("settingsSavedMsg with error: expected 'failed' in notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 
@@ -151,8 +151,8 @@ func TestSettingsSaveUpdatesTransientDur(t *testing.T) {
 	cfg.TransientDurationSecs = 5
 	m := New(context.Background(), WithConfig(cfg))
 
-	if m.statusBar.transientDur != 5*time.Second {
-		t.Fatalf("initial transientDur: expected 5s, got %v", m.statusBar.transientDur)
+	if m.statusBar.TransientDur != 5*time.Second {
+		t.Fatalf("initial transientDur: expected 5s, got %v", m.statusBar.TransientDur)
 	}
 
 	// Open settings and switch to the Display tab using "]" (bracket key).
@@ -179,7 +179,7 @@ func TestSettingsSaveUpdatesTransientDur(t *testing.T) {
 	if nm.cfg.TransientDurationSecs != 10 {
 		t.Errorf("expected TransientDurationSecs=10 after save, got %d", nm.cfg.TransientDurationSecs)
 	}
-	if nm.statusBar.transientDur != 10*time.Second {
-		t.Errorf("expected statusBar.transientDur=10s after save, got %v", nm.statusBar.transientDur)
+	if nm.statusBar.TransientDur != 10*time.Second {
+		t.Errorf("expected statusBar.transientDur=10s after save, got %v", nm.statusBar.TransientDur)
 	}
 }

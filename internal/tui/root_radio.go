@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // radioState holds all mutable radio-mode fields for the root Model.
@@ -44,7 +45,7 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 	} else {
 		m.radio.syntheticSeed = nil
 	}
-	m.statusBar.pushMsg(m.modeToggleMsg("Radio mode", playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
+	m.statusBar.PushMsg(m.modeToggleMsg("Radio mode", playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	if m.radio.enabled {
 		cmd := m.radioMaybeEnqueueCmd()
 		if cmd != nil {
@@ -320,9 +321,9 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 			m.playback.currentHash = entry.Hash
 			m.playback.currentIndex = batchStartIdx
 			m = m.resetPlaybackProgress()
-			m.statusBar.artist = entry.Artist
-			m.statusBar.title = entry.Title
-			m.statusBar.playlistSource = queueSourceName("Radio")
+			m.statusBar.Artist = entry.Artist
+			m.statusBar.Title = entry.Title
+			m.statusBar.PlaylistSource = queueSourceName("Radio")
 		}
 		m.playback.queueExhausted = false
 	} else if msg.WasEmpty && m.playback.state == playback.StateIdle {

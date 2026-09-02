@@ -28,7 +28,7 @@ func (m Model) handleTagPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 func (m Model) openTagPicker() (Model, tea.Cmd) {
 	hashes, isBulk := m.tagPickerHashes()
 	if len(hashes) == 0 {
-		m.statusBar.notify("No track focused")
+		m.statusBar.Notify("No track focused")
 		return m, nil
 	}
 
@@ -177,7 +177,7 @@ func (m Model) handleTagPickerCreate(msg TagPickerCreateMsg) (Model, tea.Cmd) {
 // the tag picker so the user sees the new tag.
 func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 	if msg.err != nil {
-		m.statusBar.notify("Create tag failed: " + msg.err.Error())
+		m.statusBar.Notify("Create tag failed: " + msg.err.Error())
 		return m, nil
 	}
 
@@ -231,7 +231,7 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 			updated := m.overlay.tagPicker.UpdateItemState(msg.tagID, prevState)
 			m.overlay.tagPicker = &updated
 		}
-		m.statusBar.notify("Tag toggle failed: " + msg.err.Error())
+		m.statusBar.Notify("Tag toggle failed: " + msg.err.Error())
 		return m, nil
 	}
 	if msg.autoDeleted {

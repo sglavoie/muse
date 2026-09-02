@@ -26,9 +26,9 @@ func TestResetPlaybackStateClearsAllFields(t *testing.T) {
 	m.playback.queueExhausted = true
 	m.playback.currentHash = "somehash"
 	m.playback.currentIndex = 3
-	m.statusBar.artist = "Artist"
-	m.statusBar.title = "Title"
-	m.statusBar.playlistSource = "Source"
+	m.statusBar.Artist = "Artist"
+	m.statusBar.Title = "Title"
+	m.statusBar.PlaylistSource = "Source"
 	m.missingTrackCount = 5
 
 	m = m.resetPlaybackState()
@@ -63,14 +63,14 @@ func TestResetPlaybackStateClearsAllFields(t *testing.T) {
 	if m.playback.currentIndex != -1 {
 		t.Errorf("currentIndex = %d, want -1", m.playback.currentIndex)
 	}
-	if m.statusBar.artist != "" {
-		t.Errorf("statusBar.artist = %q, want empty", m.statusBar.artist)
+	if m.statusBar.Artist != "" {
+		t.Errorf("statusBar.artist = %q, want empty", m.statusBar.Artist)
 	}
-	if m.statusBar.title != "" {
-		t.Errorf("statusBar.title = %q, want empty", m.statusBar.title)
+	if m.statusBar.Title != "" {
+		t.Errorf("statusBar.title = %q, want empty", m.statusBar.Title)
 	}
-	if m.statusBar.playlistSource != "" {
-		t.Errorf("statusBar.playlistSource = %q, want empty", m.statusBar.playlistSource)
+	if m.statusBar.PlaylistSource != "" {
+		t.Errorf("statusBar.playlistSource = %q, want empty", m.statusBar.PlaylistSource)
 	}
 	if m.missingTrackCount != 0 {
 		t.Errorf("missingTrackCount = %d, want 0", m.missingTrackCount)
