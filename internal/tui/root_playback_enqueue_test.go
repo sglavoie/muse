@@ -7,6 +7,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty verifies that the root
@@ -15,7 +16,7 @@ import (
 func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	// Pre-seed one queue entry so the model knows what to display.
 	m.queue.entries = []QueueEntry{
 		{Path: "/music/a.flac", Display: "Alice - Song One", Artist: "Alice", Title: "Song One"},
@@ -29,7 +30,7 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 	if cmd != nil {
 		t.Fatalf("TrackEnqueuedMsg must not return a follow-up cmd, got %T", cmd)
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected playbackState PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
@@ -43,7 +44,7 @@ func TestTrackEnqueuedMsgStartsPlaybackWhenQueueWasEmpty(t *testing.T) {
 func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	track := library.Track{Artist: "Bob", Title: "Track Two", Path: "/music/b.flac"}
 	msg := libtui.TrackEnqueuedMsg{Track: track, QueueID: 2, WasEmpty: false}
@@ -53,7 +54,7 @@ func TestTrackEnqueuedMsgDoesNotStartPlaybackWhenQueueWasNonEmpty(t *testing.T) 
 	if len(p.playFromIndexCalls) != 0 {
 		t.Fatalf("expected no PlayFromIndex call when WasEmpty=false, got calls=%v", p.playFromIndexCalls)
 	}
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected playbackState PlaybackIdle (unchanged), got %v", nm.playback.state)
 	}
 }
@@ -88,7 +89,7 @@ func TestTrackEnqueuedMsgWithErrorShowsNotification(t *testing.T) {
 func TestTrackEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-x", Path: "/x.flac", Display: "X", Artist: "X", Title: "Song"},
 	}
@@ -111,7 +112,7 @@ func TestTrackEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	// Simulate exhausted queue: playback stopped, old entries remain.
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
@@ -124,7 +125,7 @@ func TestTrackEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying after exhausted-queue enqueue, got %v", nm.playback.state)
 	}
 	if nm.playback.queueExhausted {
@@ -146,7 +147,7 @@ func TestBatchEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	// Simulate exhausted queue.
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
@@ -167,7 +168,7 @@ func TestBatchEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying after exhausted-queue batch enqueue, got %v", nm.playback.state)
 	}
 	if nm.playback.queueExhausted {
@@ -187,7 +188,7 @@ func TestBatchEnqueuedResumesPlaybackOnQueueExhausted(t *testing.T) {
 func TestTrackEnqueuedDoesNotResumeWhenNotExhausted(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = false
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "old-hash", Path: "/music/old.flac", Display: "Old"},
@@ -198,7 +199,7 @@ func TestTrackEnqueuedDoesNotResumeWhenNotExhausted(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle (no auto-resume), got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 0 {
@@ -212,7 +213,7 @@ func TestTrackEnqueuedDoesNotResumeWhenNotExhausted(t *testing.T) {
 func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	entries := []QueueEntry{
 		{ID: 10, Hash: "hash-p", Path: "/p.flac", Display: "P", Artist: "P", Title: "Song"},
@@ -238,7 +239,7 @@ func TestBatchEnqueuedAutoPlayUpdatesCurrentTrackHash(t *testing.T) {
 func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *testing.T) {
 	p := &stubQueueLifecyclePlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.currentHash = "old-hash"
 	m.queue.entries = []QueueEntry{
@@ -295,7 +296,7 @@ func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *test
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
 		t.Fatalf("BatchEnqueuedMsg: expected PlayFromIndex(0), got calls=%v", p.playFromIndexCalls)
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("BatchEnqueuedMsg: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if nm.playback.currentHash != entries[0].Hash {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestQueueFilterSelectMapsToCorrectEntry verifies that selecting an entry
@@ -30,7 +31,7 @@ func TestQueueFilterSelectMapsToCorrectEntry(t *testing.T) {
 		t.Fatal("expected non-nil cmd")
 	}
 	msg := cmd()
-	pqi, ok := msg.(PlayQueueIndexMsg)
+	pqi, ok := msg.(playback.PlayQueueIndexMsg)
 	if !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}

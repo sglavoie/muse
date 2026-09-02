@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // handleDequeueTrackMsg removes a track from the queue with undo support.
@@ -234,11 +235,11 @@ func (m Model) persistQueueOrder() {
 // resumeExhaustedPlayback starts playback from the given entry when the queue
 // was previously exhausted.
 func (m Model) resumeExhaustedPlayback(insertPos int, entry QueueEntry) Model {
-	if !m.playback.queueExhausted || m.playback.state != PlaybackIdle || m.player == nil {
+	if !m.playback.queueExhausted || m.playback.state != playback.StateIdle || m.player == nil {
 		return m
 	}
 	if err := m.player.PlayFromIndex(insertPos); err == nil {
-		m.playback.state = PlaybackPlaying
+		m.playback.state = playback.StatePlaying
 		m.playback.currentHash = entry.Hash
 		m.playback.currentIndex = insertPos
 		m = m.resetPlaybackProgress()

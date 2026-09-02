@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // renderTitleBar builds the centralized title bar showing view names with
@@ -48,9 +50,9 @@ func (m Model) titleBarQueueIndicator() string {
 		return ""
 	}
 	switch {
-	case m.playback.state == PlaybackPlaying && m.playback.currentIndex >= 0:
+	case m.playback.state == playback.StatePlaying && m.playback.currentIndex >= 0:
 		return " ♪"
-	case m.playback.state == PlaybackPaused:
+	case m.playback.state == playback.StatePaused:
 		return " ⏸"
 	default:
 		return ""
@@ -86,7 +88,7 @@ func (m Model) renderWideTitleBar(sep string, groupAfter map[viewID]bool, queueI
 			entry = m.styles.TextTertiary.Render(name)
 		}
 		if id == viewQueue && queueIndicator != "" {
-			if m.playback.state == PlaybackPlaying {
+			if m.playback.state == playback.StatePlaying {
 				entry += m.styles.Success.Render(queueIndicator)
 			} else {
 				entry += m.styles.Warning.Render(queueIndicator)

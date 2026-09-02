@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // importOriginal is one track's pre-import state. It is a struct rather than
@@ -49,7 +50,7 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 				delete(m.userEditedOverlay, hash)
 			}
 		}
-		display := trackDisplay(orig.artist, orig.title, "")
+		display := text.TrackDisplay(orig.artist, orig.title, "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == hash {
 				m.queue.entries[i].Title = orig.title

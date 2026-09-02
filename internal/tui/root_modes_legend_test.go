@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // pressSemicolon sends the ';' key press and returns the resulting Model.
@@ -35,7 +37,7 @@ func TestModesLegendKeyOpensOverlay(t *testing.T) {
 // outside m.playback.
 func TestModesLegendSnapshotsLiveModeState(t *testing.T) {
 	m := New(context.Background())
-	m.playback.repeatMode = RepeatOne
+	m.playback.repeatMode = playback.RepeatOne
 	m.playback.shuffle = true
 	m.playback.stopAfterCurrent = true
 	m.radio.enabled = true
@@ -46,7 +48,7 @@ func TestModesLegendSnapshotsLiveModeState(t *testing.T) {
 	if legend == nil {
 		t.Fatal("expected modesLegend overlay to be set")
 	}
-	if legend.repeat != RepeatOne {
+	if legend.repeat != playback.RepeatOne {
 		t.Errorf("expected repeat RepeatOne, got %v", legend.repeat)
 	}
 	if !legend.shuffle {

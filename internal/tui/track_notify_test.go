@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // fakeTrackNotifier records every NotifyTrack call. drainCmd runs the
@@ -49,7 +50,7 @@ func TestTrackChangedNotifiesOnNewHash(t *testing.T) {
 	m := notifyModel(t, f, true)
 	m.playback.currentHash = "h1"
 
-	_, cmd := m.handleTrackChangedMsg(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
+	_, cmd := m.handleTrackChangedMsg(playback.TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	drainCmd(cmd)
 
 	got := f.recorded()
@@ -66,7 +67,7 @@ func TestTrackChangedDoesNotNotifyWhenDisabled(t *testing.T) {
 	m := notifyModel(t, f, false)
 	m.playback.currentHash = "h1"
 
-	_, cmd := m.handleTrackChangedMsg(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
+	_, cmd := m.handleTrackChangedMsg(playback.TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	drainCmd(cmd)
 
 	if got := f.recorded(); len(got) != 0 {
@@ -81,7 +82,7 @@ func TestTrackChangedDoesNotNotifyOnSameHash(t *testing.T) {
 	m := notifyModel(t, f, true)
 	m.playback.currentHash = "h2"
 
-	_, cmd := m.handleTrackChangedMsg(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
+	_, cmd := m.handleTrackChangedMsg(playback.TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	drainCmd(cmd)
 
 	if got := f.recorded(); len(got) != 0 {
@@ -94,13 +95,13 @@ func TestTrackChangedSurvivesNotifierError(t *testing.T) {
 	m := notifyModel(t, f, true)
 	m.playback.currentHash = "h1"
 
-	next, cmd := m.handleTrackChangedMsg(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
+	next, cmd := m.handleTrackChangedMsg(playback.TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	drainCmd(cmd)
 
 	if next.playback.currentHash != "h2" {
 		t.Errorf("currentHash = %q, want %q", next.playback.currentHash, "h2")
 	}
-	if next.playback.state != PlaybackPlaying {
+	if next.playback.state != playback.StatePlaying {
 		t.Errorf("state = %v, want PlaybackPlaying", next.playback.state)
 	}
 	if len(f.recorded()) != 1 {

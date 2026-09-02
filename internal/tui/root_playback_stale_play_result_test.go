@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPlayFromIndexResultStaleAfterTrackJumpIsIgnored verifies that a late
@@ -15,14 +17,14 @@ func TestPlayFromIndexResultStaleAfterTrackJumpIsIgnored(t *testing.T) {
 	m := New(context.Background())
 	// Pretend we are mid-playback on track 1 (the user just jumped here
 	// from track 0).
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 1
 	m.playback.currentHash = "track-1-hash"
 	m.statusBar.artist = "Current Artist"
 	m.statusBar.title = "Current Title"
 
 	// A late error for the abandoned track-0 attempt arrives.
-	stale := playFromIndexResultMsg{
+	stale := playback.PlayFromIndexResultMsg{
 		Index: 0,
 		Path:  "/track-0.flac",
 		Hash:  "track-0-hash",
@@ -30,7 +32,7 @@ func TestPlayFromIndexResultStaleAfterTrackJumpIsIgnored(t *testing.T) {
 	}
 	nm := m.handlePlayFromIndexResultMsg(stale)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback state = %v, want PlaybackPlaying (stale failure must not reset)", nm.playback.state)
 	}
 	if nm.playback.currentIndex != 1 {
@@ -58,11 +60,11 @@ func TestPlayFromIndexResultStaleAfterQueueClearIsIgnored(t *testing.T) {
 	m := New(context.Background())
 	// Queue was cleared between dispatch and arrival — currentIndex is -1
 	// and currentHash is empty.
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
 
-	stale := playFromIndexResultMsg{
+	stale := playback.PlayFromIndexResultMsg{
 		Index: 2,
 		Path:  "/gone.flac",
 		Hash:  "gone-hash",
@@ -70,7 +72,7 @@ func TestPlayFromIndexResultStaleAfterQueueClearIsIgnored(t *testing.T) {
 	}
 	nm := m.handlePlayFromIndexResultMsg(stale)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playback state = %v, want PlaybackIdle (unchanged)", nm.playback.state)
 	}
 	if nm.statusBar.topNotification().msg != "" {

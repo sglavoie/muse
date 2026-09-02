@@ -14,6 +14,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // Built-in fixture names.
@@ -148,8 +149,8 @@ func newPlaybackFixture() Model {
 		WithQueueEntries(entries),
 		WithCurrentTrackHash(current.Hash),
 		WithCurrentIndex(1),
-		WithPlaybackState(PlaybackPlaying),
-		WithRepeatMode(RepeatAll),
+		WithPlaybackState(playback.StatePlaying),
+		WithRepeatMode(playback.RepeatAll),
 		WithShuffle(true),
 		WithVolume(65),
 		WithStatusBarTrack(current.Artist, current.Title, "Queue"),

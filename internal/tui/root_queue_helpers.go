@@ -4,6 +4,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // batchEnqueueTracksCmd appends tracks transactionally and returns the shared
@@ -39,7 +41,7 @@ func newQueueEntries(tracks []library.Track, ids []int64, source string) []Queue
 			ID:             ids[i],
 			Path:           t.Path,
 			Hash:           t.Hash,
-			Display:        trackDisplay(t.Artist, t.Title, t.Path),
+			Display:        text.TrackDisplay(t.Artist, t.Title, t.Path),
 			Artist:         t.Artist,
 			Title:          t.Title,
 			Album:          t.Album,
@@ -97,7 +99,7 @@ func (m Model) resetPlaybackState() Model {
 	if cp, ok := m.player.(commandPlayer); ok {
 		_ = cp.Stop() // stop before new playback, failure is non-fatal
 	}
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m = m.resetPlaybackProgress()
 	m.playback.stopAfterCurrent = false
 	m.playback.queueExhausted = false

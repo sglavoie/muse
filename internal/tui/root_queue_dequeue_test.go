@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestDequeueTrackMsgCallsPlayerQueueRemoverWithCorrectIndex verifies that
@@ -40,10 +41,10 @@ func TestDequeueTrackMsgCallsPlayerQueueRemoverWithCorrectIndex(t *testing.T) {
 func TestDequeueTrackMsgDoesNotCallStop(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
-		state PlaybackState
+		state playback.State
 	}{
-		{"idle", PlaybackIdle},
-		{"playing", PlaybackPlaying},
+		{"idle", playback.StateIdle},
+		{"playing", playback.StatePlaying},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &stubPlayerQueueRemover{}

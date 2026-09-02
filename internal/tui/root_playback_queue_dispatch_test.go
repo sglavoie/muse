@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex verifies that root
@@ -18,7 +20,7 @@ func TestRootUpdatePlayQueueIndexMsgCallsPlayerPlayFromIndex(t *testing.T) {
 		{Path: "/music/b.flac", Display: "B"},
 	}
 
-	_, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
+	_, cmd := m.Update(playback.PlayQueueIndexMsg{Index: 1})
 	if cmd == nil {
 		t.Fatal("PlayQueueIndexMsg must dispatch PlayFromIndex asynchronously via a Cmd")
 	}
@@ -50,7 +52,7 @@ func TestRootUpdateEnterInQueueViewDelegatesToQueueUpdate(t *testing.T) {
 		t.Fatal("Enter in queue view must return a non-nil cmd")
 	}
 	msg := cmd()
-	if _, ok := msg.(PlayQueueIndexMsg); !ok {
+	if _, ok := msg.(playback.PlayQueueIndexMsg); !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}
 	// Feed the message back to root to trigger playback.
@@ -77,7 +79,7 @@ func TestPlayQueueIndexMsgUpdatesCurrentTrackHash(t *testing.T) {
 		{ID: 2, Hash: "hash-b", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
 	}
 
-	next, _ := m.Update(PlayQueueIndexMsg{Index: 1})
+	next, _ := m.Update(playback.PlayQueueIndexMsg{Index: 1})
 	nm := next.(Model)
 
 	if nm.playback.currentHash != "hash-b" {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPlayNextInsertsAfterCurrentTrack verifies that handleTrackEnqueuedMsg
@@ -48,7 +49,7 @@ func TestPlayNextInsertsAfterCurrentTrack(t *testing.T) {
 // queue triggers auto-play (WasEmpty + PlaybackIdle).
 func TestPlayNextEmptyQueueTriggersAutoPlay(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	msg := libtui.TrackEnqueuedMsg{
 		Track:       library.Track{Hash: "h1", Title: "Solo", Artist: "A", Path: "/solo.mp3"},

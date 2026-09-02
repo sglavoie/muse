@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestBulkDequeueCreatesUndoSlot verifies that bulk-dequeueing selected entries
@@ -56,7 +58,7 @@ func TestBulkDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -69,7 +71,7 @@ func TestBulkDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playbackState = %v, want PlaybackPlaying (another entry with same hash remains)", nm.playback.state)
 	}
 	if nm.playback.currentHash != "abc123" {
@@ -83,7 +85,7 @@ func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.activeView = viewQueue
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -95,7 +97,7 @@ func TestBulkDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {

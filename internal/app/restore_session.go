@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // RestoreSession loads the persisted queue and session state from the
@@ -136,9 +137,9 @@ func buildRestoredSession(
 	}
 }
 
-func restoreSessionState(sess *db.SessionRow) (tui.RepeatMode, bool, bool, string, int64, int) {
+func restoreSessionState(sess *db.SessionRow) (playback.RepeatMode, bool, bool, string, int64, int) {
 	if sess == nil {
-		return tui.RepeatOff, false, false, "", 0, -1
+		return playback.RepeatOff, false, false, "", 0, -1
 	}
 
 	positionMs := sess.PositionMs
@@ -187,13 +188,13 @@ func playableFileExists(path string) bool {
 
 // parseRepeatMode converts a DB repeat_mode string to a tui.RepeatMode.
 // Unrecognised values are treated as RepeatOff.
-func parseRepeatMode(s string) tui.RepeatMode {
+func parseRepeatMode(s string) playback.RepeatMode {
 	switch s {
 	case "all":
-		return tui.RepeatAll
+		return playback.RepeatAll
 	case "one":
-		return tui.RepeatOne
+		return playback.RepeatOne
 	default:
-		return tui.RepeatOff
+		return playback.RepeatOff
 	}
 }

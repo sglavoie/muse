@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestModelSetRepeatMode(t *testing.T) {
-	m := New(context.Background(), WithRepeatMode(RepeatAll))
-	if m.playback.repeatMode != RepeatAll {
+	m := New(context.Background(), WithRepeatMode(playback.RepeatAll))
+	if m.playback.repeatMode != playback.RepeatAll {
 		t.Errorf("SetRepeatMode: expected RepeatAll, got %v", m.playback.repeatMode)
 	}
 }
@@ -22,8 +23,8 @@ func TestModelSetShuffle(t *testing.T) {
 }
 
 func TestModelSetPlaybackState(t *testing.T) {
-	m := New(context.Background(), WithPlaybackState(PlaybackPaused))
-	if m.playback.state != PlaybackPaused {
+	m := New(context.Background(), WithPlaybackState(playback.StatePaused))
+	if m.playback.state != playback.StatePaused {
 		t.Errorf("SetPlaybackState: expected PlaybackPaused, got %v", m.playback.state)
 	}
 }

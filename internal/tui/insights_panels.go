@@ -137,7 +137,7 @@ func (v InsightsView) fit(line string) string {
 }
 
 func insightsPlaysNote(plays, secs int) string {
-	return fmt.Sprintf("%d %s · %s", plays, pluralize(plays, "play", "plays"), formatListeningTime(secs))
+	return fmt.Sprintf("%d %s · %s", plays, pluralize(plays, "play", "plays"), text.FormatListeningTime(secs))
 }
 
 // insightsFitHeader assembles a panel header from a mandatory prologue and

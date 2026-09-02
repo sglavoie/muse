@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -25,7 +26,7 @@ func TestStatusBarReceivesTrackInfoBeforeRender(t *testing.T) {
 	m := New(context.Background(), WithPlayer(p))
 	m.queue.entries = []QueueEntry{{Path: "/a.flac", Display: "The Artist – The Song", Artist: "The Artist", Title: "The Song"}}
 
-	nm, _ := updateModel(m, PlayQueueIndexMsg{Index: 0})
+	nm, _ := updateModel(m, playback.PlayQueueIndexMsg{Index: 0})
 
 	assertViewContains(t, nm, "The Artist")
 	assertViewContains(t, nm, "The Song")
@@ -34,12 +35,12 @@ func TestStatusBarReceivesTrackInfoBeforeRender(t *testing.T) {
 
 func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 	tests := []struct {
-		state PlaybackState
+		state playback.State
 		want  string
 	}{
-		{PlaybackPlaying, "▶"},
-		{PlaybackPaused, "⏸"},
-		{PlaybackStopped, "■"},
+		{playback.StatePlaying, "▶"},
+		{playback.StatePaused, "⏸"},
+		{playback.StateStopped, "■"},
 	}
 
 	for _, tc := range tests {
@@ -54,7 +55,7 @@ func TestStatusBarShowsPlaybackStateIndicator(t *testing.T) {
 func TestStatusBarRendersElapsedTime(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 83.0, total: 245.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 
@@ -65,7 +66,7 @@ func TestStatusBarRendersElapsedTime(t *testing.T) {
 func TestStatusBarHidesStaleQueuePosition(t *testing.T) {
 	m := New(context.Background())
 	m.queue.entries = []QueueEntry{{ID: 1, Path: "/a.flac"}, {ID: 2, Path: "/b.flac"}}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = len(m.queue.entries)
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -79,7 +80,7 @@ func TestStatusBarHidesStaleQueuePosition(t *testing.T) {
 
 func TestStatusBarNoTimeDisplayWhenZero(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 

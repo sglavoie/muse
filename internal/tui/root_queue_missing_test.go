@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError verifies that
@@ -20,7 +21,7 @@ func TestUpdateMissingTrackMsgMarksQueueEntryAndSetsError(t *testing.T) {
 		{Path: "/music/song.flac", Display: "Artist - Song"},
 	}
 
-	next, _ := m.Update(MissingTrackMsg{Path: "/music/song.flac"})
+	next, _ := m.Update(playback.MissingTrackMsg{Path: "/music/song.flac"})
 	nm := next.(Model)
 
 	if nm.statusBar.topNotification().msg == "" {
@@ -51,7 +52,7 @@ func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected a command from selecting a missing track")
 	}
-	msg, ok := cmd().(MissingTrackSelectedMsg)
+	msg, ok := cmd().(playback.MissingTrackSelectedMsg)
 	if !ok {
 		t.Fatalf("expected MissingTrackSelectedMsg, got %T", cmd())
 	}
@@ -112,11 +113,11 @@ func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
 		t.Fatal("expected a command from actionSelect")
 	}
 	switch msg := cmd().(type) {
-	case MissingTrackSelectedMsg:
+	case playback.MissingTrackSelectedMsg:
 		if msg.Index != 0 || msg.Path != deletedPath || msg.Hash != "zzz" {
 			t.Fatalf("unexpected MissingTrackSelectedMsg fields: %+v", msg)
 		}
-	case PlayQueueIndexMsg:
+	case playback.PlayQueueIndexMsg:
 		t.Fatalf("pre-flight stat must route deleted file to removal; got PlayQueueIndexMsg")
 	default:
 		t.Fatalf("unexpected message type %T", msg)
@@ -132,7 +133,7 @@ func TestSelectDeletedFilePreflightStatDispatchesMissing(t *testing.T) {
 func TestSelectMissingCurrentTrackResetsPlayback(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
@@ -143,10 +144,10 @@ func TestSelectMissingCurrentTrackResetsPlayback(t *testing.T) {
 		{ID: 20, Path: "/music/ok.flac", Display: "OK", Hash: "other"},
 	}
 
-	next, _ := m.Update(MissingTrackSelectedMsg{Index: 0, Path: "/music/gone.flac", Hash: "abc123"})
+	next, _ := m.Update(playback.MissingTrackSelectedMsg{Index: 0, Path: "/music/gone.flac", Hash: "abc123"})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playback.state = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.playback.currentIndex != -1 {
@@ -176,16 +177,16 @@ func TestSelectMissingCurrentTrackResetsPlayback(t *testing.T) {
 // stuck in the optimistic "playing" state.
 func TestPlayFromIndexResultMsgErrorResetsPlayback(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 3
 	m.playback.currentHash = "abc"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
 
-	next, _ := m.Update(playFromIndexResultMsg{Index: 3, Hash: "abc", Err: errors.New("boom")})
+	next, _ := m.Update(playback.PlayFromIndexResultMsg{Index: 3, Hash: "abc", Err: errors.New("boom")})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playback state = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.playback.currentIndex != -1 {

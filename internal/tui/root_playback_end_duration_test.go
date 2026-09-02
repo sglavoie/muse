@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPlaybackEndedResetsDurationCorrected verifies that handlePlaybackEndedMsg
@@ -10,10 +12,10 @@ import (
 // does not skip duration correction for the new track.
 func TestPlaybackEndedResetsDurationCorrected(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.durationCorrected = true
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	if nm.playback.durationCorrected {
@@ -27,17 +29,17 @@ func TestPlaybackEndedResetsDurationCorrected(t *testing.T) {
 func TestRepeatAllResetsDurationCorrected(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.playback.durationCorrected = true
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if nm.playback.durationCorrected {
@@ -51,7 +53,7 @@ func TestRepeatAllResetsDurationCorrected(t *testing.T) {
 func TestPlaybackEndedConcurrentExtensionResetsDurationCorrected(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.durationCorrected = true
 	m.queue.entries = []QueueEntry{
@@ -59,10 +61,10 @@ func TestPlaybackEndedConcurrentExtensionResetsDurationCorrected(t *testing.T) {
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"}, // pasted concurrently
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying (queue was extended), got %v", nm.playback.state)
 	}
 	if nm.playback.durationCorrected {

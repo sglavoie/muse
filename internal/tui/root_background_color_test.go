@@ -8,6 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestUpdateBackgroundColorMsgLightBackground(t *testing.T) {
@@ -63,7 +65,7 @@ func TestBackgroundColorMsgReconstructsStyles(t *testing.T) {
 		{Title: "Lost Track", Artist: "Ghost", Missing: true},
 	}
 	nm.queue.width = 80
-	rendered := nm.queue.render(*nm.styles, -1, PlaybackIdle, nil, nil, nil)
+	rendered := nm.queue.render(*nm.styles, -1, playback.StateIdle, nil, nil, nil)
 
 	// The rendered output must show the "[missing]" label in the visible text.
 	if !strings.Contains(ansi.Strip(rendered), "[missing]") {

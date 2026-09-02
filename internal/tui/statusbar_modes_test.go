@@ -6,11 +6,12 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 func TestRenderModeCluster(t *testing.T) {
-	base := StatusBar{artist: "Artist", title: "Title", playbackState: PlaybackPlaying}
+	base := StatusBar{artist: "Artist", title: "Title", playbackState: playback.StatePlaying}
 	out := renderStatusBarForTest(base, 0)
 	if !strings.Contains(out, "RSND") {
 		t.Errorf("expected RSND cluster when modes off: got %q", out)
@@ -20,7 +21,7 @@ func TestRenderModeCluster(t *testing.T) {
 			t.Errorf("verbose label %q should no longer appear: got %q", verbose, out)
 		}
 	}
-	if out = renderStatusBarForTest(func() StatusBar { sb := base; sb.repeatMode = RepeatOne; return sb }(), 0); !strings.Contains(out, "1SND") {
+	if out = renderStatusBarForTest(func() StatusBar { sb := base; sb.repeatMode = playback.RepeatOne; return sb }(), 0); !strings.Contains(out, "1SND") {
 		t.Errorf("expected 1SND cluster with RepeatOne: got %q", out)
 	}
 	if out = renderStatusBarForTest(func() StatusBar { sb := base; sb.shuffle = true; return sb }(), 0); !strings.Contains(out, "RSND") {
@@ -37,17 +38,17 @@ func TestRenderModeClusterWidthStable(t *testing.T) {
 		}
 		return ansi.StringWidth(out[i+2 : i+6])
 	}
-	base := StatusBar{artist: "A", title: "T", playbackState: PlaybackPlaying}
+	base := StatusBar{artist: "A", title: "T", playbackState: playback.StatePlaying}
 	cases := []StatusBar{
 		base,
-		func() StatusBar { sb := base; sb.repeatMode = RepeatAll; return sb }(),
-		func() StatusBar { sb := base; sb.repeatMode = RepeatOne; return sb }(),
+		func() StatusBar { sb := base; sb.repeatMode = playback.RepeatAll; return sb }(),
+		func() StatusBar { sb := base; sb.repeatMode = playback.RepeatOne; return sb }(),
 		func() StatusBar { sb := base; sb.shuffle = true; return sb }(),
 		func() StatusBar { sb := base; sb.stopAfterCurrent = true; return sb }(),
 		func() StatusBar { sb := base; sb.radioMode = true; return sb }(),
 		func() StatusBar {
 			sb := base
-			sb.repeatMode, sb.shuffle, sb.stopAfterCurrent, sb.radioMode = RepeatAll, true, true, true
+			sb.repeatMode, sb.shuffle, sb.stopAfterCurrent, sb.radioMode = playback.RepeatAll, true, true, true
 			return sb
 		}(),
 	}
@@ -61,19 +62,19 @@ func TestRenderModeClusterWidthStable(t *testing.T) {
 func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
 	st := styles.NewStyles(true)
 	cases := []struct {
-		repeat                    RepeatMode
+		repeat                    playback.RepeatMode
 		shuffle, stopAfter, radio bool
 		wantGlyphs                string
 		wantStates                [4]string
 	}{
-		{RepeatOff, false, false, false, "RSND", [4]string{"off", "off", "off", "off"}},
-		{RepeatAll, false, false, false, "RSND", [4]string{"all", "off", "off", "off"}},
-		{RepeatOne, false, false, false, "1SND", [4]string{"one", "off", "off", "off"}},
-		{RepeatOff, true, false, false, "RSND", [4]string{"off", "on", "off", "off"}},
-		{RepeatOff, false, true, false, "RSND", [4]string{"off", "off", "on", "off"}},
-		{RepeatOff, false, false, true, "RSND", [4]string{"off", "off", "off", "on"}},
-		{RepeatAll, true, true, true, "RSND", [4]string{"all", "on", "on", "on"}},
-		{RepeatOne, true, true, true, "1SND", [4]string{"one", "on", "on", "on"}},
+		{playback.RepeatOff, false, false, false, "RSND", [4]string{"off", "off", "off", "off"}},
+		{playback.RepeatAll, false, false, false, "RSND", [4]string{"all", "off", "off", "off"}},
+		{playback.RepeatOne, false, false, false, "1SND", [4]string{"one", "off", "off", "off"}},
+		{playback.RepeatOff, true, false, false, "RSND", [4]string{"off", "on", "off", "off"}},
+		{playback.RepeatOff, false, true, false, "RSND", [4]string{"off", "off", "on", "off"}},
+		{playback.RepeatOff, false, false, true, "RSND", [4]string{"off", "off", "off", "on"}},
+		{playback.RepeatAll, true, true, true, "RSND", [4]string{"all", "on", "on", "on"}},
+		{playback.RepeatOne, true, true, true, "1SND", [4]string{"one", "on", "on", "on"}},
 	}
 	for _, tc := range cases {
 		indicators := modeIndicators(tc.repeat, tc.shuffle, tc.stopAfter, tc.radio)
@@ -89,7 +90,7 @@ func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
 			t.Errorf("%+v: glyphs=%q, want %q", tc, glyphs.String(), tc.wantGlyphs)
 		}
 
-		sb := StatusBar{playbackState: PlaybackPlaying, repeatMode: tc.repeat, shuffle: tc.shuffle, stopAfterCurrent: tc.stopAfter, radioMode: tc.radio}
+		sb := StatusBar{playbackState: playback.StatePlaying, repeatMode: tc.repeat, shuffle: tc.shuffle, stopAfterCurrent: tc.stopAfter, radioMode: tc.radio}
 		cluster, width := sb.renderModeCluster(newStatusBarRenderContext(0, st, sb.playbackState))
 		if got := ansi.Strip(cluster); got != glyphs.String() {
 			t.Errorf("%+v: rendered cluster %q, want indicator glyphs %q", tc, got, glyphs.String())
@@ -98,7 +99,7 @@ func TestModeIndicatorsDriveRenderedCluster(t *testing.T) {
 			t.Errorf("%+v: cluster width=%d, want 4", tc, width)
 		}
 
-		wantActive := [4]bool{tc.repeat != RepeatOff, tc.shuffle, tc.stopAfter, tc.radio}
+		wantActive := [4]bool{tc.repeat != playback.RepeatOff, tc.shuffle, tc.stopAfter, tc.radio}
 		for i, ind := range indicators {
 			if ind.active != wantActive[i] {
 				t.Errorf("%+v: indicator %d (%s) active=%v, want %v", tc, i, ind.name, ind.active, wantActive[i])
@@ -122,7 +123,7 @@ func TestModeIndicatorsDescribeToggleKeys(t *testing.T) {
 		{"Stop after current", "ctrl+n", keys.ActionStopAfterCurrent},
 		{"Radio (Auto-DJ)", "A", keys.ActionRadioToggle},
 	}
-	indicators := modeIndicators(RepeatOff, false, false, false)
+	indicators := modeIndicators(playback.RepeatOff, false, false, false)
 	if len(indicators) != len(want) {
 		t.Fatalf("got %d indicators, want %d", len(indicators), len(want))
 	}
@@ -138,7 +139,7 @@ func TestModeIndicatorsDescribeToggleKeys(t *testing.T) {
 }
 
 func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
-	sb := StatusBar{artist: "Persistent Artist", title: "Persistent Title", playbackState: PlaybackPlaying, notifications: []transientNotification{{msg: "Scanning… 100 tracks"}}}
+	sb := StatusBar{artist: "Persistent Artist", title: "Persistent Title", playbackState: playback.StatePlaying, notifications: []transientNotification{{msg: "Scanning… 100 tracks"}}}
 	out := renderStatusBarForTest(sb, 0)
 	for _, want := range []string{"Persistent Artist", "Persistent Title", "▶", "Scanning… 100 tracks"} {
 		if !strings.Contains(out, want) {
@@ -148,7 +149,7 @@ func TestRenderTransientDoesNotOverwritePersistent(t *testing.T) {
 }
 
 func TestRenderTransientVisibleWithWidthConstraint(t *testing.T) {
-	sb := StatusBar{artist: "My Artist", title: "A Very Long Title Indeed", playbackState: PlaybackPlaying, notifications: []transientNotification{{msg: "Some notification"}}}
+	sb := StatusBar{artist: "My Artist", title: "A Very Long Title Indeed", playbackState: playback.StatePlaying, notifications: []transientNotification{{msg: "Some notification"}}}
 	out := renderStatusBarForTest(sb, 45)
 	for _, want := range []string{"My Artist", "▶", "Some notification", "…"} {
 		if !strings.Contains(out, want) {

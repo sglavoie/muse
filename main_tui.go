@@ -19,6 +19,7 @@ import (
 	"github.com/sglavoie/muse/internal/notify"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // runTUI resolves dirs, initialises logging, loads config, and runs the full
@@ -196,14 +197,14 @@ func runTUI(ctx context.Context) error {
 
 	// Wire player callbacks after p is created so events reach the TUI via Send.
 	mgr.SetEventCallbacks(player.EventCallbacks{
-		OnStatus:        func(s string) { p.Send(tui.PlayerStatusMsg{Text: s}) },
-		OnMissingFile:   func(path string) { p.Send(tui.MissingTrackMsg{Path: path}) },
-		OnPlaybackEnded: func() { p.Send(tui.PlaybackEndedMsg{}) },
+		OnStatus:        func(s string) { p.Send(playback.PlayerStatusMsg{Text: s}) },
+		OnMissingFile:   func(path string) { p.Send(playback.MissingTrackMsg{Path: path}) },
+		OnPlaybackEnded: func() { p.Send(playback.PlaybackEndedMsg{}) },
 		OnTrackChanged: func(hash, artist, title, source string, index int) {
-			p.Send(tui.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source, Index: index})
+			p.Send(playback.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source, Index: index})
 		},
-		OnPauseChanged: func(paused bool) { p.Send(tui.PauseChangedMsg{Paused: paused}) },
-		OnDisconnected: func() { p.Send(tui.PlayerDisconnectedMsg{}) },
+		OnPauseChanged: func(paused bool) { p.Send(playback.PauseChangedMsg{Paused: paused}) },
+		OnDisconnected: func() { p.Send(playback.PlayerDisconnectedMsg{}) },
 	})
 	mgr.SetMissingMarker(result.Writer)
 

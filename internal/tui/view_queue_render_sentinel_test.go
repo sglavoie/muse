@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -15,7 +16,7 @@ func TestQueueRenderEndOfQueueSentinel(t *testing.T) {
 		{Title: "First", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "Last", Artist: "B", Hash: "bbb", DurationMs: 60_000},
 	})
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(ansi.Strip(out), "— end of queue —") {
 		t.Errorf("sentinel must appear when last entry is on screen; got: %q", ansi.Strip(out))
 	}
@@ -30,7 +31,7 @@ func TestQueueRenderEndOfQueueSentinelHiddenWhenScrolledAbove(t *testing.T) {
 	}
 	v := QueueView{entries: entries, width: 120, height: 8}
 	v.scrollOffset = 0
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if strings.Contains(ansi.Strip(out), "— end of queue —") {
 		t.Errorf("sentinel must be hidden when last entry is below viewport; got: %q", ansi.Strip(out))
 	}
@@ -40,7 +41,7 @@ func TestQueueRenderEndOfQueueSentinelHiddenWhenScrolledAbove(t *testing.T) {
 // is not appended to the empty-queue card.
 func TestQueueRenderEndOfQueueSentinelHiddenWhenEmpty(t *testing.T) {
 	v := QueueView{}
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if strings.Contains(ansi.Strip(out), "— end of queue —") {
 		t.Errorf("sentinel must not appear in empty-queue card; got: %q", ansi.Strip(out))
 	}
@@ -59,7 +60,7 @@ func TestQueueRenderSourceColumnStableAcrossScroll(t *testing.T) {
 	entries[29].SourcePlaylist = "MyPlaylist"
 	v := QueueView{entries: entries, width: 120, height: 8}
 	v.scrollOffset = 0
-	out := ansi.Strip(v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil))
+	out := ansi.Strip(v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil))
 	if !strings.Contains(out, "Source") {
 		t.Errorf("Source column header must appear when any entry has a source even if scrolled away; got: %q", out)
 	}

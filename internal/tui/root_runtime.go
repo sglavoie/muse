@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // pluralize returns singular when n == 1, plural otherwise.
@@ -123,7 +124,7 @@ func (m *Model) setUndoSlot(action undoAction, cancelPurge chan struct{}) {
 
 // syncPositionCmd schedules one position-sync tick.
 func syncPositionCmd() tea.Cmd {
-	return tea.Tick(positionSyncInterval, func(time.Time) tea.Msg {
+	return tea.Tick(playback.PositionSyncInterval, func(time.Time) tea.Msg {
 		return syncPositionMsg{}
 	})
 }
@@ -146,7 +147,7 @@ func (m Model) sessionPositionCmd() tea.Cmd {
 
 // sessionTickCmd schedules one periodic session-position tick.
 func sessionTickCmd() tea.Cmd {
-	return tea.Tick(sessionTickInterval, func(time.Time) tea.Msg {
+	return tea.Tick(playback.SessionTickInterval, func(time.Time) tea.Msg {
 		return sessionTickMsg{}
 	})
 }

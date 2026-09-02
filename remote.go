@@ -15,7 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/config"
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 const (
@@ -233,7 +233,7 @@ func handleRemoteConn(p *tea.Program, conn net.Conn) {
 			}
 			continue
 		}
-		p.Send(tui.RemoteActionMsg{ActionName: action})
+		p.Send(playback.RemoteActionMsg{ActionName: action})
 		if err := conn.SetWriteDeadline(time.Now().Add(remoteReadTimeout)); err == nil {
 			_, _ = fmt.Fprintln(conn, "ok") // best-effort acknowledgment
 		}

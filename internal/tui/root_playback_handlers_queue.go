@@ -6,17 +6,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // handlePlayerStatusMsg shows a transient player status notification.
-func (m Model) handlePlayerStatusMsg(msg PlayerStatusMsg) Model {
+func (m Model) handlePlayerStatusMsg(msg playback.PlayerStatusMsg) Model {
 	m.statusBar.notify(msg.Text)
 	return m
 }
 
 // handleMissingTrackMsg marks a queue entry as missing, increments the missing
 // track counter, and notifies the status bar.
-func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
+func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
 	m.queue.markMissing(msg.Path)
 	m.statusBar.handleMissingTrack(msg.Path)
 	m.missingTrackCount++
@@ -31,7 +32,7 @@ func (m Model) handleMissingTrackMsg(msg MissingTrackMsg) Model {
 // that hard-deletes the row from the database (no undo slot — restoring a
 // reference to a file that disappeared off disk would only re-create the
 // same grayed-out entry).
-func (m Model) handleMissingTrackSelectedMsg(msg MissingTrackSelectedMsg) (Model, tea.Cmd) {
+func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMsg) (Model, tea.Cmd) {
 	idx := msg.Index
 	if idx < 0 || idx >= len(m.queue.entries) {
 		m.statusBar.notify("Cannot play — file is missing")
@@ -90,7 +91,7 @@ func (m Model) handleMissingTrackSelectedMsg(msg MissingTrackSelectedMsg) (Model
 // effect here because the player's start-file event will dispatch a
 // TrackChangedMsg that updates the status bar; this handler exists to
 // recover from failures without blocking the Update goroutine.
-func (m Model) handlePlayFromIndexResultMsg(msg playFromIndexResultMsg) Model {
+func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg) Model {
 	if msg.Err == nil {
 		return m
 	}

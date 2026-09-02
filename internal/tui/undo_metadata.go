@@ -5,6 +5,8 @@ import (
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // undoBulkEditMetadataAction reverts a bulk metadata edit (undoKindBulkEditMetadata).
@@ -27,7 +29,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 		m.library.index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
 		origDur, _ := parseDurationFromEditor(orig[4])
 		m.library.index.UpdateDuration(hash, origDur)
-		display := trackDisplay(orig[1], orig[0], "")
+		display := text.TrackDisplay(orig[1], orig[0], "")
 		origDurMs := int64(origDur * 1000)
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == hash {

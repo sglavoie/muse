@@ -5,6 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -25,12 +26,12 @@ type statusBarRenderContext struct {
 	barModeRadio     lipgloss.Style
 }
 
-func newStatusBarRenderContext(width int, st styles.Styles, playbackState PlaybackState) statusBarRenderContext {
+func newStatusBarRenderContext(width int, st styles.Styles, playbackState playback.State) statusBarRenderContext {
 	base := st.StatusBar
 	switch playbackState {
-	case PlaybackPlaying:
+	case playback.StatePlaying:
 		base = st.StatusBarPlayingBg
-	case PlaybackStopped:
+	case playback.StateStopped:
 		base = st.StatusBarStoppedBg
 	}
 	bg := base.GetBackground()
@@ -109,10 +110,10 @@ func (c statusBarRenderContext) dimLine() string {
 func (s StatusBar) render(width int, st styles.Styles) string {
 	ctx := newStatusBarRenderContext(width, st, s.playbackState)
 	right := s.renderRightZone(ctx)
-	if s.playbackState == PlaybackIdle && s.queueEmpty {
+	if s.playbackState == playback.StateIdle && s.queueEmpty {
 		return ctx.rightAlign(ctx.r("Queue is empty — press 1 to browse Library"), right) + "\n" + ctx.dimLine()
 	}
-	if s.playbackState == PlaybackIdle && s.artist == "" && s.title == "" {
+	if s.playbackState == playback.StateIdle && s.artist == "" && s.title == "" {
 		return ctx.rightAlign("", right) + "\n" + ctx.dimLine()
 	}
 	return s.renderLine1(ctx, right) + "\n" + s.renderLine2(ctx)

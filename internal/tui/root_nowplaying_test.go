@@ -6,13 +6,14 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // setupPlayingModel returns a model that looks like a track is playing.
 func setupPlayingModel(t *testing.T) Model {
 	t.Helper()
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.statusBar.artist = "Test Artist"
 	m.statusBar.title = "Test Song"
 	m.playback.elapsedSecs = 30
@@ -54,7 +55,7 @@ func TestNowPlayingKeyShowsOverlay(t *testing.T) {
 	if nm.overlay.nowPlaying.elapsed != 30 {
 		t.Errorf("expected elapsed 30, got %v", nm.overlay.nowPlaying.elapsed)
 	}
-	if nm.overlay.nowPlaying.state != PlaybackPlaying {
+	if nm.overlay.nowPlaying.state != playback.StatePlaying {
 		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.state)
 	}
 }
@@ -63,7 +64,7 @@ func TestNowPlayingKeyShowsOverlay(t *testing.T) {
 // no track is playing shows a notification.
 func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	next, cmd := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
 	nm := next.(Model)
@@ -83,7 +84,7 @@ func TestNowPlayingKeyIdleShowsNotification(t *testing.T) {
 // playback is stopped shows a notification.
 func TestNowPlayingKeyStoppedShowsNotification(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackStopped
+	m.playback.state = playback.StateStopped
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'I', Text: "I"})
 	nm := next.(Model)
@@ -149,10 +150,10 @@ func TestNowPlayingSwallowsKeys(t *testing.T) {
 // on the overlay.
 func TestNowPlayingTickUpdates(t *testing.T) {
 	m := New(context.Background())
-	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T", state: PlaybackPlaying}
+	m.overlay.nowPlaying = &NowPlayingOverlay{artist: "A", title: "T", state: playback.StatePlaying}
 	m.playback.elapsedSecs = 45.5
 	m.playback.totalSecs = 200.0
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 
 	next, _ := m.Update(tickMsg{})
 	nm := next.(Model)
@@ -166,7 +167,7 @@ func TestNowPlayingTickUpdates(t *testing.T) {
 	if nm.overlay.nowPlaying.total != 200.0 {
 		t.Errorf("expected total=200.0, got %v", nm.overlay.nowPlaying.total)
 	}
-	if nm.overlay.nowPlaying.state != PlaybackPaused {
+	if nm.overlay.nowPlaying.state != playback.StatePaused {
 		t.Errorf("expected state PlaybackPaused, got %v", nm.overlay.nowPlaying.state)
 	}
 }
@@ -200,7 +201,7 @@ func TestNowPlayingOverlayRenderedInView(t *testing.T) {
 		title:   "View Song",
 		elapsed: 10,
 		total:   60,
-		state:   PlaybackPlaying,
+		state:   playback.StatePlaying,
 	}
 	m.termWidth = 80
 	m.termHeight = 24
@@ -222,14 +223,14 @@ func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 		album:   "Test Album",
 		elapsed: 30,
 		total:   180,
-		state:   PlaybackPlaying,
+		state:   playback.StatePlaying,
 	}
 	// Insert a second track.
 	m.library.index.Insert(library.Track{
 		Hash: "h2", Path: "/b.flac", Artist: "New Artist", Title: "New Song", Album: "New Album",
 	})
 
-	next, _ := m.Update(TrackChangedMsg{
+	next, _ := m.Update(playback.TrackChangedMsg{
 		Hash:   "h2",
 		Index:  1,
 		Artist: "New Artist",
@@ -252,7 +253,7 @@ func TestNowPlayingTrackChangeRefreshesOverlay(t *testing.T) {
 	if nm.overlay.nowPlaying.elapsed != 0 {
 		t.Errorf("expected elapsed=0 after track change, got %v", nm.overlay.nowPlaying.elapsed)
 	}
-	if nm.overlay.nowPlaying.state != PlaybackPlaying {
+	if nm.overlay.nowPlaying.state != playback.StatePlaying {
 		t.Errorf("expected state PlaybackPlaying, got %v", nm.overlay.nowPlaying.state)
 	}
 }
@@ -270,11 +271,11 @@ func TestNowPlayingTrackChangeClearsStaleAlbum(t *testing.T) {
 		playCount: 42,
 		elapsed:   30,
 		total:     180,
-		state:     PlaybackPlaying,
+		state:     playback.StatePlaying,
 	}
 
 	// Send a TrackChangedMsg with a hash that is NOT in the library index.
-	next, _ := m.Update(TrackChangedMsg{
+	next, _ := m.Update(playback.TrackChangedMsg{
 		Hash:   "unknown-hash",
 		Index:  99,
 		Artist: "Mystery Artist",
@@ -303,7 +304,7 @@ func TestNowPlayingTrackChangeClearsStaleAlbum(t *testing.T) {
 // from the library index when statusBar fields are empty (session restore case).
 func TestNowPlayingSessionRestore(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 	m.playback.currentHash = "h1"
 	m.playback.elapsedSecs = 10
 	m.playback.totalSecs = 300

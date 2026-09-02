@@ -1,9 +1,9 @@
-package tui
+package text
 
 import "fmt"
 
-// formatListeningTime formats a duration in seconds as "Xh Ym" or "Ym" or "Xs".
-func formatListeningTime(secs int) string {
+// FormatListeningTime formats a duration in seconds as "Xh Ym" or "Ym" or "Xs".
+func FormatListeningTime(secs int) string {
 	if secs <= 0 {
 		return "0s"
 	}
@@ -22,10 +22,10 @@ func formatListeningTime(secs int) string {
 	}
 }
 
-// trackDisplay returns a human-readable label for a track. It uses
+// TrackDisplay returns a human-readable label for a track. It uses
 // "Artist – Title" when both are present, falls back to whichever is
 // available, and uses path as a last resort.
-func trackDisplay(artist, title, path string) string {
+func TrackDisplay(artist, title, path string) string {
 	switch {
 	case artist != "" && title != "":
 		return artist + " – " + title

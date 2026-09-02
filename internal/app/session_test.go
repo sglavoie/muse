@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // mockPlayer records calls to SessionPlayer methods for verification.
@@ -150,7 +151,7 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 	restored := &app.RestoredSession{
 		QueueEntries: qe,
 		PlayerTracks: pt,
-		RepeatMode:   tui.RepeatAll,
+		RepeatMode:   playback.RepeatAll,
 		Shuffle:      true,
 		CurrentHash:  "bbb",
 		PositionMs:   5000,
@@ -194,7 +195,7 @@ func TestApplyRestoredSession_FullSession(t *testing.T) {
 	}
 
 	// Playback state should remain idle (no track loaded in mpv yet).
-	if got := model.PlaybackStateValue(); got != tui.PlaybackIdle {
+	if got := model.PlaybackStateValue(); got != playback.StateIdle {
 		t.Errorf("playback state = %v, want PlaybackIdle", got)
 	}
 

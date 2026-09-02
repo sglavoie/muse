@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestDequeuePlayingTrackClearsStatusBar verifies that dequeuing the currently
@@ -10,7 +12,7 @@ import (
 func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -25,7 +27,7 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.statusBar.artist != "" {
@@ -57,7 +59,7 @@ func TestDequeuePlayingTrackClearsStatusBar(t *testing.T) {
 func TestDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -70,7 +72,7 @@ func TestDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playbackState = %v, want PlaybackPlaying (another entry with same hash remains)", nm.playback.state)
 	}
 	if nm.playback.currentHash != "abc123" {
@@ -89,7 +91,7 @@ func TestDequeueDuplicateHashKeepsPlayback(t *testing.T) {
 func TestDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Title"
@@ -101,7 +103,7 @@ func TestDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 	next, _ := m.Update(DequeueTrackMsg{Index: 0})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {
@@ -118,7 +120,7 @@ func TestDequeueLastInstanceOfHashStopsPlayback(t *testing.T) {
 func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.playback.currentIndex = 0 // currently playing track at index 0
 	m.statusBar.artist = "Artist"
@@ -136,7 +138,7 @@ func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
 	if p.stopCalls != 0 {
 		t.Errorf("Stop must NOT be called when removing currently-playing track with non-empty remaining queue, got %d calls", p.stopCalls)
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playbackState = %v, want PlaybackPlaying (gapless prefetch carries playback forward)", nm.playback.state)
 	}
 	// TUI bookkeeping is cleared; start-file event will repopulate it when the
@@ -161,7 +163,7 @@ func TestDequeueCurrentIndexNonEmptyQueueDoesNotStop(t *testing.T) {
 func TestDequeueCurrentIndexEmptyQueueStopsPlayback(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.playback.currentIndex = 0
 	m.statusBar.artist = "Artist"
@@ -176,7 +178,7 @@ func TestDequeueCurrentIndexEmptyQueueStopsPlayback(t *testing.T) {
 	if p.stopCalls != 1 {
 		t.Errorf("Stop must be called exactly once when removing last queue entry, got %d calls", p.stopCalls)
 	}
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle (queue empty)", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {

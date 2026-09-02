@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestTrackChangedClearsQueueExhausted verifies that receiving a
@@ -14,7 +16,7 @@ func TestTrackChangedClearsQueueExhausted(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "A", Title: "One"},
 	}
 
-	next, _ := m.Update(TrackChangedMsg{Hash: "h1", Artist: "A", Title: "One", Index: 0})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h1", Artist: "A", Title: "One", Index: 0})
 	nm := next.(Model)
 
 	if nm.playback.queueExhausted {
@@ -29,7 +31,7 @@ func TestTrackChangedClearsQueueExhausted(t *testing.T) {
 func TestTrackChangedRecordsPreviousListen(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := New(context.Background(), WithHistoryRecorder(hr))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "old-hash"
 	m = m.armPendingListen("old-hash", "A")
 	// Simulate race: tick clobbered elapsedSecs to ~0, accumulation intact.
@@ -42,7 +44,7 @@ func TestTrackChangedRecordsPreviousListen(t *testing.T) {
 		{ID: 2, Hash: "new-hash", Path: "/b.flac"},
 	}
 
-	next, cmd := m.Update(TrackChangedMsg{Hash: "new-hash", Index: 1, Artist: "B", Title: "T2"})
+	next, cmd := m.Update(playback.TrackChangedMsg{Hash: "new-hash", Index: 1, Artist: "B", Title: "T2"})
 	nm := next.(Model)
 
 	if cmd == nil {
@@ -68,7 +70,7 @@ func TestTrackChangedResetsPeak(t *testing.T) {
 	m.playback.peakTotalSecs = 200.0
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 
-	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 0, Artist: "B", Title: "T2"})
 	nm := next.(Model)
 
 	if nm.playback.peakElapsedSecs != 0 {
@@ -84,16 +86,16 @@ func TestTrackChangedResetsPeak(t *testing.T) {
 // playback state on an empty queue.
 func TestTrackChangedDiscardedOnEmptyQueue(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
 	// Queue is empty (was just cleared).
 	m.queue.entries = nil
 
-	next, cmd := m.Update(TrackChangedMsg{Hash: "stale", Index: 3, Artist: "A", Title: "T"})
+	next, cmd := m.Update(playback.TrackChangedMsg{Hash: "stale", Index: 3, Artist: "A", Title: "T"})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle after stale TrackChangedMsg on empty queue, got %v", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {
@@ -119,7 +121,7 @@ func TestTrackChangedHashNotInQueueUsesNegativeIndex(t *testing.T) {
 	}
 
 	// Hash "gone" is not in the queue; index 5 is out of bounds.
-	next, _ := m.Update(TrackChangedMsg{Hash: "gone", Index: 5, Artist: "G", Title: "Gone"})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "gone", Index: 5, Artist: "G", Title: "Gone"})
 	nm := next.(Model)
 
 	if nm.playback.currentIndex != -1 {
@@ -145,7 +147,7 @@ func TestTrackChangedClampsOutOfBoundsIndex(t *testing.T) {
 	}
 
 	// Index 5 is out of bounds; hash "h2" is at position 1.
-	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Index: 5, Artist: "B", Title: "T2"})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 5, Artist: "B", Title: "T2"})
 	nm := next.(Model)
 
 	if nm.playback.currentIndex != 1 {

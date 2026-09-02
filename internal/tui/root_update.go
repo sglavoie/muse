@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -100,30 +101,30 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case sessionTickMsg:
 		return m.handleSessionTickMsg()
 
-	case PlayerStatusMsg:
+	case playback.PlayerStatusMsg:
 		m = m.handlePlayerStatusMsg(msg)
 
-	case MissingTrackMsg:
+	case playback.MissingTrackMsg:
 		m = m.handleMissingTrackMsg(msg)
 
-	case PlayerDisconnectedMsg:
+	case playback.PlayerDisconnectedMsg:
 		m = m.handlePlayerDisconnectedMsg()
 
-	case PlaybackEndedMsg:
+	case playback.PlaybackEndedMsg:
 		var cmd tea.Cmd
 		m, cmd = m.handlePlaybackEndedMsg()
-		if m.playback.state == PlaybackPlaying {
+		if m.playback.state == playback.StatePlaying {
 			return m, tea.Batch(cmd, m.sessionPositionCmd())
 		}
 		if cmd != nil {
 			return m, cmd
 		}
 
-	case PauseChangedMsg:
+	case playback.PauseChangedMsg:
 		return m.handlePauseChangedMsg(msg)
 
-	case RemoteActionMsg:
-		m, cmd, _ := m.handlePlaybackKeyAction(remoteAction(msg.ActionName))
+	case playback.RemoteActionMsg:
+		m, cmd, _ := m.handlePlaybackKeyAction(playback.RemoteAction(msg.ActionName))
 		return m, cmd
 
 	case previewStartedMsg:
@@ -144,10 +145,10 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.overlay.trackInfo = &overlay
 		}
 
-	case TrackChangedMsg:
+	case playback.TrackChangedMsg:
 		return m.handleTrackChangedMsg(msg)
 
-	case playRecordedMsg:
+	case playback.PlayRecordedMsg:
 		m = m.handlePlayRecordedMsg(msg)
 
 	case FilterBarMsg:
@@ -159,13 +160,13 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case BatchEnqueuedMsg:
 		m = m.handleBatchEnqueuedMsg(msg)
 
-	case PlayQueueIndexMsg:
+	case playback.PlayQueueIndexMsg:
 		return m.handlePlayQueueIndexMsg(msg)
 
-	case playFromIndexResultMsg:
+	case playback.PlayFromIndexResultMsg:
 		m = m.handlePlayFromIndexResultMsg(msg)
 
-	case MissingTrackSelectedMsg:
+	case playback.MissingTrackSelectedMsg:
 		return m.handleMissingTrackSelectedMsg(msg)
 
 	case DequeueTrackMsg:

@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestUndoEnqueueClampsScrollOffset verifies that undoing a single-track
@@ -220,7 +222,7 @@ func TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved(t *testing.T) {
 	p := &stubPlayerQueueRemover{}
 	m := New(context.Background(), WithQueueDequeuer(d), WithPlayer(p))
 	m.queue.entries = []QueueEntry{{ID: 42, Path: "/song.flac", Hash: "abc123", Display: "Artist – Song"}}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.statusBar.artist = "Artist"
 	m.statusBar.title = "Song"
@@ -232,7 +234,7 @@ func TestUndoEnqueueResetsPlaybackWhenPlayingTrackRemoved(t *testing.T) {
 	if len(nm.queue.entries) != 0 {
 		t.Fatalf("expected empty queue after undo enqueue, got %d entries", len(nm.queue.entries))
 	}
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle after undo enqueue removed playing track, got %v", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {
@@ -256,7 +258,7 @@ func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
 		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A"},
 		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B"},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "aaa"
 	m.statusBar.artist = "A"
 	m.statusBar.title = "Track A"
@@ -268,7 +270,7 @@ func TestUndoEnqueueKeepsPlaybackWhenOtherTrackPlaying(t *testing.T) {
 	if len(nm.queue.entries) != 1 {
 		t.Fatalf("expected 1 entry after undo enqueue, got %d", len(nm.queue.entries))
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback should remain Playing when a non-playing track is removed, got %v", nm.playback.state)
 	}
 	if nm.statusBar.artist != "A" {
@@ -287,7 +289,7 @@ func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "xxx"
 	m.statusBar.artist = "X-Artist"
 	m.statusBar.title = "X-Title"
@@ -304,7 +306,7 @@ func TestUndoBatchEnqueueResetsPlaybackWhenQueueEmptied(t *testing.T) {
 	if len(nm.queue.entries) != 0 {
 		t.Fatalf("expected empty queue after undo batch enqueue, got %d", len(nm.queue.entries))
 	}
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle after undo batch enqueue emptied queue, got %v", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {
@@ -327,7 +329,7 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 		{ID: 100, Path: "/x.flac", Hash: "xxx", Display: "X"},
 		{ID: 101, Path: "/y.flac", Hash: "yyy", Display: "Y"},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "keep"
 	m.statusBar.artist = "Keeper-Artist"
 	m.statusBar.title = "Keeper-Title"
@@ -344,7 +346,7 @@ func TestUndoBatchEnqueueKeepsPlaybackWhenPlayingTrackSurvives(t *testing.T) {
 	if len(nm.queue.entries) != 1 {
 		t.Fatalf("expected 1 entry after undo, got %d", len(nm.queue.entries))
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("playback should remain Playing when playing track survives, got %v", nm.playback.state)
 	}
 	if nm.statusBar.artist != "Keeper-Artist" {

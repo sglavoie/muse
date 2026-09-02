@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPreviewDismissWithEsc verifies that pressing Esc while preview is
@@ -52,7 +54,7 @@ func TestPreviewSpaceControlsPreview(t *testing.T) {
 	mp := &stubPreviewMainPlayer{}
 	m := New(context.Background())
 	m.player = mp
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.overlay.previewPlayer = sp
 
@@ -165,7 +167,7 @@ func TestPreviewDismissResumesPlayback(t *testing.T) {
 	sp := &stubPlayer{}
 	m := New(context.Background())
 	m.player = sp
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = true
 	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
@@ -190,7 +192,7 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 	sp := &stubPlayer{}
 	m := New(context.Background())
 	m.player = sp
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = false
 	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}

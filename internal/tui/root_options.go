@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // Option configures optional dependencies on the Model. Pass options to New()
@@ -321,7 +322,7 @@ func WithQueueEntries(entries []QueueEntry) Option {
 }
 
 // WithRepeatMode pre-sets the repeat mode.
-func WithRepeatMode(mode RepeatMode) Option {
+func WithRepeatMode(mode playback.RepeatMode) Option {
 	return func(m *Model) { m.playback.repeatMode = mode }
 }
 
@@ -351,7 +352,7 @@ func WithVolume(v int) Option {
 }
 
 // WithPlaybackState pre-sets the playback state.
-func WithPlaybackState(state PlaybackState) Option {
+func WithPlaybackState(state playback.State) Option {
 	return func(m *Model) { m.playback.state = state }
 }
 

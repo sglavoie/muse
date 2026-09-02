@@ -3,12 +3,14 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestTickMsgUpdatesElapsedFields(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 75.5, total: 240.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	nm, _ := updateModel(m, tickMsg{})
 
@@ -38,14 +40,14 @@ func TestInitSchedulesTick(t *testing.T) {
 func TestPlaybackEndedMsgResetsElapsed(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 60.0, total: 180.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	nm, _ := updateModel(m, tickMsg{})
 	if nm.playback.elapsedSecs == 0 {
 		t.Fatal("expected non-zero elapsedSecs after tickMsg")
 	}
 
-	nm, _ = updateModel(nm, PlaybackEndedMsg{})
+	nm, _ = updateModel(nm, playback.PlaybackEndedMsg{})
 	if nm.playback.elapsedSecs != 0 {
 		t.Fatalf("elapsedSecs must be 0 after PlaybackEndedMsg, got %v", nm.playback.elapsedSecs)
 	}

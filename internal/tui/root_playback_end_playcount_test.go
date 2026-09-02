@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPlaybackEndedReturnsIncrementCmd verifies that handlePlaybackEndedMsg
@@ -11,7 +13,7 @@ import (
 func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := New(context.Background(), WithHistoryRecorder(hr))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 	m = m.armPendingListen("h1", "A")
 	m.playback.elapsedSecs = 60
@@ -19,10 +21,10 @@ func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
 	m.playback.listenedSecs = 60
 	m.playback.peakTotalSecs = 120
 
-	next, cmd := m.Update(PlaybackEndedMsg{})
+	next, cmd := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if cmd == nil {
@@ -39,7 +41,7 @@ func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
 	if !hr.calls[0].Counted {
 		t.Error("expected Counted=true for a 60s listen of a 120s track")
 	}
-	prm, ok := result.(playRecordedMsg)
+	prm, ok := result.(playback.PlayRecordedMsg)
 	if !ok {
 		t.Fatalf("expected playRecordedMsg, got %T", result)
 	}
@@ -54,7 +56,7 @@ func TestPlaybackEndedReturnsIncrementCmd(t *testing.T) {
 func TestPlaybackEndedRecordsUncountedBelowThreshold(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := New(context.Background(), WithHistoryRecorder(hr))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 	m = m.armPendingListen("h1", "A")
 	// 5 out of 300 = 1.7%, well below 50% and < 30s.
@@ -63,10 +65,10 @@ func TestPlaybackEndedRecordsUncountedBelowThreshold(t *testing.T) {
 	m.playback.listenedSecs = 5
 	m.playback.peakTotalSecs = 300
 
-	next, cmd := m.Update(PlaybackEndedMsg{})
+	next, cmd := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if cmd == nil {
@@ -88,7 +90,7 @@ func TestPlaybackEndedRecordsUncountedBelowThreshold(t *testing.T) {
 func TestPlaybackEndedUsesAccumulatedListenTime(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := New(context.Background(), WithHistoryRecorder(hr))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 	m = m.armPendingListen("h1", "A")
 	// Simulate race: current values clobbered, accumulated total intact.
@@ -97,7 +99,7 @@ func TestPlaybackEndedUsesAccumulatedListenTime(t *testing.T) {
 	m.playback.listenedSecs = 60.0
 	m.playback.peakTotalSecs = 120.0
 
-	_, cmd := m.Update(PlaybackEndedMsg{})
+	_, cmd := m.Update(playback.PlaybackEndedMsg{})
 
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd for listen persistence")
@@ -109,7 +111,7 @@ func TestPlaybackEndedUsesAccumulatedListenTime(t *testing.T) {
 	if !hr.calls[0].Counted {
 		t.Error("expected Counted=true for 60s of a 120s track")
 	}
-	if _, ok := result.(playRecordedMsg); !ok {
+	if _, ok := result.(playback.PlayRecordedMsg); !ok {
 		t.Fatalf("expected playRecordedMsg, got %T", result)
 	}
 }

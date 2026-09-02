@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // radioState holds all mutable radio-mode fields for the root Model.
@@ -79,7 +80,7 @@ func (m Model) radioMaybeEnqueueCmd() tea.Cmd {
 	if m.playback.stopAfterCurrent {
 		return nil
 	}
-	if m.playback.repeatMode == RepeatAll {
+	if m.playback.repeatMode == playback.RepeatAll {
 		return nil
 	}
 	if len(m.library.index.Tracks()) == 0 {
@@ -312,10 +313,10 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	}
 
 	// Auto-resume when the queue had run dry.
-	if m.playback.queueExhausted && m.playback.state == PlaybackIdle && m.player != nil {
+	if m.playback.queueExhausted && m.playback.state == playback.StateIdle && m.player != nil {
 		if err := m.player.PlayFromIndex(batchStartIdx); err == nil {
 			entry := msg.Entries[0]
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m.playback.currentHash = entry.Hash
 			m.playback.currentIndex = batchStartIdx
 			m = m.resetPlaybackProgress()
@@ -324,7 +325,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 			m.statusBar.playlistSource = queueSourceName("Radio")
 		}
 		m.playback.queueExhausted = false
-	} else if msg.WasEmpty && m.playback.state == PlaybackIdle {
+	} else if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		entry := msg.Entries[0]
 		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, "Radio")
 	}

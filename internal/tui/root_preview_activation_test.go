@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPreviewKeyActivatesPreview verifies that pressing P when a track is
@@ -100,13 +102,13 @@ func TestPreviewStartErrorPlayResumeFailureKeepsPaused(t *testing.T) {
 	fp := &stubFailingPlayer{playErr: errTest("resume failed")}
 	m := New(context.Background())
 	m.player = fp
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = true
 
 	next, _ := m.Update(previewStartErrorMsg{err: errTest("preview fail")})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPaused {
+	if nm.playback.state != playback.StatePaused {
 		t.Fatalf("expected PlaybackPaused when resume fails, got %v", nm.playback.state)
 	}
 	if nm.overlay.previewWasPlaying {
@@ -120,7 +122,7 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	sp := &stubPlayer{}
 	m := setupLibraryWithTrack(t)
 	m.player = sp
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'P', Text: "P"})
 	nm := next.(Model)
@@ -131,7 +133,7 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	if !nm.overlay.previewWasPlaying {
 		t.Fatal("expected previewWasPlaying to be set")
 	}
-	if nm.playback.state != PlaybackPaused {
+	if nm.playback.state != playback.StatePaused {
 		t.Fatal("expected playback state to be paused")
 	}
 }

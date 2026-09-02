@@ -6,6 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handleTrackEnqueuedMsg adds a newly enqueued track to the queue, sets up an
@@ -22,7 +24,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		ID:             msg.QueueID,
 		Path:           msg.Track.Path,
 		Hash:           msg.Track.Hash,
-		Display:        trackDisplay(msg.Track.Artist, msg.Track.Title, msg.Track.Path),
+		Display:        text.TrackDisplay(msg.Track.Artist, msg.Track.Title, msg.Track.Path),
 		Artist:         msg.Track.Artist,
 		Title:          msg.Track.Title,
 		Album:          msg.Track.Album,
@@ -59,11 +61,11 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	}, nil)
 	m.queueDirty = true
 	player.PlaySound(player.SoundEnqueued)
-	if msg.WasEmpty && m.playback.state == PlaybackIdle {
+	if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		m = m.tryAutoPlay(msg.Track.Hash, msg.Track.Artist, msg.Track.Title, msg.SourcePlaylist)
-	} else if m.playback.queueExhausted && m.playback.state == PlaybackIdle && m.player != nil {
+	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle && m.player != nil {
 		if err := m.player.PlayFromIndex(enqueueIdx); err == nil {
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m.playback.currentHash = msg.Track.Hash
 			m.playback.currentIndex = enqueueIdx
 			m = m.resetPlaybackProgress()
@@ -96,13 +98,13 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 			appender.AppendToQueue(queueTrackFromEntry(entry))
 		}
 	}
-	if msg.WasEmpty && m.playback.state == PlaybackIdle {
+	if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		entry := msg.Entries[0]
 		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, msg.PlaylistName)
-	} else if m.playback.queueExhausted && m.playback.state == PlaybackIdle && m.player != nil {
+	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle && m.player != nil {
 		if err := m.player.PlayFromIndex(batchStartIdx); err == nil {
 			entry := msg.Entries[0]
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m.playback.currentHash = entry.Hash
 			m.playback.currentIndex = batchStartIdx
 			m = m.resetPlaybackProgress()
@@ -130,12 +132,12 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 		return m
 	}
 	if err := m.player.PlayFromIndex(0); err != nil {
-		m.playback.state = PlaybackIdle
+		m.playback.state = playback.StateIdle
 		m.statusBar.notify("Play failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = hash
 	m.playback.currentIndex = 0
 	// Clear elapsed/peak/durationCorrected from any prior track so the new
@@ -154,7 +156,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 // is followed up by a TrackChangedMsg from the player's start-file
 // event; a failure surfaces as playFromIndexResultMsg so the TUI can
 // recover (including removal when the file disappeared mid-flight).
-func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) (Model, tea.Cmd) {
+func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, tea.Cmd) {
 	if m.player == nil {
 		return m, nil
 	}
@@ -175,7 +177,7 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) (Model, tea.Cmd) {
 	// Optimistic UI update: show the track as playing immediately. The
 	// player will either confirm via TrackChangedMsg or we'll reset
 	// state from the result handler if PlayFromIndex fails.
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = entry.Hash
 	m.playback.currentIndex = msg.Index
 	m = m.resetPlaybackProgress()
@@ -189,6 +191,6 @@ func (m Model) handlePlayQueueIndexMsg(msg PlayQueueIndexMsg) (Model, tea.Cmd) {
 	hash := entry.Hash
 	return m, func() tea.Msg {
 		err := p.PlayFromIndex(idx)
-		return playFromIndexResultMsg{Index: idx, Path: path, Hash: hash, Err: err}
+		return playback.PlayFromIndexResultMsg{Index: idx, Path: path, Hash: hash, Err: err}
 	}
 }

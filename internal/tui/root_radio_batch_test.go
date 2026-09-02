@@ -2,6 +2,8 @@ package tui
 
 import (
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestRadioBatchDiscardedWhenDisabled verifies that a RadioBatchEnqueuedMsg
@@ -29,7 +31,7 @@ func TestRadioBatchDiscardedWhenDisabled(t *testing.T) {
 		t.Errorf("queue must not grow when radio is disabled; before=%d after=%d",
 			beforeLen, len(nm.queue.entries))
 	}
-	if nm.playback.state == PlaybackPlaying {
+	if nm.playback.state == playback.StatePlaying {
 		t.Error("playback must not start when radio is disabled")
 	}
 }
@@ -105,7 +107,7 @@ func TestRadioBatchDiscardedWhenQueueClearedInFlight(t *testing.T) {
 	// by resetPlaybackState), state Idle.
 	m.queue.entries = nil
 	m.playback.queueExhausted = false
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	msg := RadioBatchEnqueuedMsg{
 		Entries: []QueueEntry{
@@ -122,7 +124,7 @@ func TestRadioBatchDiscardedWhenQueueClearedInFlight(t *testing.T) {
 	if len(nm.queue.entries) != 0 {
 		t.Errorf("cleared queue must stay empty; got %d entries", len(nm.queue.entries))
 	}
-	if nm.playback.state == PlaybackPlaying {
+	if nm.playback.state == playback.StatePlaying {
 		t.Error("playback must not start when batch is discarded after queue clear")
 	}
 }
@@ -138,7 +140,7 @@ func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
 	m.radio.enabled = true
 	m.radio.enqueuePending = true
 	m.queue.entries = nil
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	msg := RadioBatchEnqueuedMsg{
 		Entries: []QueueEntry{
@@ -155,7 +157,7 @@ func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
 	if len(nm.queue.entries) != 1 {
 		t.Errorf("expected 1 entry appended, got %d", len(nm.queue.entries))
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("expected PlaybackPlaying after WasEmpty auto-start, got %v", nm.playback.state)
 	}
 }
@@ -177,7 +179,7 @@ func TestRadioBatchAppliedOnNaturalExhaustion(t *testing.T) {
 	// handlePlaybackEndedMsg) so auto-resume should fire when the batch lands.
 	m.queue.entries = nil
 	m.playback.queueExhausted = true
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	msg := RadioBatchEnqueuedMsg{
 		Entries: []QueueEntry{
@@ -194,7 +196,7 @@ func TestRadioBatchAppliedOnNaturalExhaustion(t *testing.T) {
 	if len(nm.queue.entries) != 1 {
 		t.Fatalf("expected 1 entry appended on natural exhaustion, got %d", len(nm.queue.entries))
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Errorf("expected PlaybackPlaying after natural-exhaust auto-resume, got %v", nm.playback.state)
 	}
 	if nm.playback.queueExhausted {

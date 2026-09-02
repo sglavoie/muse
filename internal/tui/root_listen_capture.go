@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // minListenSecs is the floor below which a listen is discarded entirely. mpv's
@@ -109,7 +110,7 @@ func (m Model) recordListenCmd(p pendingListen) (Model, tea.Cmd) {
 				slog.Warn("listen capture: RecordListen failed", "hash", rec.Hash, "err", err)
 				return nil
 			}
-			return playRecordedMsg{Hash: rec.Hash, PlayedAt: rec.PlayedAt, Counted: rec.Counted}
+			return playback.PlayRecordedMsg{Hash: rec.Hash, PlayedAt: rec.PlayedAt, Counted: rec.Counted}
 		}
 	}
 	// The fallback writer can only bump play_count, so an uncounted listen has

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestRestoreSessionEmpty verifies that RestoreSession on an empty database
@@ -22,7 +22,7 @@ func TestRestoreSessionEmpty(t *testing.T) {
 	if len(restored.PlayerTracks) != 0 {
 		t.Errorf("PlayerTracks: want 0, got %d", len(restored.PlayerTracks))
 	}
-	if restored.RepeatMode != tui.RepeatOff {
+	if restored.RepeatMode != playback.RepeatOff {
 		t.Errorf("RepeatMode: want RepeatOff, got %v", restored.RepeatMode)
 	}
 	if restored.Shuffle {
@@ -244,7 +244,7 @@ func TestRestoreSessionSessionFlags(t *testing.T) {
 	harness.setSession("hash-xyz", 30500, false, "all")
 
 	restored := harness.restore()
-	if restored.RepeatMode != tui.RepeatAll {
+	if restored.RepeatMode != playback.RepeatAll {
 		t.Errorf("RepeatMode: want RepeatAll, got %v", restored.RepeatMode)
 	}
 	if restored.Shuffle {
@@ -264,7 +264,7 @@ func TestRestoreSessionRepeatOne(t *testing.T) {
 	harness.setSession("", 0, false, "one")
 
 	restored := harness.restore()
-	if restored.RepeatMode != tui.RepeatOne {
+	if restored.RepeatMode != playback.RepeatOne {
 		t.Errorf("RepeatMode: want RepeatOne, got %v", restored.RepeatMode)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -91,11 +92,11 @@ func collectDebugInfo(m Model) DebugPanel {
 
 	// Playback state.
 	switch m.playback.state {
-	case PlaybackPlaying:
+	case playback.StatePlaying:
 		p.playbackState = "playing"
-	case PlaybackPaused:
+	case playback.StatePaused:
 		p.playbackState = "paused"
-	case PlaybackStopped:
+	case playback.StateStopped:
 		p.playbackState = "stopped"
 	default:
 		p.playbackState = "idle"

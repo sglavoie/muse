@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestResetPlaybackStateClearsAllFields verifies that resetPlaybackState zeros
@@ -15,7 +16,7 @@ func TestResetPlaybackStateClearsAllFields(t *testing.T) {
 	p.stopAfter = true
 
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.elapsedSecs = 42
 	m.playback.totalSecs = 180
 	m.playback.peakElapsedSecs = 100
@@ -32,7 +33,7 @@ func TestResetPlaybackStateClearsAllFields(t *testing.T) {
 
 	m = m.resetPlaybackState()
 
-	if m.playback.state != PlaybackIdle {
+	if m.playback.state != playback.StateIdle {
 		t.Errorf("state = %v, want PlaybackIdle", m.playback.state)
 	}
 	if m.playback.elapsedSecs != 0 {
@@ -84,7 +85,7 @@ func TestResetPlaybackStateClearsAllFields(t *testing.T) {
 func TestResetPlaybackStateStopsPlayer(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	m = m.resetPlaybackState()
 
@@ -97,7 +98,7 @@ func TestResetPlaybackStateStopsPlayer(t *testing.T) {
 // panic when the player is nil or does not implement commandPlayer.
 func TestResetPlaybackStateNoPlayerPanic(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.stopAfterCurrent = true
 
 	// Should not panic.
@@ -195,7 +196,7 @@ func TestSwitchViewCancelsTagInlineInputs(t *testing.T) {
 func TestClearQueueClearsStopAfterCurrent(t *testing.T) {
 	p := &stubStopAfterPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.stopAfterCurrent = true
 	p.stopAfter = true
 	m.queue.entries = []QueueEntry{

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -178,7 +179,7 @@ func TestInsightsInvalidatesAfterPlayRescanAndMetadataEdit(t *testing.T) {
 		reader.tracks[0].LastPlayedAt = now
 		m.library.index.IncrementPlayCount("h1", now)
 
-		m = updateInsightsModel(t, m, playRecordedMsg{Hash: "h1", PlayedAt: now})
+		m = updateInsightsModel(t, m, playback.PlayRecordedMsg{Hash: "h1", PlayedAt: now})
 		if !m.insights.stale {
 			t.Fatal("a recorded play left the Insights memo current")
 		}

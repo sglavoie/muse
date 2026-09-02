@@ -3,6 +3,7 @@ package tui
 import (
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -43,11 +44,11 @@ func (v QueueView) renderStateStrip(s styles.Styles, total, filtered int) string
 // nowPlayingIndicator returns the icon string and its style for the
 // now-playing marker based on the current playback state. The returned icon
 // is unstyled so callers can apply additional styling (e.g. Accent background).
-func nowPlayingIndicator(s styles.Styles, state PlaybackState) (icon string, style lipgloss.Style) {
+func nowPlayingIndicator(s styles.Styles, state playback.State) (icon string, style lipgloss.Style) {
 	switch state {
-	case PlaybackPaused:
+	case playback.StatePaused:
 		return "⏸", s.Warning
-	case PlaybackStopped:
+	case playback.StateStopped:
 		return "■", s.Error
 	default:
 		return "▶", s.Success
@@ -59,12 +60,12 @@ func nowPlayingIndicator(s styles.Styles, state PlaybackState) (icon string, sty
 // When playing, these are the standard NowPlaying* styles (green). When
 // paused or stopped, the base style shifts to Warning (gold) or Error (red)
 // while favorite styles are preserved since they already carry distinct colors.
-func nowPlayingTextStyles(s styles.Styles, state PlaybackState) (base, fav, favArtist, favAlbum lipgloss.Style) {
+func nowPlayingTextStyles(s styles.Styles, state playback.State) (base, fav, favArtist, favAlbum lipgloss.Style) {
 	switch state {
-	case PlaybackPaused:
+	case playback.StatePaused:
 		base = s.Warning.Bold(true)
 		return base, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
-	case PlaybackStopped:
+	case playback.StateStopped:
 		base = s.Error.Bold(true)
 		return base, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
 	default:

@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 const mpvSocketName = "mpv.sock"
@@ -28,7 +29,7 @@ type RestoredSession struct {
 	PlayerTracks []player.QueueTrack
 
 	// RepeatMode from the persisted session row (default: RepeatOff).
-	RepeatMode tui.RepeatMode
+	RepeatMode playback.RepeatMode
 
 	// Shuffle from the persisted session row (default: false).
 	Shuffle bool

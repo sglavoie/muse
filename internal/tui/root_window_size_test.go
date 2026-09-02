@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestRapidWindowSizeMsgDoesNotPanic verifies that sending many successive
@@ -45,7 +46,7 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 		{Path: "/music/c.flac", Display: "C"},
 	}
 	m.queue.cursor = 2
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.scanning = true
 	m.activeView = viewQueue
 
@@ -55,7 +56,7 @@ func TestWindowSizeMsgPreservesApplicationState(t *testing.T) {
 	if nm.queue.cursor != 2 {
 		t.Fatalf("resize: queue cursor changed; expected 2, got %d", nm.queue.cursor)
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("resize: playbackState changed; expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if !nm.scanning {

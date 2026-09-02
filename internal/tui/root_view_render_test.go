@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -80,7 +81,7 @@ func TestTerminalTooSmallMessageFitsTinyTerminal(t *testing.T) {
 // shuffle defaults to false on a freshly created model.
 func TestModelRepeatModeDefaultOff(t *testing.T) {
 	m := New(context.Background())
-	if m.playback.repeatMode != RepeatOff {
+	if m.playback.repeatMode != playback.RepeatOff {
 		t.Fatalf("repeatMode must default to RepeatOff, got %v", m.playback.repeatMode)
 	}
 	if m.playback.shuffle {

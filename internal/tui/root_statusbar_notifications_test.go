@@ -6,6 +6,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
@@ -14,7 +16,7 @@ func TestPlayPauseOnEmptyQueueStaysIdle(t *testing.T) {
 
 	nm, _ := updateModel(m, tea.KeyPressMsg{Code: ' ', Text: " "})
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("playback state must remain idle, got %v", nm.playback.state)
 	}
 	if nm.statusBar.topNotification().msg != "Queue is empty" {
@@ -26,7 +28,7 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	nm, cmd := updateModel(m, tea.KeyPressMsg{Code: ' ', Text: " "})
 
@@ -37,7 +39,7 @@ func TestPlayPauseWithTracksInQueuePlaysNormally(t *testing.T) {
 		t.Fatal("expected a Cmd dispatching PlayQueueIndexMsg, got nil")
 	}
 	msg := cmd()
-	if _, ok := msg.(PlayQueueIndexMsg); !ok {
+	if _, ok := msg.(playback.PlayQueueIndexMsg); !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}
 }
@@ -67,7 +69,7 @@ func TestNewerNotificationOverwritesOlderResettingExpiry(t *testing.T) {
 	oldExpiry := time.Now().Add(500 * time.Millisecond)
 	m.statusBar.notifications = []transientNotification{{msg: "old message", expiresAt: oldExpiry}}
 
-	nm, _ := updateModel(m, PlayerStatusMsg{Text: "new message"})
+	nm, _ := updateModel(m, playback.PlayerStatusMsg{Text: "new message"})
 	if nm.statusBar.topNotification().msg != "new message" {
 		t.Fatalf("new notification must overwrite old, got %q", nm.statusBar.topNotification().msg)
 	}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -24,7 +25,7 @@ func (s *stubStopAfterPlayer) StopAfterCurrent() bool     { return s.stopAfter }
 func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 	p := &stubStopAfterPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	// Toggle on.
 	rm, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
@@ -61,7 +62,7 @@ func TestStopAfterCurrentToggleOnOff(t *testing.T) {
 func TestStopAfterCurrentRequiresPlayback(t *testing.T) {
 	p := &stubStopAfterPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 
 	rm, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 	if !handled {
@@ -80,10 +81,10 @@ func TestStopAfterCurrentRequiresPlayback(t *testing.T) {
 // clears the flag and shows a distinct notification.
 func TestStopAfterCurrentResetsOnPlaybackEnded(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.stopAfterCurrent = true
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	if nm.playback.stopAfterCurrent {
@@ -92,7 +93,7 @@ func TestStopAfterCurrentResetsOnPlaybackEnded(t *testing.T) {
 	if nm.statusBar.topNotification().msg != "Stopped after track" {
 		t.Errorf("expected 'Stopped after track' notification, got %q", nm.statusBar.topNotification().msg)
 	}
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle, got %v", nm.playback.state)
 	}
 }
@@ -102,17 +103,17 @@ func TestStopAfterCurrentResetsOnPlaybackEnded(t *testing.T) {
 func TestStopAfterCurrentOverridesRepeatAll(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.playback.stopAfterCurrent = true
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle (stop-after overrides repeat-all), got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) > 0 {
@@ -125,7 +126,7 @@ func TestStopAfterCurrentOverridesRepeatAll(t *testing.T) {
 func TestStopAfterCurrentClearsOnManualStop(t *testing.T) {
 	p := &stubStopAfterPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.stopAfterCurrent = true
 	p.stopAfter = true
 
@@ -146,7 +147,7 @@ func TestStopAfterCurrentStatusBarIndicator(t *testing.T) {
 	sb := StatusBar{
 		artist:           "Art",
 		title:            "Song",
-		playbackState:    PlaybackPlaying,
+		playbackState:    playback.StatePlaying,
 		stopAfterCurrent: true,
 	}
 	out := sb.render(0, styles.Styles{})

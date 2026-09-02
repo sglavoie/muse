@@ -7,14 +7,6 @@ import "time"
 // a new destructive action within the window replaces the prior slot.
 const undoWindowDuration = 10 * time.Second
 
-// positionSyncInterval is how often root polls the player for the current
-// playback position so that crash-resume can restore to the right offset.
-const positionSyncInterval = 5 * time.Second
-
-// sessionTickInterval is how often the periodic session ticker fires to persist
-// the current elapsed position to the session table during uninterrupted playback.
-const sessionTickInterval = 10 * time.Second
-
 // scanBatchSize is the maximum number of tracks collected per batch before
 // returning a ScanBatchMsg to the update loop.
 const scanBatchSize = 100

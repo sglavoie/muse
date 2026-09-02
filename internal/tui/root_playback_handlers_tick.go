@@ -8,6 +8,7 @@ import (
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -38,7 +39,7 @@ func finitePositive(v float64) bool {
 // now-playing overlay, and clears expired status bar notifications.
 func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	var mainDurationCmd tea.Cmd
-	if m.playback.state == PlaybackPlaying || m.playback.state == PlaybackPaused {
+	if m.playback.state == playback.StatePlaying || m.playback.state == playback.StatePaused {
 		if er, ok := m.player.(elapsedReader); ok {
 			if elapsed, total, err := er.ElapsedPosition(); err == nil && finitePositive(elapsed) && finitePositive(total) {
 				m.playback.elapsedSecs = elapsed
@@ -228,7 +229,7 @@ func (m Model) handleSyncPositionMsg() (Model, tea.Cmd) {
 // handleSessionTickMsg fires a periodic session position update when playing.
 func (m Model) handleSessionTickMsg() (Model, tea.Cmd) {
 	var cmd tea.Cmd
-	if m.playback.state == PlaybackPlaying {
+	if m.playback.state == playback.StatePlaying {
 		cmd = m.sessionPositionCmd()
 	}
 	return m, tea.Batch(sessionTickCmd(), cmd)

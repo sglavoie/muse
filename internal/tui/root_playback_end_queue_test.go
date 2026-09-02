@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPlaybackEndedResumesWhenQueueExtended verifies that when the queue was
@@ -11,7 +13,7 @@ import (
 func TestPlaybackEndedResumesWhenQueueExtended(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 1 // was playing track at index 1
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
@@ -19,10 +21,10 @@ func TestPlaybackEndedResumesWhenQueueExtended(t *testing.T) {
 		{ID: 3, Path: "/c.flac", Artist: "C", Title: "Three"}, // pasted concurrently
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying (queue was extended), got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 2 {
@@ -38,17 +40,17 @@ func TestPlaybackEndedResumesWhenQueueExtended(t *testing.T) {
 func TestPlaybackEndedSetsQueueExhausted(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 1 // last track
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if !nm.playback.queueExhausted {
@@ -61,7 +63,7 @@ func TestPlaybackEndedSetsQueueExhausted(t *testing.T) {
 func TestPlaybackEndedStopAfterDoesNotSetQueueExhausted(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 	m.playback.stopAfterCurrent = true
 	m.queue.entries = []QueueEntry{
@@ -69,7 +71,7 @@ func TestPlaybackEndedStopAfterDoesNotSetQueueExhausted(t *testing.T) {
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	if nm.playback.queueExhausted {

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPauseEmitsSessionPositionWriteCmd verifies that transitioning to paused
@@ -15,7 +17,7 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.playback.elapsedSecs = 42.5 // 42500 ms
 
@@ -40,7 +42,7 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 func TestPauseWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.queue.entries = []QueueEntry{{ID: 1, Display: "Track"}}
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
@@ -98,7 +100,7 @@ func TestTrackChangedMsgEmitsSessionPositionWriteCmd(t *testing.T) {
 	m.playback.elapsedSecs = 99.0 // must be reset to 0 before the cmd captures position
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "newhash", Path: "/a.flac"}}
 
-	_, cmd := m.Update(TrackChangedMsg{
+	_, cmd := m.Update(playback.TrackChangedMsg{
 		Artist: "Artist",
 		Title:  "Title",
 		Hash:   "newhash",
@@ -125,7 +127,7 @@ func TestTrackChangedMsgStoresCurrentTrackHash(t *testing.T) {
 	m := New(context.Background())
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "testhash", Path: "/a.flac"}}
 
-	next, _ := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
+	next, _ := m.Update(playback.TrackChangedMsg{Artist: "A", Title: "T", Hash: "testhash"})
 	nm := next.(Model)
 
 	if nm.playback.currentHash != "testhash" {
@@ -141,7 +143,7 @@ func TestTrackChangedMsgWithoutSessionWriterReturnsNonNilPulseCmd(t *testing.T) 
 	m := New(context.Background())
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h", Path: "/a.flac"}}
 
-	_, cmd := m.Update(TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
+	_, cmd := m.Update(playback.TrackChangedMsg{Artist: "A", Title: "T", Hash: "h"})
 	if cmd == nil {
 		t.Fatal("TrackChangedMsg: expected pulse cmd even without session writer")
 	}
@@ -167,7 +169,7 @@ func TestSessionTickMsgReschedulesCmd(t *testing.T) {
 func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithSessionWriter(sw))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "abc123"
 	m.playback.elapsedSecs = 45.5 // 45500 ms
 
@@ -218,7 +220,7 @@ func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
 // The tick cmd itself is a timer and is not executed (it would block); only the
 // absence of write side-effects is asserted.
 func TestSessionTickMsgSkipsWriteWhenNotPlaying(t *testing.T) {
-	states := []PlaybackState{PlaybackIdle, PlaybackPaused, PlaybackStopped}
+	states := []playback.State{playback.StateIdle, playback.StatePaused, playback.StateStopped}
 	for _, state := range states {
 		sw := &stubSessionWriter{}
 		m := New(context.Background(), WithSessionWriter(sw))

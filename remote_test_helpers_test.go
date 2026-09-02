@@ -12,7 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 var shortTempDirCounter uint64
@@ -47,13 +47,13 @@ func shortTempDir(t *testing.T) string {
 // noopModel is a minimal bubbletea model for remote tests. It records received
 // RemoteActionMsgs and quits after the first one.
 type noopModel struct {
-	received chan tui.RemoteActionMsg
+	received chan playback.RemoteActionMsg
 }
 
 func (m noopModel) Init() tea.Cmd { return nil }
 
 func (m noopModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if r, ok := msg.(tui.RemoteActionMsg); ok {
+	if r, ok := msg.(playback.RemoteActionMsg); ok {
 		select {
 		case m.received <- r:
 		default:
@@ -66,7 +66,7 @@ func (m noopModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m noopModel) View() tea.View { return tea.NewView("") }
 
 // newTestProgram creates a headless bubbletea program for socket tests.
-func newTestProgram(received chan tui.RemoteActionMsg) *tea.Program {
+func newTestProgram(received chan playback.RemoteActionMsg) *tea.Program {
 	return tea.NewProgram(
 		noopModel{received: received},
 		tea.WithoutRenderer(),
@@ -78,13 +78,13 @@ func newTestProgram(received chan tui.RemoteActionMsg) *tea.Program {
 // multiActionModel records every RemoteActionMsg it receives but never quits,
 // so the bubbletea program stays alive across multiple commands.
 type multiActionModel struct {
-	received chan tui.RemoteActionMsg
+	received chan playback.RemoteActionMsg
 }
 
 func (m multiActionModel) Init() tea.Cmd { return nil }
 
 func (m multiActionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if r, ok := msg.(tui.RemoteActionMsg); ok {
+	if r, ok := msg.(playback.RemoteActionMsg); ok {
 		select {
 		case m.received <- r:
 		default:

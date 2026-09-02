@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -34,7 +35,7 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 			name:       "wide terminal",
 			termWidth:  100,
 			termHeight: 30,
-			overlay:    ModesLegendOverlay{repeat: RepeatAll, shuffle: true, stopAfter: false, radio: true},
+			overlay:    ModesLegendOverlay{repeat: playback.RepeatAll, shuffle: true, stopAfter: false, radio: true},
 			wantGlyphs: [4]string{"R", "S", "N", "D"},
 			wantStates: [4]string{"all", "on", "off", "on"},
 		},
@@ -42,7 +43,7 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 			name:       "narrow terminal",
 			termWidth:  60,
 			termHeight: 30,
-			overlay:    ModesLegendOverlay{repeat: RepeatOne, shuffle: false, stopAfter: true, radio: false},
+			overlay:    ModesLegendOverlay{repeat: playback.RepeatOne, shuffle: false, stopAfter: true, radio: false},
 			wantGlyphs: [4]string{"1", "S", "N", "D"},
 			wantStates: [4]string{"one", "off", "on", "off"},
 		},
@@ -93,7 +94,7 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 // carry, since it sits on the normal background.
 func TestModesLegendOverlay_StylesGlyphsWithSemanticPalette(t *testing.T) {
 	st := newTestStyles()
-	o := ModesLegendOverlay{repeat: RepeatAll, shuffle: true, stopAfter: true, radio: true}
+	o := ModesLegendOverlay{repeat: playback.RepeatAll, shuffle: true, stopAfter: true, radio: true}
 	out := o.Render(100, 30, st)
 
 	want := map[string]string{
@@ -113,7 +114,7 @@ func TestModesLegendOverlay_StylesGlyphsWithSemanticPalette(t *testing.T) {
 // encoding: an off mode reads as tertiary text, not its accent color.
 func TestModesLegendOverlay_DimsInactiveGlyphs(t *testing.T) {
 	st := newTestStyles()
-	o := ModesLegendOverlay{repeat: RepeatOff, shuffle: false, stopAfter: false, radio: false}
+	o := ModesLegendOverlay{repeat: playback.RepeatOff, shuffle: false, stopAfter: false, radio: false}
 	out := o.Render(100, 30, st)
 
 	for _, glyph := range []string{"R", "S", "N", "D"} {

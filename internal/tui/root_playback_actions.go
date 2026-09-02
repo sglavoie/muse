@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // handlePlaybackKeyAction handles playback-related key actions (play/pause,
@@ -39,7 +40,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m.overlay.nowPlaying = nil
 			return m, nil, true
 		}
-		if m.playback.state == PlaybackStopped || m.playback.state == PlaybackIdle {
+		if m.playback.state == playback.StateStopped || m.playback.state == playback.StateIdle {
 			m.statusBar.notify("No track playing")
 			return m, nil, true
 		}
@@ -75,42 +76,42 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m.statusBar.notify("No track to preview")
 			return m, nil, true
 		}
-		m.overlay.previewWasPlaying = m.playback.state == PlaybackPlaying
+		m.overlay.previewWasPlaying = m.playback.state == playback.StatePlaying
 		if m.overlay.previewWasPlaying && m.player != nil {
 			if err := m.player.Pause(); err != nil {
 				slog.Warn("player pause failed", "err", err)
 			}
-			m.playback.state = PlaybackPaused
+			m.playback.state = playback.StatePaused
 		}
 		return m, m.startPreviewCmd(track), true
 	case keys.ActionPlayPause:
 		if m.player != nil {
 			switch {
-			case m.playback.state == PlaybackPlaying:
+			case m.playback.state == playback.StatePlaying:
 				if err := m.player.Pause(); err != nil {
 					slog.Warn("pause failed", "err", err)
 					m.statusBar.notify("Pause failed: " + err.Error())
 				} else {
-					m.playback.state = PlaybackPaused
+					m.playback.state = playback.StatePaused
 				}
 				return m, m.sessionPositionCmd(), true
 			case len(m.queue.entries) == 0:
 				m.statusBar.notify("Queue is empty")
 				return m, nil, true
 			default:
-				if m.playback.state == PlaybackPaused {
+				if m.playback.state == playback.StatePaused {
 					if err := m.player.Play(); err != nil {
 						slog.Warn("play failed", "err", err)
 						m.statusBar.notify("Play failed: " + err.Error())
 					} else {
-						m.playback.state = PlaybackPlaying
+						m.playback.state = playback.StatePlaying
 					}
 				} else {
 					idx := m.playback.currentIndex
 					if idx < 0 || idx >= len(m.queue.entries) {
 						idx = 0
 					}
-					return m, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }, true
+					return m, func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }, true
 				}
 			}
 		}
@@ -122,7 +123,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				m.statusBar.notify("Stop failed: " + err.Error())
 			} else {
 				m = m.endCurrentListen()
-				m.playback.state = PlaybackStopped
+				m.playback.state = playback.StateStopped
 				m.playback.elapsedSecs = 0
 				m.playback.totalSecs = 0
 				if m.playback.stopAfterCurrent {
@@ -173,12 +174,12 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		return m.handleVolume(-1)
 	case keys.ActionRepeatCycle:
 		switch m.playback.repeatMode {
-		case RepeatOff:
-			m.playback.repeatMode = RepeatAll
-		case RepeatAll:
-			m.playback.repeatMode = RepeatOne
-		case RepeatOne:
-			m.playback.repeatMode = RepeatOff
+		case playback.RepeatOff:
+			m.playback.repeatMode = playback.RepeatAll
+		case playback.RepeatAll:
+			m.playback.repeatMode = playback.RepeatOne
+		case playback.RepeatOne:
+			m.playback.repeatMode = playback.RepeatOff
 		}
 		if rs, ok := m.player.(repeatShuffler); ok {
 			if err := rs.SetRepeat(m.playback.repeatMode.String()); err != nil {
@@ -217,7 +218,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		m.statusBar.pushMsg(m.modeToggleMsg("Shuffle", modeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, notifInfo)
 		return m, nil, true
 	case keys.ActionStopAfterCurrent:
-		if m.playback.state != PlaybackPlaying && m.playback.state != PlaybackPaused {
+		if m.playback.state != playback.StatePlaying && m.playback.state != playback.StatePaused {
 			m.statusBar.notify("No track playing")
 			return m, nil, true
 		}

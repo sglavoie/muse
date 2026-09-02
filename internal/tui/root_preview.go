@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // handleNowPlayingKeyPress handles key events while the now-playing overlay is
@@ -196,7 +197,7 @@ func (m Model) dismissPreview() Model {
 		if err := m.player.Play(); err != nil {
 			slog.Warn("player resume after preview failed", "err", err)
 		} else {
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 		}
 	}
 	m.overlay.previewWasPlaying = false

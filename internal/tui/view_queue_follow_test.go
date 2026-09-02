@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // makeFollowQueue builds a queue with n entries and a fixed height so
@@ -100,7 +101,7 @@ func TestTrackChangedScrollsWhenFollowingAndQueueActive(t *testing.T) {
 		m.queue.entries[i].Hash = "h" + string(rune('A'+i))
 	}
 
-	msg := TrackChangedMsg{
+	msg := playback.TrackChangedMsg{
 		Hash:  m.queue.entries[15].Hash,
 		Index: 15,
 	}
@@ -124,7 +125,7 @@ func TestTrackChangedDoesNotScrollWhenFollowDisabled(t *testing.T) {
 	}
 	m.queue.scrollOffset = 4
 
-	msg := TrackChangedMsg{
+	msg := playback.TrackChangedMsg{
 		Hash:  m.queue.entries[15].Hash,
 		Index: 15,
 	}
@@ -148,7 +149,7 @@ func TestTrackChangedDoesNotScrollWhenQueueInactive(t *testing.T) {
 	}
 	m.queue.scrollOffset = 4
 
-	msg := TrackChangedMsg{
+	msg := playback.TrackChangedMsg{
 		Hash:  m.queue.entries[15].Hash,
 		Index: 15,
 	}

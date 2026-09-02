@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestPlayRecordedMsg_PrependsToLoadedHistory(t *testing.T) {
@@ -16,7 +17,7 @@ func TestPlayRecordedMsg_PrependsToLoadedHistory(t *testing.T) {
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
 	}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 2 {
@@ -41,7 +42,7 @@ func TestPlayRecordedMsg_SkipsUncountedListen(t *testing.T) {
 		{Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
 	}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 1000})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 1 {
@@ -55,7 +56,7 @@ func TestPlayRecordedMsg_NoOpWhenHistoryNotLoaded(t *testing.T) {
 	m.library.mode = LibraryModeHistory
 	// sourceTracks is empty (history never loaded)
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 0 {
@@ -75,7 +76,7 @@ func TestPlayRecordedMsg_CapsAt500Entries(t *testing.T) {
 	}
 	m.library.sourceTracks = tracks
 
-	next, _ := m.Update(playRecordedMsg{Hash: "new", PlayedAt: 2000, Counted: true})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "new", PlayedAt: 2000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 500 {
@@ -108,7 +109,7 @@ func TestPlayRecordedMsg_ClampsCursorAfterReplace(t *testing.T) {
 	}
 	m.library.cursor = 5
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	count := nm.library.trackCount()
@@ -124,7 +125,7 @@ func TestPlayRecordedMsg_SkipsUnknownHash(t *testing.T) {
 		{Hash: "h1", Path: "/a.flac"},
 	}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "unknown", PlayedAt: 1000, Counted: true})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "unknown", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	if len(nm.library.sourceTracks) != 1 {
@@ -141,7 +142,7 @@ func TestPlayRecordedMsg_RebuildsFilterCache(t *testing.T) {
 	}
 	m.library.filter = filter.State{Active: true, Text: "Artist"}
 
-	next, _ := m.Update(playRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
+	next, _ := m.Update(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 1000, Counted: true})
 	nm := next.(Model)
 
 	// The filter cache should have been rebuilt (non-nil when filter text is set).

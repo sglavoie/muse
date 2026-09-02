@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -26,7 +27,7 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
-	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
+	out := q.render(s, -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(out, `filter "`) {
 		t.Errorf("rendered output should contain filter chunk, got:\n%s", out)
 	}
@@ -46,7 +47,7 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 	q.scrollOffset = 0
 
 	s := styles.NewStyles(true)
-	out := q.render(s, -1, PlaybackIdle, nil, nil, nil)
+	out := q.render(s, -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(out, "(no matches)") {
 		t.Errorf("expected '(no matches)' when filter has no results, got:\n%s", out)
 	}

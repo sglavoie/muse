@@ -9,7 +9,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/db"
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func closeRunResult(t *testing.T, result *app.RunResult) {
@@ -179,7 +179,7 @@ func TestRunRestoredSessionInResult(t *testing.T) {
 	if r.QueueEntries[0].Missing {
 		t.Error("QueueEntry.Missing: want false for readable file")
 	}
-	if r.RepeatMode != tui.RepeatAll {
+	if r.RepeatMode != playback.RepeatAll {
 		t.Errorf("RepeatMode: want RepeatAll, got %v", r.RepeatMode)
 	}
 	if !r.Shuffle {

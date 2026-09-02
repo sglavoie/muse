@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestRadioToggleOnOff verifies that actionRadioToggle flips radio.enabled and
@@ -50,7 +51,7 @@ func TestRadioToggleOnOff(t *testing.T) {
 func TestRadioSuppressedWhenRepeatAll(t *testing.T) {
 	m := newModelWithTracks()
 	m.radio.enabled = true
-	m.playback.repeatMode = RepeatAll
+	m.playback.repeatMode = playback.RepeatAll
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1"}}
 	m.playback.currentIndex = 0
 
@@ -150,9 +151,9 @@ func TestRadioSeedEvolutionOnTrackChanged(t *testing.T) {
 		{ID: 3, Hash: "h3", Path: "/b1.flac", Artist: "Alice", Title: "Track B1"},
 		{ID: 4, Hash: "h4", Path: "/g1.flac", Artist: "Bob", Title: "Track G1"},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
-	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Artist: "Alice", Title: "Track A2", Index: 1})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h2", Artist: "Alice", Title: "Track A2", Index: 1})
 	nm := next.(Model)
 
 	if nm.radio.seedHash != "h2" {
@@ -185,10 +186,10 @@ func TestRadioEnqueuePendingSetByTrackChanged(t *testing.T) {
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 
-	next, _ := m.Update(TrackChangedMsg{Hash: "h1", Artist: "Alice", Title: "Track A1", Index: 0})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h1", Artist: "Alice", Title: "Track A1", Index: 0})
 	nm := next.(Model)
 
 	if !nm.radio.enqueuePending {
@@ -207,11 +208,11 @@ func TestRadioNoDuplicateBatch(t *testing.T) {
 		{ID: 1, Hash: "h1", Path: "/a1.flac", Artist: "Alice", Title: "Track A1"},
 		{ID: 2, Hash: "h2", Path: "/a2.flac", Artist: "Alice", Title: "Track A2"},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentIndex = 0
 
 	// First TrackChangedMsg triggers a radio batch.
-	next, cmd1 := m.Update(TrackChangedMsg{Hash: "h1", Artist: "Alice", Title: "Track A1", Index: 0})
+	next, cmd1 := m.Update(playback.TrackChangedMsg{Hash: "h1", Artist: "Alice", Title: "Track A1", Index: 0})
 	m = next.(Model)
 	if cmd1 == nil {
 		t.Fatal("expected non-nil cmd (radio batch) from first TrackChangedMsg")
@@ -221,7 +222,7 @@ func TestRadioNoDuplicateBatch(t *testing.T) {
 	}
 
 	// Second TrackChangedMsg should NOT trigger another batch.
-	next, _ = m.Update(TrackChangedMsg{Hash: "h2", Artist: "Alice", Title: "Track A2", Index: 1})
+	next, _ = m.Update(playback.TrackChangedMsg{Hash: "h2", Artist: "Alice", Title: "Track A2", Index: 1})
 	m = next.(Model)
 
 	cmd := m.radioMaybeEnqueueCmd()
@@ -260,7 +261,7 @@ func TestRadioStatusBarIndicator(t *testing.T) {
 	sb := StatusBar{
 		artist:        "Art",
 		title:         "Song",
-		playbackState: PlaybackPlaying,
+		playbackState: playback.StatePlaying,
 		radioMode:     true,
 	}
 	out := sb.render(0, styles.Styles{})

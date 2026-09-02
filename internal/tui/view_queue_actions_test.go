@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // stubFileExistsTrue replaces the package-level fileExists check with
@@ -195,7 +196,7 @@ func TestHandleActionSelectUsesOrigIdx(t *testing.T) {
 		t.Fatal("actionSelect should return a command")
 	}
 	msg := cmd()
-	pqm, ok := msg.(PlayQueueIndexMsg)
+	pqm, ok := msg.(playback.PlayQueueIndexMsg)
 	if !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}
@@ -222,7 +223,7 @@ func TestQueueViewHandleActionEnterSendsPlayQueueIndexMsg(t *testing.T) {
 		t.Fatal("actionSelect must return a non-nil cmd")
 	}
 	msg := cmd()
-	pqi, ok := msg.(PlayQueueIndexMsg)
+	pqi, ok := msg.(playback.PlayQueueIndexMsg)
 	if !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}

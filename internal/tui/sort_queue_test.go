@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -249,7 +250,7 @@ func TestQueueSortSelectCorrectEntry(t *testing.T) {
 		t.Fatal("expected cmd for select")
 	}
 	msg := cmd()
-	playMsg, ok := msg.(PlayQueueIndexMsg)
+	playMsg, ok := msg.(playback.PlayQueueIndexMsg)
 	if !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestViewLocalBindingTakesPrecedenceOverGlobal verifies that when the active
@@ -30,7 +32,7 @@ func TestViewLocalBindingTakesPrecedenceOverGlobal(t *testing.T) {
 	if _, ok := msg.(PlaylistRenameMsg); !ok {
 		t.Fatalf("view-local 'r' in Playlists: expected PlaylistRenameMsg, got %T", msg)
 	}
-	if nm.playback.repeatMode != RepeatOff {
+	if nm.playback.repeatMode != playback.RepeatOff {
 		t.Fatal("view-local 'r' in Playlists must not cycle global repeat mode")
 	}
 }
@@ -84,21 +86,21 @@ func TestLowerRCyclesRepeatModeInNonPlaylistViews(t *testing.T) {
 			if cmd != nil {
 				t.Fatalf("%s: 'r' repeat cycle must return nil cmd, got non-nil", tc.name)
 			}
-			if nm.playback.repeatMode != RepeatAll {
+			if nm.playback.repeatMode != playback.RepeatAll {
 				t.Fatalf("%s: first press: expected RepeatAll, got %v", tc.name, nm.playback.repeatMode)
 			}
 
 			// Second press: RepeatAll → RepeatOne.
 			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm = next.(Model)
-			if nm.playback.repeatMode != RepeatOne {
+			if nm.playback.repeatMode != playback.RepeatOne {
 				t.Fatalf("%s: second press: expected RepeatOne, got %v", tc.name, nm.playback.repeatMode)
 			}
 
 			// Third press: RepeatOne → RepeatOff (wraps).
 			next, _ = nm.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm = next.(Model)
-			if nm.playback.repeatMode != RepeatOff {
+			if nm.playback.repeatMode != playback.RepeatOff {
 				t.Fatalf("%s: third press: expected RepeatOff, got %v", tc.name, nm.playback.repeatMode)
 			}
 		})
@@ -145,14 +147,14 @@ func TestGlobalRepeatBindingFiresInViewsWithoutLocalOverride(t *testing.T) {
 			m := New(context.Background())
 			m.activeView = tc.viewID
 
-			if m.playback.repeatMode != RepeatOff {
+			if m.playback.repeatMode != playback.RepeatOff {
 				t.Fatalf("%s: initial repeatMode must be RepeatOff, got %v", tc.name, m.playback.repeatMode)
 			}
 
 			next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
 			nm := next.(Model)
 
-			if nm.playback.repeatMode != RepeatAll {
+			if nm.playback.repeatMode != playback.RepeatAll {
 				t.Fatalf("%s: pressing 'r' must cycle repeatMode from RepeatOff to RepeatAll, got %v", tc.name, nm.playback.repeatMode)
 			}
 		})

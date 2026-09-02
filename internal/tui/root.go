@@ -14,6 +14,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -49,8 +50,8 @@ type undoInfo struct {
 
 // playbackInfo groups the fields that describe the current playback state.
 type playbackInfo struct {
-	state             PlaybackState
-	repeatMode        RepeatMode
+	state             playback.State
+	repeatMode        playback.RepeatMode
 	shuffle           bool
 	volume            int
 	currentHash       string
@@ -383,7 +384,7 @@ func (m Model) Volume() int { return m.playback.volume }
 func (m Model) PlaybackCurrentIndex() int { return m.playback.currentIndex }
 
 // PlaybackStateValue returns the current playback state.
-func (m Model) PlaybackStateValue() PlaybackState { return m.playback.state }
+func (m Model) PlaybackStateValue() playback.State { return m.playback.state }
 
 // StatusBarArtist returns the current status bar artist string.
 func (m Model) StatusBarArtist() string { return m.statusBar.artist }

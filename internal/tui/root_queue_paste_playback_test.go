@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPasteResumesPlaybackWhenQueueExhausted verifies that pasting tracks after
@@ -18,7 +19,7 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	m.activeView = viewQueue
 	m.queue.entries = sampleQueueEntries()[:2] // [A, B]
 	m.queue.cursor = 1                         // cursor on B (last)
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.queueExhausted = true // queue ran out
 
@@ -28,7 +29,7 @@ func TestPasteResumesPlaybackWhenQueueExhausted(t *testing.T) {
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
-	if m.playback.state != PlaybackPlaying {
+	if m.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying after paste with exhausted queue, got %v", m.playback.state)
 	}
 	// Should call PlayFromIndex(2) - the insert position.
@@ -65,7 +66,7 @@ func TestPasteExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	m.activeView = viewQueue
 	m.queue.entries = sampleQueueEntries()[:2]
 	m.queue.cursor = 1
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.queueExhausted = true
 	// Simulate stale fields from the previous track.
@@ -81,7 +82,7 @@ func TestPasteExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
-	if m.playback.state != PlaybackPlaying {
+	if m.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying, got %v", m.playback.state)
 	}
 	if m.playback.elapsedSecs != 0 {
@@ -110,7 +111,7 @@ func TestPasteDoesNotResumeWhenUserStopped(t *testing.T) {
 	m.activeView = viewQueue
 	m.queue.entries = sampleQueueEntries()[:2]
 	m.queue.cursor = 1
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.currentIndex = -1
 	m.playback.queueExhausted = false // user stopped, not exhausted
 
@@ -120,7 +121,7 @@ func TestPasteDoesNotResumeWhenUserStopped(t *testing.T) {
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
-	if m.playback.state != PlaybackIdle {
+	if m.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle (user-stopped), got %v", m.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 0 {

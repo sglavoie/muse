@@ -9,6 +9,7 @@ import (
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // handleWatchBatchMsg processes filesystem watcher events, removing deleted
@@ -67,7 +68,7 @@ func (m Model) watchUpsertTracks(tracks []library.Track) (Model, []library.Track
 func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 	queueDirty := false
 	for _, t := range tracks {
-		display := trackDisplay(t.Artist, t.Title, t.Path)
+		display := text.TrackDisplay(t.Artist, t.Title, t.Path)
 		durationMs := int64(t.Duration * 1000)
 		for i := range m.queue.entries {
 			e := &m.queue.entries[i]

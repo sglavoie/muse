@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -142,7 +143,7 @@ func TestUndoClearQueueRestoresPlaybackIndex(t *testing.T) {
 	}
 	m.playback.currentIndex = 1
 	m.playback.currentHash = "hb"
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	next, _ := m.Update(ClearQueueMsg{})
 	nm := next.(Model)

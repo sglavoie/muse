@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestClearQueueClearsStatusBarTrackInfo verifies that ClearQueueMsg resets the
@@ -14,7 +16,7 @@ func TestClearQueueClearsStatusBarTrackInfo(t *testing.T) {
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Old Playlist"
 	m.playback.currentHash = "oldhash"
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.queue.entries = []QueueEntry{{ID: 10, Path: "/a.flac", Display: "A"}}
 
 	next, _ := m.Update(ClearQueueMsg{})
@@ -42,13 +44,13 @@ func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Queue"
 	m.playback.currentHash = "oldhash"
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatOff
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatOff
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("playbackState = %v, want PlaybackIdle", nm.playback.state)
 	}
 	if nm.statusBar.artist != "" {
@@ -70,7 +72,7 @@ func TestPlaybackEndedClearsStatusBarTrackInfo(t *testing.T) {
 func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 	p := &stubElapsedReader{elapsed: 99.0, total: 300.0}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.elapsedSecs = 0
 	m.playback.totalSecs = 0
 
@@ -116,7 +118,7 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	p := &stubPlayer{playFromIndexErr: errStubPlay}
 	m := New(context.Background(), WithPlayer(p))
 	m.queue.entries = []QueueEntry{{Path: "/music/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "Ttl"}}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "old-hash"
 	m.playback.elapsedSecs = 42
 	m.playback.totalSecs = 180
@@ -124,20 +126,20 @@ func TestPlayQueueIndexMsgClearsStateOnFailure(t *testing.T) {
 	m.statusBar.title = "Old Title"
 	m.statusBar.playlistSource = "Old Playlist"
 
-	next, cmd := m.Update(PlayQueueIndexMsg{Index: 0})
+	next, cmd := m.Update(playback.PlayQueueIndexMsg{Index: 0})
 	if cmd == nil {
 		t.Fatal("PlayQueueIndexMsg must return an async Cmd")
 	}
 	// Drive the async Cmd and route its result back through Update so
 	// handlePlayFromIndexResultMsg can reset playback state on failure.
 	resultMsg := cmd()
-	if _, ok := resultMsg.(playFromIndexResultMsg); !ok {
+	if _, ok := resultMsg.(playback.PlayFromIndexResultMsg); !ok {
 		t.Fatalf("expected playFromIndexResultMsg, got %T", resultMsg)
 	}
 	next, _ = next.(Model).Update(resultMsg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Errorf("expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if nm.playback.currentHash != "" {
@@ -174,7 +176,7 @@ func TestPlayQueueIndexResetsPlaybackFields(t *testing.T) {
 		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B", Artist: "Art2", Title: "T2"},
 	}
 	// Simulate mid-playback state from the first track.
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "aaa"
 	m.playback.currentIndex = 0
 	m.playback.elapsedSecs = 120
@@ -184,7 +186,7 @@ func TestPlayQueueIndexResetsPlaybackFields(t *testing.T) {
 	m.playback.durationCorrected = true
 
 	// User jumps to the second track.
-	next, _ := m.Update(PlayQueueIndexMsg{Index: 1})
+	next, _ := m.Update(playback.PlayQueueIndexMsg{Index: 1})
 	nm := next.(Model)
 
 	if nm.playback.elapsedSecs != 0 {

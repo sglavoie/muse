@@ -3,20 +3,22 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestRenderPlaybackStateGlyphs verifies that each PlaybackState maps to the
 // correct indicator glyph (▶ / ⏸ / ■) or no glyph when idle.
 func TestRenderPlaybackStateGlyphs(t *testing.T) {
 	cases := []struct {
-		state     PlaybackState
+		state     playback.State
 		wantGlyph string
 		noGlyph   bool
 	}{
-		{PlaybackPlaying, "▶", false},
-		{PlaybackPaused, "⏸", false},
-		{PlaybackStopped, "■", false},
-		{PlaybackIdle, "", true},
+		{playback.StatePlaying, "▶", false},
+		{playback.StatePaused, "⏸", false},
+		{playback.StateStopped, "■", false},
+		{playback.StateIdle, "", true},
 	}
 	for _, tc := range cases {
 		out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "Title", playbackState: tc.state}, 0)
@@ -35,7 +37,7 @@ func TestRenderPlaybackStateGlyphs(t *testing.T) {
 }
 
 func TestRenderTitleTruncationPreservesArtist(t *testing.T) {
-	sb := StatusBar{artist: "Full Artist", title: "A Very Long Track Title That Should Be Truncated", playbackState: PlaybackPlaying}
+	sb := StatusBar{artist: "Full Artist", title: "A Very Long Track Title That Should Be Truncated", playbackState: playback.StatePlaying}
 	out := renderStatusBarForTest(sb, 45)
 	if !strings.Contains(out, "Full Artist") {
 		t.Errorf("artist should be preserved: got %q", out)
@@ -49,7 +51,7 @@ func TestRenderTitleTruncationPreservesArtist(t *testing.T) {
 }
 
 func TestRenderNoTruncationWhenSufficientWidth(t *testing.T) {
-	out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "Short Title", playbackState: PlaybackPlaying}, 200)
+	out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "Short Title", playbackState: playback.StatePlaying}, 200)
 	if !strings.Contains(out, "Short Title") {
 		t.Errorf("expected full title at wide width: got %q", out)
 	}
@@ -59,7 +61,7 @@ func TestRenderNoTruncationWhenSufficientWidth(t *testing.T) {
 }
 
 func TestRenderNoTruncationWhenWidthZero(t *testing.T) {
-	out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "A Very Long Track Title", playbackState: PlaybackPlaying}, 0)
+	out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "A Very Long Track Title", playbackState: playback.StatePlaying}, 0)
 	if !strings.Contains(out, "A Very Long Track Title") {
 		t.Errorf("expected full title when width=0: got %q", out)
 	}
@@ -75,7 +77,7 @@ func TestRenderPlaylistSource(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "Title", playbackState: PlaybackPlaying, playlistSource: tc.source}, 0)
+		out := renderStatusBarForTest(StatusBar{artist: "Artist", title: "Title", playbackState: playback.StatePlaying, playlistSource: tc.source}, 0)
 		if !strings.Contains(out, tc.source) {
 			t.Errorf("expected %q in output: got %q", tc.source, out)
 		}

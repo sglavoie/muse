@@ -12,12 +12,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestCommandListener_ValidAction(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -47,7 +47,7 @@ func TestCommandListener_ValidAction(t *testing.T) {
 
 func TestCommandListener_CreatesMissingRuntimeDir(t *testing.T) {
 	runtimeDir := filepath.Join(shortTempDir(t), "runtime", "muse")
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -83,7 +83,7 @@ func TestCommandListener_DoesNotRemoveNonSocketPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -118,7 +118,7 @@ func TestCommandListener_DoesNotRemoveActiveSocket(t *testing.T) {
 		t.Fatalf("stat active socket before start: %v", err)
 	}
 
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -143,7 +143,7 @@ func TestCommandListener_DoesNotRemoveActiveSocket(t *testing.T) {
 
 func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -168,7 +168,7 @@ func TestCommandListener_CloseRemovesSocketFile(t *testing.T) {
 
 func TestCommandListener_CloseDoesNotRemoveReplacedNonSocketPath(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -202,7 +202,7 @@ func TestCommandListener_CloseDoesNotRemoveReplacedNonSocketPath(t *testing.T) {
 
 func TestCommandListener_CloseDoesNotRemoveReplacedSocketPath(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -234,7 +234,7 @@ func TestCommandListener_CloseDoesNotRemoveReplacedSocketPath(t *testing.T) {
 
 func TestCommandListener_CloseIsIdempotent(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -254,7 +254,7 @@ func TestCommandListener_CloseIsIdempotent(t *testing.T) {
 
 func TestCommandListener_UnknownAction(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -281,7 +281,7 @@ func TestCommandListener_UnknownAction(t *testing.T) {
 
 func TestCommandListener_EmptyLine(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -325,7 +325,7 @@ func TestCommandListener_EmptyLine(t *testing.T) {
 // therefore cannot prove multi-command delivery.
 func TestCommandListener_MultipleCommandsRefreshDeadline(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 8)
+	received := make(chan playback.RemoteActionMsg, 8)
 	p := tea.NewProgram(
 		multiActionModel{received: received},
 		tea.WithoutRenderer(),
@@ -391,7 +391,7 @@ func TestCommandListener_MultipleCommandsRefreshDeadline(t *testing.T) {
 // users on a multi-user host.
 func TestStartCommandListener_SocketPermissions(t *testing.T) {
 	dir := shortTempDir(t)
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()

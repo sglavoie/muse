@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
@@ -64,10 +65,10 @@ func (v QueueView) HandleAction(a keys.Action) (QueueView, tea.Cmd) {
 			// would freeze the UI.
 			if e.Missing || !fileExists(e.Path) {
 				return v, func() tea.Msg {
-					return MissingTrackSelectedMsg{Index: idx, Path: e.Path, Hash: e.Hash}
+					return playback.MissingTrackSelectedMsg{Index: idx, Path: e.Path, Hash: e.Hash}
 				}
 			}
-			return v, func() tea.Msg { return PlayQueueIndexMsg{Index: idx} }
+			return v, func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }
 		}
 	case keys.ActionDequeue:
 		if v.cursor >= 0 && v.cursor < n {

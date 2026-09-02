@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ func TestQueueRenderNowPlayingFavoriteStyle(t *testing.T) {
 	v.cursor = 0
 	favs := map[string]struct{}{"bbb": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, 1, PlaybackPlaying, favs, nil, nil)
+	out := v.render(s, 1, playback.StatePlaying, favs, nil, nil)
 
 	npfRef := s.NowPlayingFavorite.Background(s.NowPlayingBg).Render("REF")
 	artistRef := s.TextPrimary.Background(s.NowPlayingBg).Render("REF")
@@ -55,7 +56,7 @@ func TestQueueRenderNarrowWidthUsesMax(t *testing.T) {
 		width:  10,
 		height: 10,
 	}
-	got := v.render(s, -1, PlaybackIdle, nil, nil, nil)
+	got := v.render(s, -1, playback.StateIdle, nil, nil, nil)
 	if got == "" {
 		t.Error("render must produce non-empty output even with narrow width")
 	}
@@ -69,7 +70,7 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 		cursor:  0,
 		width:   120,
 	}
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	lines := strings.Split(out, "\n")
 	var focusedLine string
 	for _, l := range lines {
@@ -93,7 +94,7 @@ func TestQueueRenderArtistOnlyFavoriteStyle(t *testing.T) {
 	v.cursor = 1
 	favArtists := map[string]struct{}{"FavArtist": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, PlaybackIdle, nil, favArtists, nil)
+	out := v.render(s, -1, playback.StateIdle, nil, favArtists, nil)
 
 	artistRef := s.FavArtist.Render("REF")
 	if ansi.Strip(artistRef) == artistRef {
@@ -130,7 +131,7 @@ func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
 	favArtists := map[string]struct{}{"FavArtist": {}}
 	favAlbums := map[string]struct{}{"FavAlbum": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, PlaybackIdle, favHashes, favArtists, favAlbums)
+	out := v.render(s, -1, playback.StateIdle, favHashes, favArtists, favAlbums)
 
 	titleRef := s.Favorite.Render("REF")
 	if ansi.Strip(titleRef) == titleRef {
@@ -169,7 +170,7 @@ func TestQueueRenderFocusedWithFavoriteUsesAccentBackground(t *testing.T) {
 	v.cursor = 0
 	favHashes := map[string]struct{}{"favhash": {}}
 	s := styles.NewStyles(true)
-	out := v.render(s, -1, PlaybackIdle, favHashes, nil, nil)
+	out := v.render(s, -1, playback.StateIdle, favHashes, nil, nil)
 
 	favAccentRef := s.FavoriteAccent.Render("REF")
 	if ansi.Strip(favAccentRef) == favAccentRef {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestModeToggleNotificationsNameTheGlyph verifies that each mode toggle tells
@@ -44,7 +45,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 
 	t.Run("stop after current", func(t *testing.T) {
 		m := New(context.Background(), WithPlayer(&stubStopAfterPlayer{}))
-		m.playback.state = PlaybackPlaying
+		m.playback.state = playback.StatePlaying
 		for i, w := range []string{"Stop after current: on (N)", "Stop after current: off (N)"} {
 			next, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 			if !handled {
@@ -77,7 +78,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 // a glyph cannot silently leave the notifications teaching the old letter.
 func TestModeToggleMsgMatchesClusterGlyph(t *testing.T) {
 	m := New(context.Background())
-	m.playback.repeatMode = RepeatOne
+	m.playback.repeatMode = playback.RepeatOne
 	m.playback.shuffle = true
 	m.playback.stopAfterCurrent = true
 	m.radio.enabled = true

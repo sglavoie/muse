@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // listensByHash counts RecordListen calls per hash so the exactly-once
@@ -25,7 +26,7 @@ func listensByHash(calls []db.PlayRecord) map[string]int {
 func armedModel(t *testing.T, hr *stubHistoryRecorder, opts ...Option) Model {
 	t.Helper()
 	m := New(context.Background(), append([]Option{WithHistoryRecorder(hr)}, opts...)...)
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 	m.playback.currentIndex = 0
 	m.playback.listenedSecs = 200
@@ -39,14 +40,14 @@ func armedModel(t *testing.T, hr *stubHistoryRecorder, opts ...Option) Model {
 func TestRepeatAllWrapRecordsListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayer{}))
-	m.playback.repeatMode = RepeatAll
+	m.playback.repeatMode = playback.RepeatAll
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
-	next, cmd := m.Update(PlaybackEndedMsg{})
+	next, cmd := m.Update(playback.PlaybackEndedMsg{})
 	m = next.(Model)
 	drainCmd(cmd)
 
-	next, cmd = m.Update(TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
+	next, cmd = m.Update(playback.TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -63,11 +64,11 @@ func TestReconnectRecordsListenOnce(t *testing.T) {
 	m := armedModel(t, hr)
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h1", Path: "/a.flac"}}
 
-	next, cmd := m.Update(PlayerDisconnectedMsg{})
+	next, cmd := m.Update(playback.PlayerDisconnectedMsg{})
 	m = next.(Model)
 	drainCmd(cmd)
 
-	next, cmd = m.Update(TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
+	next, cmd = m.Update(playback.TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -86,7 +87,7 @@ func TestTrackChangeMidQueueRecordsListenOnce(t *testing.T) {
 		{ID: 2, Hash: "h2", Path: "/b.flac"},
 	}
 
-	next, cmd := m.Update(TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
+	next, cmd := m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -138,7 +139,7 @@ func TestClearQueueWhilePlayingRecordsListenOnce(t *testing.T) {
 		t.Fatalf("expected 1 RecordListen after clearing the queue, got %d (%+v)", got, hr.calls)
 	}
 
-	next, cmd = m.Update(TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
+	next, cmd = m.Update(playback.TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
 	_ = next.(Model)
 	drainCmd(cmd)
 	if got := listensByHash(hr.calls)["h1"]; got != 1 {
@@ -177,7 +178,7 @@ func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta", Title: "Two"},
 	}
 
-	next, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
+	next, cmd := m.Update(playback.PlayQueueIndexMsg{Index: 1})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -197,7 +198,7 @@ func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 
 	// The player confirms the jump; the previous listen must not be recorded
 	// again, and the incoming track must not be recorded at all.
-	next, cmd = m.Update(TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
+	next, cmd = m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -224,7 +225,7 @@ func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta", Title: "Two"},
 	}
 
-	next, cmd := m.Update(PlayQueueIndexMsg{Index: 1})
+	next, cmd := m.Update(playback.PlayQueueIndexMsg{Index: 1})
 	m = next.(Model)
 	if cmd == nil {
 		t.Fatal("PlayQueueIndexMsg must return an async Cmd")
@@ -232,11 +233,11 @@ func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 	// The batch carries both the flush and the PlayFromIndex call; drive it and
 	// route the failure result back through Update the way the runtime would.
 	drainCmd(cmd)
-	next, cmd = m.Update(playFromIndexResultMsg{Index: 1, Path: "/b.flac", Hash: "h2", Err: errStubPlay})
+	next, cmd = m.Update(playback.PlayFromIndexResultMsg{Index: 1, Path: "/b.flac", Hash: "h2", Err: errStubPlay})
 	m = next.(Model)
 	drainCmd(cmd)
 
-	if m.playback.state != PlaybackIdle {
+	if m.playback.state != playback.StateIdle {
 		t.Fatalf("precondition failed: the failure must reset playback, got %v", m.playback.state)
 	}
 	counts := listensByHash(hr.calls)
@@ -293,13 +294,13 @@ func TestListenFloorAndCountedFlag(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			hr := &stubHistoryRecorder{}
 			m := New(context.Background(), WithHistoryRecorder(hr))
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m.playback.currentHash = "h1"
 			m = m.armPendingListen("h1", "Alpha")
 			m.playback.listenedSecs = tc.listened
 			m.playback.peakTotalSecs = tc.total
 
-			next, cmd := m.Update(PlaybackEndedMsg{})
+			next, cmd := m.Update(playback.PlaybackEndedMsg{})
 			_ = next.(Model)
 			drainCmd(cmd)
 
@@ -323,7 +324,7 @@ func TestListenFloorAndCountedFlag(t *testing.T) {
 // in-flight listen exactly once, so a second caller cannot double-write it.
 func TestTakePendingListenReturnsRecordOnce(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m = m.armPendingListen("h1", "Alpha")
 	m.playback.listenedSecs = 200
 	m.playback.peakTotalSecs = 300
@@ -345,7 +346,7 @@ func TestTakePendingListenReturnsRecordOnce(t *testing.T) {
 // floor as every other end site.
 func TestTakePendingListenSkipsBelowFloor(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m = m.armPendingListen("h1", "Alpha")
 	m.playback.listenedSecs = 2
 	m.playback.peakTotalSecs = 300
@@ -361,7 +362,7 @@ func TestTakePendingListenSkipsBelowFloor(t *testing.T) {
 func TestListenAccumulationIgnoresForwardSeek(t *testing.T) {
 	er := &stubElapsedReader{total: 300}
 	m := New(context.Background(), WithPlayer(er))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	for _, elapsed := range []float64{1, 2, 3} {
 		er.elapsed = elapsed
@@ -398,13 +399,13 @@ func TestListenAccumulationIgnoresForwardSeek(t *testing.T) {
 func TestListenAccumulationIgnoresPause(t *testing.T) {
 	er := &stubElapsedReader{elapsed: 10, total: 300}
 	m := New(context.Background(), WithPlayer(er))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	next, _ := m.Update(tickMsg{})
 	m = next.(Model)
 	baseline := m.playback.listenedSecs
 
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 	for range 5 {
 		next, _ = m.Update(tickMsg{})
 		m = next.(Model)
@@ -420,7 +421,7 @@ func TestListenAccumulationIgnoresPause(t *testing.T) {
 func TestListenAccumulationIgnoresBackwardSeek(t *testing.T) {
 	er := &stubElapsedReader{total: 300}
 	m := New(context.Background(), WithPlayer(er))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	for _, elapsed := range []float64{1, 2, 3} {
 		er.elapsed = elapsed

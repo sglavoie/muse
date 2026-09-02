@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestClearQueueMsgStopsPlaybackAndTransitionsToIdle verifies that handling
@@ -11,7 +13,7 @@ import (
 func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/music/a.flac", Display: "A"},
 	}
@@ -19,7 +21,7 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 	next, _ := m.Update(ClearQueueMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("ClearQueueMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if p.stopCalls != 1 {
@@ -33,7 +35,7 @@ func TestClearQueueMsgStopsPlaybackAndTransitionsToIdle(t *testing.T) {
 func TestClearQueueMsgResetsScrollOffset(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.queue.entries = make([]QueueEntry, 50)
 	for i := range m.queue.entries {
 		m.queue.entries[i] = QueueEntry{ID: int64(i + 1), Display: "Track"}

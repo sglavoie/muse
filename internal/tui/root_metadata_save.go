@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // metadataEditedMsg is sent after the async DB write completes.
@@ -55,7 +56,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	m.library.index.UpdateDuration(hash, newDuration)
 	m = m.syncRecentlyAddedFromLibrary()
 
-	display := trackDisplay(artist, title, "")
+	display := text.TrackDisplay(artist, title, "")
 	newDurationMs := int64(newDuration * 1000)
 	for i := range m.queue.entries {
 		if m.queue.entries[i].Hash == hash {
@@ -183,7 +184,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 
 		durationMs := int64(trackDuration * 1000)
-		display := trackDisplay(newArtist, newTitle, "")
+		display := text.TrackDisplay(newArtist, newTitle, "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == h {
 				m.queue.entries[i].Title = newTitle

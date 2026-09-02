@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/sglavoie/muse/internal/tui/buckets"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -19,7 +20,7 @@ import (
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
-func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackState PlaybackState, favHashes, favArtists, favAlbums map[string]struct{}) string {
+func (v QueueView) render(s styles.Styles, currentPlayingIndex int, playbackState playback.State, favHashes, favArtists, favAlbums map[string]struct{}) string {
 	entries := v.filteredEntries()
 	if len(entries) == 0 {
 		if v.filter.Text != "" {

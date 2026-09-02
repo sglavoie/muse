@@ -9,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // --- Momentum ----------------------------------------------------------------
@@ -65,7 +66,7 @@ func (v InsightsView) momentumHeaderLines(s styles.Styles) []string {
 	// their own grain, and the replay clause below names it for the monthly one.
 	summary := fmt.Sprintf("best: %s at %s · enter replays a %s in order",
 		insightsBucketLabel(t.Resolution, best.Start),
-		formatListeningTime(best.ListenedSecs), t.Resolution.Period())
+		text.FormatListeningTime(best.ListenedSecs), t.Resolution.Period())
 	if t.AvgSecs > 0 {
 		summary = chart.Trend(t.CurrentVsAvg-1, pal) + " " + summary
 	}
@@ -148,7 +149,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 			section: "Added but never played",
 			label:   "Everything unheard",
 			note: fmt.Sprintf("%s %s · %s", formatCount(c.UnheardTracks),
-				pluralize(c.UnheardTracks, "track", "tracks"), formatListeningTime(int(c.UnheardSecs))),
+				pluralize(c.UnheardTracks, "track", "tracks"), text.FormatListeningTime(int(c.UnheardSecs))),
 			fraction: 1,
 			drill:    drillUnheardAll,
 		})
@@ -162,7 +163,7 @@ func (v InsightsView) discoveryRows() []insightsRow {
 			section: "Added but never played",
 			label:   b.Label,
 			note: fmt.Sprintf("%d %s · %s", b.Tracks,
-				pluralize(b.Tracks, "track", "tracks"), formatListeningTime(int(b.Secs))),
+				pluralize(b.Tracks, "track", "tracks"), text.FormatListeningTime(int(b.Secs))),
 			fraction: insightsFraction(b.Tracks, peakBacklog),
 			drill:    drillAddedNeverPlayed,
 			key:      b.Key,

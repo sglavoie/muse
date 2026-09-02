@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -15,7 +16,7 @@ import (
 // the per-view CTAs (key + label rows).
 func TestQueueRenderEmptyShowsPlaceholder(t *testing.T) {
 	v := QueueView{}
-	got := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	got := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if !strings.Contains(got, "Queue is empty") {
 		t.Fatalf("empty queue must show title; got: %q", got)
 	}
@@ -36,7 +37,7 @@ func TestQueueRenderFourColumns(t *testing.T) {
 		{Title: "Song One", Artist: "Band A", DurationMs: 200_000, Position: 1000},
 		{Title: "Song Two", Artist: "Band B", DurationMs: 65_000, Position: 2000},
 	})
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 
 	if !strings.Contains(out, "1") {
 		t.Error("position column must contain entry index 1")
@@ -74,7 +75,7 @@ func TestQueueRenderPositionIgnoresTrackNumber(t *testing.T) {
 		{Title: "Cassation", Artist: "Mozart", DurationMs: 60_000, Position: 1000, TrackNumber: 11},
 		{Title: "Bittersweet", Artist: "Blank", DurationMs: 60_000, Position: 2000, TrackNumber: 3},
 	})
-	out := ansi.Strip(v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil))
+	out := ansi.Strip(v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil))
 	cases := []struct {
 		title    string
 		wantPos  int
@@ -104,7 +105,7 @@ func TestQueueRenderAscendingOrder(t *testing.T) {
 		{Title: "Second", Artist: "B", DurationMs: 120_000, Position: 2000},
 		{Title: "Third", Artist: "C", DurationMs: 180_000, Position: 3000},
 	})
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	firstIdx := strings.Index(out, "First")
 	secondIdx := strings.Index(out, "Second")
 	thirdIdx := strings.Index(out, "Third")
@@ -130,8 +131,8 @@ func TestQueueRenderProportionalColumnWidths(t *testing.T) {
 	narrow := makeQueue(80, []QueueEntry{entry})
 	wide := makeQueue(160, []QueueEntry{entry})
 
-	narrowOut := narrow.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
-	wideOut := wide.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	narrowOut := narrow.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
+	wideOut := wide.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 
 	narrowTs := strings.Count(narrowOut, "T")
 	wideTs := strings.Count(wideOut, "T")

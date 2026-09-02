@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -21,7 +22,7 @@ const (
 // mode cluster: one row per indicator, showing its glyph, what it means, its
 // live state and the key that toggles it.
 type ModesLegendOverlay struct {
-	repeat    RepeatMode
+	repeat    playback.RepeatMode
 	shuffle   bool
 	stopAfter bool
 	radio     bool

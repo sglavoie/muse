@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/metaexport"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // metadataImportRequestedMsg asks the root model to re-read the export file.
@@ -213,7 +214,7 @@ func (m Model) applyMetadataImport(o MetadataImportOverlay) (Model, tea.Cmd, boo
 		m.library.index.UpdateMetadata(ch.Hash, title, artist, album, genre)
 		m.library.index.UpdateTrackPosition(ch.Hash, track, disc)
 
-		display := trackDisplay(artist, title, "")
+		display := text.TrackDisplay(artist, title, "")
 		for i := range m.queue.entries {
 			if m.queue.entries[i].Hash == ch.Hash {
 				m.queue.entries[i].Title = title

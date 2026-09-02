@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // applyResize sends an initial window size to a fixture-backed model and returns
@@ -91,7 +93,7 @@ func TestPlaybackFixtureState(t *testing.T) {
 	}
 	m = applyResize(t, m, 100, 30)
 
-	if got := m.PlaybackStateValue(); got != PlaybackPlaying {
+	if got := m.PlaybackStateValue(); got != playback.StatePlaying {
 		t.Fatalf("playback state = %v, want PlaybackPlaying", got)
 	}
 	if got := m.Volume(); got != 65 {

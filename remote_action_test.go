@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestRunRemoteAction(t *testing.T) {
@@ -21,7 +21,7 @@ func TestRunRemoteAction(t *testing.T) {
 	}
 	t.Setenv("XDG_RUNTIME_DIR", baseDir)
 
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()

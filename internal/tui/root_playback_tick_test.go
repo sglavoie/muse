@@ -4,6 +4,7 @@ import (
 	"charm.land/bubbletea/v2"
 	"context"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"math"
 	"testing"
 	"time"
@@ -22,7 +23,7 @@ func TestMainPlaybackTickCorrectsDuration(t *testing.T) {
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 360000},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 
 	nm, cmd := m.handleTickMsg()
@@ -78,7 +79,7 @@ func TestMainPlaybackTickSkipsSmallDifference(t *testing.T) {
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 180500},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 
 	nm, _ := m.handleTickMsg()
@@ -110,7 +111,7 @@ func TestMainPlaybackTickFillsZeroDuration(t *testing.T) {
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 0},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 
 	nm, _ := m.handleTickMsg()
@@ -135,7 +136,7 @@ func TestMainPlaybackTickCorrectOnceOnly(t *testing.T) {
 	m.queue.entries = []QueueEntry{
 		{Hash: "h1", Path: "/a.flac", Artist: "A", Title: "T", DurationMs: 360000},
 	}
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 
 	// First tick corrects.
@@ -161,7 +162,7 @@ func TestTrackChangedResetsCorrectFlag(t *testing.T) {
 	m.playback.durationCorrected = true
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h2", Path: "/b.flac"}}
 
-	nm, _ := m.handleTrackChangedMsg(TrackChangedMsg{
+	nm, _ := m.handleTrackChangedMsg(playback.TrackChangedMsg{
 		Hash: "h2", Index: 0, Artist: "B", Title: "T2",
 	})
 
@@ -175,7 +176,7 @@ func TestTrackChangedResetsCorrectFlag(t *testing.T) {
 func TestTickMsgUpdatesPeakElapsed(t *testing.T) {
 	sp := &stubElapsedReader{elapsed: 45.0, total: 200.0}
 	m := New(context.Background(), WithPlayer(sp))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 
 	nm, _ := m.handleTickMsg()
@@ -194,7 +195,7 @@ func TestTickMsgUpdatesPeakElapsed(t *testing.T) {
 func TestTickMsgDoesNotDecreasePeak(t *testing.T) {
 	sp := &stubElapsedReader{elapsed: 0.5, total: 300.0}
 	m := New(context.Background(), WithPlayer(sp))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 	m.playback.peakElapsedSecs = 180.0
 	m.playback.peakTotalSecs = 200.0
@@ -228,7 +229,7 @@ func TestTickMsgRejectsNonFiniteElapsedTotal(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			sp := &stubElapsedReader{elapsed: tc.elapsed, total: tc.total}
 			m := New(context.Background(), WithPlayer(sp))
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m.playback.currentHash = "h1"
 			m.playback.elapsedSecs = 30.0
 			m.playback.totalSecs = 200.0
@@ -266,7 +267,7 @@ func TestHandlePlayRecordedMsgDedupesExistingHash(t *testing.T) {
 		{Hash: "h2", Title: "B", LastPlayedAt: 90},
 	}
 
-	nm := m.handlePlayRecordedMsg(playRecordedMsg{Hash: "h1", PlayedAt: 200, Counted: true})
+	nm := m.handlePlayRecordedMsg(playback.PlayRecordedMsg{Hash: "h1", PlayedAt: 200, Counted: true})
 
 	if len(nm.library.sourceTracks) != 2 {
 		t.Fatalf("expected 2 tracks in history after dedup, got %d", len(nm.library.sourceTracks))

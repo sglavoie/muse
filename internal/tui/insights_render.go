@@ -169,7 +169,7 @@ func (v InsightsView) renderStrip(s styles.Styles) string {
 	spec := v.panelSpec()
 	summary := fmt.Sprintf("%s plays · %s · %d %s",
 		formatCount(v.snap.TotalPlays),
-		formatListeningTime(v.snap.TotalSecs),
+		text.FormatListeningTime(v.snap.TotalSecs),
 		v.snap.SpanDays, pluralize(v.snap.SpanDays, "day", "days"))
 	line := strip.Render(v.width, []string{"Insights", summary},
 		strip.SortChunk{}, strip.FilterChunk{}, strip.CountsChunk{}, nil,
@@ -233,7 +233,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 		c := snap.Coverage
 		return fmt.Sprintf("%s of %s tracks never played · %s unheard",
 			formatCount(c.UnheardTracks), formatCount(c.TotalTracks),
-			formatListeningTime(int(c.UnheardSecs)))
+			text.FormatListeningTime(int(c.UnheardSecs)))
 	case panelRhythm:
 		r := snap.Rhythm
 		if r.TotalPlays == 0 {
@@ -248,8 +248,8 @@ func (v InsightsView) headline(p insightsPanel) string {
 			return "not enough completed " + t.Resolution.Period() + "s to compare"
 		}
 		return fmt.Sprintf("%s %s — %.0f%% of your %s %s average",
-			formatListeningTime(t.Current.ListenedSecs), t.Resolution.Current(),
-			t.CurrentVsAvg*100, formatListeningTime(int(t.AvgSecs)), t.Resolution.Unit())
+			text.FormatListeningTime(t.Current.ListenedSecs), t.Resolution.Current(),
+			t.CurrentVsAvg*100, text.FormatListeningTime(int(t.AvgSecs)), t.Resolution.Unit())
 	case panelConcentration:
 		l := snap.Rankings.Ladder
 		if l.TotalArtists == 0 {
@@ -273,7 +273,7 @@ func (v InsightsView) headline(p insightsPanel) string {
 			return "no sessions in this window"
 		}
 		return fmt.Sprintf("%d sessions · median %s · %.0f%% single-artist",
-			ss.Count, formatListeningTime(ss.MedianSecs), ss.SingleArtistShare*100)
+			ss.Count, text.FormatListeningTime(ss.MedianSecs), ss.SingleArtistShare*100)
 	case panelDiscovery:
 		t := snap.Trends
 		return fmt.Sprintf("%d first-time %s %s · %.0f%% are repeats",
@@ -357,7 +357,7 @@ func (v InsightsView) coverageHeaderLines(s styles.Styles) []string {
 	lines = append(lines,
 		s.TextSecondary.Render(fmt.Sprintf("heard %s · unheard %s · %s unheard",
 			formatCount(c.HeardTracks), formatCount(c.UnheardTracks),
-			formatListeningTime(int(c.UnheardSecs)))),
+			text.FormatListeningTime(int(c.UnheardSecs)))),
 		"",
 	)
 	if v.height >= insightsProseMinHeight {

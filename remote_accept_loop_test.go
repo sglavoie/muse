@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sglavoie/muse/internal/tui"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestCommandListener_TransientAcceptError(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCommandListener_TransientAcceptError(t *testing.T) {
 	}
 	defer realLn.Close()
 
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -53,7 +53,7 @@ func TestAcceptLoop_CircuitBreaker(t *testing.T) {
 	addr := realLn.Addr()
 	realLn.Close()
 
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()
@@ -82,7 +82,7 @@ func TestAcceptLoop_CircuitBreakerClosesListener(t *testing.T) {
 	}
 	ln := &unixSocketListener{Listener: realLn, path: sockPath}
 
-	received := make(chan tui.RemoteActionMsg, 1)
+	received := make(chan playback.RemoteActionMsg, 1)
 	p := newTestProgram(received)
 	go p.Run() //nolint:errcheck
 	defer p.Quit()

@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestPlaybackEndedMsgRepeatAllRestartsQueue verifies that when repeat mode is
@@ -15,17 +17,17 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 	p := &stubPlayer{}
 	sw := &stubSessionWriter{}
 	m := New(context.Background(), WithPlayer(p), WithSessionWriter(sw))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("RepeatAll + PlaybackEndedMsg: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 1 || p.playFromIndexCalls[0] != 0 {
@@ -43,15 +45,15 @@ func TestPlaybackEndedMsgRepeatAllRestartsQueue(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetHash(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.playback.currentHash = "old-hash-last-track"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "hash-first", Path: "/a.flac", Display: "A", Artist: "A", Title: "One"},
 		{ID: 2, Hash: "hash-second", Path: "/b.flac", Display: "B", Artist: "B", Title: "Two"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	// currentHash should NOT be speculatively updated to entries[0].Hash,
@@ -60,7 +62,7 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetHash(t *testing.T) {
 	if nm.playback.currentHash != "old-hash-last-track" {
 		t.Fatalf("RepeatAll wrap: expected currentTrackHash to remain %q, got %q", "old-hash-last-track", nm.playback.currentHash)
 	}
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("RepeatAll wrap: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 }
@@ -72,15 +74,15 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetHash(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.statusBar.playlistSource = "Old Source"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One", SourcePlaylist: "My Playlist"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Display: "B – Two", Artist: "B", Title: "Two", SourcePlaylist: "My Playlist"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	// Status bar source should remain unchanged; TrackChangedMsg will update it.
@@ -95,14 +97,14 @@ func TestPlaybackEndedMsgRepeatAllDoesNotSpekulativelySetSource(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllKeepsOldSource(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.statusBar.playlistSource = "Queue"
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Display: "A – One", Artist: "A", Title: "One"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	// Source should remain unchanged; TrackChangedMsg will update it.
@@ -116,14 +118,14 @@ func TestPlaybackEndedMsgRepeatAllKeepsOldSource(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.queue.entries = nil
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("RepeatAll + empty queue: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if len(p.playFromIndexCalls) != 0 {
@@ -136,13 +138,13 @@ func TestPlaybackEndedMsgRepeatAllEmptyQueueGoesIdle(t *testing.T) {
 func TestPlaybackEndedMsgRepeatOffShowsNotification(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatOff
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatOff
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("RepeatOff + PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 	if !strings.Contains(nm.statusBar.topNotification().msg, "Queue finished") {
@@ -170,17 +172,17 @@ func (s *stubCycleRestarter) RestartQueueCycle() error {
 func TestPlaybackEndedMsgRepeatAllPrefersRestartQueueCycle(t *testing.T) {
 	p := &stubCycleRestarter{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 		{ID: 2, Path: "/b.flac", Artist: "B", Title: "Two"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying after repeat-all, got %v", nm.playback.state)
 	}
 	if p.restartCalls != 1 {
@@ -197,13 +199,13 @@ func TestPlaybackEndedMsgRepeatAllPrefersRestartQueueCycle(t *testing.T) {
 func TestPlaybackEndedMsgRepeatAllRestartError(t *testing.T) {
 	p := &stubCycleRestarter{restartErr: errStubPlay}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Path: "/a.flac", Artist: "A", Title: "One"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
 	if p.restartCalls != 1 {
@@ -211,7 +213,7 @@ func TestPlaybackEndedMsgRepeatAllRestartError(t *testing.T) {
 	}
 	// On restart failure the queue is treated as finished (idle), matching the
 	// prior PlayFromIndex-failure behaviour.
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("expected PlaybackIdle after restart error, got %v", nm.playback.state)
 	}
 }
@@ -222,8 +224,8 @@ func TestPlaybackEndedMsgRepeatAllRestartError(t *testing.T) {
 func TestRepeatAll_ResetsMissingTrackCount(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.repeatMode = RepeatAll
-	m.playback.state = PlaybackPlaying
+	m.playback.repeatMode = playback.RepeatAll
+	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = "h1"
 	m.playback.elapsedSecs = 60
 	m.playback.totalSecs = 120
@@ -235,10 +237,10 @@ func TestRepeatAll_ResetsMissingTrackCount(t *testing.T) {
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "B", Title: "T2"},
 	}
 
-	next, _ := m.Update(PlaybackEndedMsg{})
+	next, _ := m.Update(playback.PlaybackEndedMsg{})
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying after repeat-all wrap, got %v", nm.playback.state)
 	}
 	if nm.missingTrackCount != 0 {

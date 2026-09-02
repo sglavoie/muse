@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -15,7 +16,7 @@ type NowPlayingOverlay struct {
 	album     string
 	elapsed   float64
 	total     float64
-	state     PlaybackState
+	state     playback.State
 	playCount int
 	tagsLine  string // pre-rendered colored tag names; empty when none
 }
@@ -24,11 +25,11 @@ type NowPlayingOverlay struct {
 func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	var icon string
 	switch n.state {
-	case PlaybackPaused:
+	case playback.StatePaused:
 		icon = "⏸"
-	case PlaybackStopped:
+	case playback.StateStopped:
 		icon = "■"
-	case PlaybackPlaying:
+	case playback.StatePlaying:
 		icon = "▶"
 	default:
 		// PlaybackIdle (zero value) or any unrecognised state: avoid

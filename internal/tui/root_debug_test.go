@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // pressCtrlG sends ctrl+g to a Model and returns the updated Model.
@@ -88,7 +90,7 @@ func TestDebugViewContent(t *testing.T) {
 // for the PlaybackStopped state instead of falling through to "idle".
 func TestDebugPlaybackStopped(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackStopped
+	m.playback.state = playback.StateStopped
 	p := collectDebugInfo(m)
 	if p.playbackState != "stopped" {
 		t.Errorf("playbackState = %q; want %q", p.playbackState, "stopped")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestTrackEnqueuedAutoPlayResetsPlaybackFields verifies that the WasEmpty
@@ -17,7 +18,7 @@ import (
 func TestTrackEnqueuedAutoPlayResetsPlaybackFields(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	// Simulate stale fields from a track that finished playing before the
 	// queue was emptied.
 	m.playback.elapsedSecs = 42
@@ -31,7 +32,7 @@ func TestTrackEnqueuedAutoPlayResetsPlaybackFields(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if nm.playback.elapsedSecs != 0 {
@@ -56,7 +57,7 @@ func TestTrackEnqueuedAutoPlayResetsPlaybackFields(t *testing.T) {
 func TestBatchEnqueuedAutoPlayResetsPlaybackFields(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.elapsedSecs = 42
 	m.playback.totalSecs = 180
 	m.playback.peakElapsedSecs = 100
@@ -75,7 +76,7 @@ func TestBatchEnqueuedAutoPlayResetsPlaybackFields(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if nm.playback.elapsedSecs != 0 {

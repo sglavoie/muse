@@ -1,6 +1,10 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
+)
 
 // buildQueueSummary computes aggregate statistics from the current queue
 // entries and playback position.
@@ -30,7 +34,7 @@ func (m Model) buildQueueSummary() *QueueSummaryOverlay {
 	}
 
 	if m.playback.currentIndex >= 0 &&
-		(m.playback.state == PlaybackPlaying || m.playback.state == PlaybackPaused) {
+		(m.playback.state == playback.StatePlaying || m.playback.state == playback.StatePaused) {
 		leftSecs := m.playback.totalSecs - m.playback.elapsedSecs
 		if leftSecs > 0 {
 			remainMs += int64(leftSecs * 1000)

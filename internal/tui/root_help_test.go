@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 func TestUpdateQuestionMarkSetsHelpVisible(t *testing.T) {
@@ -103,8 +105,8 @@ func TestViewHelpOverlayContainsSectionHeaders(t *testing.T) {
 // or the scanning flag.
 func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
-	m.playback.repeatMode = RepeatAll
+	m.playback.state = playback.StatePlaying
+	m.playback.repeatMode = playback.RepeatAll
 	m.playback.shuffle = true
 	m.scanning = true
 
@@ -116,10 +118,10 @@ func TestEscRestoringViewDoesNotAlterPlaybackOrScanState(t *testing.T) {
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm = next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("Esc: playbackState changed; expected PlaybackPlaying, got %v", nm.playback.state)
 	}
-	if nm.playback.repeatMode != RepeatAll {
+	if nm.playback.repeatMode != playback.RepeatAll {
 		t.Fatalf("Esc: repeatMode changed; expected RepeatAll, got %v", nm.playback.repeatMode)
 	}
 	if !nm.playback.shuffle {

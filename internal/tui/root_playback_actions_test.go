@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestSpacePauseResumeFromAnyView verifies that pressing space while paused
@@ -28,7 +29,7 @@ func TestSpacePauseResumeFromAnyView(t *testing.T) {
 			p := &stubPlayer{}
 			m := New(context.Background(), WithPlayer(p))
 			m.activeView = tc.viewID
-			m.playback.state = PlaybackPaused
+			m.playback.state = playback.StatePaused
 			m.queue.entries = []QueueEntry{{ID: 1, Display: "Track 1"}}
 
 			// Space while paused -> Play() called.
@@ -68,7 +69,7 @@ func TestSpaceFromIdleDispatchesPlayQueueIndex(t *testing.T) {
 		t.Fatal("expected a Cmd dispatching PlayQueueIndexMsg, got nil")
 	}
 	msg := cmd()
-	pqi, ok := msg.(PlayQueueIndexMsg)
+	pqi, ok := msg.(playback.PlayQueueIndexMsg)
 	if !ok {
 		t.Fatalf("expected PlayQueueIndexMsg, got %T", msg)
 	}
@@ -86,35 +87,35 @@ func TestModelPlaybackStateTransitions(t *testing.T) {
 		{Path: "/a.flac", Display: "Artist – Song", Artist: "Artist", Title: "Song"},
 	}
 
-	if m.playback.state != PlaybackIdle {
+	if m.playback.state != playback.StateIdle {
 		t.Fatalf("initial: expected PlaybackIdle, got %v", m.playback.state)
 	}
 
 	// PlayQueueIndexMsg -> playing.
-	next, _ := m.Update(PlayQueueIndexMsg{Index: 0})
+	next, _ := m.Update(playback.PlayQueueIndexMsg{Index: 0})
 	nm := next.(Model)
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("after PlayQueueIndexMsg: expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 
 	// Space while playing -> paused.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	nm = next.(Model)
-	if nm.playback.state != PlaybackPaused {
+	if nm.playback.state != playback.StatePaused {
 		t.Fatalf("space (playing->paused): expected PlaybackPaused, got %v", nm.playback.state)
 	}
 
 	// Space while paused -> playing.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	nm = next.(Model)
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("space (paused->playing): expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 
 	// PlaybackEndedMsg -> idle.
-	next, _ = nm.Update(PlaybackEndedMsg{})
+	next, _ = nm.Update(playback.PlaybackEndedMsg{})
 	nm = next.(Model)
-	if nm.playback.state != PlaybackIdle {
+	if nm.playback.state != playback.StateIdle {
 		t.Fatalf("after PlaybackEndedMsg: expected PlaybackIdle, got %v", nm.playback.state)
 	}
 }
@@ -124,11 +125,11 @@ func TestModelPlaybackStateTransitions(t *testing.T) {
 func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 	p := &stubCommandPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
 	nm := next.(Model)
-	if nm.playback.state != PlaybackStopped {
+	if nm.playback.state != playback.StateStopped {
 		t.Fatalf("s key: expected PlaybackStopped, got %v", nm.playback.state)
 	}
 	if p.stopCalls != 1 {
@@ -142,13 +143,13 @@ func TestModelStopKeyTransitionsToStopped(t *testing.T) {
 func TestDismissPreviewDoesNotResumeOnPlayError(t *testing.T) {
 	p := &stubFailingPlayer{playErr: errors.New("mpv disconnected")}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackPaused
+	m.playback.state = playback.StatePaused
 	m.overlay.previewWasPlaying = true
 	m.overlay.preview = &PreviewOverlay{artist: "A", title: "T"}
 
 	nm := m.dismissPreview()
 
-	if nm.playback.state != PlaybackPaused {
+	if nm.playback.state != playback.StatePaused {
 		t.Fatalf("expected PlaybackPaused when resume fails, got %v", nm.playback.state)
 	}
 	if nm.overlay.preview != nil {

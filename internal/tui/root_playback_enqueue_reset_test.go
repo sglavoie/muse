@@ -6,6 +6,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestTrackEnqueuedExhaustedResumeResetsPlaybackFields verifies that when a
@@ -15,7 +16,7 @@ import (
 func TestTrackEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
@@ -34,7 +35,7 @@ func TestTrackEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if nm.playback.elapsedSecs != 0 {
@@ -59,7 +60,7 @@ func TestTrackEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 func TestBatchEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
 	m.playback.currentHash = ""
@@ -84,7 +85,7 @@ func TestBatchEnqueuedExhaustedResumeResetsPlaybackFields(t *testing.T) {
 	next, _ := m.Update(msg)
 	nm := next.(Model)
 
-	if nm.playback.state != PlaybackPlaying {
+	if nm.playback.state != playback.StatePlaying {
 		t.Fatalf("expected PlaybackPlaying, got %v", nm.playback.state)
 	}
 	if nm.playback.elapsedSecs != 0 {

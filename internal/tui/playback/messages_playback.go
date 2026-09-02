@@ -1,10 +1,10 @@
-package tui
+package playback
 
 import "github.com/sglavoie/muse/internal/tui/keys"
 
-// playRecordedMsg is dispatched after a successful RecordListen call so the
+// PlayRecordedMsg is dispatched after a successful RecordListen call so the
 // History view can be updated in realtime without a full DB reload.
-type playRecordedMsg struct {
+type PlayRecordedMsg struct {
 	Hash     string
 	PlayedAt int64
 	Counted  bool
@@ -37,9 +37,9 @@ type MissingTrackSelectedMsg struct {
 	Hash  string
 }
 
-// playFromIndexResultMsg carries the outcome of an asynchronous
+// PlayFromIndexResultMsg carries the outcome of an asynchronous
 // player.PlayFromIndex call dispatched by handlePlayQueueIndexMsg.
-type playFromIndexResultMsg struct {
+type PlayFromIndexResultMsg struct {
 	Index int
 	Path  string
 	Hash  string
@@ -64,11 +64,11 @@ type PauseChangedMsg struct {
 // playback action.
 type RemoteActionMsg struct{ ActionName string }
 
-// remoteAction maps a subcommand name to the corresponding action constant.
+// RemoteAction maps a subcommand name to the corresponding action constant.
 // Unknown names return actionNone so handlePlaybackKeyAction treats them as a
 // no-op rather than silently performing play/pause (which would mask typos and
 // future-protocol drift between the remote client and the running instance).
-func remoteAction(name string) keys.Action {
+func RemoteAction(name string) keys.Action {
 	switch name {
 	case "toggle-play":
 		return keys.ActionPlayPause
@@ -118,14 +118,14 @@ func (r RepeatMode) DisplayString() string {
 	}
 }
 
-// PlaybackState represents the current playback status shown in the status bar.
-type PlaybackState int
+// State represents the current playback status shown in the status bar.
+type State int
 
 const (
-	PlaybackIdle    PlaybackState = iota // no track loaded; no indicator shown
-	PlaybackPlaying                      // actively playing; shows ▶
-	PlaybackPaused                       // paused; shows ⏸
-	PlaybackStopped                      // stopped at track start; shows ■
+	StateIdle    State = iota // no track loaded; no indicator shown
+	StatePlaying              // actively playing; shows ▶
+	StatePaused               // paused; shows ⏸
+	StateStopped              // stopped at track start; shows ■
 )
 
 // TrackChangedMsg is dispatched when the active track changes.

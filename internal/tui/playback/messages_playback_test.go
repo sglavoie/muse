@@ -1,4 +1,4 @@
-package tui
+package playback
 
 import (
 	"testing"
@@ -17,7 +17,7 @@ func TestRemoteActionKnownNames(t *testing.T) {
 		"volume-down": keys.ActionVolumeDown,
 	}
 	for name, want := range cases {
-		if got := remoteAction(name); got != want {
+		if got := RemoteAction(name); got != want {
 			t.Errorf("remoteAction(%q) = %v, want %v", name, got, want)
 		}
 	}
@@ -37,22 +37,8 @@ func TestRemoteActionUnknownNameReturnsNone(t *testing.T) {
 		"future-feature-not-known", // protocol drift
 	}
 	for _, name := range unknowns {
-		if got := remoteAction(name); got != keys.ActionNone {
+		if got := RemoteAction(name); got != keys.ActionNone {
 			t.Errorf("remoteAction(%q) = %v, want actionNone (no silent play/pause fallback)", name, got)
 		}
-	}
-}
-
-// TestRemoteActionHandledAsNoOp confirms that when an unknown remote action is
-// dispatched through handlePlaybackKeyAction, it is reported as unhandled and
-// produces no command — the desired no-op behaviour.
-func TestRemoteActionHandledAsNoOp(t *testing.T) {
-	m := Model{}
-	_, cmd, handled := m.handlePlaybackKeyAction(remoteAction("not-a-real-action"))
-	if handled {
-		t.Fatalf("expected unknown remote action to be unhandled, got handled=true")
-	}
-	if cmd != nil {
-		t.Fatalf("expected nil tea.Cmd for unhandled remote action, got non-nil")
 	}
 }

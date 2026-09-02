@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // handlePlaybackEndedMsg handles the end of the play queue, optionally
@@ -19,7 +20,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// One snapshot before the branch cascade covers all four exits below.
 	m = m.endCurrentListen()
 
-	if !wasStopAfter && m.playback.repeatMode == RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
+	if !wasStopAfter && m.playback.repeatMode == playback.RepeatAll && len(m.queue.entries) > 0 && m.player != nil {
 		// Prefer RestartQueueCycle so shuffle reshuffles into a fresh permutation
 		// (and sequential restarts from index 0). Fall back to PlayFromIndex(0)
 		// for lightweight players that do not implement the optional interface.
@@ -30,7 +31,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		if err := restart(0); err != nil {
 			slog.Warn("repeat-all playback failed", "err", err)
 		} else {
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m = m.resetPlaybackProgress()
 			m.missingTrackCount = 0
 			return m, nil
@@ -42,7 +43,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	if !wasStopAfter && m.player != nil && m.playback.currentIndex >= 0 &&
 		m.playback.currentIndex+1 < len(m.queue.entries) {
 		if err := m.player.PlayFromIndex(m.playback.currentIndex + 1); err == nil {
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 			m = m.resetPlaybackProgress()
 			return m, nil
 		}
@@ -53,7 +54,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
 			m.radio.enqueuePending = true
 			m.playback.queueExhausted = true
-			m.playback.state = PlaybackIdle
+			m.playback.state = playback.StateIdle
 			m = m.resetPlaybackProgress()
 			m.statusBar.artist = ""
 			m.statusBar.title = ""
@@ -71,7 +72,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 		m.playback.queueExhausted = true
 	}
 
-	m.playback.state = PlaybackIdle
+	m.playback.state = playback.StateIdle
 	m = m.resetPlaybackProgress()
 	m.statusBar.artist = ""
 	m.statusBar.title = ""
@@ -100,7 +101,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 // the reconnection window.
 func (m Model) handlePlayerDisconnectedMsg() Model {
 	m = m.endCurrentListen()
-	m.playback.state = PlaybackStopped
+	m.playback.state = playback.StateStopped
 	m = m.resetPlaybackProgress()
 	m.statusBar.notify("mpv disconnected, restarting…")
 	return m
@@ -109,15 +110,15 @@ func (m Model) handlePlayerDisconnectedMsg() Model {
 // handlePauseChangedMsg syncs the TUI playback state with mpv's actual pause
 // property. Guards prevent redundant transitions (e.g. user presses space ->
 // TUI already updated -> mpv confirms via event -> no-op).
-func (m Model) handlePauseChangedMsg(msg PauseChangedMsg) (Model, tea.Cmd) {
+func (m Model) handlePauseChangedMsg(msg playback.PauseChangedMsg) (Model, tea.Cmd) {
 	if msg.Paused {
-		if m.playback.state == PlaybackPlaying {
-			m.playback.state = PlaybackPaused
+		if m.playback.state == playback.StatePlaying {
+			m.playback.state = playback.StatePaused
 			return m, m.sessionPositionCmd()
 		}
 	} else {
-		if m.playback.state == PlaybackPaused || m.playback.state == PlaybackStopped {
-			m.playback.state = PlaybackPlaying
+		if m.playback.state == playback.StatePaused || m.playback.state == playback.StateStopped {
+			m.playback.state = playback.StatePlaying
 		}
 	}
 	return m, nil
@@ -139,7 +140,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 		if err := m.player.Play(); err != nil {
 			slog.Warn("player resume failed", "err", err)
 		} else {
-			m.playback.state = PlaybackPlaying
+			m.playback.state = playback.StatePlaying
 		}
 	}
 	m.overlay.previewWasPlaying = false
@@ -148,7 +149,7 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
-func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
+func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.Cmd) {
 	// End the previous listen above the empty-queue guard below: when the queue
 	// was cleared mid-track the listen still happened, and returning early
 	// would strand it armed.
@@ -204,7 +205,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		source = "Queue"
 	}
 	m.statusBar.playlistSource = source
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m = m.resetPlaybackProgress()
 	m = m.armPendingListen(msg.Hash, msg.Artist)
 
@@ -216,7 +217,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 		m.overlay.nowPlaying.playCount = 0
 		m.overlay.nowPlaying.elapsed = 0
 		m.overlay.nowPlaying.total = 0
-		m.overlay.nowPlaying.state = PlaybackPlaying
+		m.overlay.nowPlaying.state = playback.StatePlaying
 		m.overlay.nowPlaying.tagsLine = m.buildTagsLine(msg.Hash)
 		if t, ok := m.library.index.FindByHash(msg.Hash); ok {
 			if m.overlay.nowPlaying.artist == "" {
@@ -249,7 +250,7 @@ func (m Model) handleTrackChangedMsg(msg TrackChangedMsg) (Model, tea.Cmd) {
 // actually change (mpv reconnect and session restore both re-emit the current
 // track). A failing notifier — a missing alerter binary, most likely — is
 // logged and otherwise ignored: it must never disturb playback.
-func (m Model) trackNotifyCmd(msg TrackChangedMsg, prevHash string) tea.Cmd {
+func (m Model) trackNotifyCmd(msg playback.TrackChangedMsg, prevHash string) tea.Cmd {
 	if !m.notifyOnTrackChange || m.notifier == nil || msg.Hash == "" || msg.Hash == prevHash {
 		return nil
 	}
@@ -277,7 +278,7 @@ func (m *Model) bumpSessionArtist(artist string) {
 
 // handlePlayRecordedMsg prepends the just-played track to the in-memory
 // library History mode so it updates in realtime without a full DB reload.
-func (m Model) handlePlayRecordedMsg(msg playRecordedMsg) Model {
+func (m Model) handlePlayRecordedMsg(msg playback.PlayRecordedMsg) Model {
 	// The listen is in play_events now, so every Insights aggregate that counts
 	// it — including the skip counts that gate mix readiness — is out of date.
 	m.insightsInvalidate()

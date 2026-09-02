@@ -8,6 +8,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -68,11 +69,11 @@ func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string 
 
 func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 	switch s.playbackState {
-	case PlaybackPlaying:
+	case playback.StatePlaying:
 		return ctx.barSuccess.Bold(true).Render("▶"), 1
-	case PlaybackPaused:
+	case playback.StatePaused:
 		return ctx.barWarning.Bold(true).Render("⏸"), 1
-	case PlaybackStopped:
+	case playback.StateStopped:
 		return ctx.barError.Bold(true).Render("■"), 1
 	default:
 		return "", 0
@@ -102,13 +103,13 @@ func modeState(active bool) string {
 // modeIndicators returns the mode cluster in render order. The order is
 // contractual: renderModeCluster pairs it positionally with the per-mode
 // active styles of statusBarRenderContext.
-func modeIndicators(repeat RepeatMode, shuffle, stopAfter, radio bool) []modeIndicator {
+func modeIndicators(repeat playback.RepeatMode, shuffle, stopAfter, radio bool) []modeIndicator {
 	repeatGlyph := "R"
-	if repeat == RepeatOne {
+	if repeat == playback.RepeatOne {
 		repeatGlyph = "1"
 	}
 	return []modeIndicator{
-		{glyph: repeatGlyph, name: "Repeat", state: repeat.DisplayString(), key: "r", active: repeat != RepeatOff},
+		{glyph: repeatGlyph, name: "Repeat", state: repeat.DisplayString(), key: "r", active: repeat != playback.RepeatOff},
 		{glyph: "S", name: "Shuffle", state: modeState(shuffle), key: "z", active: shuffle},
 		{glyph: "N", name: "Stop after current", state: modeState(stopAfter), key: "ctrl+n", active: stopAfter},
 		{glyph: "D", name: "Radio (Auto-DJ)", state: modeState(radio), key: "A", active: radio},

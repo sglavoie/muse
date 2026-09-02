@@ -1,6 +1,10 @@
 package tui
 
-import "time"
+import (
+	"time"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
+)
 
 // StatusBar manages the persistent status bar at the bottom of the screen.
 type StatusBar struct {
@@ -20,8 +24,8 @@ type StatusBar struct {
 	playlistSource string
 
 	// Playback mode fields — injected by renderStatusBar from the root Model.
-	playbackState    PlaybackState
-	repeatMode       RepeatMode
+	playbackState    playback.State
+	repeatMode       playback.RepeatMode
 	shuffle          bool
 	stopAfterCurrent bool
 	visualMode       bool

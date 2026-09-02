@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -18,7 +19,7 @@ func TestQueueRenderPlayedRowDimGlyph(t *testing.T) {
 	})
 	v.cursor = 1
 	s := styles.NewStyles(true)
-	out := v.render(s, 1, PlaybackPlaying, nil, nil, nil)
+	out := v.render(s, 1, playback.StatePlaying, nil, nil, nil)
 
 	var pastLine, nextLine string
 	for l := range strings.SplitSeq(out, "\n") {
@@ -59,7 +60,7 @@ func TestQueueRenderUpcomingRowNotDimmed(t *testing.T) {
 	})
 	v.cursor = 0
 	s := styles.NewStyles(true)
-	out := v.render(s, 0, PlaybackPlaying, nil, nil, nil)
+	out := v.render(s, 0, playback.StatePlaying, nil, nil, nil)
 
 	var line string
 	for l := range strings.SplitSeq(out, "\n") {
@@ -83,7 +84,7 @@ func TestQueueRenderNoPlayedTierWhenIdle(t *testing.T) {
 		{Title: "One", Artist: "A", Hash: "aaa", DurationMs: 60_000},
 		{Title: "Two", Artist: "B", Hash: "bbb", DurationMs: 60_000},
 	})
-	out := v.render(styles.NewStyles(true), -1, PlaybackIdle, nil, nil, nil)
+	out := v.render(styles.NewStyles(true), -1, playback.StateIdle, nil, nil, nil)
 	if strings.Contains(ansi.Strip(out), "╵") {
 		t.Errorf("no rows should be dimmed when idle; got: %q", ansi.Strip(out))
 	}
@@ -99,7 +100,7 @@ func TestQueueRenderSelectedPlayedShowsSelectionMarker(t *testing.T) {
 	})
 	v.cursor = 1
 	s := styles.NewStyles(true)
-	out := v.render(s, 1, PlaybackPlaying, nil, nil, nil)
+	out := v.render(s, 1, playback.StatePlaying, nil, nil, nil)
 
 	var line string
 	for l := range strings.SplitSeq(out, "\n") {

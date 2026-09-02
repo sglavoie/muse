@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // TestSessionTopArtistTracksMostPlayedArtist verifies that TrackChangedMsg
@@ -12,7 +14,7 @@ import (
 // track's accumulated listen time crosses the count-play threshold.
 func TestSessionTopArtistTracksMostPlayedArtist(t *testing.T) {
 	m := New(context.Background())
-	m.playback.state = PlaybackPlaying
+	m.playback.state = playback.StatePlaying
 	m.queue.entries = []QueueEntry{
 		{ID: 1, Hash: "h1", Path: "/a.flac", Artist: "Alpha"},
 		{ID: 2, Hash: "h2", Path: "/b.flac", Artist: "Beta"},
@@ -26,19 +28,19 @@ func TestSessionTopArtistTracksMostPlayedArtist(t *testing.T) {
 	m = m.armPendingListen("h1", "Alpha")
 	m.playback.listenedSecs = 60
 	m.playback.peakTotalSecs = 200
-	next, _ := m.Update(TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
 	m = next.(Model)
 
 	// Simulate finishing track "h2" by Beta and transitioning to "h3" (Alpha).
 	m.playback.listenedSecs = 60
 	m.playback.peakTotalSecs = 200
-	next, _ = m.Update(TrackChangedMsg{Hash: "h3", Index: 2, Artist: "Alpha", Title: "Three"})
+	next, _ = m.Update(playback.TrackChangedMsg{Hash: "h3", Index: 2, Artist: "Alpha", Title: "Three"})
 	m = next.(Model)
 
 	// Simulate finishing the second Alpha track too; this pushes Alpha to 2 plays.
 	m.playback.listenedSecs = 60
 	m.playback.peakTotalSecs = 200
-	next, _ = m.Update(TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
+	next, _ = m.Update(playback.TrackChangedMsg{Hash: "h1", Index: 0, Artist: "Alpha", Title: "One"})
 	m = next.(Model)
 
 	if got := m.SessionTopArtist(); got != "Alpha" {
@@ -57,7 +59,7 @@ func TestTrackChangedSetsPulseUntil(t *testing.T) {
 	m.queue.entries = []QueueEntry{{ID: 1, Hash: "h", Path: "/a.flac", Artist: "A"}}
 
 	before := time.Now()
-	next, _ := m.Update(TrackChangedMsg{Hash: "h", Index: 0, Artist: "A", Title: "T"})
+	next, _ := m.Update(playback.TrackChangedMsg{Hash: "h", Index: 0, Artist: "A", Title: "T"})
 	nm := next.(Model)
 
 	if !nm.pulseUntil.After(before) {
