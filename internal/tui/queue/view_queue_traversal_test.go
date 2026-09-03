@@ -264,8 +264,8 @@ func TestReorderRefusedWhileTimelineActive(t *testing.T) {
 	v.Traversal = shuffledTimeline(0, 2, 0, 1)
 	v.Cursor = 1
 
-	if !v.ReorderBlocked() {
-		t.Error("ReorderBlocked must be true while the timeline orders the rows")
+	if got := v.PlacementBlockReason(); got != placementBlockedShuffle {
+		t.Errorf("placement block reason = %q, want %q while the timeline orders the rows", got, placementBlockedShuffle)
 	}
 	_, cmd := v.HandleAction(keys.ActionMoveTrackUp)
 	if _, ok := cmd().(statusbar.TransientNotifyMsg); !ok {
@@ -280,8 +280,8 @@ func TestReorderAllowedWithoutTimeline(t *testing.T) {
 	v.Traversal = sequentialTimeline(0, 3)
 	v.Cursor = 1
 
-	if v.ReorderBlocked() {
-		t.Fatal("ReorderBlocked must be false with shuffle off")
+	if got := v.PlacementBlockReason(); got != "" {
+		t.Fatalf("placement block reason = %q, want none with shuffle off", got)
 	}
 	var cmd tea.Cmd
 	if _, cmd = v.HandleAction(keys.ActionMoveTrackUp); cmd == nil {

@@ -127,22 +127,53 @@ func selectEntryCmd(e Entry) tea.Cmd {
 	return func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }
 }
 
-// ReorderBlocked reports whether the view is sorted, filtered, or ordered by
-// the live playback timeline. Display positions then no longer match queue
-// positions, so any edit keyed to a position — a move, a paste — would land on
-// the wrong track.
-func (v View) ReorderBlocked() bool {
-	return v.reorderBlocked(v.traversalSnapshot())
+// Placement-block reasons: the clause naming why display positions are not
+// durable queue positions right now. They are the tail of the refusal messages
+// both position-keyed edits — a move and a paste — build, so the two always
+// agree on why they refused.
+const (
+	// placementBlockedShuffle is the live playback timeline ordering the rows.
+	// Named apart from a sort because the user did not ask for this order and
+	// the state strip announces it as "shuffle order", not as a sort.
+	placementBlockedShuffle = "showing shuffle order"
+	// placementBlockedSorted is an explicit metadata sort or an active filter.
+	placementBlockedSorted = "sorted/filtered"
+)
+
+// PlacementBlockReason reports why position-keyed edits must refuse, or "" when
+// they are allowed. Rows are addressable by position only while the panel shows
+// persisted queue order: under a metadata sort, a filter, or the live playback
+// timeline a display position names a different durable row than it looks like,
+// so a move or a paste keyed to it would land on the wrong track.
+func (v View) PlacementBlockReason() string {
+	return v.placementBlockReason(v.traversalSnapshot())
 }
 
-func (v View) reorderBlocked(timeline Traversal) bool {
-	return v.DisplayOrder != nil || v.timelineActive(timeline) ||
-		v.Filter.Text != "" || len(v.TagFilterHashes) > 0
+// placementBlockReason is PlacementBlockReason against one already-taken
+// timeline snapshot. The timeline is tested first because it describes what the
+// user is looking at: an explicit sort suppresses the timeline outright, but a
+// filter only narrows rows the timeline is still ordering, so when both hold the
+// shuffle order is the reason the cursor is not an insert position.
+func (v View) placementBlockReason(timeline Traversal) string {
+	if v.timelineActive(timeline) {
+		return placementBlockedShuffle
+	}
+	if v.DisplayOrder != nil || v.Filter.Text != "" || len(v.TagFilterHashes) > 0 {
+		return placementBlockedSorted
+	}
+	return ""
+}
+
+// PlacementRefusal builds the user-facing refusal for a position-keyed edit,
+// where verb is the edit that was refused ("reorder", "paste") and reason comes
+// from PlacementBlockReason.
+func PlacementRefusal(verb, reason string) string {
+	return "Cannot " + verb + " while " + reason
 }
 
 func (v View) moveTrackUpCmd(timeline Traversal) tea.Cmd {
-	if v.reorderBlocked(timeline) {
-		return reorderRefusedCmd()
+	if reason := v.placementBlockReason(timeline); reason != "" {
+		return reorderRefusedCmd(reason)
 	}
 	if v.Cursor <= 0 {
 		return nil
@@ -152,8 +183,8 @@ func (v View) moveTrackUpCmd(timeline Traversal) tea.Cmd {
 }
 
 func (v View) moveTrackDownCmd(n int, timeline Traversal) tea.Cmd {
-	if v.reorderBlocked(timeline) {
-		return reorderRefusedCmd()
+	if reason := v.placementBlockReason(timeline); reason != "" {
+		return reorderRefusedCmd(reason)
 	}
 	if v.Cursor >= n-1 {
 		return nil
@@ -162,8 +193,8 @@ func (v View) moveTrackDownCmd(n int, timeline Traversal) tea.Cmd {
 	return func() tea.Msg { return MoveTrackDownMsg{Index: idx} }
 }
 
-func reorderRefusedCmd() tea.Cmd {
-	return func() tea.Msg { return statusbar.TransientNotifyMsg("Cannot reorder while sorted/filtered") }
+func reorderRefusedCmd(reason string) tea.Cmd {
+	return func() tea.Msg { return statusbar.TransientNotifyMsg(PlacementRefusal("reorder", reason)) }
 }
 
 // FileExists reports whether the given path can be stat'd. It returns

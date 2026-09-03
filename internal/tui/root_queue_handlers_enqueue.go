@@ -132,12 +132,20 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 }
 
 // handlePlayQueueIndexMsg starts playback from a specific queue index.
-// The actual player.PlayFromIndex call runs in a goroutine (via tea.Cmd)
-// so that synchronous mpv IPC, DB writes, and tea.Program.Send() from
-// inside the player never block the Update goroutine. A successful call
-// is followed up by a TrackChangedMsg from the player's start-file
-// event; a failure surfaces as playFromIndexResultMsg so the TUI can
-// recover (including removal when the file disappeared mid-flight).
+//
+// Selecting the row that is already playing means "start this over", not "start
+// a new selection", so it goes to ReplayCurrent when the player offers it: an
+// explicit PlayFromIndex would reanchor the shuffle cycle, dropping the played
+// history and re-permuting everything still ahead. Every other selection — a
+// different row, or any row while nothing is current — is a genuine new
+// selection and keeps calling PlayFromIndex, which anchors a fresh cycle around
+// the chosen entry.
+//
+// The player call runs in a goroutine (via tea.Cmd) so that synchronous mpv IPC,
+// DB writes, and tea.Program.Send() from inside the player never block the
+// Update goroutine. A successful call is followed up by a TrackChangedMsg from
+// the player's start-file event; a failure surfaces as PlayFromIndexResultMsg so
+// the TUI can recover (including removal when the file disappeared mid-flight).
 func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, tea.Cmd) {
 	if m.player == nil {
 		return m, nil
@@ -146,19 +154,24 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 		return m, nil
 	}
 	entry := m.queue.Entries[msg.Index]
+	// Resolve the operation from the pre-update state: the optimistic block
+	// below overwrites currentIndex and currentHash with the selected row, after
+	// which every selection would look like a replay.
+	replayer, replay := m.selectionReplayer(msg.Index, entry.Hash)
 	// Selecting a row is a listen boundary, and it is one the later
 	// TrackChangedMsg cannot capture: the optimistic reset below zeroes
 	// listenedSecs and peakTotalSecs, so by the time that message arrives the
 	// still-armed listen would measure 0s and be dropped at the capture floor.
 	// End it here, above the reset, so it is queued with its real measurement.
 	// The reset must stay after this call for the same reason. endCurrentListen
-	// disarms, so the TrackChangedMsg that follows a successful PlayFromIndex is
-	// a no-op on the previous track and the failure handler's resetPlaybackState
-	// has nothing left to erase.
+	// disarms, so the TrackChangedMsg that follows a successful call is a no-op
+	// on the previous track and the failure handler's resetPlaybackState has
+	// nothing left to erase. A replay ends the listen too: the track is starting
+	// again from zero, so what was heard up to now is a finished listen.
 	m = m.endCurrentListen()
 	// Optimistic UI update: show the track as playing immediately. The
 	// player will either confirm via TrackChangedMsg or we'll reset
-	// state from the result handler if PlayFromIndex fails.
+	// state from the result handler if the call fails.
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = entry.Hash
 	m.playback.currentIndex = msg.Index
@@ -169,10 +182,46 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 
 	p := m.player
 	idx := msg.Index
-	path := entry.Path
-	hash := entry.Hash
-	return m, func() tea.Msg {
-		err := p.PlayFromIndex(idx)
-		return playback.PlayFromIndexResultMsg{Index: idx, Path: path, Hash: hash, Err: err}
+	result := func(err error) tea.Msg {
+		return playback.PlayFromIndexResultMsg{
+			Index:  idx,
+			Path:   entry.Path,
+			Hash:   entry.Hash,
+			Err:    err,
+			Replay: replay,
+		}
 	}
+	if replay {
+		return m, func() tea.Msg { return result(replayer.ReplayCurrent()) }
+	}
+	return m, func() tea.Msg { return result(p.PlayFromIndex(idx)) }
+}
+
+// selectionReplayer reports whether selecting queue row index means "restart the
+// current track", and returns the player operation that does it.
+//
+// It is a replay only when the selected row is the one the model believes is
+// loaded — same index and same identity, so a duplicate of the playing track
+// elsewhere in the queue is still a new selection — and only while there is
+// something loaded to restart: Playing, Paused, and Stopped all sit on a current
+// entry, whereas Idle (including an exhausted queue) does not and must anchor a
+// fresh cycle instead.
+func (m Model) selectionReplayer(index int, hash string) (currentTrackReplayer, bool) {
+	if index != m.playback.currentIndex || hash != m.playback.currentHash {
+		return nil, false
+	}
+	switch m.playback.state {
+	case playback.StatePlaying, playback.StatePaused, playback.StateStopped:
+		// A track is loaded, so there is something to restart.
+	default:
+		// StateIdle, and any state added later: nothing is loaded. Defaulting
+		// to "not a replay" keeps a new state anchoring a fresh cycle, which is
+		// the behaviour selection had before replay existed.
+		return nil, false
+	}
+	replayer, ok := m.player.(currentTrackReplayer)
+	if !ok {
+		return nil, false
+	}
+	return replayer, true
 }

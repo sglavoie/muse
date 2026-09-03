@@ -168,6 +168,10 @@ func (s *stubQueueLifecyclePlayer) AppendToQueue(track player.QueueTrack) {
 // the extension added nothing this cycle can still play.
 var errFakeTraversalExhausted = errors.New("fake player: traversal exhausted")
 
+// errFakeNothingToReplay stands in for the Manager's "no current entry to
+// replay" refusal.
+var errFakeNothingToReplay = errors.New("fake player: nothing to replay")
+
 // fakeTraversalPlayer stands in for player.Manager's ownership of the playback
 // timeline: it holds a traversal order over queue rows that is independent of
 // the visible queue order, remembers where the cycle sits, and resumes only into
@@ -187,17 +191,75 @@ type fakeTraversalPlayer struct {
 	setCurrentIndexCalls []int
 	resumeCalls          int
 	resumeErr            error
+	replayCalls          int
+	replayErr            error
+	prefetched           int   // queue index mpv holds as the gapless successor; -1 when none
+	prefetchLog          []int // every successor resolved, in order
 }
 
 // newFakeTraversalPlayer builds a player whose traversal visits order and whose
 // cursor sits at position pos within it.
 func newFakeTraversalPlayer(order []int, pos int) *fakeTraversalPlayer {
-	return &fakeTraversalPlayer{
+	f := &fakeTraversalPlayer{
 		order:    append([]int(nil), order...),
 		pos:      pos,
 		missing:  map[int]bool{},
 		shuffled: true,
 	}
+	f.prefetched = -1
+	return f
+}
+
+// resolvePrefetch models the gapless successor the Manager appends to mpv's
+// playlist after every load: the next row the traversal will visit, or none once
+// the cycle has nothing left. Every operation that moves or re-asserts the
+// cursor resolves it again, which is what makes a replay observably restore the
+// same successor rather than a re-permuted one.
+func (f *fakeTraversalPlayer) resolvePrefetch() {
+	f.prefetched = -1
+	for i := f.pos + 1; i < len(f.order); i++ {
+		if f.missing[f.order[i]] {
+			continue
+		}
+		f.prefetched = f.order[i]
+		f.prefetchLog = append(f.prefetchLog, f.prefetched)
+		return
+	}
+}
+
+// finishCurrent models an end-of-file that promotes the prefetched successor.
+// It reports the queue index that started, or false when nothing was prefetched
+// — the exhaustion the TUI sees as PlaybackEndedMsg.
+func (f *fakeTraversalPlayer) finishCurrent() (int, bool) {
+	if f.prefetched < 0 {
+		return -1, false
+	}
+	idx := f.prefetched
+	for i := f.pos + 1; i < len(f.order); i++ {
+		if f.order[i] == idx {
+			f.pos = i
+			break
+		}
+	}
+	f.loaded = append(f.loaded, idx)
+	f.resolvePrefetch()
+	return idx, true
+}
+
+// ReplayCurrent restarts the row under the cursor without moving it: the order,
+// the cursor, and therefore the successor are all exactly what they were. Tests
+// assert that against PlayFromIndex, which reanchors.
+func (f *fakeTraversalPlayer) ReplayCurrent() error {
+	f.replayCalls++
+	if f.replayErr != nil {
+		return f.replayErr
+	}
+	if f.pos < 0 || f.pos >= len(f.order) {
+		return errFakeNothingToReplay
+	}
+	f.loaded = append(f.loaded, f.order[f.pos])
+	f.resolvePrefetch()
+	return nil
 }
 
 func (f *fakeTraversalPlayer) Play() error  { return nil }
@@ -214,6 +276,7 @@ func (f *fakeTraversalPlayer) PlayFromIndex(idx int) error {
 			f.pos = i
 		}
 	}
+	f.resolvePrefetch()
 	return nil
 }
 
@@ -268,6 +331,7 @@ func (f *fakeTraversalPlayer) ResumeAfterQueueExtension() (int, error) {
 		}
 		f.pos = i
 		f.loaded = append(f.loaded, f.order[i])
+		f.resolvePrefetch()
 		return f.order[i], nil
 	}
 	return -1, errFakeTraversalExhausted

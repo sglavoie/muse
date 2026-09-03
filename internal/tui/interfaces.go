@@ -96,6 +96,18 @@ type queueTraversalReader interface {
 	QueueTraversal() player.QueueTraversal
 }
 
+// currentTrackReplayer is an optional interface exposing ReplayCurrent, which
+// restarts the entry already playing without moving the playback timeline. Root
+// checks for it via type assertion when the user selects the row that is already
+// current: PlayFromIndex would answer that keypress by reanchoring the shuffle
+// cycle, discarding the played history and re-permuting everything still
+// upcoming, which is a visible reshuffle of the Queue panel the user never asked
+// for. Lightweight test players implementing only playPauser fall back to
+// PlayFromIndex, whose behaviour on a non-shuffling player is identical.
+type currentTrackReplayer interface {
+	ReplayCurrent() error
+}
+
 // queueExtensionResumer is an optional interface exposing
 // ResumeAfterQueueExtension, which continues the traversal already in progress
 // after the queue grew and reports the queue index that actually started. Root

@@ -170,8 +170,11 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 			m.statusBar.Notify("Nothing to paste")
 			return m, nil, true
 		}
-		if m.queue.ReorderBlocked() {
-			m.statusBar.Notify("Cannot paste while sorted/filtered")
+		// Same predicate the K/J moves use: the cursor is a display position,
+		// and it is only an insert position while the panel shows persisted
+		// queue order.
+		if reason := m.queue.PlacementBlockReason(); reason != "" {
+			m.statusBar.Notify(queue.PlacementRefusal("paste", reason))
 			return m, nil, true
 		}
 		if m.queueWriter == nil {

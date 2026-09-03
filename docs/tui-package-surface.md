@@ -131,13 +131,13 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `internal/desktop` | 6 | 0 | 6 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 151 | 41 | 108 | 2 | `tui` + 11 view packages |
-| `tui/playback` | 57 | 38 | 18 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
+| `tui/playback` | 58 | 38 | 19 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 96 | 29 | 66 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags` |
 | `tui/statusbar` | 50 | 1 | 48 | 1 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 31 | 2 | 27 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 48 | 0 | 46 | 2 | `tui` |
-| `tui/queue` | 73 | 14 | 58 | 1 | `tui`, `internal/app` |
+| `tui/queue` | 74 | 14 | 59 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
@@ -253,7 +253,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**883 exported identifiers across 14 packages**: 150 reached from two or more packages, 678 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
+**885 exported identifiers across 14 packages**: 150 reached from two or more packages, 680 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -489,6 +489,7 @@ export must either earn a justification, be recorded in
 | `tui/playback` | `PlayFromIndexResultMsg.Hash` | field | `internal/tui` | root |
 | `tui/playback` | `PlayFromIndexResultMsg.Index` | field | `internal/tui` | root |
 | `tui/playback` | `PlayFromIndexResultMsg.Path` | field | `internal/tui` | root |
+| `tui/playback` | `PlayFromIndexResultMsg.Replay` | field | `internal/tui` | root |
 | `tui/playback` | `PlayQueueIndexMsg` | type | `internal/tui`, `tui/queue` | multi |
 | `tui/playback` | `PlayQueueIndexMsg.Index` | field | `internal/tui`, `tui/queue` | multi |
 | `tui/playback` | `PlayRecordedMsg` | type | `internal/tui` | root |
@@ -787,6 +788,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `MoveTrackUpMsg` | type | `internal/tui` | root |
 | `tui/queue` | `MoveTrackUpMsg.Index` | field | `internal/tui` | root |
 | `tui/queue` | `NowPlayingIndicator` | func | `internal/tui` | root |
+| `tui/queue` | `PlacementRefusal` | func | `internal/tui` | root |
 | `tui/queue` | `SortQueueIndices` | func | `internal/tui†` | root (tests only) |
 | `tui/queue` | `Traversal` | type | `internal/tui` | root |
 | `tui/queue` | `Traversal.CurrentPosition` | field | `internal/tui` | root |
@@ -812,9 +814,9 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.MarkMissing` | method | `internal/tui` | root |
 | `tui/queue` | `View.MarkMissingByHash` | method | `internal/tui` | root |
 | `tui/queue` | `View.MoveQueueCursor` | method | `internal/tui†` | root (tests only) |
+| `tui/queue` | `View.PlacementBlockReason` | method | `internal/tui` | root |
 | `tui/queue` | `View.RecomputeDisplayOrder` | method | `internal/tui` | root |
 | `tui/queue` | `View.Render` | method | `internal/tui` | root |
-| `tui/queue` | `View.ReorderBlocked` | method | `internal/tui` | root |
 | `tui/queue` | `View.SaveInput` | field | `internal/tui†` | root (tests only) |
 | `tui/queue` | `View.SaveInputIsEmpty` | method | `internal/tui` | root |
 | `tui/queue` | `View.SaveInputValue` | method | `internal/tui` | root |

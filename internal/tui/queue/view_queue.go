@@ -84,7 +84,8 @@ func (v View) effectiveOrder(t Traversal) []int {
 // timelineActive reports whether rows are currently ordered by the live
 // shuffled traversal rather than by persisted queue order. Position-based
 // edits must refuse while it is true: a display row then names a different
-// queue row than its position suggests, which is what ReorderBlocked exposes.
+// queue row than its position suggests, which is what PlacementBlockReason
+// exposes.
 func (v View) timelineActive(t Traversal) bool {
 	if v.DisplayOrder != nil {
 		return false

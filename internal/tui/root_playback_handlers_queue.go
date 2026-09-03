@@ -87,22 +87,34 @@ func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMs
 }
 
 // handlePlayFromIndexResultMsg surfaces the outcome of an asynchronous
-// handlePlayQueueIndexMsg playback call. Success produces no visible
-// effect here because the player's start-file event will dispatch a
-// TrackChangedMsg that updates the status bar; this handler exists to
-// recover from failures without blocking the Update goroutine.
+// handlePlayQueueIndexMsg playback call — PlayFromIndex or ReplayCurrent alike.
+// Success produces no visible effect here because the player's start-file event
+// will dispatch a TrackChangedMsg that updates the status bar; this handler
+// exists to recover from failures without blocking the Update goroutine.
 func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg) Model {
 	if msg.Err == nil {
 		return m
 	}
 	// Discard the error if the user already moved on to a different track or
 	// cleared the queue between dispatch and arrival. Resetting unconditionally
-	// would clobber the now-correct playback state with a stale failure.
+	// would clobber the now-correct playback state with a stale failure. A
+	// replay is checked the same way even though it targets the row that was
+	// already current: a second selection landing first makes this result just
+	// as stale.
 	if m.playback.currentHash != msg.Hash || m.playback.currentIndex != msg.Index {
 		return m
 	}
 	m = m.resetPlaybackState()
-	m.statusBar.Notify("Play failed: " + msg.Err.Error())
+	m.statusBar.Notify(playResultFailureText(msg))
 	player.PlaySound(player.SoundError)
 	return m
+}
+
+// playResultFailureText names the operation that failed, so a refused replay
+// does not report itself as a failed jump to a track the user never selected.
+func playResultFailureText(msg playback.PlayFromIndexResultMsg) string {
+	if msg.Replay {
+		return "Replay failed: " + msg.Err.Error()
+	}
+	return "Play failed: " + msg.Err.Error()
 }

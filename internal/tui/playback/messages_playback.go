@@ -37,13 +37,20 @@ type MissingTrackSelectedMsg struct {
 	Hash  string
 }
 
-// PlayFromIndexResultMsg carries the outcome of an asynchronous
-// player.PlayFromIndex call dispatched by handlePlayQueueIndexMsg.
+// PlayFromIndexResultMsg carries the outcome of the asynchronous player call
+// dispatched by handlePlayQueueIndexMsg — either PlayFromIndex for a new
+// selection or ReplayCurrent when the selected row is the one already playing.
+// Both operations share this message because both need the same stale-result
+// rejection: Index and Hash name the row the call was issued for, so a late
+// failure arriving after the user moved on is discarded rather than resetting
+// the now-correct playback state. Replay only changes the wording of the
+// failure notification.
 type PlayFromIndexResultMsg struct {
-	Index int
-	Path  string
-	Hash  string
-	Err   error
+	Index  int
+	Path   string
+	Hash   string
+	Err    error
+	Replay bool
 }
 
 // PlayerDisconnectedMsg is dispatched when the mpv process crashes or its IPC

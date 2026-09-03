@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/config"
@@ -111,6 +112,53 @@ func TestTrackChangedScrollsWhenFollowingAndQueueActive(t *testing.T) {
 	// visibleRows = 9; target = 15 - 3 = 12
 	if m2.queue.ScrollOffset != 12 {
 		t.Errorf("scroll on track change: expected scrollOffset 12, got %d", m2.queue.ScrollOffset)
+	}
+}
+
+// TestFollowNowPlayingWalksAdjacentTimelineRows verifies follow mode against a
+// live shuffle timeline. The queue indices the player reports jump around, but
+// the panel is drawn in traversal order, so consecutive tracks occupy adjacent
+// display rows — and the follow scroll must be computed in that display space.
+// Anchoring on the raw queue index instead would make the viewport jump
+// erratically while playback walks a straight line down the panel.
+func TestFollowNowPlayingWalksAdjacentTimelineRows(t *testing.T) {
+	// A permutation whose queue indices are deliberately non-monotonic, so
+	// display-row math and queue-index math cannot coincide by accident.
+	order := []int{17, 3, 24, 8, 29, 1, 12, 20, 5, 26,
+		0, 15, 9, 22, 4, 18, 11, 27, 2, 13,
+		6, 25, 16, 7, 28, 10, 21, 14, 23, 19}
+
+	p := newFakeTraversalPlayer(order, -1)
+	m := New(context.Background())
+	m.ActiveView = viewQueue
+	m.followNowPlaying = true
+	m.queue = makeFollowQueue(len(order), 12) // visibleRows = 9, maxRows/3 = 3
+	for i := range m.queue.Entries {
+		m.queue.Entries[i].Hash = "h" + strconv.Itoa(i)
+	}
+	m.player = p
+	m.queue.Traversal = queueTraversalSource(p)
+
+	// visibleRows = 9 over 30 rows, so the offset clamps at 30 - 9 = 21 for the
+	// last rows of the timeline.
+	const maxOffset = 21
+	for row := range order {
+		p.pos = row
+		queueIdx := order[row]
+		m2, _ := m.handleTrackChangedMsg(playback.TrackChangedMsg{
+			Hash:  m.queue.Entries[queueIdx].Hash,
+			Index: queueIdx,
+		})
+		m = m2
+
+		if got := m.queue.FindEntryFilteredPosition(queueIdx); got != row {
+			t.Fatalf("timeline position %d: now-playing drew at display row %d, want %d", row, got, row)
+		}
+		want := min(max(row-3, 0), maxOffset)
+		if m.queue.ScrollOffset != want {
+			t.Errorf("timeline position %d (queue row %d): scrollOffset = %d, want %d",
+				row, queueIdx, m.queue.ScrollOffset, want)
+		}
 	}
 }
 
