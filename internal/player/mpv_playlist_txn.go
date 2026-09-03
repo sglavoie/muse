@@ -289,11 +289,22 @@ func (m *Manager) removeCompletedLocked(gen uint64) error {
 // schedules a fresh prefetch once the lock has been released — the successor is
 // resolved against the traversal state fn just committed.
 func (m *Manager) runPlaylistTxn(fn func() error) error {
-	m.playlistMu.Lock()
-	err := fn()
-	m.playlistMu.Unlock()
-	if err == nil {
-		safego.Go("player.prefetchNext", m.prefetchNext)
-	}
+	_, err := m.runPlaylistTxnIndex(func() (int, error) { return -1, fn() })
 	return err
+}
+
+// runPlaylistTxnIndex is runPlaylistTxn for a transaction body that reports the
+// queue index it played. The index is the row playback actually landed on, which
+// is not derivable from the request: sequential traversal skips entries missing
+// on disk and shuffle traversal follows identities rather than positions. A
+// failed transaction reports -1.
+func (m *Manager) runPlaylistTxnIndex(fn func() (int, error)) (int, error) {
+	m.playlistMu.Lock()
+	idx, err := fn()
+	m.playlistMu.Unlock()
+	if err != nil {
+		return -1, err
+	}
+	safego.Go("player.prefetchNext", m.prefetchNext)
+	return idx, nil
 }

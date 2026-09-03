@@ -31,6 +31,36 @@ type QueueTrack struct {
 	Source  string // playlist name this track was enqueued from; "Queue" for individual enqueues
 }
 
+// QueueTraversal is an immutable snapshot of the player-owned playback
+// timeline: the order the Manager will actually visit queue rows in, where
+// playback currently sits in that order, and how much of the cycle is left.
+//
+// It is a snapshot of Go-owned traversal state, not of the durable queue: the
+// visible queue order is unchanged by shuffle, and Order is what maps the two
+// together. Every live queue row appears in Order exactly once — rows the
+// current cycle no longer schedules (skipped missing entries, entries excluded
+// from the cycle) are appended at the end so they stay visible, but they are not
+// counted in Remaining.
+type QueueTraversal struct {
+	// Order holds live queue indices in traversal order. With shuffle on that
+	// is played history, the current entry, the forward history a Previous left
+	// behind, the unseen pool, and finally the unscheduled rows. With shuffle
+	// off it is plain ascending queue order.
+	Order []int
+
+	// CurrentPosition is the position within Order of the entry playing now, or
+	// -1 when nothing is current (or the current row has left the queue).
+	CurrentPosition int
+
+	// Remaining counts the scheduled entries after CurrentPosition. Unscheduled
+	// rows parked at the end of Order are excluded. With no current entry every
+	// scheduled row counts as remaining.
+	Remaining int
+
+	// Shuffled reports whether Order came from shuffle traversal.
+	Shuffled bool
+}
+
 // Player defines the playback control interface backed by mpv over a Unix
 // domain socket IPC connection.
 type Player interface {

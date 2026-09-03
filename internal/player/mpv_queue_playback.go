@@ -27,25 +27,30 @@ func (m *Manager) PlayFromIndex(index int) error {
 	m.mu.RLock()
 	shuffle := m.shuffleEnabled
 	m.mu.RUnlock()
+	body := func() (int, error) { return m.playSequentialFromLocked(index) }
 	if shuffle {
-		return m.runPlaylistTxn(func() error { return m.playShuffleAnchoredLocked(index) })
+		body = func() (int, error) { return m.playShuffleAnchoredLocked(index) }
 	}
-	return m.runPlaylistTxn(func() error { return m.playSequentialFromLocked(index) })
+	_, err := m.runPlaylistTxnIndex(body)
+	return err
 }
 
 // playSequentialFrom plays the visible queue forward from index, skipping
 // missing entries until a playable one is found. This is the plain
 // (non-shuffle) traversal used by explicit selection, Next, and Previous.
 func (m *Manager) playSequentialFrom(index int) error {
-	return m.runPlaylistTxn(func() error { return m.playSequentialFromLocked(index) })
+	_, err := m.runPlaylistTxnIndex(func() (int, error) { return m.playSequentialFromLocked(index) })
+	return err
 }
 
 // playSequentialFromLocked is playSequentialFrom's body inside an open playlist
 // transaction: index selection and the mpv replacement that acts on it are one
-// serialized operation, so a concurrent prefetch cannot slip between them.
+// serialized operation, so a concurrent prefetch cannot slip between them. It
+// returns the queue index that actually started, which is index only when that
+// entry was present on disk.
 //
 // The caller must hold m.playlistMu.
-func (m *Manager) playSequentialFromLocked(index int) error {
+func (m *Manager) playSequentialFromLocked(index int) (int, error) {
 	m.mu.RLock()
 	queue := m.queue
 	marker := m.marker
@@ -56,35 +61,35 @@ func (m *Manager) playSequentialFromLocked(index int) error {
 		// not change the playing track, so the existing prefetched "next"
 		// is still valid. Clearing would force a redundant playlist-remove
 		// against mpv on every bad call.
-		return fmt.Errorf("%w: index %d out of range [0, %d)", errTraversalExhausted, index, len(queue))
+		return -1, fmt.Errorf("%w: index %d out of range [0, %d)", errTraversalExhausted, index, len(queue))
 	}
 
 	for i := index; i < len(queue); i++ {
 		err := m.replaceLocked(queue[i], marker, func() func() { return m.commitIndexLocked(i) })
 		if err == nil {
-			return nil
+			return i, nil
 		}
 		if !errors.Is(err, ErrMissingFile) {
-			return err
+			return -1, err
 		}
 	}
-	return fmt.Errorf("%w: no playable entry starting at index %d", errTraversalExhausted, index)
+	return -1, fmt.Errorf("%w: no playable entry starting at index %d", errTraversalExhausted, index)
 }
 
 // playShuffleAnchoredLocked reanchors the shuffle cycle around index and plays
-// it. The selected identity becomes the sole history entry; every other queue
-// identity is re-permuted into a fresh unseen pool. If the anchor file is missing
-// it is marked and dropped, and traversal advances into the shuffled remainder. A
-// load that fails for any other reason rolls the reanchor back, and
-// replaceLocked restores the prior current index, so the failed selection leaves
-// no traversal state behind.
+// it, returning the queue index that actually started. The selected identity
+// becomes the sole history entry; every other queue identity is re-permuted into
+// a fresh unseen pool. If the anchor file is missing it is marked and dropped,
+// and traversal advances into the shuffled remainder. A load that fails for any
+// other reason rolls the reanchor back, and replaceLocked restores the prior
+// current index, so the failed selection leaves no traversal state behind.
 //
 // The caller must hold m.playlistMu.
-func (m *Manager) playShuffleAnchoredLocked(index int) error {
+func (m *Manager) playShuffleAnchoredLocked(index int) (int, error) {
 	m.mu.Lock()
 	if index < 0 || index >= len(m.queue) {
 		m.mu.Unlock()
-		return fmt.Errorf("%w: index %d out of range [0, %d)", ErrPlaybackFailed, index, len(m.queue))
+		return -1, fmt.Errorf("%w: index %d out of range [0, %d)", ErrPlaybackFailed, index, len(m.queue))
 	}
 	snap := m.snapshotShuffleLocked()
 	m.anchorShuffleLocked(index)
@@ -94,7 +99,7 @@ func (m *Manager) playShuffleAnchoredLocked(index int) error {
 
 	err := m.replaceLocked(entry, marker, func() func() { return m.commitIndexLocked(index) })
 	if err == nil {
-		return nil
+		return index, nil
 	}
 	if !errors.Is(err, ErrMissingFile) {
 		// The anchor load failed for a reason other than a missing file: roll
@@ -103,7 +108,7 @@ func (m *Manager) playShuffleAnchoredLocked(index int) error {
 		m.mu.Lock()
 		m.restoreShuffleLocked(snap)
 		m.mu.Unlock()
-		return err
+		return -1, err
 	}
 	// Anchor unplayable: drop it from history and advance into the remainder.
 	m.mu.Lock()
@@ -117,22 +122,24 @@ func (m *Manager) playShuffleAnchoredLocked(index int) error {
 // Missing or removed candidates are skipped in traversal order until a playable
 // identity is found or the cycle is exhausted (ErrPlaybackFailed).
 func (m *Manager) advanceForward() error {
-	return m.runPlaylistTxn(m.advanceForwardLocked)
+	_, err := m.runPlaylistTxnIndex(m.advanceForwardLocked)
+	return err
 }
 
 // advanceForwardLocked is advanceForward's body inside an open playlist
 // transaction: each provisional traversal step and the replacement that either
 // confirms or rolls it back happen without another playlist mutation in between.
+// It returns the queue index the traversal landed on.
 //
 // The caller must hold m.playlistMu.
-func (m *Manager) advanceForwardLocked() error {
+func (m *Manager) advanceForwardLocked() (int, error) {
 	for {
 		m.mu.Lock()
 		snap := m.snapshotShuffleLocked()
 		id, ok := m.stepForwardLocked()
 		if !ok {
 			m.mu.Unlock()
-			return fmt.Errorf("%w: shuffle cycle exhausted", errTraversalExhausted)
+			return -1, fmt.Errorf("%w: shuffle cycle exhausted", errTraversalExhausted)
 		}
 		idx := identityIndex(m.queue, id)
 		var entry QueueTrack
@@ -151,7 +158,7 @@ func (m *Manager) advanceForwardLocked() error {
 		}
 		err := m.replaceLocked(entry, marker, func() func() { return m.commitIndexLocked(idx) })
 		if err == nil {
-			return nil
+			return idx, nil
 		}
 		if !errors.Is(err, ErrMissingFile) {
 			// The load failed for a reason other than a missing file: roll back
@@ -160,7 +167,7 @@ func (m *Manager) advanceForwardLocked() error {
 			m.mu.Lock()
 			m.restoreShuffleLocked(snap)
 			m.mu.Unlock()
-			return err
+			return -1, err
 		}
 		// Missing on disk: drop from history so it is not revisited, continue.
 		m.mu.Lock()
@@ -174,19 +181,20 @@ func (m *Manager) advanceForwardLocked() error {
 // traversal order until a playable one is found or the history start is reached
 // (ErrPlaybackFailed).
 func (m *Manager) advanceBackward() error {
-	return m.runPlaylistTxn(m.advanceBackwardLocked)
+	_, err := m.runPlaylistTxnIndex(m.advanceBackwardLocked)
+	return err
 }
 
 // advanceBackwardLocked is advanceBackward's body inside an open playlist
-// transaction.
+// transaction. It returns the queue index the traversal landed on.
 //
 // The caller must hold m.playlistMu.
-func (m *Manager) advanceBackwardLocked() error {
+func (m *Manager) advanceBackwardLocked() (int, error) {
 	for {
 		m.mu.Lock()
 		if m.shufflePos <= 0 {
 			m.mu.Unlock()
-			return fmt.Errorf("%w: no previous track in shuffle history", errTraversalExhausted)
+			return -1, fmt.Errorf("%w: no previous track in shuffle history", errTraversalExhausted)
 		}
 		snap := m.snapshotShuffleLocked()
 		p := m.shufflePos - 1
@@ -204,7 +212,7 @@ func (m *Manager) advanceBackwardLocked() error {
 		if !skip {
 			err := m.replaceLocked(entry, marker, func() func() { return m.commitIndexLocked(idx) })
 			if err == nil {
-				return nil
+				return idx, nil
 			}
 			if !errors.Is(err, ErrMissingFile) {
 				// The load failed for a reason other than a missing file: roll
@@ -213,7 +221,7 @@ func (m *Manager) advanceBackwardLocked() error {
 				m.mu.Lock()
 				m.restoreShuffleLocked(snap)
 				m.mu.Unlock()
-				return err
+				return -1, err
 			}
 			skip = true
 		}
@@ -221,6 +229,7 @@ func (m *Manager) advanceBackwardLocked() error {
 			// Prune the unplayable entry at p and leave the cursor at p so
 			// the next iteration steps to p-1 (the earlier history entry).
 			m.mu.Lock()
+			m.excludeIdentityLocked(id)
 			if p >= 0 && p < len(m.shuffleHistory) {
 				m.shuffleHistory = append(m.shuffleHistory[:p], m.shuffleHistory[p+1:]...)
 			}
@@ -268,13 +277,14 @@ func (m *Manager) restartQueueCycleLocked() error {
 	}
 	m.mu.Unlock()
 	if !shuffle {
-		return m.playSequentialFromLocked(0)
+		_, err := m.playSequentialFromLocked(0)
+		return err
 	}
 	// advanceForwardLocked rolls back its own step on a failed load, but the
 	// fresh permutation from restartShuffleCycleLocked is a separate mutation: if
 	// nothing plays, restore the prior cycle so the failed restart leaves
 	// traversal state unchanged and a retry regenerates from the same point.
-	if err := m.advanceForwardLocked(); err != nil {
+	if _, err := m.advanceForwardLocked(); err != nil {
 		m.mu.Lock()
 		m.restoreShuffleLocked(snap)
 		m.mu.Unlock()

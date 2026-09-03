@@ -102,6 +102,7 @@ func (m *Manager) rebuildShuffleLocked() {
 		}
 	}
 	m.shuffleUnseen = permuteStrings(others, m.permuteLocked(len(others)))
+	m.shuffleExcluded = nil
 	if anchor >= 0 {
 		m.shuffleHistory = []string{ids[anchor]}
 		m.shufflePos = 0
@@ -119,6 +120,7 @@ func (m *Manager) clearShuffleLocked() {
 	m.shuffleHistory = nil
 	m.shufflePos = -1
 	m.shuffleUnseen = nil
+	m.shuffleExcluded = nil
 }
 
 // anchorShuffleLocked resets the shuffle cycle around the entry at index: that
@@ -137,6 +139,7 @@ func (m *Manager) anchorShuffleLocked(index int) {
 	m.shuffleUnseen = permuteStrings(others, m.permuteLocked(len(others)))
 	m.shuffleHistory = []string{ids[index]}
 	m.shufflePos = 0
+	m.shuffleExcluded = nil
 }
 
 // restartShuffleCycleLocked generates a brand-new permutation across the whole
@@ -162,6 +165,9 @@ func (m *Manager) restartShuffleCycleLocked() {
 	m.shuffleUnseen = unseen
 	m.shuffleHistory = nil
 	m.shufflePos = -1
+	// A fresh cycle visits every identity again, including the ones the previous
+	// cycle gave up on: a file that was missing may well be back.
+	m.shuffleExcluded = nil
 }
 
 // stepForwardLocked advances the shuffle cursor one step and returns the next
@@ -248,10 +254,14 @@ func (m *Manager) commitShufflePrefetchLocked(identity string) (int, []QueueTrac
 // reconcileShuffleLocked updates the shuffle traversal pools after the queue's
 // membership changes (SetQueue, AppendToQueue, RemoveFromQueue). Surviving
 // history is preserved (visible reordering never resets playback history),
-// removed identities are pruned from both history and the unseen pool, and
-// brand-new identities are added only to the unseen pool. The currently audible
-// identity is retained in history even if its queue row was removed, so the next
-// advance still steps from the correct position. A no-op when shuffle is off.
+// removed identities are pruned from history, the unseen pool, and the cycle
+// exclusions, and brand-new identities are added only to the unseen pool. The
+// currently audible identity is retained in history even if its queue row was
+// removed, so the next advance still steps from the correct position. A no-op
+// when shuffle is off.
+//
+// An identity the cycle already excluded is not brand-new: it was skipped as
+// unplayable, so an unrelated append or reorder must not schedule it again.
 //
 // The caller must hold m.mu.
 func (m *Manager) reconcileShuffleLocked() {
@@ -263,6 +273,7 @@ func (m *Manager) reconcileShuffleLocked() {
 	for _, id := range ids {
 		live[id] = true
 	}
+	m.pruneExclusionsLocked(live)
 
 	current := ""
 	if m.shufflePos >= 0 && m.shufflePos < len(m.shuffleHistory) {
@@ -300,10 +311,10 @@ func (m *Manager) reconcileShuffleLocked() {
 			seen[id] = true
 		}
 	}
-	// Append brand-new identities (present in the queue but neither played nor
-	// pending) to the unseen pool.
+	// Append brand-new identities (present in the queue but neither played,
+	// pending, nor already dropped by this cycle) to the unseen pool.
 	for _, id := range ids {
-		if !seen[id] {
+		if !seen[id] && !m.shuffleExcluded[id] {
 			newUnseen = append(newUnseen, id)
 			seen[id] = true
 		}
@@ -311,14 +322,47 @@ func (m *Manager) reconcileShuffleLocked() {
 	m.shuffleUnseen = newUnseen
 }
 
+// excludeIdentityLocked records id as dropped from the current shuffle cycle so
+// reconciliation does not mistake it for a brand-new identity and schedule it
+// again. Called from every path that gives up on a candidate.
+//
+// The caller must hold m.mu.
+func (m *Manager) excludeIdentityLocked(id string) {
+	if id == "" {
+		return
+	}
+	if m.shuffleExcluded == nil {
+		m.shuffleExcluded = make(map[string]bool)
+	}
+	m.shuffleExcluded[id] = true
+}
+
+// pruneExclusionsLocked drops exclusions whose queue rows are gone. An identity
+// that has left the queue cannot be reintroduced by reconciliation, and keeping
+// it would make the set grow without bound across a long session.
+//
+// The caller must hold m.mu.
+func (m *Manager) pruneExclusionsLocked(live map[string]bool) {
+	for id := range m.shuffleExcluded {
+		if !live[id] {
+			delete(m.shuffleExcluded, id)
+		}
+	}
+	if len(m.shuffleExcluded) == 0 {
+		m.shuffleExcluded = nil
+	}
+}
+
 // shuffleSnapshot captures the mutable shuffle traversal pools so a failed load
-// can roll back a provisional traversal step, leaving history, cursor, and the
-// unseen pool exactly as they were. See advanceForward/advanceBackward and the
-// anchored/restarted-cycle entry points in mpv_queue.go.
+// can roll back a provisional traversal step, leaving history, cursor, the
+// unseen pool, and the cycle exclusions exactly as they were. See
+// advanceForward/advanceBackward and the anchored/restarted-cycle entry points
+// in mpv_queue.go.
 type shuffleSnapshot struct {
-	history []string
-	pos     int
-	unseen  []string
+	history  []string
+	pos      int
+	unseen   []string
+	excluded map[string]bool
 }
 
 // snapshotShuffleLocked copies the current shuffle traversal state so a caller
@@ -326,10 +370,18 @@ type shuffleSnapshot struct {
 //
 // The caller must hold m.mu.
 func (m *Manager) snapshotShuffleLocked() shuffleSnapshot {
+	var excluded map[string]bool
+	if len(m.shuffleExcluded) > 0 {
+		excluded = make(map[string]bool, len(m.shuffleExcluded))
+		for id := range m.shuffleExcluded {
+			excluded[id] = true
+		}
+	}
 	return shuffleSnapshot{
-		history: append([]string(nil), m.shuffleHistory...),
-		pos:     m.shufflePos,
-		unseen:  append([]string(nil), m.shuffleUnseen...),
+		history:  append([]string(nil), m.shuffleHistory...),
+		pos:      m.shufflePos,
+		unseen:   append([]string(nil), m.shuffleUnseen...),
+		excluded: excluded,
 	}
 }
 
@@ -343,12 +395,14 @@ func (m *Manager) restoreShuffleLocked(s shuffleSnapshot) {
 	m.shuffleHistory = s.history
 	m.shufflePos = s.pos
 	m.shuffleUnseen = s.unseen
+	m.shuffleExcluded = s.excluded
 }
 
 // dropCurrentLocked removes the identity at the current cursor from history and
 // rewinds the cursor by one. Used to discard a candidate that turned out to be
 // unplayable (missing on disk or removed from the queue) so it is neither
-// counted as played nor revisited by Previous.
+// counted as played nor revisited by Previous. The dropped identity is excluded
+// from the cycle so a later reconciliation does not schedule it again.
 //
 // The caller must hold m.mu.
 func (m *Manager) dropCurrentLocked() {
@@ -356,6 +410,7 @@ func (m *Manager) dropCurrentLocked() {
 	if p < 0 || p >= len(m.shuffleHistory) {
 		return
 	}
+	m.excludeIdentityLocked(m.shuffleHistory[p])
 	m.shuffleHistory = append(m.shuffleHistory[:p], m.shuffleHistory[p+1:]...)
 	m.shufflePos = p - 1
 }

@@ -232,6 +232,15 @@ type Manager struct {
 	shufflePos     int      // cursor into shuffleHistory; -1 when empty
 	shuffleUnseen  []string // identities not yet visited, in permuted order
 
+	// shuffleExcluded holds the identities the current cycle has dropped as
+	// unplayable — missing on disk, or removed from the queue between resolution
+	// and load. They are neither played nor pending, so nothing in the traversal
+	// pools records them, and reconciliation would otherwise treat them as
+	// brand-new identities and schedule them again on the next unrelated append
+	// or reorder. Cleared only when a genuinely fresh cycle starts (shuffle
+	// enabled, explicit reanchor, cycle restart) or shuffle is turned off.
+	shuffleExcluded map[string]bool
+
 	// permute returns a permutation of [0,n) used to randomize the unseen
 	// pool. Production wires math/rand/v2; tests inject a fixed permutation.
 	// Nil falls back to deterministic identity order (see permuteLocked).
