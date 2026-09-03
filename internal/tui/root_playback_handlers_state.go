@@ -188,6 +188,10 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 		// the metadata from the message.
 	}
 	m.playback.currentIndex = idx
+	// The player has named the row it is on, which settles any selection still
+	// waiting for confirmation: from here currentIndex is the player's answer,
+	// not the optimistic guess, so Enter on it is a genuine replay again.
+	m.playback.pendingSelection = false
 	m.playback.queueExhausted = false
 	if m.followNowPlaying && m.ActiveView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(idx)

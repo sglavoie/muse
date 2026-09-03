@@ -110,6 +110,10 @@ func (m Model) resetPlaybackState() Model {
 	m.statusBar.PlaylistSource = ""
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
+	// Nothing is current, so there is no optimistic selection left to protect;
+	// leaving the flag set would make the next confirmed row look unresolved and
+	// silently turn its replay into a reanchoring selection.
+	m.playback.pendingSelection = false
 	m.missingTrackCount = 0
 	if sat, ok := m.player.(stopAfterToggler); ok {
 		sat.SetStopAfterCurrent(false)

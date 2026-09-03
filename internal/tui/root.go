@@ -77,6 +77,20 @@ type playbackInfo struct {
 	durationCorrected bool    // true once mpv duration has been compared/corrected for the current track
 	queueExhausted    bool    // true when playback stopped because the queue ran out of tracks
 
+	// playRequestSeq is the identity of the most recent asynchronous play or
+	// replay request dispatched by handlePlayQueueIndexMsg. It only ever
+	// increases, and every dispatch stamps its result message with the value it
+	// took, so an outcome that a newer request has already superseded is
+	// recognisable even when both requests named the same queue occurrence.
+	playRequestSeq uint64
+	// pendingSelection is true while a dispatched PlayFromIndex has neither been
+	// confirmed by the player nor resolved by its own result. Until then
+	// currentIndex/currentHash above are the optimistic row the user asked for
+	// rather than the row the player is holding, and must not be read as the
+	// current track. A replay does not set it: ReplayCurrent restarts the
+	// current entry without moving it, so what is current stays confirmed.
+	pendingSelection bool
+
 	pending pendingListen   // in-flight listen capture; see root_listen_capture.go
 	flushes []pendingListen // listens awaiting persistence, drained once per Update
 }

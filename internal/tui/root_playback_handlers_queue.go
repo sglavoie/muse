@@ -92,6 +92,19 @@ func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMs
 // will dispatch a TrackChangedMsg that updates the status bar; this handler
 // exists to recover from failures without blocking the Update goroutine.
 func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg) Model {
+	// Discard everything a newer request has superseded. Two requests aimed at
+	// the same queue occurrence — holding Enter on one row, or replaying it and
+	// then selecting it again — produce results the row identity below cannot
+	// tell apart, so without this the older one's failure would reset the state
+	// the newer one's success had just established, in whichever order the two
+	// goroutines happen to finish.
+	if msg.Request != m.playback.playRequestSeq {
+		return m
+	}
+	// The latest request has now been answered, so the current row is whatever
+	// the player made of it rather than an unconfirmed optimistic guess. This
+	// runs for a failure too: the reset below is itself a resolution.
+	m.playback.pendingSelection = false
 	if msg.Err == nil {
 		return m
 	}

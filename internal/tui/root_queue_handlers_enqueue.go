@@ -180,20 +180,33 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	m.statusBar.Title = entry.Title
 	m.statusBar.PlaylistSource = queueSourceName(entry.SourcePlaylist)
 
+	// Stamp this request with a fresh identity so its result can be told apart
+	// from the results of any other request, including an earlier one aimed at
+	// this same row. Without it, holding Enter on one row issues calls whose
+	// outcomes are indistinguishable and an older failure can undo a newer
+	// success.
+	m.playback.playRequestSeq++
 	p := m.player
 	idx := msg.Index
+	req := m.playback.playRequestSeq
 	result := func(err error) tea.Msg {
 		return playback.PlayFromIndexResultMsg{
-			Index:  idx,
-			Path:   entry.Path,
-			Hash:   entry.Hash,
-			Err:    err,
-			Replay: replay,
+			Request: req,
+			Index:   idx,
+			Path:    entry.Path,
+			Hash:    entry.Hash,
+			Err:     err,
+			Replay:  replay,
 		}
 	}
 	if replay {
+		// ReplayCurrent leaves the player on the entry it is already holding, so
+		// the current row stays confirmed and a follow-up Enter can replay again.
 		return m, func() tea.Msg { return result(replayer.ReplayCurrent()) }
 	}
+	// A new selection moves the player's current entry, and nothing has
+	// confirmed the move yet; see pendingSelection.
+	m.playback.pendingSelection = true
 	return m, func() tea.Msg { return result(p.PlayFromIndex(idx)) }
 }
 
@@ -206,7 +219,18 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 // something loaded to restart: Playing, Paused, and Stopped all sit on a current
 // entry, whereas Idle (including an exhausted queue) does not and must anchor a
 // fresh cycle instead.
+//
+// A selection that has not been confirmed yet is never replayable. The
+// optimistic update in handlePlayQueueIndexMsg writes the selected row into
+// currentIndex/currentHash before the player has been asked, so a second Enter
+// arriving first would match against a row the player is not on yet and hand
+// ReplayCurrent whatever entry it is still holding — restarting the previous
+// track instead of the selected one. PlayFromIndex names its target explicitly,
+// so falling through to it is always right for a row whose status is unresolved.
 func (m Model) selectionReplayer(index int, hash string) (currentTrackReplayer, bool) {
+	if m.playback.pendingSelection {
+		return nil, false
+	}
 	if index != m.playback.currentIndex || hash != m.playback.currentHash {
 		return nil, false
 	}

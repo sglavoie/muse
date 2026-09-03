@@ -131,7 +131,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `internal/desktop` | 6 | 0 | 6 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 151 | 41 | 108 | 2 | `tui` + 11 view packages |
-| `tui/playback` | 58 | 38 | 19 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
+| `tui/playback` | 59 | 38 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 96 | 29 | 66 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags` |
 | `tui/statusbar` | 50 | 1 | 48 | 1 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 31 | 2 | 27 | 2 | `tui`, `uitest` |
@@ -253,7 +253,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**885 exported identifiers across 14 packages**: 150 reached from two or more packages, 680 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
+**886 exported identifiers across 14 packages**: 150 reached from two or more packages, 681 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -490,6 +490,7 @@ export must either earn a justification, be recorded in
 | `tui/playback` | `PlayFromIndexResultMsg.Index` | field | `internal/tui` | root |
 | `tui/playback` | `PlayFromIndexResultMsg.Path` | field | `internal/tui` | root |
 | `tui/playback` | `PlayFromIndexResultMsg.Replay` | field | `internal/tui` | root |
+| `tui/playback` | `PlayFromIndexResultMsg.Request` | field | `internal/tui` | root |
 | `tui/playback` | `PlayQueueIndexMsg` | type | `internal/tui`, `tui/queue` | multi |
 | `tui/playback` | `PlayQueueIndexMsg.Index` | field | `internal/tui`, `tui/queue` | multi |
 | `tui/playback` | `PlayRecordedMsg` | type | `internal/tui` | root |

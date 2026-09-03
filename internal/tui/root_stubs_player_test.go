@@ -186,8 +186,12 @@ type fakeTraversalPlayer struct {
 	missing  map[int]bool // queue indices whose load fails
 	shuffled bool
 
-	loaded               []int // queue indices actually loaded, in order
-	playFromIndexCalls   []int
+	loaded             []int // queue indices actually loaded, in order
+	playFromIndexCalls []int
+	// playFromIndexErrs is consumed one entry per PlayFromIndex call, so a test
+	// can make two requests naming the same queue row resolve differently. A
+	// nil entry, or an exhausted slice, means that call succeeds.
+	playFromIndexErrs    []error
 	setCurrentIndexCalls []int
 	resumeCalls          int
 	resumeErr            error
@@ -270,6 +274,13 @@ func (f *fakeTraversalPlayer) Pause() error { return nil }
 // resume paths, because reanchoring is what replays a finished cycle.
 func (f *fakeTraversalPlayer) PlayFromIndex(idx int) error {
 	f.playFromIndexCalls = append(f.playFromIndexCalls, idx)
+	if len(f.playFromIndexErrs) > 0 {
+		err := f.playFromIndexErrs[0]
+		f.playFromIndexErrs = f.playFromIndexErrs[1:]
+		if err != nil {
+			return err
+		}
+	}
 	f.loaded = append(f.loaded, idx)
 	for i, queueIdx := range f.order {
 		if queueIdx == idx {

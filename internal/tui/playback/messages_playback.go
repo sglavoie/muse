@@ -41,16 +41,23 @@ type MissingTrackSelectedMsg struct {
 // dispatched by handlePlayQueueIndexMsg — either PlayFromIndex for a new
 // selection or ReplayCurrent when the selected row is the one already playing.
 // Both operations share this message because both need the same stale-result
-// rejection: Index and Hash name the row the call was issued for, so a late
-// failure arriving after the user moved on is discarded rather than resetting
-// the now-correct playback state. Replay only changes the wording of the
-// failure notification.
+// rejection. Replay only changes the wording of the failure notification.
+//
+// Request is the identity of the call this outcome belongs to: a monotonic
+// counter the root increments once per dispatch. Index and Hash alone cannot
+// separate two calls aimed at the same queue occurrence — rapid Enter on one
+// row issues several — so an older failure would look exactly like the newest
+// one and reset state the newer call had already put right. Only the result
+// whose Request is still the latest one dispatched is allowed to act; every
+// other outcome has been superseded. Index and Hash remain the row identity
+// and still reject a result whose row stopped being current in the meantime.
 type PlayFromIndexResultMsg struct {
-	Index  int
-	Path   string
-	Hash   string
-	Err    error
-	Replay bool
+	Request uint64
+	Index   int
+	Path    string
+	Hash    string
+	Err     error
+	Replay  bool
 }
 
 // PlayerDisconnectedMsg is dispatched when the mpv process crashes or its IPC

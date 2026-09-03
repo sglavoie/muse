@@ -235,7 +235,12 @@ func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 	// The batch carries both the flush and the PlayFromIndex call; drive it and
 	// route the failure result back through Update the way the runtime would.
 	drainCmd(cmd)
-	next, cmd = m.Update(playback.PlayFromIndexResultMsg{Index: 1, Path: "/b.flac", Hash: "h2", Err: errStubPlay})
+	next, cmd = m.Update(playback.PlayFromIndexResultMsg{
+		// Request names the call the dispatch above issued; an outcome that does
+		// not carry the latest request identity is treated as superseded.
+		Request: m.playback.playRequestSeq,
+		Index:   1, Path: "/b.flac", Hash: "h2", Err: errStubPlay,
+	})
 	m = next.(Model)
 	drainCmd(cmd)
 

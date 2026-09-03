@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
@@ -53,10 +54,12 @@ func replayEntries(n int) []queue.Entry {
 	return entries
 }
 
-// runSelect drives Enter on a queue row all the way through: the view resolves
-// the row, root handles the resulting message, and the async player command runs
-// so its result message is available to feed back in.
-func runSelect(t *testing.T, m Model, displayRow int) (Model, playback.PlayFromIndexResultMsg) {
+// dispatchSelect drives Enter on a queue row up to the point the player is asked:
+// the view resolves the row, root handles the resulting message and decides
+// between replay and selection, and the async player command is returned
+// unexecuted. Holding that command is what lets a test order two in-flight
+// requests against each other the way two goroutines would.
+func dispatchSelect(t *testing.T, m Model, displayRow int) (Model, tea.Cmd) {
 	t.Helper()
 	stubFileExistsTrue(t)
 	m.ActiveView = viewQueue
@@ -73,11 +76,25 @@ func runSelect(t *testing.T, m Model, displayRow int) (Model, playback.PlayFromI
 	if cmd == nil {
 		t.Fatal("play produced no command")
 	}
+	return m, cmd
+}
+
+// runPlayCmd executes a dispatched player command and returns its outcome.
+func runPlayCmd(t *testing.T, cmd tea.Cmd) playback.PlayFromIndexResultMsg {
+	t.Helper()
 	result, ok := cmd().(playback.PlayFromIndexResultMsg)
 	if !ok {
 		t.Fatalf("expected PlayFromIndexResultMsg, got %T", cmd())
 	}
-	return m, result
+	return result
+}
+
+// runSelect drives Enter on a queue row all the way through: dispatch plus the
+// async player command, so its result message is available to feed back in.
+func runSelect(t *testing.T, m Model, displayRow int) (Model, playback.PlayFromIndexResultMsg) {
+	t.Helper()
+	m, cmd := dispatchSelect(t, m, displayRow)
+	return m, runPlayCmd(t, cmd)
 }
 
 // upcoming lists the queue rows the timeline will still visit, which is exactly
