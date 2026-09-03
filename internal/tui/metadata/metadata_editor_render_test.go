@@ -38,6 +38,29 @@ func TestMetadataEditorRenderNarrowTerminalNoPanic(t *testing.T) {
 	}
 }
 
+// TestMetadataEditorRenderUnknownHeightNoPanic verifies that rendering before
+// the first window-size message, when the terminal height is still 0, does not
+// panic on a value long enough to wrap. An unknown height means "no
+// continuation-line limit", which must not overflow into a negative slice bound.
+func TestMetadataEditorRenderUnknownHeightNoPanic(t *testing.T) {
+	longTitle := strings.Repeat("a very long metadata value that certainly wraps ", 20)
+	s := newTestStyles()
+
+	for _, termHeight := range []int{0, -1} {
+		ed := NewEditor("h1", longTitle, "Artist", "Album", "Rock", 0)
+		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'}) // unfocus Title so it wraps
+
+		out := ansi.Strip(ed.Render(88, termHeight, s))
+		if out == "" {
+			t.Fatalf("termHeight %d: Render returned empty string", termHeight)
+		}
+		// An unlimited budget keeps every wrapped line rather than truncating.
+		if !strings.Contains(strings.Join(strings.Split(out, "\n"), " "), "wraps") {
+			t.Errorf("termHeight %d: expected the wrapped value in output; got:\n%s", termHeight, out)
+		}
+	}
+}
+
 // TestMetadataEditorRenderWrapsLongValue verifies that both focused and
 // non-focused fields with text longer than valueWidth do not exceed the box
 // width. Focused fields scroll/clip; non-focused fields wrap to multiple rows.

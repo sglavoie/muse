@@ -481,7 +481,14 @@ func metadataEditorValueLines(value string, width, continuationBudget int) []str
 	if len(lines) == 0 {
 		lines = []string{""}
 	}
-	maxLines := 1 + max(continuationBudget, 0)
+	// An unknown terminal height yields an effectively unbounded budget, so
+	// compare against the line count before computing 1+budget: the sentinel
+	// overflows to a negative bound and panics on the slice below.
+	budget := max(continuationBudget, 0)
+	if budget >= len(lines) {
+		return lines
+	}
+	maxLines := 1 + budget
 	if len(lines) > maxLines {
 		tail := strings.Join(lines[maxLines-1:], " ")
 		lines = lines[:maxLines]
