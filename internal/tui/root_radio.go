@@ -56,9 +56,19 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 	return m, nil, true
 }
 
-// radioRemainingCount returns the number of queue entries after the current
-// playing index (tracks still to be played).
+// radioRemainingCount returns the number of queue entries still to be played.
+//
+// When the player exposes its traversal, that snapshot is the answer: it counts
+// the rows the Manager will actually still visit, which under shuffle has
+// nothing to do with the visible position of the playing row, and which a sort
+// or a filter of the queue view cannot move. The visible-index arithmetic below
+// is only the fallback for players without the snapshot; it reads the durable
+// queue order and so mistakes a shuffle cursor sitting near the persisted tail
+// for a nearly exhausted queue (and one near the head for a full one).
 func (m Model) radioRemainingCount() int {
+	if t, ok := m.playerTraversal(); ok {
+		return t.Remaining
+	}
 	if m.playback.currentIndex < 0 {
 		return len(m.queue.Entries)
 	}
@@ -313,19 +323,11 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 		}
 	}
 
-	// Auto-resume when the queue had run dry.
-	if m.playback.queueExhausted && m.playback.state == playback.StateIdle && m.player != nil {
-		if err := m.player.PlayFromIndex(batchStartIdx); err == nil {
-			entry := msg.Entries[0]
-			m.playback.state = playback.StatePlaying
-			m.playback.currentHash = entry.Hash
-			m.playback.currentIndex = batchStartIdx
-			m = m.resetPlaybackProgress()
-			m.statusBar.Artist = entry.Artist
-			m.statusBar.Title = entry.Title
-			m.statusBar.PlaylistSource = queueSourceName("Radio")
-		}
-		m.playback.queueExhausted = false
+	// Auto-resume when the queue had run dry. A failed resume leaves the batch
+	// in the queue and the model exhausted; nothing schedules another enqueue
+	// here, so a player that cannot resume never turns into a refill loop.
+	if m.playback.queueExhausted && m.playback.state == playback.StateIdle {
+		m, _ = m.resumeExtendedQueue(batchStartIdx)
 	} else if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		entry := msg.Entries[0]
 		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, "Radio")

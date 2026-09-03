@@ -64,17 +64,8 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	player.PlaySound(player.SoundEnqueued)
 	if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		m = m.tryAutoPlay(msg.Track.Hash, msg.Track.Artist, msg.Track.Title, msg.SourcePlaylist)
-	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle && m.player != nil {
-		if err := m.player.PlayFromIndex(enqueueIdx); err == nil {
-			m.playback.state = playback.StatePlaying
-			m.playback.currentHash = msg.Track.Hash
-			m.playback.currentIndex = enqueueIdx
-			m = m.resetPlaybackProgress()
-			m.statusBar.Artist = msg.Track.Artist
-			m.statusBar.Title = msg.Track.Title
-			m.statusBar.PlaylistSource = queueSourceName(msg.SourcePlaylist)
-		}
-		m.playback.queueExhausted = false
+	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle {
+		m, _ = m.resumeExtendedQueue(enqueueIdx)
 	}
 	return m
 }
@@ -102,18 +93,8 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		entry := msg.Entries[0]
 		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, msg.PlaylistName)
-	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle && m.player != nil {
-		if err := m.player.PlayFromIndex(batchStartIdx); err == nil {
-			entry := msg.Entries[0]
-			m.playback.state = playback.StatePlaying
-			m.playback.currentHash = entry.Hash
-			m.playback.currentIndex = batchStartIdx
-			m = m.resetPlaybackProgress()
-			m.statusBar.Artist = entry.Artist
-			m.statusBar.Title = entry.Title
-			m.statusBar.PlaylistSource = queueSourceName(msg.PlaylistName)
-		}
-		m.playback.queueExhausted = false
+	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle {
+		m, _ = m.resumeExtendedQueue(batchStartIdx)
 	}
 	m.setUndoSlot(undoBatchEnqueueAction{
 		ids:          msg.QueueIDs,

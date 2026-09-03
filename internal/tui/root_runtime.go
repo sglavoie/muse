@@ -94,7 +94,14 @@ func (m Model) syncPlayerQueue() {
 	}
 	// Keep the player's current index in sync so that auto-advance after
 	// shuffle, dedup, move, or paste uses the correct position.
-	if is, ok := m.player.(playerIndexSetter); ok {
+	//
+	// A negative index is not a position, it is the absence of one: the TUI
+	// clears it when the queue runs dry or when the playing row is removed. The
+	// player clamps negatives to 0, so pushing it would move the player's
+	// traversal back to the head of the queue and make the next resume replay a
+	// cycle that already finished. Leave the player's own last position alone
+	// and let the resume path continue from it.
+	if is, ok := m.player.(playerIndexSetter); ok && m.playback.currentIndex >= 0 {
 		is.SetCurrentIndex(m.playback.currentIndex)
 	}
 }

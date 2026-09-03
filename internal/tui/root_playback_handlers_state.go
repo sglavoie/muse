@@ -42,11 +42,10 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 
 	// If the queue was concurrently extended (e.g. a paste was processed
 	// before this message arrived), resume playback instead of stopping.
-	if !wasStopAfter && m.player != nil && m.playback.currentIndex >= 0 &&
-		m.playback.currentIndex+1 < len(m.queue.Entries) {
-		if err := m.player.PlayFromIndex(m.playback.currentIndex + 1); err == nil {
-			m.playback.state = playback.StatePlaying
-			m = m.resetPlaybackProgress()
+	if !wasStopAfter && m.queueExtensionResumable() {
+		resumed := false
+		m, resumed = m.resumeExtendedQueue(m.playback.currentIndex + 1)
+		if resumed {
 			return m, nil
 		}
 	}

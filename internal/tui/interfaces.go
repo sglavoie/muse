@@ -86,6 +86,27 @@ type queueCycleRestarter interface {
 	RestartQueueCycle() error
 }
 
+// queueTraversalReader is an optional interface exposing the player-owned
+// playback timeline. Root checks for it via type assertion wherever a decision
+// depends on how much of the queue is still ahead: the visible queue index says
+// nothing about that under shuffle, where traversal order is Go-owned and
+// unrelated to the durable row order. Lightweight test players implementing only
+// playPauser fall back to visible-index arithmetic.
+type queueTraversalReader interface {
+	QueueTraversal() player.QueueTraversal
+}
+
+// queueExtensionResumer is an optional interface exposing
+// ResumeAfterQueueExtension, which continues the traversal already in progress
+// after the queue grew and reports the queue index that actually started. Root
+// checks for it via type assertion on every natural-exhaustion resume so that a
+// completed shuffle cycle is not reanchored — PlayFromIndex, the fallback for
+// players lacking the extension, would start a fresh permutation and replay rows
+// the cycle already visited.
+type queueExtensionResumer interface {
+	ResumeAfterQueueExtension() (int, error)
+}
+
 // stopAfterToggler enables or disables "stop after current track" mode in
 // the player. Root checks for it via type assertion so that test stubs only
 // need to implement playPauser.

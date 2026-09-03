@@ -164,6 +164,115 @@ func (s *stubQueueLifecyclePlayer) AppendToQueue(track player.QueueTrack) {
 	s.calls = append(s.calls, "AppendToQueue")
 }
 
+// errFakeTraversalExhausted stands in for the player's end-of-traversal error:
+// the extension added nothing this cycle can still play.
+var errFakeTraversalExhausted = errors.New("fake player: traversal exhausted")
+
+// fakeTraversalPlayer stands in for player.Manager's ownership of the playback
+// timeline: it holds a traversal order over queue rows that is independent of
+// the visible queue order, remembers where the cycle sits, and resumes only into
+// rows the cycle has not visited. It exists so the root handlers can be driven
+// through a completed shuffle cycle and its refill without an mpv process.
+//
+// It models tail growth only — appends and pastes at the end of the queue —
+// which is what every natural queue extension does.
+type fakeTraversalPlayer struct {
+	order    []int        // queue indices in traversal order
+	pos      int          // cursor into order; -1 when nothing is current
+	missing  map[int]bool // queue indices whose load fails
+	shuffled bool
+
+	loaded               []int // queue indices actually loaded, in order
+	playFromIndexCalls   []int
+	setCurrentIndexCalls []int
+	resumeCalls          int
+	resumeErr            error
+}
+
+// newFakeTraversalPlayer builds a player whose traversal visits order and whose
+// cursor sits at position pos within it.
+func newFakeTraversalPlayer(order []int, pos int) *fakeTraversalPlayer {
+	return &fakeTraversalPlayer{
+		order:    append([]int(nil), order...),
+		pos:      pos,
+		missing:  map[int]bool{},
+		shuffled: true,
+	}
+}
+
+func (f *fakeTraversalPlayer) Play() error  { return nil }
+func (f *fakeTraversalPlayer) Pause() error { return nil }
+
+// PlayFromIndex is the reanchoring selection: it moves the cursor onto idx
+// wherever that sits in the traversal. Tests assert it is *not* called on the
+// resume paths, because reanchoring is what replays a finished cycle.
+func (f *fakeTraversalPlayer) PlayFromIndex(idx int) error {
+	f.playFromIndexCalls = append(f.playFromIndexCalls, idx)
+	f.loaded = append(f.loaded, idx)
+	for i, queueIdx := range f.order {
+		if queueIdx == idx {
+			f.pos = i
+		}
+	}
+	return nil
+}
+
+// AppendToQueue extends the traversal with the appended row, which lands in the
+// unseen tail exactly as reconciliation puts it there.
+func (f *fakeTraversalPlayer) AppendToQueue(player.QueueTrack) {
+	f.order = append(f.order, len(f.order))
+}
+
+// SetQueue absorbs a rebuilt queue by extending the traversal to cover any rows
+// added at the tail; the existing cycle is left intact, as identity-based
+// reconciliation leaves it.
+func (f *fakeTraversalPlayer) SetQueue(tracks []player.QueueTrack) {
+	for i := len(f.order); i < len(tracks); i++ {
+		f.order = append(f.order, i)
+	}
+}
+
+// SetCurrentIndex records the index the TUI pushed. The real Manager clamps a
+// negative index to the head of the queue, which is why the TUI must not push
+// one; recording it lets a test prove it does not.
+func (f *fakeTraversalPlayer) SetCurrentIndex(index int) {
+	f.setCurrentIndexCalls = append(f.setCurrentIndexCalls, index)
+}
+
+func (f *fakeTraversalPlayer) QueueTraversal() player.QueueTraversal {
+	remaining := 0
+	for i := f.pos + 1; i < len(f.order); i++ {
+		if !f.missing[f.order[i]] {
+			remaining++
+		}
+	}
+	return player.QueueTraversal{
+		Order:           append([]int(nil), f.order...),
+		CurrentPosition: f.pos,
+		Remaining:       remaining,
+		Shuffled:        f.shuffled,
+	}
+}
+
+// ResumeAfterQueueExtension continues the cycle: it walks forward from the
+// cursor to the first row that is not missing, so rows already behind the cursor
+// are never revisited and the index it returns is the row that actually played.
+func (f *fakeTraversalPlayer) ResumeAfterQueueExtension() (int, error) {
+	f.resumeCalls++
+	if f.resumeErr != nil {
+		return -1, f.resumeErr
+	}
+	for i := f.pos + 1; i < len(f.order); i++ {
+		if f.missing[f.order[i]] {
+			continue
+		}
+		f.pos = i
+		f.loaded = append(f.loaded, f.order[i])
+		return f.order[i], nil
+	}
+	return -1, errFakeTraversalExhausted
+}
+
 // stubFailingVolumePlayer extends stubCommandPlayer to return errors from
 // SetVolumeRelative, used to test volume-drift prevention.
 type stubFailingVolumePlayer struct {

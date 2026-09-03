@@ -185,7 +185,7 @@ func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 		m.playback.currentIndex += len(msg.Entries)
 	}
 	m.syncPlayerQueue()
-	m = m.resumeExhaustedPlayback(insertPos, msg.Entries[0])
+	m = m.resumeExhaustedPlayback(insertPos)
 
 	var removedOriginals []queue.Entry
 	var removedOriginalIndices []int
@@ -233,22 +233,14 @@ func (m Model) persistQueueOrder() {
 	}
 }
 
-// resumeExhaustedPlayback starts playback from the given entry when the queue
-// was previously exhausted.
-func (m Model) resumeExhaustedPlayback(insertPos int, entry queue.Entry) Model {
-	if !m.playback.queueExhausted || m.playback.state != playback.StateIdle || m.player == nil {
+// resumeExhaustedPlayback continues the traversal from the pasted rows when the
+// queue was previously exhausted. insertPos only anchors players without the
+// resume extension; otherwise the traversal picks the row itself.
+func (m Model) resumeExhaustedPlayback(insertPos int) Model {
+	if !m.playback.queueExhausted || m.playback.state != playback.StateIdle {
 		return m
 	}
-	if err := m.player.PlayFromIndex(insertPos); err == nil {
-		m.playback.state = playback.StatePlaying
-		m.playback.currentHash = entry.Hash
-		m.playback.currentIndex = insertPos
-		m = m.resetPlaybackProgress()
-		m.statusBar.Artist = entry.Artist
-		m.statusBar.Title = entry.Title
-		m.statusBar.PlaylistSource = queueSourceName(entry.SourcePlaylist)
-	}
-	m.playback.queueExhausted = false
+	m, _ = m.resumeExtendedQueue(insertPos)
 	return m
 }
 
