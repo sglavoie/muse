@@ -91,8 +91,14 @@ func WithExtractor(e library.MetadataExtractor) Option {
 }
 
 // WithPlayer sets the playback backend. Pass nil to disable playback controls.
+// It also hands the Queue view the player's playback timeline when the backend
+// exposes one, so the queue panel can show the order rows will actually play in
+// rather than the order they are stored in.
 func WithPlayer(p playPauser) Option {
-	return func(m *Model) { m.player = p }
+	return func(m *Model) {
+		m.player = p
+		m.queue.Traversal = queueTraversalSource(p)
+	}
 }
 
 // WithWatchStatusChannel sets the channel that reports filesystem watcher

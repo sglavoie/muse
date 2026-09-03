@@ -17,11 +17,12 @@ import (
 // Root resolves the raw key to an action via the keybinding registry and calls
 // this method, keeping key-to-action mapping in one authoritative location.
 func (v View) HandleAction(a keys.Action) (View, tea.Cmd) {
-	filtered := v.FilteredEntries()
+	timeline := v.traversalSnapshot()
+	filtered := v.filteredEntries(timeline)
 	if move, ok := queueMoves[a]; ok {
 		return move(v, len(filtered)), nil
 	}
-	return v.handleEntryAction(a, filtered)
+	return v.handleEntryAction(a, filtered, timeline)
 }
 
 // queueMoves maps a cursor-movement action to the function performing it, where
@@ -77,14 +78,14 @@ func (v View) goToBottom(n int) View {
 
 // handleEntryAction dispatches the actions that act on the focused entry or on
 // the queue as a whole. None of them move the cursor.
-func (v View) handleEntryAction(a keys.Action, filtered []Entry) (View, tea.Cmd) {
+func (v View) handleEntryAction(a keys.Action, filtered []Entry, timeline Traversal) (View, tea.Cmd) {
 	switch a {
 	case keys.ActionClearQueue:
 		return v, func() tea.Msg { return ClearQueueMsg{} }
 	case keys.ActionMoveTrackUp:
-		return v, v.moveTrackUpCmd()
+		return v, v.moveTrackUpCmd(timeline)
 	case keys.ActionMoveTrackDown:
-		return v, v.moveTrackDownCmd(len(filtered))
+		return v, v.moveTrackDownCmd(len(filtered), timeline)
 	}
 	e, ok := v.focusedFilteredEntry(filtered)
 	if !ok {
@@ -126,15 +127,21 @@ func selectEntryCmd(e Entry) tea.Cmd {
 	return func() tea.Msg { return playback.PlayQueueIndexMsg{Index: idx} }
 }
 
-// reorderBlocked reports whether the view is sorted or filtered. Display
-// positions then no longer match queue positions, so a move would reorder the
-// wrong track.
-func (v View) reorderBlocked() bool {
-	return v.DisplayOrder != nil || v.Filter.Text != "" || len(v.TagFilterHashes) > 0
+// ReorderBlocked reports whether the view is sorted, filtered, or ordered by
+// the live playback timeline. Display positions then no longer match queue
+// positions, so any edit keyed to a position — a move, a paste — would land on
+// the wrong track.
+func (v View) ReorderBlocked() bool {
+	return v.reorderBlocked(v.traversalSnapshot())
 }
 
-func (v View) moveTrackUpCmd() tea.Cmd {
-	if v.reorderBlocked() {
+func (v View) reorderBlocked(timeline Traversal) bool {
+	return v.DisplayOrder != nil || v.timelineActive(timeline) ||
+		v.Filter.Text != "" || len(v.TagFilterHashes) > 0
+}
+
+func (v View) moveTrackUpCmd(timeline Traversal) tea.Cmd {
+	if v.reorderBlocked(timeline) {
 		return reorderRefusedCmd()
 	}
 	if v.Cursor <= 0 {
@@ -144,8 +151,8 @@ func (v View) moveTrackUpCmd() tea.Cmd {
 	return func() tea.Msg { return MoveTrackUpMsg{Index: idx} }
 }
 
-func (v View) moveTrackDownCmd(n int) tea.Cmd {
-	if v.reorderBlocked() {
+func (v View) moveTrackDownCmd(n int, timeline Traversal) tea.Cmd {
+	if v.reorderBlocked(timeline) {
 		return reorderRefusedCmd()
 	}
 	if v.Cursor >= n-1 {

@@ -26,7 +26,8 @@ const queueMarkerWidth = 2
 // constant. Missing entries are wrapped in ANSI dim escape codes so they
 // appear grayed out in the terminal.
 func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState playback.State, favHashes, favArtists, favAlbums map[string]struct{}) string {
-	entries := v.FilteredEntries()
+	timeline := v.traversalSnapshot()
+	entries := v.filteredEntries(timeline)
 	if len(entries) == 0 {
 		return v.renderEmpty(s)
 	}
@@ -50,6 +51,7 @@ func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState pla
 		favHashes:           favHashes,
 		favArtists:          favArtists,
 		favAlbums:           favAlbums,
+		timeline:            newTimelineRanks(timeline, len(v.Entries)),
 	}
 	lines := make([]string, end-start)
 	for i := range lines {
@@ -60,7 +62,7 @@ func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState pla
 	if end == len(entries) {
 		bodyLines = append(bodyLines, s.Dim.Render("— end of queue —"))
 	}
-	return v.assemblePanel(s, header, bodyLines, len(entries))
+	return v.assemblePanel(s, header, bodyLines, len(entries), v.timelineActive(timeline))
 }
 
 // renderEmpty renders the placeholder shown when no entry is visible, which
@@ -124,9 +126,9 @@ func (v View) chunkIntoBuckets(s styles.Styles, lines []string, entries []Entry,
 
 // assemblePanel stacks the optional state strip, the header, the body, and the
 // save-as-playlist prompt into the final panel string.
-func (v View) assemblePanel(s styles.Styles, header string, bodyLines []string, filtered int) string {
+func (v View) assemblePanel(s styles.Styles, header string, bodyLines []string, filtered int, timelineActive bool) string {
 	out := header + "\n" + strings.Join(bodyLines, "\n")
-	if stripLine := v.renderStateStrip(s, len(v.Entries), filtered); stripLine != "" {
+	if stripLine := v.renderStateStrip(s, len(v.Entries), filtered, timelineActive); stripLine != "" {
 		out = stripLine + "\n" + out
 	}
 	if v.SavingAsPlaylist {
@@ -152,6 +154,7 @@ type queueRowRenderer struct {
 	favHashes           map[string]struct{}
 	favArtists          map[string]struct{}
 	favAlbums           map[string]struct{}
+	timeline            timelineRanks
 }
 
 // queueRow holds one entry's pre-padded cells plus the flags deciding how they
@@ -208,9 +211,18 @@ func (r *queueRowRenderer) isNowPlaying(e Entry) bool {
 	return r.currentPlayingIndex >= 0 && e.OrigIdx == r.currentPlayingIndex
 }
 
-// isPlayed reports whether the queue has already moved past e.
+// isPlayed reports whether playback has already moved past e. With a live
+// timeline that is a question about traversal rank, not about the underlying
+// queue index: under shuffle a row near the top of the queue may be the last
+// thing scheduled, and a row near the bottom may already be spent.
 func (r *queueRowRenderer) isPlayed(e Entry, isNowPlaying bool) bool {
-	return r.currentPlayingIndex >= 0 && !isNowPlaying && e.OrigIdx < r.currentPlayingIndex
+	if isNowPlaying {
+		return false
+	}
+	if r.timeline.active {
+		return r.timeline.played(e.OrigIdx)
+	}
+	return r.currentPlayingIndex >= 0 && e.OrigIdx < r.currentPlayingIndex
 }
 
 // cells lays out one entry's columns, padded to width and carrying the favorite

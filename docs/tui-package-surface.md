@@ -137,7 +137,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/settings` | 31 | 2 | 27 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 48 | 0 | 46 | 2 | `tui` |
-| `tui/queue` | 66 | 14 | 51 | 1 | `tui`, `internal/app` |
+| `tui/queue` | 73 | 14 | 58 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
@@ -253,7 +253,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**876 exported identifiers across 14 packages**: 150 reached from two or more packages, 671 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
+**883 exported identifiers across 14 packages**: 150 reached from two or more packages, 678 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -289,7 +289,7 @@ export must either earn a justification, be recorded in
 | `tui/sorting` | `RecentlyAddedSortFields` | var | `internal/tui` | root |
 | `tui/sorting` | `SortAlbum` | const | `internal/tui†`, `tui/queue` | multi |
 | `tui/sorting` | `SortArtist` | const | `internal/tui†`, `tui/queue` | multi |
-| `tui/sorting` | `SortAsc` | const | `internal/tui`, `tui/library` | multi |
+| `tui/sorting` | `SortAsc` | const | `internal/tui`, `tui/library`, `tui/queue†` | multi |
 | `tui/sorting` | `SortDateAdded` | const | `internal/tui`, `tui/library` | multi |
 | `tui/sorting` | `SortDefault` | const | `internal/tui`, `tui/browse`, `tui/favorites`, `tui/library`, `tui/playlists`, `tui/queue`, `tui/tags` | multi |
 | `tui/sorting` | `SortDesc` | const | `internal/tui`, `tui/library` | multi |
@@ -788,6 +788,11 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `MoveTrackUpMsg.Index` | field | `internal/tui` | root |
 | `tui/queue` | `NowPlayingIndicator` | func | `internal/tui` | root |
 | `tui/queue` | `SortQueueIndices` | func | `internal/tui†` | root (tests only) |
+| `tui/queue` | `Traversal` | type | `internal/tui` | root |
+| `tui/queue` | `Traversal.CurrentPosition` | field | `internal/tui` | root |
+| `tui/queue` | `Traversal.Order` | field | `internal/tui` | root |
+| `tui/queue` | `Traversal.Shuffled` | field | `internal/tui` | root |
+| `tui/queue` | `TraversalSource` | type | `internal/tui` | root |
 | `tui/queue` | `View` | type | `internal/tui` | root |
 | `tui/queue` | `View.CancelSaveAsPlaylist` | method | `internal/tui` | root |
 | `tui/queue` | `View.Cursor` | field | `internal/tui` | root |
@@ -809,6 +814,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.MoveQueueCursor` | method | `internal/tui†` | root (tests only) |
 | `tui/queue` | `View.RecomputeDisplayOrder` | method | `internal/tui` | root |
 | `tui/queue` | `View.Render` | method | `internal/tui` | root |
+| `tui/queue` | `View.ReorderBlocked` | method | `internal/tui` | root |
 | `tui/queue` | `View.SaveInput` | field | `internal/tui†` | root (tests only) |
 | `tui/queue` | `View.SaveInputIsEmpty` | method | `internal/tui` | root |
 | `tui/queue` | `View.SaveInputValue` | method | `internal/tui` | root |
@@ -821,6 +827,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.SortState` | field | `internal/tui` | root |
 | `tui/queue` | `View.StartSaveAsPlaylist` | method | `internal/tui` | root |
 | `tui/queue` | `View.TagFilterHashes` | field | `internal/tui` | root |
+| `tui/queue` | `View.Traversal` | field | `internal/tui` | root |
 | `tui/queue` | `View.UpdateSaveInput` | method | `internal/tui` | root |
 | `tui/queue` | `View.UpdateSaveInputMsg` | method | `internal/tui` | root |
 | `tui/queue` | `View.VisibleRows` | method | `internal/tui` | root |

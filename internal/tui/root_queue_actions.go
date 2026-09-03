@@ -170,7 +170,7 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 			m.statusBar.Notify("Nothing to paste")
 			return m, nil, true
 		}
-		if m.queue.DisplayOrder != nil || m.queue.Filter.Text != "" || len(m.queue.TagFilterHashes) > 0 {
+		if m.queue.ReorderBlocked() {
 			m.statusBar.Notify("Cannot paste while sorted/filtered")
 			return m, nil, true
 		}

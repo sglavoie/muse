@@ -7,11 +7,18 @@ import (
 	"github.com/sglavoie/muse/internal/tui/layout"
 )
 
-// FilteredEntries returns queue entries matching the current filter text,
-// in display order (respecting sort). When no filter is active, all entries
-// are returned in display order.
+// FilteredEntries returns queue entries matching the current filter text, in
+// display order (respecting sort and the live playback timeline). When no
+// filter is active, all entries are returned in display order.
 func (v View) FilteredEntries() []Entry {
-	ordered := v.orderedEntries()
+	return v.filteredEntries(v.traversalSnapshot())
+}
+
+// filteredEntries is FilteredEntries against one already-taken timeline
+// snapshot, so a caller that also needs the timeline for styling classifies
+// rows against the very order it rendered them in.
+func (v View) filteredEntries(t Traversal) []Entry {
+	ordered := v.orderedEntries(t)
 	if len(ordered) == 0 {
 		return nil
 	}
@@ -25,17 +32,15 @@ func (v View) FilteredEntries() []Entry {
 }
 
 // orderedEntries materialises the queue in display order, stamping each entry
-// with its index in the underlying queue. A DisplayOrder that no longer lines
-// up with the queue is discarded rather than trusted.
-func (v View) orderedEntries() []Entry {
+// with its index in the underlying queue. Both filters run over the result, so
+// stamping here is what keeps every later transformation — filtering, focus,
+// selection, dequeue — keyed to the right underlying row.
+func (v View) orderedEntries(t Traversal) []Entry {
 	n := len(v.Entries)
 	if n == 0 {
 		return nil
 	}
-	order := v.DisplayOrder
-	if order != nil && !validDisplayOrder(order, n) {
-		order = nil
-	}
+	order := v.effectiveOrder(t)
 	ordered := make([]Entry, n)
 	for i := range n {
 		idx := i

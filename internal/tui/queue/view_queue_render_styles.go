@@ -12,8 +12,10 @@ import (
 // renderStateStrip builds the unified single-line state strip carrying
 // the view label, sort, filter, and counts for the queue. total is the
 // full entry count before filtering; filtered is the count after filter
-// is applied (equal to total when no filter is active).
-func (v View) renderStateStrip(s styles.Styles, total, filtered int) string {
+// is applied (equal to total when no filter is active). timelineActive
+// says whether rows are ordered by the live shuffled traversal, which the
+// label announces so the numbering is not mistaken for storage order.
+func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineActive bool) string {
 	var sortChunk strip.SortChunk
 	if v.SortState.Field != sorting.SortDefault {
 		sortChunk = strip.SortChunk{
@@ -38,7 +40,18 @@ func (v View) renderStateStrip(s styles.Styles, total, filtered int) string {
 	if n := len(v.SelectedHashes()); n > 0 {
 		sel = &strip.SelectionChunk{Count: n}
 	}
-	return strip.Render(v.Width, []string{"Queue"}, sortChunk, f, counts, sel, "", s)
+	return strip.Render(v.Width, []string{queueStripLabel(v.SortState.Field, timelineActive)}, sortChunk, f, counts, sel, "", s)
+}
+
+// queueStripLabel names the view, appending the shuffle-order mode when the
+// timeline is what rows are ordered by. It is one crumb rather than two
+// because the two parts are one label separated by "·", not a breadcrumb path
+// with its "›" chevron.
+func queueStripLabel(field sorting.SortField, timelineActive bool) string {
+	if !timelineActive || field != sorting.SortDefault {
+		return "Queue"
+	}
+	return "Queue" + strip.Separator + "shuffle order"
 }
 
 // NowPlayingIndicator returns the icon string and its style for the

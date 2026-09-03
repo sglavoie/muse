@@ -43,9 +43,12 @@ type View struct {
 	SavingFromSelection bool            // true when saving only bulk-selected entries (not the full queue)
 	SaveInput           textinput.Model // current value of the inline save field
 	SortState           sorting.SortState
-	DisplayOrder        []int // nil when sort inactive (identity mapping)
+	DisplayOrder        []int // nil when no explicit metadata sort is active
 	Filter              filter.State
 	TagFilterHashes     map[string]struct{} // non-nil when a cross-view tag filter is active
+	// Traversal reads the player-owned playback timeline. Nil when the player
+	// exposes none, in which case rows keep persisted queue order.
+	Traversal TraversalSource
 }
 
 func (v *View) SetSize(w, h int) { v.Width = w; v.Height = h }
@@ -56,24 +59,57 @@ func (v View) RecomputeDisplayOrder() View {
 	return v
 }
 
+// effectiveOrder resolves the order rows are displayed in, given one timeline
+// snapshot. An explicit metadata sort wins, because the user asked for it; the
+// live shuffled traversal comes next, because it is what will actually play;
+// persisted queue order (nil, meaning identity) is the floor. An explicit sort
+// that no longer lines up with the queue falls straight to persisted order
+// rather than to the traversal, so the panel never disagrees with the "sort"
+// chunk the state strip is showing.
+func (v View) effectiveOrder(t Traversal) []int {
+	n := len(v.Entries)
+	if v.DisplayOrder != nil {
+		if validDisplayOrder(v.DisplayOrder, n) {
+			return v.DisplayOrder
+		}
+		return nil
+	}
+	order, ok := t.order(n)
+	if !ok {
+		return nil
+	}
+	return order
+}
+
+// timelineActive reports whether rows are currently ordered by the live
+// shuffled traversal rather than by persisted queue order. Position-based
+// edits must refuse while it is true: a display row then names a different
+// queue row than its position suggests, which is what ReorderBlocked exposes.
+func (v View) timelineActive(t Traversal) bool {
+	if v.DisplayOrder != nil {
+		return false
+	}
+	_, ok := t.order(len(v.Entries))
+	return ok
+}
+
 // EntryIndex translates a display row index to the underlying entries index.
 func (v View) EntryIndex(displayIdx int) int {
-	if v.DisplayOrder == nil {
+	order := v.effectiveOrder(v.traversalSnapshot())
+	if order == nil || displayIdx < 0 || displayIdx >= len(order) {
 		return displayIdx
 	}
-	if displayIdx < 0 || displayIdx >= len(v.DisplayOrder) {
-		return displayIdx
-	}
-	return v.DisplayOrder[displayIdx]
+	return order[displayIdx]
 }
 
 // FindEntryDisplayPosition returns the display row for the given underlying
 // entry index. Returns 0 if not found.
 func (v View) FindEntryDisplayPosition(entryIdx int) int {
-	if v.DisplayOrder == nil {
+	order := v.effectiveOrder(v.traversalSnapshot())
+	if order == nil {
 		return entryIdx
 	}
-	for i, idx := range v.DisplayOrder {
+	for i, idx := range order {
 		if idx == entryIdx {
 			return i
 		}
