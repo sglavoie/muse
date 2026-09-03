@@ -240,6 +240,34 @@ type Manager struct {
 	// the state the rest of the Manager already reflects. Guarded by mu.
 	replacing replacementState
 
+	// loadGen counts the queue-owned playlist replacements that have been
+	// started, where playlistGen counts the ones mpv has accepted. It is
+	// bumped when a replacement window opens — before any traversal state is
+	// published and before the loadfile is sent — and given back when a window
+	// closes without a load having landed.
+	//
+	// It is what correlates an end-file/eof with the entry that produced it
+	// once the replacement has been acknowledged. playlistGen cannot: it
+	// advances only after mpv answers, and the window closes with it, so
+	// between them nothing distinguishes an EOF the old entry emitted before
+	// the answer (and that sat buffered on the event socket) from one the new
+	// entry emitted after it. Guarded by mu.
+	loadGen uint64
+
+	// startedLoadGen is the load generation that was live when mpv last
+	// reported a file starting. The event socket is ordered, so the end-file of
+	// an entry is always read before the start-file of whatever replaced it:
+	// at the moment an end-file is handled, this names the generation the
+	// entry that ended belongs to. A mismatch with loadGen therefore means a
+	// replacement has superseded that entry, whether or not its command is
+	// still in flight.
+	//
+	// Zero means the correlation is disarmed: either the event reader has not
+	// observed a file start yet, or no replacement has ever been started, so
+	// there is no superseding load an end-file could belong to the wrong side
+	// of. Guarded by mu.
+	startedLoadGen uint64
+
 	// Go-owned shuffle traversal state, all guarded by mu. When
 	// shuffleEnabled is true, Next/Previous consult this state instead of
 	// plain visible-order index arithmetic; mpv's own shuffle property is

@@ -23,14 +23,38 @@ import (
 // lock before anything is committed, because a queue mutation can land between
 // the snapshot and the commit.
 type eofState struct {
-	currentIndex int
-	queueLen     int
-	shuffle      bool
-	stopAfter    bool
-	prefetch     prefetchState
-	playlistGen  uint64
-	replacing    replacementState
-	marker       MissingMarker
+	currentIndex   int
+	queueLen       int
+	shuffle        bool
+	stopAfter      bool
+	prefetch       prefetchState
+	playlistGen    uint64
+	replacing      replacementState
+	loadGen        uint64
+	startedLoadGen uint64
+	marker         MissingMarker
+}
+
+// superseded reports whether the entry that emitted this end-file had already
+// been discarded by a queue-owned replacement.
+//
+// The two halves cover the same window from opposite sides. An active
+// replacement has published the row (or the reanchored cycle) it is making
+// current but is still waiting on mpv, so what ended is the entry it is
+// discarding. A load generation that no longer matches the one mpv last
+// reported a file starting in says the same thing after the fact: the
+// replacement has been acknowledged and its window is closed, and this
+// end-file was emitted by an entry from before it — buffered on the event
+// socket while the replacement went through, and only read now.
+//
+// The generation half is disarmed while startedLoadGen is zero: nothing has
+// ever identified which generation mpv is playing in, so no end-file can be
+// attributed to a superseded one.
+func (s eofState) superseded() bool {
+	if s.replacing.active() {
+		return true
+	}
+	return s.startedLoadGen != 0 && s.startedLoadGen != s.loadGen
 }
 
 // supersededAttrs returns the structured context for an EOF that was discarded
@@ -40,6 +64,9 @@ func (s eofState) supersededAttrs() []any {
 		"op", "superseded-eof",
 		"playlistGen", s.replacing.gen,
 		"prefetchedGen", s.prefetch.gen,
+		"loadGen", s.loadGen,
+		"startedLoadGen", s.startedLoadGen,
+		"replacementInFlight", s.replacing.active(),
 		"queueIndex", s.currentIndex,
 		"queueLen", s.queueLen,
 		"replacingPath", s.replacing.path,
@@ -92,12 +119,13 @@ func (t eofTransition) logAttrs(op string, err error) []any {
 // and hands every operation that can block to the background.
 func (m *Manager) handleEndOfFile() {
 	state := m.snapshotEOF()
-	if state.replacing.active() {
-		// A queue-owned replacement is mid-flight: it has already published the
-		// row (or the reanchored cycle) it is making current, but mpv has not
-		// confirmed the load, so what just ended is the entry the replacement is
-		// discarding. Deciding anything from here would measure the successor
-		// from the new selection instead of from the row that finished. The
+	if state.superseded() {
+		// A queue-owned replacement has claimed this transition: it has already
+		// published the row (or the reanchored cycle) it is making current, so
+		// what just ended is the entry it is discarding — whether the loadfile
+		// is still in flight or mpv answered it while this event waited on the
+		// socket. Deciding anything from here would measure the successor from
+		// the new selection instead of from the row that finished. The
 		// replacement itself starts playback and its transaction refills the
 		// prefetch, so there is nothing left for this EOF to do.
 		slog.Debug("mpv: eof: discarded an end-file from a superseded playlist entry",
@@ -137,16 +165,18 @@ func (m *Manager) snapshotEOF() eofState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	state := eofState{
-		currentIndex: m.currentIndex,
-		queueLen:     len(m.queue),
-		shuffle:      m.shuffleEnabled,
-		stopAfter:    m.stopAfterCurrent,
-		prefetch:     m.prefetchSnapshotLocked(),
-		playlistGen:  m.playlistGen,
-		replacing:    m.replacing,
-		marker:       m.marker,
+		currentIndex:   m.currentIndex,
+		queueLen:       len(m.queue),
+		shuffle:        m.shuffleEnabled,
+		stopAfter:      m.stopAfterCurrent,
+		prefetch:       m.prefetchSnapshotLocked(),
+		playlistGen:    m.playlistGen,
+		replacing:      m.replacing,
+		loadGen:        m.loadGen,
+		startedLoadGen: m.startedLoadGen,
+		marker:         m.marker,
 	}
-	if state.replacing.active() {
+	if state.superseded() {
 		return state
 	}
 	if state.stopAfter {

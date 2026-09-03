@@ -103,7 +103,11 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 
 	// Emit the current track info immediately so the TUI gets a
 	// TrackChangedMsg even when the start-file event fired before this
-	// reader connected (race during reconnect / session restore).
+	// reader connected (race during reconnect / session restore). That same
+	// unobserved start-file is what adoptCurrentLoad accounts for: the
+	// end-file correlation below would otherwise still name the load
+	// generation the previous reader last saw a file start in.
+	m.adoptCurrentLoad()
 	m.emitCurrentTrackChanged()
 
 	scanner := bufio.NewScanner(conn)
@@ -114,6 +118,14 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 		}
 		switch event.Event {
 		case "start-file":
+			// Stamp the entry mpv is entering with the load generation that is
+			// live now, before anything below can block. Events arrive in
+			// order on this one socket, so an end-file read later is always
+			// the end of an entry stamped at or before this point: comparing
+			// its stamp against the live generation is what tells a genuine
+			// transition from one a replacement already superseded.
+			m.noteFileStarted()
+
 			// Immediately sync the position so that a crash right after track
 			// start resumes at the correct file (elapsed≈0) rather than the
 			// previous track's last persisted position.

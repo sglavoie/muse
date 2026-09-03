@@ -62,6 +62,12 @@ type replacementState struct {
 	// and gen the playlist generation it supersedes. Both are diagnostics only.
 	path string
 	gen  uint64
+	// prevLoadGen is the load generation the outermost window displaced and
+	// loaded records whether a load inside it reached mpv. Together they let a
+	// window that replaced nothing hand the generation back, so the entry mpv
+	// never stopped playing keeps matching it.
+	prevLoadGen uint64
+	loaded      bool
 }
 
 // active reports whether a queue-owned replacement is in flight.
@@ -75,6 +81,12 @@ func (r replacementState) active() bool { return r.depth > 0 }
 func (m *Manager) beginReplacementLocked(path string) {
 	if m.replacing.depth == 0 {
 		m.replacing.gen = m.playlistGen
+		m.replacing.prevLoadGen = m.loadGen
+		// Open the load generation here rather than when mpv answers: from this
+		// point on, whatever mpv is still playing belongs to the generation
+		// this window is superseding, and it keeps belonging to it after the
+		// answer arrives and the window closes.
+		m.loadGen++
 	}
 	if path != "" {
 		m.replacing.path = path
@@ -88,9 +100,50 @@ func (m *Manager) beginReplacementLocked(path string) {
 // The caller must hold m.mu.
 func (m *Manager) endReplacementLocked() {
 	m.replacing.depth--
-	if m.replacing.depth <= 0 {
-		m.replacing = replacementState{}
+	if m.replacing.depth > 0 {
+		return
 	}
+	// A window that got no load accepted — an exhausted traversal, a rejected
+	// loadfile, a transaction that only dropped a prefetch — leaves mpv on the
+	// entry it was already playing, so the generation it opened describes
+	// nothing. Hand it back, or that entry's own end-file would read as
+	// superseded and be discarded, stalling the queue.
+	//
+	// Unless mpv started a file inside the window on its own: a gapless
+	// transition into a prefetched successor is stamped with the new
+	// generation, so that generation is now the live one and must stand.
+	if !m.replacing.loaded && m.startedLoadGen != m.loadGen {
+		m.loadGen = m.replacing.prevLoadGen
+	}
+	m.replacing = replacementState{}
+}
+
+// noteFileStarted records that mpv has begun playing a file in the load
+// generation that is live now. The event reader calls it for every start-file,
+// which is what arms the end-file correlation: events arrive in order on one
+// socket, so the end-file of an entry is always read before the start-file of
+// whatever replaced it.
+func (m *Manager) noteFileStarted() {
+	m.mu.Lock()
+	m.startedLoadGen = m.loadGen
+	m.mu.Unlock()
+}
+
+// adoptCurrentLoad re-stamps the entry mpv is playing with the live load
+// generation, for an event reader that is starting mid-playback: a reconnect or
+// a subprocess restart emits its start-file to a socket this reader was not yet
+// scanning. Without it the correlation would keep naming a generation this
+// reader never saw a file start in, and would discard every end-file after it.
+//
+// A reader that has never observed a file start leaves the correlation
+// disarmed instead of claiming the live generation for an entry it knows
+// nothing about.
+func (m *Manager) adoptCurrentLoad() {
+	m.mu.Lock()
+	if m.startedLoadGen != 0 {
+		m.startedLoadGen = m.loadGen
+	}
+	m.mu.Unlock()
 }
 
 // beginReplacement is beginReplacementLocked for a caller that does not hold m.mu.
@@ -259,6 +312,11 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		commit()
 	}
 	m.playlistGen++
+	// The load landed, so the generation this window opened is the one mpv is
+	// entering: it stands even though nothing has reported the new file
+	// starting yet, which is exactly the interval an old buffered end-file can
+	// still be read in.
+	m.replacing.loaded = true
 	m.dropPrefetchTrackingLocked()
 	// The replacement also swept away any completed entry a failed EOF cleanup
 	// left behind, so slot addressing is meaningful again.

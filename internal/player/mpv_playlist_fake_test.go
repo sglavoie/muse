@@ -43,6 +43,10 @@ type fakePlaylist struct {
 	log     []ipcTestCommand
 	fails   map[string]*fakeFailure
 	gates   map[string]*fakeGate
+	// eventHold, while non-nil, parks the async event stream: mpv keeps
+	// accepting commands and keeps emitting, but the manager's event reader
+	// sees nothing until the hold is released.
+	eventHold chan struct{}
 
 	events chan string
 	done   chan struct{}
@@ -177,6 +181,9 @@ func (f *fakePlaylist) stream(conn net.Conn, writeMu *sync.Mutex) {
 		case <-f.done:
 			return
 		case event := <-f.events:
+			if !f.awaitEventRelease() {
+				return
+			}
 			writeMu.Lock()
 			_, err := fmt.Fprintln(conn, event)
 			writeMu.Unlock()
@@ -184,6 +191,24 @@ func (f *fakePlaylist) stream(conn net.Conn, writeMu *sync.Mutex) {
 				return
 			}
 		}
+	}
+}
+
+// awaitEventRelease blocks while a hold is installed, so events emitted during
+// the hold reach the reader only afterwards — and in the order they were
+// emitted. It reports false when the fake shut down while parked.
+func (f *fakePlaylist) awaitEventRelease() bool {
+	f.mu.Lock()
+	hold := f.eventHold
+	f.mu.Unlock()
+	if hold == nil {
+		return true
+	}
+	select {
+	case <-hold:
+		return true
+	case <-f.done:
+		return false
 	}
 }
 
@@ -392,6 +417,34 @@ func (f *fakePlaylist) block(t *testing.T, key string) *fakeGate {
 	f.mu.Unlock()
 	t.Cleanup(g.release)
 	return g
+}
+
+// holdEvents stops the async event stream at the socket: mpv still runs every
+// command it is given and still emits, but nothing reaches the manager's event
+// reader until the returned release is called. It models an event socket the
+// reader has not drained yet, which is how an entry's end-file survives the
+// acknowledgement of the replacement that discarded it.
+//
+// The release is idempotent and also runs via t.Cleanup, so a failed assertion
+// cannot leave the stream parked.
+func (f *fakePlaylist) holdEvents(t *testing.T) func() {
+	t.Helper()
+	hold := make(chan struct{})
+	f.mu.Lock()
+	f.eventHold = hold
+	f.mu.Unlock()
+
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			f.mu.Lock()
+			f.eventHold = nil
+			f.mu.Unlock()
+			close(hold)
+		})
+	}
+	t.Cleanup(release)
+	return release
 }
 
 // unblock removes the barrier for key and releases anything parked on it.

@@ -280,6 +280,297 @@ func TestEOF_ReplacementInFlightKeepsStopAfterCurrentArmed(t *testing.T) {
 	}
 }
 
+// waitForCorrelatedLoad blocks until the event reader has processed the
+// start-file of the entry mpv is playing. That stamp is what arms the end-file
+// correlation, so a test that wants to prove a *buffered* end-file is rejected
+// must first establish the entry it belongs to.
+func waitForCorrelatedLoad(t *testing.T, m *Manager, f *fakePlaylist) {
+	t.Helper()
+	f.waitFor(t, "the event reader to correlate the playing entry", func() bool {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		return m.startedLoadGen != 0 && m.startedLoadGen == m.loadGen
+	})
+}
+
+// drainHeldEvents releases a hold installed by holdEvents and blocks until every
+// event buffered behind it has been dispatched. The pause change is the barrier:
+// it is emitted last and the reader dispatches in arrival order on one
+// goroutine, so observing it proves the buffered end-file was already decided.
+func drainHeldEvents(t *testing.T, m *Manager, f *fakePlaylist, release func()) {
+	t.Helper()
+	release()
+	f.emit(`{"event":"property-change","name":"pause","data":true}`)
+	f.waitFor(t, "the event reader to dispatch the buffered events", func() bool {
+		m.mu.RLock()
+		defer m.mu.RUnlock()
+		return m.lastPaused
+	})
+}
+
+// TestEOF_BufferedOldEventAfterReplacementDoesNotAdvance is the deterministic
+// regression for an EOF that outlives the replacement acknowledgement.
+//
+// The replacement window closes as soon as mpv answers the loadfile, and the
+// playlist generation advances with it — so an end-file the old entry emitted
+// *before* that answer, but which was still sitting unread on the event socket,
+// is decided against state that describes the selection entirely: its
+// currentIndex, its freshly stamped prefetch, its generation. Nothing in that
+// mixture says the row that ended is not the row that is playing, so the
+// promotion is accepted and the selection's successor is committed as current
+// while mpv is still on the selection itself.
+//
+// The end-file belongs to an entry the replacement discarded, so it must decide
+// nothing: the selected row stands and so does the successor prefetched for it.
+func TestEOF_BufferedOldEventAfterReplacementDoesNotAdvance(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-buffered")
+	queue := queueOf(t, 5)
+	installQueue(m, queue, -1, true)
+	runEventReader(t, m, f)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 1))
+	assertPrefetch(t, m, queue, 1)
+	waitForCorrelatedLoad(t, m, f)
+
+	// Freeze the event socket. Everything mpv emits from here is buffered,
+	// which is what lets the old entry's end-file survive into a world where
+	// the replacement has already been acknowledged.
+	release := f.holdEvents(t)
+
+	// The last second of queue[0]: mpv moves onto the prefetched successor by
+	// itself and emits end-file/eof plus start-file, neither of them visible to
+	// the reader yet.
+	f.finishCurrent()
+
+	// The user selects a different row while those events are still in the
+	// pipe. The selection runs end to end — playlist replaced, generation
+	// bumped, window closed — and its own successor is prefetched behind it.
+	if err := m.PlayFromIndex(3); err != nil {
+		t.Fatalf("PlayFromIndex(3): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 3, 4))
+	assertPrefetch(t, m, queue, 4)
+	removalsBefore := f.count(isPlaylistRemove)
+	replacesBefore := f.count(isLoadfileReplace)
+
+	// Only now does the reader get to the end-file of the discarded entry.
+	drainHeldEvents(t, m, f, release)
+	// The damage a promotion does lands in its background maintenance, after
+	// the decision itself has returned.
+	time.Sleep(150 * time.Millisecond)
+
+	if got := currentIdx(m); got != 3 {
+		t.Fatalf("currentIndex = %d, want 3: a buffered EOF advanced past the selected row", got)
+	}
+	if got := f.playingPath(); got != queue[3].Path {
+		t.Fatalf("mpv is playing %q, want the selected %q", got, queue[3].Path)
+	}
+	if got := f.entriesSnapshot(); !slices.Equal(got, paths(queue, 3, 4)) {
+		t.Fatalf("entries = %v, want %v: the selected row and its successor", got, paths(queue, 3, 4))
+	}
+	assertPrefetch(t, m, queue, 4)
+	if got := f.count(isPlaylistRemove); got != removalsBefore {
+		t.Fatalf("playlist-remove count = %d, want %d: the superseded EOF ran its completed-slot cleanup "+
+			"against the selection's playlist", got, removalsBefore)
+	}
+	if got := f.count(isLoadfileReplace); got != replacesBefore {
+		t.Fatalf("loadfile replace count = %d, want %d: the superseded EOF sent an advance of its own",
+			got, replacesBefore)
+	}
+}
+
+// TestEOF_BufferedOldEventAfterReplacementDoesNotMutateShuffle is the shuffle
+// half of the same ordering. The traversal, not the visible index, is what a
+// promotion moves here: committing the successor the discarded entry had
+// resolved grafts an unplayed identity onto the cycle the selection reanchored,
+// leaving a Previous entry that was never heard.
+func TestEOF_BufferedOldEventAfterReplacementDoesNotMutateShuffle(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-buffered-shuffle")
+	queue := queueOf(t, 4)
+	m.mu.Lock()
+	m.gaplessEnabled = true
+	m.mu.Unlock()
+	buildShuffleState(t, m, queue, 0, reversePermute)
+	runEventReader(t, m, f)
+
+	// reversePermute leaves index 3 first in the unseen pool, so the anchor's
+	// prefetched successor is queue[3].
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 3))
+	waitForCorrelatedLoad(t, m, f)
+
+	release := f.holdEvents(t)
+	f.finishCurrent()
+
+	// Reanchoring around index 1 resets the cycle; the identity the old entry
+	// was on its way to must not be consumed by it.
+	if err := m.PlayFromIndex(1); err != nil {
+		t.Fatalf("PlayFromIndex(1): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 1, 3))
+
+	drainHeldEvents(t, m, f, release)
+	time.Sleep(150 * time.Millisecond)
+
+	history, pos, _ := shuffleSnapshotForTest(m)
+	if len(history) != 1 || pos != 0 {
+		t.Fatalf("shuffleHistory = %v pos = %d, want the reanchored selection alone: "+
+			"a buffered EOF committed onto the new cycle", history, pos)
+	}
+	if got := currentIdx(m); got != 1 {
+		t.Fatalf("currentIndex = %d, want 1", got)
+	}
+	if got := f.playingPath(); got != queue[1].Path {
+		t.Fatalf("mpv is playing %q, want the selected %q", got, queue[1].Path)
+	}
+	if got := f.entriesSnapshot(); !slices.Equal(got, paths(queue, 1, 3)) {
+		t.Fatalf("entries = %v, want %v: the selected row and the successor its cycle resolves",
+			got, paths(queue, 1, 3))
+	}
+}
+
+// TestEOF_RejectedReplacementKeepsTheNextEOFLive is the other side of the
+// correlation: a window that opens is not yet a replacement. mpv rejected the
+// loadfile, so it never stopped playing the entry it had — that entry is still
+// the live one, and its own end-file must still be acted on. A correlation that
+// only ever moved forward would strand it one generation behind and turn a
+// failed selection into a queue that stops at the end of the current track.
+func TestEOF_RejectedReplacementKeepsTheNextEOFLive(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-rejected-replace")
+	queue := queueOf(t, 3)
+	installQueue(m, queue, -1, true)
+	runEventReader(t, m, f)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 1))
+	assertPrefetch(t, m, queue, 1)
+	waitForCorrelatedLoad(t, m, f)
+
+	// The selection is refused by mpv, which leaves its playlist — and so the
+	// entry the next end-file will belong to — exactly as it was.
+	f.failCommand("loadfile:replace", "device error")
+	if err := m.PlayFromIndex(2); err == nil {
+		t.Fatal("PlayFromIndex(2) succeeded; the fake was told to reject the load")
+	}
+	f.clearFailure("loadfile:replace")
+	if got := currentIdx(m); got != 0 {
+		t.Fatalf("currentIndex = %d, want 0: a rejected load must not move the queue position", got)
+	}
+	if got := f.playingPath(); got != queue[0].Path {
+		t.Fatalf("mpv is playing %q, want the unchanged %q", got, queue[0].Path)
+	}
+
+	// The track it never stopped playing now ends, and the gapless successor
+	// mpv already holds must be promoted as usual.
+	f.finishCurrent()
+
+	waitForCurrentIndex(t, m, 1)
+	if got := f.playingPath(); got != queue[1].Path {
+		t.Fatalf("mpv is playing %q, want the promoted successor %q", got, queue[1].Path)
+	}
+	f.waitForEntries(t, paths(queue, 1, 2))
+	assertPrefetch(t, m, queue, 2)
+}
+
+// TestEOF_GaplessStartInsideARejectedReplacementStaysLive covers the one case
+// where a window that loaded nothing must still keep the generation it opened:
+// mpv moved into the prefetched successor by itself while the window was open,
+// so the entry that is playing was stamped with the new generation as it
+// started. Handing the generation back would strand that stamp ahead of it and
+// discard the successor's own end-file — the same stall from the other
+// direction.
+func TestEOF_GaplessStartInsideARejectedReplacementStaysLive(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-gapless-in-window")
+	queue := queueOf(t, 3)
+	installQueue(m, queue, -1, true)
+	runEventReader(t, m, f)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 1))
+	waitForCorrelatedLoad(t, m, f)
+	startedBefore := startedLoadGenOf(m)
+
+	// Park a selection so the window stays open, then let mpv reach the end of
+	// the current entry inside it: the end-file is superseded and dropped, but
+	// the start-file of the successor mpv moved onto is real and stamps the
+	// generation the window opened.
+	gate, selected := parkReplacement(t, m, f, 2)
+	f.finishCurrent()
+	f.waitFor(t, "the successor's start-file to be correlated", func() bool {
+		return startedLoadGenOf(m) != startedBefore
+	})
+
+	// The selection is then refused, so the window closes having loaded nothing
+	// — but the successor mpv is playing still belongs to its generation.
+	f.failCommand("loadfile:replace", "device error")
+	gate.release()
+	f.unblock("loadfile:replace")
+	if err := <-selected; err == nil {
+		t.Fatal("PlayFromIndex(2) succeeded; the fake was told to reject the load")
+	}
+	f.clearFailure("loadfile:replace")
+
+	// The successor now ends. Its end-file is the live one and must be acted on.
+	f.finishCurrent()
+	waitForCurrentIndex(t, m, 1)
+	f.waitFor(t, "the queue to keep running past the successor", func() bool {
+		return f.count(isAppendOf(queue[2].Path)) > 0
+	})
+}
+
+// TestEOF_ReaderRestartAdoptsTheLiveLoadGeneration covers the correlation's blind
+// spot: a load that lands while no event reader is scanning. Its start-file goes
+// to a socket nobody is reading, so the stamp on the entry mpv is playing is left
+// naming the generation the previous reader last saw a file start in — and every
+// end-file from then on reads as superseded, stalling the queue for good. The
+// reader that comes up next has to adopt what mpv is playing as its own.
+//
+// The adoption is driven directly rather than by starting a second reader: both
+// readers would hold a live connection to the one fake socket and split the event
+// stream between them. It is called at exactly this point in startEventReader,
+// next to the TrackChangedMsg emitted for the same unobserved start-file.
+func TestEOF_ReaderRestartAdoptsTheLiveLoadGeneration(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-reader-restart")
+	queue := queueOf(t, 3)
+	installQueue(m, queue, -1, true)
+	runEventReader(t, m, f)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 1))
+	assertPrefetch(t, m, queue, 1)
+	waitForCorrelatedLoad(t, m, f)
+
+	// A replacement opens and lands with the reader down — an mpv restart
+	// reloading the current file, or a load deferred to the reconnect queue and
+	// drained during activation. mpv is playing the new entry; nothing correlated
+	// it, so the stamp is a generation behind.
+	m.mu.Lock()
+	m.loadGen++
+	m.mu.Unlock()
+
+	m.adoptCurrentLoad()
+
+	// The entry mpv is playing now ends. It is the live one, so the queue keeps
+	// running: without the adoption its end-file looks superseded and is dropped.
+	f.finishCurrent()
+	waitForCurrentIndex(t, m, 1)
+	if got := f.playingPath(); got != queue[1].Path {
+		t.Fatalf("mpv is playing %q, want the promoted successor %q", got, queue[1].Path)
+	}
+	assertPrefetch(t, m, queue, 2)
+}
+
 // TestEOF_GaplessTransitionRemovesCompletedSlotBeforeAppending covers the happy
 // path and the ordering inside it: mpv advances to the prefetched entry on its
 // own, and the maintenance that follows removes the finished entry before
@@ -653,4 +944,12 @@ func TestEOF_ShufflePrefetchPromotionCommitsHistory(t *testing.T) {
 	if got := f.playingPath(); got != queue[3].Path {
 		t.Fatalf("mpv is playing %q, want %q", got, queue[3].Path)
 	}
+}
+
+// startedLoadGenOf reads the load generation the event reader last correlated a
+// file start with.
+func startedLoadGenOf(m *Manager) uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.startedLoadGen
 }
