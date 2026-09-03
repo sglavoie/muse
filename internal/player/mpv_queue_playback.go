@@ -16,6 +16,16 @@ import (
 // behind, and must not be translated into OnPlaybackEnded.
 var errTraversalExhausted = fmt.Errorf("%w: traversal exhausted", ErrPlaybackFailed)
 
+// errEOFSuperseded marks an auto-advance abandoned because the playlist
+// generation the EOF was decided against no longer exists: a queue-owned
+// replacement won the transaction lock first and mpv is already playing what it
+// loaded.
+//
+// It deliberately does NOT wrap ErrPlaybackFailed. Nothing failed and nothing is
+// exhausted — the transition the EOF was going to make has been made by someone
+// else — so it must reach neither OnPlaybackEnded nor the failure log.
+var errEOFSuperseded = errors.New("eof superseded by a playlist replacement")
+
 // PlayFromIndex starts playback from the queue entry at index in response to an
 // explicit user selection. When shuffle is off it plays the visible queue
 // forward from index, skipping missing entries. When shuffle is on it reanchors
@@ -239,18 +249,25 @@ func (m *Manager) advanceBackwardLocked() (int, error) {
 	}
 }
 
-// advanceAfterCurrent advances playback after the current track ends. It is the
-// internal traversal load used by auto-advance (EOF): it advances existing
-// shuffle history without reanchoring the cycle, or plays the sequential next
-// index when shuffle is off.
-func (m *Manager) advanceAfterCurrent(seqNext int) error {
+// advanceAfterCurrentLocked advances playback after the current track ends. It
+// is the internal traversal load used by auto-advance (EOF): it advances
+// existing shuffle history without reanchoring the cycle, or plays the
+// sequential next index when shuffle is off. It returns the queue index the
+// traversal landed on.
+//
+// It has no unlocked counterpart on purpose: its only caller runs it inside a
+// transaction it opened itself, so that the playlist generation the EOF was
+// decided against can be re-validated in the same serialized step as the load.
+//
+// The caller must hold m.playlistMu.
+func (m *Manager) advanceAfterCurrentLocked(seqNext int) (int, error) {
 	m.mu.RLock()
 	shuffle := m.shuffleEnabled
 	m.mu.RUnlock()
 	if shuffle {
-		return m.advanceForward()
+		return m.advanceForwardLocked()
 	}
-	return m.playSequentialFrom(seqNext)
+	return m.playSequentialFromLocked(seqNext)
 }
 
 // RestartQueueCycle restarts playback of the queue from the beginning of a

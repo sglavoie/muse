@@ -36,6 +36,77 @@ type prefetchState struct {
 	gen      uint64
 }
 
+// replacementState is the correlation the end-file/eof decision needs: it names
+// the queue-owned playlist replacements that have begun but that mpv has not
+// confirmed yet.
+//
+// playlistGen alone cannot supply that correlation. A replacement publishes the
+// index (or the reanchored shuffle cycle) it is about to make current *before*
+// the loadfile is sent, and advances playlistGen only after mpv accepts it, so
+// throughout the send window every generation-stamped fact still describes the
+// entry being discarded while currentIndex and the traversal already describe
+// its replacement. An EOF decided from that mixture reads the new target with
+// the old prefetch: it rejects the promotion and then queues a fallback advance
+// measured from the row the user just selected, which lands playback one row
+// past the selection — or, under shuffle, grafts the old successor onto the
+// freshly reanchored cycle.
+//
+// depth is a nesting count rather than a flag because the marker is taken at two
+// levels: a playlist transaction marks its whole body, since the traversal step
+// inside it is where the new state first becomes visible, and replaceLocked
+// marks its own load for the callers that reach it without a transaction wrapper
+// (PlayQueueEntry, and the direct calls in tests).
+type replacementState struct {
+	depth int
+	// path is the file the most recent replacement in this window is loading,
+	// and gen the playlist generation it supersedes. Both are diagnostics only.
+	path string
+	gen  uint64
+}
+
+// active reports whether a queue-owned replacement is in flight.
+func (r replacementState) active() bool { return r.depth > 0 }
+
+// beginReplacementLocked opens a replacement window. Pass the file being loaded
+// when it is known, or "" from a transaction wrapper that has not resolved a
+// candidate yet.
+//
+// The caller must hold m.mu.
+func (m *Manager) beginReplacementLocked(path string) {
+	if m.replacing.depth == 0 {
+		m.replacing.gen = m.playlistGen
+	}
+	if path != "" {
+		m.replacing.path = path
+	}
+	m.replacing.depth++
+}
+
+// endReplacementLocked closes one replacement window opened by
+// beginReplacementLocked.
+//
+// The caller must hold m.mu.
+func (m *Manager) endReplacementLocked() {
+	m.replacing.depth--
+	if m.replacing.depth <= 0 {
+		m.replacing = replacementState{}
+	}
+}
+
+// beginReplacement is beginReplacementLocked for a caller that does not hold m.mu.
+func (m *Manager) beginReplacement(path string) {
+	m.mu.Lock()
+	m.beginReplacementLocked(path)
+	m.mu.Unlock()
+}
+
+// endReplacement is endReplacementLocked for a caller that does not hold m.mu.
+func (m *Manager) endReplacement() {
+	m.mu.Lock()
+	m.endReplacementLocked()
+	m.mu.Unlock()
+}
+
 // prefetchSnapshotLocked copies the current prefetch tracking.
 //
 // The caller must hold m.mu.
@@ -143,12 +214,18 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		return ErrMissingFile
 	}
 
+	// Publish the traversal state and open the replacement window in the same
+	// critical section. From here until mpv confirms the load, an end-file/eof
+	// belongs to the entry this replacement is discarding, so the EOF decision
+	// must not read the state committed just above as if it described what
+	// ended.
 	var undo func()
+	m.mu.Lock()
 	if commit != nil {
-		m.mu.Lock()
 		undo = commit()
-		m.mu.Unlock()
 	}
+	m.beginReplacementLocked(entry.Path)
+	m.mu.Unlock()
 
 	err := m.admitPlaylist(func(c *IPCClient) error {
 		if _, err := c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no"); err != nil {
@@ -158,11 +235,12 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		return nil
 	})
 	if err != nil {
+		m.mu.Lock()
 		if undo != nil {
-			m.mu.Lock()
 			undo()
-			m.mu.Unlock()
 		}
+		m.endReplacementLocked()
+		m.mu.Unlock()
 		return err
 	}
 
@@ -173,11 +251,11 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	m.mu.Lock()
 	if commit != nil {
 		// Re-assert the index. The EOF handler makes its promotion under m.mu
-		// alone, by design — it must not wait on the playlist transaction — so it
-		// can move currentIndex onto a prefetched entry while this load is in
-		// flight. mpv is playing what this replacement loaded, and the entry the
-		// promotion named is exactly what the replacement discarded, so the
-		// commit is the one that describes mpv.
+		// alone, by design — it must not wait on the playlist transaction — so
+		// the promotion runs on a goroutine this transaction never joins. The
+		// replacement window above is what stops it from committing over this
+		// load; re-asserting here keeps the index correct even if a promotion
+		// slipped through before the window opened.
 		commit()
 	}
 	m.playlistGen++
@@ -185,6 +263,7 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	// The replacement also swept away any completed entry a failed EOF cleanup
 	// left behind, so slot addressing is meaningful again.
 	m.completedSlotPending = false
+	m.endReplacementLocked()
 	m.mu.Unlock()
 	return nil
 }
@@ -298,9 +377,18 @@ func (m *Manager) runPlaylistTxn(fn func() error) error {
 // is not derivable from the request: sequential traversal skips entries missing
 // on disk and shuffle traversal follows identities rather than positions. A
 // failed transaction reports -1.
+//
+// The whole body runs inside a replacement window, not just the loadfile it
+// eventually sends. Every body routed through here replaces mpv's playlist, and
+// each one mutates the traversal before it reaches replaceLocked — the shuffle
+// reanchor, the provisional forward step, the history rewind. That mutation is
+// already visible to an EOF landing on the event reader, so the window has to
+// start with the body rather than with the load.
 func (m *Manager) runPlaylistTxnIndex(fn func() (int, error)) (int, error) {
 	m.playlistMu.Lock()
+	m.beginReplacement("")
 	idx, err := fn()
+	m.endReplacement()
 	m.playlistMu.Unlock()
 	if err != nil {
 		return -1, err

@@ -223,6 +223,14 @@ type Manager struct {
 	// can be recognized and discarded instead of falsely advanced into.
 	playlistGen uint64
 
+	// replacing records the queue-owned playlist replacements that are in
+	// flight: a replacement transaction has published (or is about to
+	// publish) the traversal state it is making current, but mpv has not yet
+	// confirmed the `loadfile ... replace` that acts on it. While it is set,
+	// an end-file/eof describes the entry the replacement is discarding, not
+	// the state the rest of the Manager already reflects. Guarded by mu.
+	replacing replacementState
+
 	// Go-owned shuffle traversal state, all guarded by mu. When
 	// shuffleEnabled is true, Next/Previous consult this state instead of
 	// plain visible-order index arithmetic; mpv's own shuffle property is

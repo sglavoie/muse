@@ -29,7 +29,21 @@ type eofState struct {
 	stopAfter    bool
 	prefetch     prefetchState
 	playlistGen  uint64
+	replacing    replacementState
 	marker       MissingMarker
+}
+
+// supersededAttrs returns the structured context for an EOF that was discarded
+// because a queue-owned replacement had already claimed the transition.
+func (s eofState) supersededAttrs() []any {
+	return []any{
+		"op", "superseded-eof",
+		"playlistGen", s.replacing.gen,
+		"prefetchedGen", s.prefetch.gen,
+		"queueIndex", s.currentIndex,
+		"queueLen", s.queueLen,
+		"replacingPath", s.replacing.path,
+	}
 }
 
 // logAttrs returns the structured context an EOF warning carries when no
@@ -78,6 +92,18 @@ func (t eofTransition) logAttrs(op string, err error) []any {
 // and hands every operation that can block to the background.
 func (m *Manager) handleEndOfFile() {
 	state := m.snapshotEOF()
+	if state.replacing.active() {
+		// A queue-owned replacement is mid-flight: it has already published the
+		// row (or the reanchored cycle) it is making current, but mpv has not
+		// confirmed the load, so what just ended is the entry the replacement is
+		// discarding. Deciding anything from here would measure the successor
+		// from the new selection instead of from the row that finished. The
+		// replacement itself starts playback and its transaction refills the
+		// prefetch, so there is nothing left for this EOF to do.
+		slog.Debug("mpv: eof: discarded an end-file from a superseded playlist entry",
+			state.supersededAttrs()...)
+		return
+	}
 	if state.stopAfter {
 		m.emitPlaybackEnded()
 		return
@@ -102,6 +128,11 @@ func (m *Manager) handleEndOfFile() {
 
 // snapshotEOF captures the state the EOF decision is made from and consumes the
 // stop-after-current flag, which must fire exactly once.
+//
+// A superseded EOF consumes nothing: stop-after-current is armed against the
+// track the user is listening to, and the entry a replacement is discarding is
+// no longer that track, so spending the flag here would make it fire silently
+// against a row that never finished.
 func (m *Manager) snapshotEOF() eofState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -112,7 +143,11 @@ func (m *Manager) snapshotEOF() eofState {
 		stopAfter:    m.stopAfterCurrent,
 		prefetch:     m.prefetchSnapshotLocked(),
 		playlistGen:  m.playlistGen,
+		replacing:    m.replacing,
 		marker:       m.marker,
+	}
+	if state.replacing.active() {
+		return state
 	}
 	if state.stopAfter {
 		m.stopAfterCurrent = false
@@ -226,8 +261,18 @@ func (m *Manager) promoteShufflePrefetch(state eofState) (eofTransition, []Queue
 // that a later `loadfile ... replace` already discarded, so mpv is playing the
 // replacement — or nothing — rather than the successor the tracking describes.
 //
+// A replacement that opened its window between the snapshot and this re-check
+// is rejected for the same reason: it has committed the row it is making
+// current, so promoting the successor of the row that ended would commit over
+// it — and under shuffle would advance the cycle the reanchor had just reset.
+// The snapshot's own check cannot cover this; only the write lock the promotion
+// commits under can.
+//
 // The caller must hold m.mu.
 func (m *Manager) prefetchStillLiveLocked(p prefetchState) bool {
+	if m.replacing.active() {
+		return false
+	}
 	return m.prefetchedIndex == p.index &&
 		m.prefetchedPath == p.path &&
 		m.prefetchedIdentity == p.identity &&
@@ -269,16 +314,36 @@ func (m *Manager) runEOFMaintenance(transition eofTransition, skipped []QueueTra
 // traversal-aware advance, which loads through the serialized replacement
 // primitive rather than assuming anything about mpv's playlist.
 //
+// The advance is queued from the event reader and then waits for the playlist
+// transaction lock, so a replacement can win that lock and complete before it
+// runs. nextIdx and the traversal the advance would step were both measured
+// against the playlist generation the EOF belonged to; once that generation is
+// gone they describe a playlist mpv no longer has, and advancing anyway lands
+// playback one row past whatever the replacement selected. The generation is
+// therefore re-checked inside the transaction, where a replacement can no longer
+// interleave.
+//
 // Only a genuine traversal exhaustion ends playback. An IPC drop or an mpv
 // rejection leaves the queue position untouched and is logged instead: reporting
 // it as OnPlaybackEnded would tell the TUI the queue ran out when it did not,
 // and would reset the playback toggle behind a queue that still has tracks. The
 // restart supervisor owns recovery from a broken connection.
 func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
-	err := m.advanceAfterCurrent(nextIdx)
+	_, err := m.runPlaylistTxnIndex(func() (int, error) {
+		m.mu.RLock()
+		gen := m.playlistGen
+		m.mu.RUnlock()
+		if gen != state.playlistGen {
+			return -1, errEOFSuperseded
+		}
+		return m.advanceAfterCurrentLocked(nextIdx)
+	})
 	switch {
 	case err == nil:
 		return
+	case errors.Is(err, errEOFSuperseded):
+		slog.Debug("mpv: eof: dropped an auto-advance whose playlist generation was replaced",
+			state.logAttrs("advance-after-current", err)...)
 	case errors.Is(err, errTraversalExhausted):
 		m.emitPlaybackEnded()
 	default:
