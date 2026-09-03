@@ -1,0 +1,296 @@
+package player
+
+import (
+	"errors"
+	"log/slog"
+
+	"github.com/sglavoie/muse/internal/safego"
+)
+
+// This file holds the end-file/eof transition: the single place where a track
+// finishing turns into the next one starting.
+//
+// The transition is split in two on purpose. The decision — is playback
+// stopping here, can the tracked prefetch be promoted, or must the queue be
+// traversed again — is a short critical section over Manager state with no IPC
+// and no database work, so it runs on the event-reader goroutine and cannot
+// delay the next event. Everything that can block runs afterwards as one
+// ordered background operation, so mpv's playlist is never mutated by two
+// independent goroutines racing over the same transition.
+
+// eofState is the snapshot the event reader takes when mpv reports end-file/eof.
+// It is a snapshot, not a claim: every field is re-validated under the write
+// lock before anything is committed, because a queue mutation can land between
+// the snapshot and the commit.
+type eofState struct {
+	currentIndex int
+	queueLen     int
+	shuffle      bool
+	stopAfter    bool
+	prefetch     prefetchState
+	playlistGen  uint64
+	marker       MissingMarker
+}
+
+// logAttrs returns the structured context an EOF warning carries when no
+// transition was committed: the live playlist generation, the queue position
+// playback ended on, and the successor the prefetch had resolved.
+func (s eofState) logAttrs(op string, err error) []any {
+	return []any{
+		"op", op,
+		"playlistGen", s.playlistGen,
+		"prefetchedGen", s.prefetch.gen,
+		"queueIndex", s.currentIndex,
+		"queueLen", s.queueLen,
+		"identity", s.prefetch.identity,
+		"path", s.prefetch.path,
+		"err", err,
+	}
+}
+
+// eofTransition describes a committed gapless transition: mpv already started
+// the prefetched successor on its own, and the Manager bookkeeping has been
+// moved onto it.
+type eofTransition struct {
+	index    int
+	path     string
+	identity string
+	gen      uint64
+	marker   MissingMarker
+}
+
+// logAttrs returns the structured context an EOF warning carries once the
+// transition is committed: the playlist generation it belongs to, the queue
+// identity and index it promoted, the file mpv is now playing, and the
+// operation that failed.
+func (t eofTransition) logAttrs(op string, err error) []any {
+	return []any{
+		"op", op,
+		"playlistGen", t.gen,
+		"queueIndex", t.index,
+		"identity", t.identity,
+		"path", t.path,
+		"err", err,
+	}
+}
+
+// handleEndOfFile runs the end-file/eof decision on the event-reader goroutine
+// and hands every operation that can block to the background.
+func (m *Manager) handleEndOfFile() {
+	state := m.snapshotEOF()
+	if state.stopAfter {
+		m.emitPlaybackEnded()
+		return
+	}
+
+	transition, skipped, advanced := m.promotePrefetch(state)
+	if advanced {
+		safego.Go("player.eofMaintenance", func() {
+			m.runEOFMaintenance(transition, skipped)
+		})
+		return
+	}
+
+	// No promotable prefetch: fall back to the traversal-aware advance, which
+	// reaches mpv through the serialized replacement primitive.
+	nextIdx := state.currentIndex + 1
+	safego.Go("player.advanceAfterEOF", func() {
+		m.markMissingEntries(skipped, state.marker)
+		m.advanceAfterEOF(nextIdx, state)
+	})
+}
+
+// snapshotEOF captures the state the EOF decision is made from and consumes the
+// stop-after-current flag, which must fire exactly once.
+func (m *Manager) snapshotEOF() eofState {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := eofState{
+		currentIndex: m.currentIndex,
+		queueLen:     len(m.queue),
+		shuffle:      m.shuffleEnabled,
+		stopAfter:    m.stopAfterCurrent,
+		prefetch:     m.prefetchSnapshotLocked(),
+		playlistGen:  m.playlistGen,
+		marker:       m.marker,
+	}
+	if state.stopAfter {
+		m.stopAfterCurrent = false
+	}
+	return state
+}
+
+// promotePrefetch commits the prefetched successor as the current track when it
+// still describes both the live queue and the live playlist. mpv has already
+// started that entry gaplessly, so this only moves the Go bookkeeping onto it —
+// no replacement is sent, which is what keeps the transition gapless.
+//
+// Committing also records that mpv's playlist still leads with the entry that
+// just finished (completedSlotPending), which suppresses every append until the
+// maintenance below removes it — that is what makes "remove before append" hold
+// against the independent safety-net prefetch the start-file event schedules.
+//
+// It reports whether the promotion happened. The returned entries are queue rows
+// a shuffle prefetch peek stepped over because their files are missing on disk;
+// they must be marked outside the lock whether or not the promotion succeeded,
+// since the traversal has already consumed them.
+func (m *Manager) promotePrefetch(state eofState) (eofTransition, []QueueTrack, bool) {
+	if state.prefetch.index < 0 {
+		return eofTransition{}, nil, false
+	}
+	if state.shuffle {
+		return m.promoteShufflePrefetch(state)
+	}
+	transition, ok := m.promoteSequentialPrefetch(state)
+	return transition, nil, ok
+}
+
+// promoteSequentialPrefetch advances the visible-order index onto the prefetched
+// entry. The prefetched index may be more than one step ahead: prefetchNext
+// skips entries missing on disk.
+func (m *Manager) promoteSequentialPrefetch(state eofState) (eofTransition, bool) {
+	p := state.prefetch
+	if p.index <= state.currentIndex || p.index >= state.queueLen {
+		return eofTransition{}, false
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Re-check under the write lock: a SetQueue between the snapshot and here
+	// can shrink the queue or replace the row, and committing the snapshot
+	// anyway would leave currentIndex naming an entry mpv never played.
+	if !m.prefetchStillLiveLocked(p) ||
+		p.index <= m.currentIndex ||
+		p.index >= len(m.queue) ||
+		m.queue[p.index].Path != p.path {
+		return eofTransition{}, false
+	}
+
+	m.currentIndex = p.index
+	m.dropPrefetchTrackingLocked()
+	m.completedSlotPending = true
+	return eofTransition{
+		index:  p.index,
+		path:   p.path,
+		gen:    m.playlistGen,
+		marker: state.marker,
+	}, true
+}
+
+// promoteShufflePrefetch commits the shuffle successor the prefetch resolved but
+// deliberately did not consume, so history advances only once the transition to
+// it is confirmed. The identity is re-resolved against the live queue, which
+// lets a visible reorder survive while a removed row or a changed path is
+// rejected.
+func (m *Manager) promoteShufflePrefetch(state eofState) (eofTransition, []QueueTrack, bool) {
+	p := state.prefetch
+	if p.identity == "" {
+		return eofTransition{}, nil, false
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	liveIdx := identityIndex(m.queue, p.identity)
+	if !m.prefetchStillLiveLocked(p) ||
+		liveIdx < 0 ||
+		liveIdx >= len(m.queue) ||
+		m.queue[liveIdx].Path != p.path {
+		return eofTransition{}, nil, false
+	}
+
+	committed, skipped := m.commitShufflePrefetchLocked(p.identity)
+	if committed < 0 {
+		// The traversal consumed the skipped identities before discovering the
+		// target had vanished; report them so they are still marked, and let the
+		// caller fall back to a fresh advance.
+		return eofTransition{}, skipped, false
+	}
+
+	m.currentIndex = committed
+	m.dropPrefetchTrackingLocked()
+	m.completedSlotPending = true
+	return eofTransition{
+		index:    committed,
+		path:     p.path,
+		identity: p.identity,
+		gen:      m.playlistGen,
+		marker:   state.marker,
+	}, skipped, true
+}
+
+// prefetchStillLiveLocked reports whether the snapshotted prefetch is still the
+// tracked one and still belongs to the live playlist generation.
+//
+// The generation check is what stops Manager state from advancing on stale
+// metadata alone: a prefetch stamped with an older generation names an entry
+// that a later `loadfile ... replace` already discarded, so mpv is playing the
+// replacement — or nothing — rather than the successor the tracking describes.
+//
+// The caller must hold m.mu.
+func (m *Manager) prefetchStillLiveLocked(p prefetchState) bool {
+	return m.prefetchedIndex == p.index &&
+		m.prefetchedPath == p.path &&
+		m.prefetchedIdentity == p.identity &&
+		m.prefetchedGen == p.gen &&
+		m.prefetchedGen == m.playlistGen
+}
+
+// runEOFMaintenance is the single ordered background operation that follows a
+// committed gapless transition: durable missing-file markers, the unpause, the
+// removal of the slot that just finished, and the refill, in that order.
+//
+// Removal comes before the refill because both address mpv's playlist by slot:
+// only once the completed entry is gone does mpv hold exactly the current entry,
+// which is what makes the appended successor slot 1. Running them as independent
+// goroutines let the append land first, so the tracking named a slot that the
+// removal then shifted out from under it.
+//
+// A removal that fails ends the maintenance. Prefetch tracking was already
+// cleared when the transition was committed, so the next EOF finds nothing to
+// promote and advances through the serialized replacement primitive, which
+// resets mpv's playlist to a single entry. Refilling instead would append into a
+// playlist whose slot numbering no longer matches the bookkeeping, and every
+// later transition would inherit the mismatch.
+func (m *Manager) runEOFMaintenance(transition eofTransition, skipped []QueueTrack) {
+	m.markMissingEntries(skipped, transition.marker)
+
+	m.playlistMu.Lock()
+	defer m.playlistMu.Unlock()
+	m.bestEffortUnpause()
+	if err := m.removeCompletedLocked(transition.gen); err != nil {
+		slog.Warn("mpv: eof: completed playlist slot not removed, skipping refill",
+			transition.logAttrs("playlist-remove", err)...)
+		return
+	}
+	m.prefetchNextLocked()
+}
+
+// advanceAfterEOF runs the fallback when no prefetch could be promoted: the
+// traversal-aware advance, which loads through the serialized replacement
+// primitive rather than assuming anything about mpv's playlist.
+//
+// Only a genuine traversal exhaustion ends playback. An IPC drop or an mpv
+// rejection leaves the queue position untouched and is logged instead: reporting
+// it as OnPlaybackEnded would tell the TUI the queue ran out when it did not,
+// and would reset the playback toggle behind a queue that still has tracks. The
+// restart supervisor owns recovery from a broken connection.
+func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
+	err := m.advanceAfterCurrent(nextIdx)
+	switch {
+	case err == nil:
+		return
+	case errors.Is(err, errTraversalExhausted):
+		m.emitPlaybackEnded()
+	default:
+		slog.Warn("mpv: eof: auto-advance failed without exhausting the queue",
+			state.logAttrs("advance-after-current", err)...)
+	}
+}
+
+// markMissingEntries marks each entry missing on disk. The caller must not hold
+// m.mu: marking writes to the database and fires TUI callbacks.
+func (m *Manager) markMissingEntries(entries []QueueTrack, marker MissingMarker) {
+	for _, entry := range entries {
+		m.markEntryMissing(entry, marker)
+	}
+}

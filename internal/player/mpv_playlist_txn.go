@@ -2,6 +2,7 @@ package player
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/sglavoie/muse/internal/safego"
@@ -170,8 +171,20 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	// tracking without a playlist-remove — slot 1 no longer holds the prefetched
 	// entry, and removing it would delete a live row.
 	m.mu.Lock()
+	if commit != nil {
+		// Re-assert the index. The EOF handler makes its promotion under m.mu
+		// alone, by design — it must not wait on the playlist transaction — so it
+		// can move currentIndex onto a prefetched entry while this load is in
+		// flight. mpv is playing what this replacement loaded, and the entry the
+		// promotion named is exactly what the replacement discarded, so the
+		// commit is the one that describes mpv.
+		commit()
+	}
 	m.playlistGen++
 	m.dropPrefetchTrackingLocked()
+	// The replacement also swept away any completed entry a failed EOF cleanup
+	// left behind, so slot addressing is meaningful again.
+	m.completedSlotPending = false
 	m.mu.Unlock()
 	return nil
 }
@@ -238,11 +251,38 @@ func (m *Manager) removePrefetchLocked() bool {
 // after a gapless transition, so mpv's playlist stays at two entries instead of
 // growing across transitions.
 //
+// gen is the playlist generation the transition being cleaned up belongs to.
+// Removing position 0 is only meaningful while that generation is still live: a
+// replacement that landed in between swept the completed entry away and put a
+// live row at position 0, so the removal would stop playback. A superseded
+// generation, or a slot another cleanup already removed, is reported as success
+// — there is nothing left to remove.
+//
+// The error is reported rather than swallowed because the caller's next step
+// depends on it: while the completed entry is still there, mpv's slot numbering
+// no longer matches the bookkeeping, so appending a successor on top would
+// compound the mismatch instead of correcting it.
+//
 // The caller must hold m.playlistMu and must not hold m.mu.
-func (m *Manager) removeCompletedLocked() {
-	if c := m.playlistClient(); c != nil {
-		_, _ = c.SendCommand(cmdPlaylistRemove, 0)
+func (m *Manager) removeCompletedLocked(gen uint64) error {
+	m.mu.RLock()
+	stale := m.playlistGen != gen || !m.completedSlotPending
+	m.mu.RUnlock()
+	if stale {
+		return nil
 	}
+
+	c := m.playlistClient()
+	if c == nil {
+		return fmt.Errorf("%w: no playlist client for the completed-slot removal", ErrNotConnected)
+	}
+	if _, err := c.SendCommand(cmdPlaylistRemove, 0); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	m.completedSlotPending = false
+	m.mu.Unlock()
+	return nil
 }
 
 // runPlaylistTxn executes fn as a playlist transaction and, when fn succeeds,

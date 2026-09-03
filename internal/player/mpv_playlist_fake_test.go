@@ -573,6 +573,63 @@ func newFakePlaylistManager(t *testing.T, name string) (*Manager, *fakePlaylist)
 	return m, f
 }
 
+// runEventReader starts the manager's event reader against the fake and waits
+// until mpv has seen its pause subscription, so a test can call finishCurrent
+// knowing the resulting events are observed.
+//
+// The fake fans its event stream out to a single consumer at a time: do not also
+// call subscribe while the reader is running, or the events are split between
+// them.
+func runEventReader(t *testing.T, m *Manager, f *fakePlaylist) {
+	t.Helper()
+	go m.startEventReader(m.ctx, nil)
+	f.waitFor(t, "the event reader to observe the pause property", func() bool {
+		return f.count(func(cmd ipcTestCommand) bool {
+			return cmd.stringIs(0, cmdObserveProperty)
+		}) > 0
+	})
+}
+
+// playbackEndedSignal rewires the manager's callbacks so the test can observe
+// OnPlaybackEnded. The returned channel is buffered, so a fire that nothing is
+// waiting on is still recorded.
+func playbackEndedSignal(m *Manager) <-chan struct{} {
+	ended := make(chan struct{}, 4)
+	m.SetEventCallbacks(EventCallbacks{
+		OnStatus:      func(string) {},
+		OnMissingFile: func(string) {},
+		OnPlaybackEnded: func() {
+			select {
+			case ended <- struct{}{}:
+			default:
+			}
+		},
+		OnTrackChanged: func(_, _, _, _ string, _ int) {},
+		OnPauseChanged: func(bool) {},
+	})
+	return ended
+}
+
+// commandOrder returns the position of the first received command matching pred,
+// or -1 when none does. Use it to assert the order two playlist operations
+// reached mpv in.
+func (f *fakePlaylist) commandOrder(pred func(ipcTestCommand) bool) int {
+	for i, cmd := range f.commands() {
+		if pred(cmd) {
+			return i
+		}
+	}
+	return -1
+}
+
+// isAppendOf matches the gapless prefetch append of a specific file.
+func isAppendOf(path string) func(ipcTestCommand) bool {
+	return func(cmd ipcTestCommand) bool {
+		got, _ := cmd.stringAt(1)
+		return isLoadfileAppend(cmd) && got == path
+	}
+}
+
 // queueOf builds a queue of real temp files with sequential queue IDs.
 func queueOf(t *testing.T, n int) []QueueTrack {
 	t.Helper()

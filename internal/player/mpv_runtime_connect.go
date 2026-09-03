@@ -68,6 +68,7 @@ func (m *Manager) activateConnection(ctx context.Context, client *IPCClient, res
 	// generation is now unpromotable at EOF.
 	m.playlistGen++
 	m.dropPrefetchTrackingLocked()
+	m.completedSlotPending = false
 	m.mu.Unlock()
 
 	slog.Info("mpv connected", "socket", m.socketPath)

@@ -145,6 +145,7 @@ func (m *Manager) attemptRestart(restore restoreState) bool {
 	// forget the tracking without an IPC removal.
 	m.playlistGen++
 	m.dropPrefetchTrackingLocked()
+	m.completedSlotPending = false
 	// Shuffle traversal state (shuffleEnabled/History/Pos/Unseen) is deliberately
 	// left intact: the Manager survives the mpv subprocess restart, so playback
 	// resumes into the same shuffle cycle rather than reanchoring.

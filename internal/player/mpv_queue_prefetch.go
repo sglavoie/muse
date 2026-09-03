@@ -29,12 +29,23 @@ func (m *Manager) prefetchNextLocked() {
 	gapless := m.gaplessEnabled
 	stop := m.stopAfterCurrent
 	shuffle := m.shuffleEnabled
+	completedPending := m.completedSlotPending
 	cur := m.prefetchSnapshotLocked()
 	var upcoming []string
 	if shuffle {
 		upcoming = m.upcomingShuffleLocked()
 	}
 	m.mu.RUnlock()
+
+	if completedPending {
+		// A gapless transition has been committed but its completed slot is
+		// still in mpv's playlist, so position 1 does not name the successor
+		// slot yet. Appending here would put the new entry at position 2 and
+		// make every later slot-1 removal address a live row. The EOF
+		// maintenance re-runs this once the removal succeeds; if it failed, the
+		// next EOF replaces the playlist and clears the condition.
+		return
+	}
 
 	if !gapless || stop || idx < 0 {
 		m.removePrefetchLocked()

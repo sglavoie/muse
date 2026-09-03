@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+// errTraversalExhausted marks the traversal failures that mean "there is no next
+// track to play": the sequential walk ran past the end of the queue, every
+// remaining entry was missing on disk, or the shuffle cycle was fully consumed.
+//
+// It wraps ErrPlaybackFailed so existing callers keep matching, and it lets the
+// EOF handler tell real exhaustion apart from a load that failed. That
+// distinction is the difference between reporting the end of the queue and
+// falsely reporting it: an IPC drop or an mpv rejection leaves playable tracks
+// behind, and must not be translated into OnPlaybackEnded.
+var errTraversalExhausted = fmt.Errorf("%w: traversal exhausted", ErrPlaybackFailed)
+
 // PlayFromIndex starts playback from the queue entry at index in response to an
 // explicit user selection. When shuffle is off it plays the visible queue
 // forward from index, skipping missing entries. When shuffle is on it reanchors
@@ -45,7 +56,7 @@ func (m *Manager) playSequentialFromLocked(index int) error {
 		// not change the playing track, so the existing prefetched "next"
 		// is still valid. Clearing would force a redundant playlist-remove
 		// against mpv on every bad call.
-		return fmt.Errorf("%w: index %d out of range [0, %d)", ErrPlaybackFailed, index, len(queue))
+		return fmt.Errorf("%w: index %d out of range [0, %d)", errTraversalExhausted, index, len(queue))
 	}
 
 	for i := index; i < len(queue); i++ {
@@ -57,7 +68,7 @@ func (m *Manager) playSequentialFromLocked(index int) error {
 			return err
 		}
 	}
-	return fmt.Errorf("%w: no playable entry starting at index %d", ErrPlaybackFailed, index)
+	return fmt.Errorf("%w: no playable entry starting at index %d", errTraversalExhausted, index)
 }
 
 // playShuffleAnchoredLocked reanchors the shuffle cycle around index and plays
@@ -121,7 +132,7 @@ func (m *Manager) advanceForwardLocked() error {
 		id, ok := m.stepForwardLocked()
 		if !ok {
 			m.mu.Unlock()
-			return fmt.Errorf("%w: shuffle cycle exhausted", ErrPlaybackFailed)
+			return fmt.Errorf("%w: shuffle cycle exhausted", errTraversalExhausted)
 		}
 		idx := identityIndex(m.queue, id)
 		var entry QueueTrack
@@ -175,7 +186,7 @@ func (m *Manager) advanceBackwardLocked() error {
 		m.mu.Lock()
 		if m.shufflePos <= 0 {
 			m.mu.Unlock()
-			return fmt.Errorf("%w: no previous track in shuffle history", ErrPlaybackFailed)
+			return fmt.Errorf("%w: no previous track in shuffle history", errTraversalExhausted)
 		}
 		snap := m.snapshotShuffleLocked()
 		p := m.shufflePos - 1

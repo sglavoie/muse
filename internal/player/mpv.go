@@ -184,6 +184,18 @@ type Manager struct {
 	// consuming it).
 	prefetchedIdentity string
 
+	// completedSlotPending records that mpv's playlist still holds, at
+	// position 0, the entry that just finished: a gapless transition moved
+	// mpv onto its successor, but the EOF maintenance has not yet removed the
+	// completed slot. While it is set the playlist is one entry longer than
+	// the bookkeeping assumes, so the slot-1 addressing that prefetch appends
+	// and removals rely on does not hold and no successor may be appended.
+	//
+	// It is cleared by a successful completed-slot removal and by anything
+	// that resets mpv's playlist wholesale (an accepted `loadfile ...
+	// replace`, a fresh connection, a subprocess restart). Guarded by mu.
+	completedSlotPending bool
+
 	// prefetchedGen is the playlist generation the tracked prefetch was
 	// appended into (see playlistGen). A prefetch recorded in an older
 	// generation refers to a playlist mpv has since replaced, so the EOF
