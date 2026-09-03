@@ -184,10 +184,32 @@ type Manager struct {
 	// consuming it).
 	prefetchedIdentity string
 
-	// prefetchMu serializes prefetchNext and clearPrefetch so that
-	// concurrent goroutines cannot both read prefetchedIndex == -1 and
-	// both append the same track, creating a duplicate playlist entry.
-	prefetchMu sync.Mutex
+	// prefetchedGen is the playlist generation the tracked prefetch was
+	// appended into (see playlistGen). A prefetch recorded in an older
+	// generation refers to a playlist mpv has since replaced, so the EOF
+	// handler must not promote it.
+	prefetchedGen uint64
+
+	// playlistMu is the playlist-transition lock. Every queue-owned mutation
+	// of mpv's internal playlist — the `loadfile ... replace` that starts a
+	// queue entry, the `loadfile ... append-play` that prefetches its
+	// successor, and the `playlist-remove` that drops a stale prefetch or a
+	// completed entry — runs while it is held, together with the Go-side
+	// bookkeeping that mirrors mpv's playlist. It replaces the narrower
+	// prefetch mutex, which serialized appends against each other but not
+	// against replacements.
+	//
+	// Lock ordering: playlistMu is always acquired BEFORE mu. Never take
+	// playlistMu while holding mu.
+	playlistMu sync.Mutex
+
+	// playlistGen counts queue-owned playlist replacements. It is bumped
+	// under mu whenever mpv accepts a `loadfile ... replace` (and whenever a
+	// fresh mpv connection is activated, since that process starts with an
+	// empty playlist). Prefetch tracking is stamped with the generation it
+	// was appended into so a successor resolved against a superseded playlist
+	// can be recognized and discarded instead of falsely advanced into.
+	playlistGen uint64
 
 	// Go-owned shuffle traversal state, all guarded by mu. When
 	// shuffleEnabled is true, Next/Previous consult this state instead of
@@ -324,29 +346,59 @@ func (m *Manager) ipc() (*IPCClient, error) {
 // recursively re-enqueue itself while activation is still in progress. Returns
 // ErrNotConnected only when the manager was never started or has been closed.
 func (m *Manager) admit(send func(*IPCClient) error) error {
+	return m.admitGated(send, false)
+}
+
+// admitPlaylist is admit for queue-owned playlist mutations. It behaves
+// identically except that a send deferred to the reconnect queue re-acquires the
+// playlist-transition lock before it reaches mpv, so a drainQueue replay can
+// never interleave a queued playlist mutation with a live playlist transaction.
+// The caller must hold m.playlistMu (the lock is released before the replay runs
+// because the replay happens on the activation goroutine, long after the
+// enqueueing transaction has completed).
+func (m *Manager) admitPlaylist(send func(*IPCClient) error) error {
+	return m.admitGated(send, true)
+}
+
+// admitGated is the shared body of admit and admitPlaylist. When playlistOwned
+// is true the queued replay wraps send in the playlist-transition lock.
+func (m *Manager) admitGated(send func(*IPCClient) error, playlistOwned bool) error {
 	m.mu.Lock()
 	c := m.client
-	if c == nil || m.activating {
-		if m.cmdQueue == nil {
-			m.mu.Unlock()
-			return ErrNotConnected
-		}
-		m.cmdQueue = append(m.cmdQueue, func() error {
-			c, err := m.ipc()
-			if err != nil {
-				return err
-			}
-			return send(c)
-		})
-		fn := m.callbacks.OnStatus
+	if c != nil && !m.activating {
 		m.mu.Unlock()
-		if fn != nil {
-			fn("Connecting to mpv…")
-		}
-		return nil
+		return send(c)
 	}
+	if m.cmdQueue == nil {
+		m.mu.Unlock()
+		return ErrNotConnected
+	}
+	m.cmdQueue = append(m.cmdQueue, m.replayClosure(send, playlistOwned))
+	fn := m.callbacks.OnStatus
 	m.mu.Unlock()
-	return send(c)
+	if fn != nil {
+		fn("Connecting to mpv…")
+	}
+	return nil
+}
+
+// replayClosure wraps send for deferred replay by drainQueue. It resolves the
+// client through the ungated ipc() helper so a replay never re-enters the
+// activation gate, and a queue-owned playlist mutation re-acquires the
+// playlist-transition lock first so the replay cannot interleave with a live
+// playlist transaction.
+func (m *Manager) replayClosure(send func(*IPCClient) error, playlistOwned bool) func() error {
+	return func() error {
+		if playlistOwned {
+			m.playlistMu.Lock()
+			defer m.playlistMu.Unlock()
+		}
+		c, err := m.ipc()
+		if err != nil {
+			return err
+		}
+		return send(c)
+	}
 }
 
 // DebugInfo queries mpv for diagnostic properties and returns them as a

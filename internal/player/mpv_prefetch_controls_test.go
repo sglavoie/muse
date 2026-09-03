@@ -178,11 +178,13 @@ func TestPlayFromIndex_TriggersPrefetch(t *testing.T) {
 	}, 2*time.Second, "loadfile append for "+pathB)
 }
 
-// TestPlayFromIndex_ClearsExistingPrefetch verifies that PlayFromIndex sends
-// playlist-remove to mpv when a prefetched entry exists, not just clearing the
-// tracking state. Without this, mpv's internal playlist would accumulate stale
-// entries across PlayFromIndex calls.
-func TestPlayFromIndex_ClearsExistingPrefetch(t *testing.T) {
+// TestPlayFromIndex_ReplaceInvalidatesPrefetch verifies that PlayFromIndex
+// relies on the `loadfile ... replace` itself to invalidate a stale prefetch:
+// mpv's replace swaps the whole playlist, so the prefetched slot is already gone
+// and a playlist-remove would delete the freshly loaded row instead. The tracking
+// must therefore be dropped without an IPC removal, and the follow-up prefetch
+// must re-append the successor.
+func TestPlayFromIndex_ReplaceInvalidatesPrefetch(t *testing.T) {
 	var mu sync.Mutex
 	var received []ipcTestCommand
 	m := newConnectedManager(t, "pfi-clrpf", &mu, &received)
@@ -208,22 +210,20 @@ func TestPlayFromIndex_ClearsExistingPrefetch(t *testing.T) {
 	}
 
 	// Wait for the async prefetchNext goroutine to complete.
-	time.Sleep(100 * time.Millisecond)
+	waitForCommand(t, &mu, &received, func(cmd ipcTestCommand) bool {
+		path, _ := cmd.stringAt(1)
+		return isLoadfileAppend(cmd) && path == pathC
+	}, 2*time.Second, "re-prefetch append for "+pathC)
 
 	mu.Lock()
 	defer mu.Unlock()
 
-	// A playlist-remove must have been sent to clear the stale prefetch
-	// (pathC at index 2) before the loadfile replace for pathB.
-	foundRemove := false
-	for _, cmd := range received {
+	// No playlist-remove: the replace already emptied mpv's playlist, so
+	// removing position 1 would target a row the replace just installed.
+	for i, cmd := range received {
 		if isPlaylistRemove(cmd) {
-			foundRemove = true
-			break
+			t.Errorf("PlayFromIndex sent playlist-remove at %d; the replace already invalidated the prefetch: %v", i, received)
 		}
-	}
-	if !foundRemove {
-		t.Errorf("expected playlist-remove to clear stale prefetch; got %v", received)
 	}
 
 	m.mu.RLock()
@@ -231,13 +231,16 @@ func TestPlayFromIndex_ClearsExistingPrefetch(t *testing.T) {
 	// After PlayFromIndex(1), prefetchedIndex should be 2 (prefetched pathC
 	// again for gapless), not stale.
 	if m.prefetchedIndex != 2 {
-		t.Errorf("prefetchedIndex = %d, want 2 (re-prefetched after clearing stale)", m.prefetchedIndex)
+		t.Errorf("prefetchedIndex = %d, want 2 (re-prefetched after the replace)", m.prefetchedIndex)
+	}
+	if m.prefetchedGen != m.playlistGen {
+		t.Errorf("prefetchedGen = %d, want the live playlist generation %d", m.prefetchedGen, m.playlistGen)
 	}
 }
 
 // TestRemoveFromQueue_ClearsPrefetchUnderMutex verifies that RemoveFromQueue
-// clears prefetch state using clearPrefetch (which holds prefetchMu) rather
-// than sending playlist-remove outside the mutex. This prevents a race where
+// clears prefetch state using clearPrefetch (which runs as a playlist
+// transaction) rather than sending playlist-remove outside it. This prevents a race where
 // a concurrent prefetchNext could append a new entry that the unprotected
 // playlist-remove then incorrectly removes.
 func TestRemoveFromQueue_ClearsPrefetchUnderMutex(t *testing.T) {
@@ -298,34 +301,37 @@ func TestRemoveFromQueue_ClearsPrefetchUnderMutex(t *testing.T) {
 	}
 }
 
-// TestDoClearPrefetch_NoSpuriousRemoveWhenAlreadyCleared verifies that
-// doClearPrefetch does not send cmdPlaylistRemove when prefetchedIndex has
+// TestRemovePrefetch_NoSpuriousRemoveWhenAlreadyCleared verifies that
+// removePrefetchLocked does not send cmdPlaylistRemove when prefetchedIndex has
 // already been cleared to -1 by the end-file event handler between the moment
-// doClearPrefetch reads it and the moment it sends the IPC command. Before the
+// it reads it and the moment it sends the IPC command. Before the
 // fix, the RLock snapshot was taken, the lock was dropped, and then the IPC
 // command was sent unconditionally — allowing a spurious remove that would
 // corrupt mpv's internal playlist.
-func TestDoClearPrefetch_NoSpuriousRemoveWhenAlreadyCleared(t *testing.T) {
+func TestRemovePrefetch_NoSpuriousRemoveWhenAlreadyCleared(t *testing.T) {
 	var mu sync.Mutex
 	var received []ipcTestCommand
 	m := newConnectedManager(t, "clear-pf-race", &mu, &received)
 
 	// Start with prefetchedIndex = -1 (simulates the end-file handler having
-	// already cleared it before doClearPrefetch runs).
+	// already cleared it before the removal runs).
 	m.mu.Lock()
 	m.prefetchedIndex = -1
 	m.prefetchedPath = ""
 	m.mu.Unlock()
 
-	m.prefetchMu.Lock()
-	m.doClearPrefetch()
-	m.prefetchMu.Unlock()
+	m.playlistMu.Lock()
+	ok := m.removePrefetchLocked()
+	m.playlistMu.Unlock()
+	if !ok {
+		t.Error("removePrefetchLocked() = false with nothing prefetched, want true")
+	}
 
 	mu.Lock()
 	defer mu.Unlock()
 	for _, cmd := range received {
 		if isPlaylistRemove(cmd) {
-			t.Errorf("doClearPrefetch sent playlist-remove with prefetchedIndex=-1; got %v", received)
+			t.Errorf("removePrefetchLocked sent playlist-remove with prefetchedIndex=-1; got %v", received)
 		}
 	}
 }

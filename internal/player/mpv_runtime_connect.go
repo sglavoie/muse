@@ -61,6 +61,13 @@ func (m *Manager) activateConnection(ctx context.Context, client *IPCClient, res
 	}
 	m.client = client
 	m.activating = true
+	// A freshly connected mpv starts with an empty playlist, and the restore
+	// sequence below replaces whatever it holds, so nothing that was tracked as
+	// prefetched still exists there. Open a new playlist generation and forget
+	// the tracking without an IPC removal: any prefetch resolved against the old
+	// generation is now unpromotable at EOF.
+	m.playlistGen++
+	m.dropPrefetchTrackingLocked()
 	m.mu.Unlock()
 
 	slog.Info("mpv connected", "socket", m.socketPath)
@@ -75,6 +82,12 @@ func (m *Manager) activateConnection(ctx context.Context, client *IPCClient, res
 	// mid-replay is admitted behind the backlog instead of overtaking it, and is
 	// only opened once the queue is fully drained.
 	m.drainQueue()
+
+	// The activation gate is open again. Best-effort prefetch is suppressed for
+	// the whole activation window (playlistClient returns nil while activating)
+	// so an append cannot land in a playlist the restore is about to replace;
+	// rebuild it now that mpv's playlist reflects the restored state.
+	safego.Go("player.prefetchNext", m.prefetchNext)
 
 	// startEventReader decodes mpv's async JSON event stream, the most
 	// third-party-data-driven loop in the process; a panic there must not take

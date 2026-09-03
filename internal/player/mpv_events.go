@@ -144,6 +144,7 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			prefetchedIdx := m.prefetchedIndex
 			prefetchedID := m.prefetchedIdentity
 			prefetchedPath := m.prefetchedPath
+			prefetchedGen := m.prefetchedGen
 			shuffle := m.shuffleEnabled
 			queueLen := len(m.queue)
 			m.mu.Unlock()
@@ -189,6 +190,8 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 					liveIdx := identityIndex(m.queue, prefetchedID)
 					valid := m.prefetchedIndex >= 0 &&
 						m.prefetchedIdentity == prefetchedID &&
+						m.prefetchedGen == prefetchedGen &&
+						m.prefetchedGen == m.playlistGen &&
 						liveIdx >= 0 && liveIdx < len(m.queue) &&
 						m.queue[liveIdx].Path == prefetchedPath
 					var skippedMissing []QueueTrack
@@ -215,6 +218,8 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			} else if prefetchedIdx >= 0 && prefetchedIdx > idx && prefetchedIdx < queueLen {
 				m.mu.Lock()
 				if m.prefetchedIndex == prefetchedIdx &&
+					m.prefetchedGen == prefetchedGen &&
+					m.prefetchedGen == m.playlistGen &&
 					prefetchedIdx > m.currentIndex &&
 					prefetchedIdx < len(m.queue) {
 					m.currentIndex = prefetchedIdx
@@ -228,16 +233,18 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			if advanced {
 				safego.Go("player.bestEffortUnpause", m.bestEffortUnpause)
 
-				// Remove the completed track (position 0) from mpv's
-				// playlist so it stays at 2 entries instead of growing
-				// unbounded across gapless transitions.
-				safego.Go("player.playlistRemoveCompleted", func() {
-					if c, err := m.ipc(); err == nil {
-						_, _ = c.SendCommand(cmdPlaylistRemove, 0)
-					}
+				// Drop the completed track (position 0) so mpv's playlist stays
+				// at 2 entries instead of growing unbounded across gapless
+				// transitions, then resolve the new successor. Both are queue-owned
+				// playlist mutations, so they share one transaction: that fixes
+				// their order (remove before append) and keeps the append's
+				// playlist-remove of a superseded slot addressing position 1.
+				safego.Go("player.eofPlaylistMaintenance", func() {
+					m.playlistMu.Lock()
+					defer m.playlistMu.Unlock()
+					m.removeCompletedLocked()
+					m.prefetchNextLocked()
 				})
-
-				safego.Go("player.prefetchNext", m.prefetchNext)
 				continue
 			}
 

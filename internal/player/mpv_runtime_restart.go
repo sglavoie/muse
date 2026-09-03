@@ -140,9 +140,11 @@ func (m *Manager) attemptRestart(restore restoreState) bool {
 	if m.cmdQueue == nil {
 		m.cmdQueue = []func() error{}
 	}
-	m.prefetchedIndex = -1
-	m.prefetchedPath = ""
-	m.prefetchedIdentity = ""
+	// The old mpv process is gone, so its playlist (and anything tracked as
+	// prefetched into it) no longer exists: open a new playlist generation and
+	// forget the tracking without an IPC removal.
+	m.playlistGen++
+	m.dropPrefetchTrackingLocked()
 	// Shuffle traversal state (shuffleEnabled/History/Pos/Unseen) is deliberately
 	// left intact: the Manager survives the mpv subprocess restart, so playback
 	// resumes into the same shuffle cycle rather than reanchoring.

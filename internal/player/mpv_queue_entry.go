@@ -1,9 +1,7 @@
 package player
 
 import (
-	"errors"
 	"log/slog"
-	"os"
 
 	"github.com/sglavoie/muse/internal/safego"
 )
@@ -36,25 +34,16 @@ func (m *Manager) StopAfterCurrent() bool {
 // failures are returned to the caller unchanged.
 // If the file is present it sends a loadfile command to mpv (queued if not yet
 // connected).
+//
+// It is the single-entry form of the queue playlist replacement and runs as a
+// playlist transaction, so it cannot interleave with a prefetch append. It does
+// not move the current queue index: the traversal entry points (PlayFromIndex,
+// Next, Previous, auto-advance) own that bookkeeping and commit it inside the
+// same transaction as the load.
 func (m *Manager) PlayQueueEntry(entry QueueTrack, marker MissingMarker) error {
-	if marker == nil {
-		marker = noopMarker{}
-	}
-	if _, err := os.Stat(entry.Path); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-		m.markEntryMissing(entry, marker)
-		return ErrMissingFile
-	}
-
-	return m.admit(func(c *IPCClient) error {
-		if _, err := c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no"); err != nil {
-			return err
-		}
-		m.bestEffortUnpauseWith(c)
-		return nil
-	})
+	m.playlistMu.Lock()
+	defer m.playlistMu.Unlock()
+	return m.replaceLocked(entry, marker, nil)
 }
 
 // markEntryMissing marks entry's track and queue row as missing through marker

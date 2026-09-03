@@ -72,8 +72,15 @@ func waitForCommand(t *testing.T, mu *sync.Mutex, received *[]ipcTestCommand, ma
 	}
 }
 
+// isLoadfileAppend matches the gapless prefetch append. Prefetch uses
+// "append-play" (not plain "append") so an idle playlist starts the appended
+// entry instead of holding it.
 func isLoadfileAppend(cmd ipcTestCommand) bool {
-	return len(cmd) >= 3 && cmd.stringIs(0, "loadfile") && cmd.stringIs(2, "append")
+	return len(cmd) >= 3 && cmd.stringIs(0, "loadfile") && cmd.stringIs(2, "append-play")
+}
+
+func isLoadfileReplace(cmd ipcTestCommand) bool {
+	return len(cmd) >= 3 && cmd.stringIs(0, "loadfile") && cmd.stringIs(2, "replace")
 }
 
 func isPlaylistRemove(cmd ipcTestCommand) bool {
