@@ -86,6 +86,15 @@ type Manager struct {
 	// The flag is cleared atomically after it fires.
 	stopAfterCurrent bool
 
+	// liveness is the Manager's logical playback state: whether a queue
+	// traversal is still in progress, or has intentionally ended because
+	// stop-after-current fired or the queue ran out at EOF. It is deliberately
+	// not derivable from mpv's idle-active property (process health) nor from
+	// currentIndex, which keeps naming the row that finished. Best-effort
+	// prefetch consults it before an append-play that could start audio; see
+	// liveness.go. Guarded by mu.
+	liveness playbackLiveness
+
 	// marker persists missing-file state to the database. Set via
 	// SetMissingMarker. When nil, PlayFromIndex uses a no-op marker.
 	marker MissingMarker

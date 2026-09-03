@@ -28,6 +28,7 @@ func (m *Manager) prefetchNextLocked() {
 	queue := m.queue
 	gapless := m.gaplessEnabled
 	stop := m.stopAfterCurrent
+	live := m.liveness.live()
 	shuffle := m.shuffleEnabled
 	completedPending := m.completedSlotPending
 	cur := m.prefetchSnapshotLocked()
@@ -47,7 +48,16 @@ func (m *Manager) prefetchNextLocked() {
 		return
 	}
 
-	if !gapless || stop || idx < 0 {
+	// The append below uses `append-play`, which starts an idle mpv playlist, so
+	// this best-effort path is capable of starting audio. It must therefore
+	// refuse to run once playback has logically ended: after a stop-after-current
+	// EOF the flag above is already cleared and currentIndex still names the row
+	// that finished, so nothing else here distinguishes "the user stopped" from
+	// "the next track is due" — and an unrelated queue mutation (AppendToQueue,
+	// SetQueue, a shuffle toggle) schedules this call. Only an explicit
+	// operation, ResumeAfterQueueExtension among them, may restart a traversal
+	// that ended.
+	if !gapless || stop || !live || idx < 0 {
 		m.removePrefetchLocked()
 		return
 	}

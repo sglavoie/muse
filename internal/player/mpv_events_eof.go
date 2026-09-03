@@ -150,7 +150,13 @@ func (m *Manager) snapshotEOF() eofState {
 		return state
 	}
 	if state.stopAfter {
+		// The flag fires exactly once, and the idle mpv is left in is
+		// intentional. Both are recorded in this one critical section so a
+		// best-effort prefetch can never observe the cleared flag without also
+		// observing that playback has ended — the window in which it would see
+		// a stop-after-current EOF as an ordinary "next track is due".
 		m.stopAfterCurrent = false
+		m.markPlaybackEndedLocked()
 	}
 	return state
 }
@@ -336,7 +342,16 @@ func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
 		if gen != state.playlistGen {
 			return -1, errEOFSuperseded
 		}
-		return m.advanceAfterCurrentLocked(nextIdx)
+		idx, err := m.advanceAfterCurrentLocked(nextIdx)
+		if errors.Is(err, errTraversalExhausted) {
+			// The traversal ran out while mpv's playlist was already draining,
+			// so the idle that follows is the end of the queue rather than a
+			// stall. Recording it inside the transaction is what makes it safe:
+			// a replacement cannot interleave here, so the mark can never land
+			// on top of a load that has just started playing.
+			m.markPlaybackEnded()
+		}
+		return idx, err
 	})
 	switch {
 	case err == nil:

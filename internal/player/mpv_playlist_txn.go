@@ -263,6 +263,11 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	// The replacement also swept away any completed entry a failed EOF cleanup
 	// left behind, so slot addressing is meaningful again.
 	m.completedSlotPending = false
+	// Every queue-owned load an explicit operation performs passes through here,
+	// so this is the one place a traversal that stop-after-current or exhaustion
+	// ended becomes live again. Marking it only after mpv accepted the load
+	// keeps the state describing mpv rather than the intent.
+	m.markPlaybackLiveLocked()
 	m.endReplacementLocked()
 	m.mu.Unlock()
 	return nil

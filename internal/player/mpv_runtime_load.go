@@ -20,6 +20,9 @@ func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 		// arrives preserves the paused state.
 		m.mu.Lock()
 		m.lastPaused = true
+		// A restored session is positioned on a live queue entry: paused is not
+		// ended, so the gapless successor may be prefetched for it.
+		m.markPlaybackLiveLocked()
 		m.mu.Unlock()
 		return nil
 	})
@@ -38,6 +41,12 @@ func (m *Manager) loadFileAt(path string, elapsed float64, paused bool) error {
 	if paused {
 		pauseOpt = "yes"
 	}
-	_, err = c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=%s", elapsed, pauseOpt))
-	return err
+	if _, err := c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=%s", elapsed, pauseOpt)); err != nil {
+		return err
+	}
+	// The resume reinstates the entry the outage interrupted, so the traversal
+	// is live again on the new process. Restarting mpv is process health and
+	// says nothing on its own about logical liveness; this load does.
+	m.markPlaybackLive()
+	return nil
 }
