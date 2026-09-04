@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"math"
 	"path/filepath"
 	"testing"
 	"time"
@@ -180,6 +181,15 @@ func TestRadioBatchCleanupSurvivesProcessExit(t *testing.T) {
 		t.Fatalf("failed cleanup was not retained before exit: %v", m.radio.cleanupBatches)
 	}
 	assertActiveQueueLen(t, d, 1)
+	for _, staleID := range stale.QueueIDs {
+		var deletedAt int64
+		if err := d.QueryRow(`SELECT deleted_at FROM queue WHERE id=?`, staleID).Scan(&deletedAt); err != nil {
+			t.Fatalf("read pending Radio row %d before restart: %v", staleID, err)
+		}
+		if deletedAt != math.MaxInt64 {
+			t.Fatalf("pending Radio row %d deleted_at = %d, want reserved marker %d", staleID, deletedAt, int64(math.MaxInt64))
+		}
+	}
 
 	cancel()
 	writer.Wait()
@@ -209,6 +219,12 @@ func TestRadioBatchCleanupSurvivesProcessExit(t *testing.T) {
 		var deletedAt int64
 		if err := restartedDB.QueryRow(`SELECT deleted_at FROM queue WHERE id=?`, staleID).Scan(&deletedAt); err != nil {
 			t.Fatalf("read discarded Radio row %d after restart: %v", staleID, err)
+		}
+		if deletedAt == math.MaxInt64 {
+			t.Fatalf("discarded Radio row %d retained reserved pending marker after restart", staleID)
+		}
+		if deletedAt <= 0 || deletedAt > time.Now().Unix() {
+			t.Fatalf("discarded Radio row %d deleted_at = %d, want ordinary soft-delete timestamp", staleID, deletedAt)
 		}
 	}
 }
