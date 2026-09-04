@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -372,6 +373,83 @@ func TestPlaybackEndedResumesIntoConcurrentExtension(t *testing.T) {
 	assertResumedIntoAddition(t, m, p, 4)
 	if cmd != nil {
 		t.Error("a resumed queue must not also schedule a radio refill")
+	}
+}
+
+// assertIdleAwaitingRetry asserts the state a refused resume must leave behind:
+// idle and still exhausted with every queue row intact and nothing loaded, so
+// the next extension retries rather than starting a fresh cycle.
+func assertIdleAwaitingRetry(t *testing.T, m Model, p *fakeTraversalPlayer, wantEntries int) {
+	t.Helper()
+	if m.playback.state != playback.StateIdle || !m.playback.queueExhausted {
+		t.Errorf("state = %v exhausted = %v; want idle and exhausted so the next extension retries",
+			m.playback.state, m.playback.queueExhausted)
+	}
+	if m.playback.currentIndex != -1 {
+		t.Errorf("currentIndex = %d, want -1 (nothing started)", m.playback.currentIndex)
+	}
+	if len(m.queue.Entries) != wantEntries {
+		t.Fatalf("queue length = %d, want the extension rows retained (%d)", len(m.queue.Entries), wantEntries)
+	}
+	if len(p.loaded) != 0 {
+		t.Errorf("loaded %v; a refused resume must not have started a row", p.loaded)
+	}
+}
+
+// TestPlaybackEndedResumeFailureRemainsVisible pins the notification the user
+// actually sees when the concurrent extension cannot be started. Both messages
+// are pushed at NotifNormal and expire together, and TopNotification breaks an
+// equal-priority tie in favour of the later push — so a "Queue finished" enqueued
+// after "Resume failed" is not merely competing with it, it replaces it outright
+// and the actionable error never renders. Nothing finished on this path, so the
+// completion message must not be pushed at all.
+func TestPlaybackEndedResumeFailureRemainsVisible(t *testing.T) {
+	p := newFakeTraversalPlayer([]int{2, 0, 3, 1}, 3)
+	m := newModelWithTracks()
+	m.player = p
+	m.queue.Entries = sampleQueueEntries()
+	m.playback.state = playback.StatePlaying
+	m.playback.currentIndex = 1
+
+	// A paste landed while PlaybackEndedMsg was in flight, but the player
+	// refuses to continue the cycle onto it.
+	m.queue.Entries = append(m.queue.Entries, queue.Entry{
+		ID: 12, Hash: "late", Path: "/late.flac", Artist: "L", Title: "Late",
+	})
+	p.AppendToQueue(queueTrackFromEntry(m.queue.Entries[4]))
+	p.resumeErr = errFakeTraversalExhausted
+
+	m, cmd := m.handlePlaybackEndedMsg()
+
+	if cmd != nil {
+		t.Error("a failed resume must not schedule anything (radio is off here)")
+	}
+	top := m.statusBar.TopNotification().Msg
+	if !strings.Contains(top, "Resume failed") {
+		t.Errorf("top notification = %q, want the resume failure the user can act on", top)
+	}
+	for _, n := range m.statusBar.Notifications {
+		if strings.Contains(n.Msg, "Queue finished") {
+			t.Errorf("queued notification %q: a refused resume is not a finished queue", n.Msg)
+		}
+	}
+
+	assertIdleAwaitingRetry(t, m, p, 5)
+
+	// The retry: a player that has recovered resumes into the row that was
+	// waiting all along.
+	p.resumeErr = nil
+	m = m.handleBatchEnqueuedMsg(BatchEnqueuedMsg{
+		Entries: []queue.Entry{
+			{ID: 13, Hash: "retry", Path: "/retry.flac", Artist: "R", Title: "Retry"},
+		},
+		QueueIDs:     []int64{13},
+		WasEmpty:     false,
+		PlaylistName: "Mix",
+	})
+	if m.playback.state != playback.StatePlaying || m.playback.queueExhausted {
+		t.Errorf("state = %v exhausted = %v; want the later extension to resume",
+			m.playback.state, m.playback.queueExhausted)
 	}
 }
 

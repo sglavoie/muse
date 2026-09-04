@@ -46,37 +46,62 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 
 	// If the queue was concurrently extended (e.g. a paste was processed
 	// before this message arrived), resume playback instead of stopping.
+	//
+	// A refused resume is not exhaustion: the rows are still queued and the
+	// model stays idle so the next extension retries. resumeExtendedQueue has
+	// already told the user why, so resumeFailed carries that fact past the
+	// branches below, which would otherwise announce a completion that did not
+	// happen — and, being the later push at equal priority, would win
+	// TopNotification's tie-break and bury the actionable error.
+	resumeFailed := false
 	if !wasStopAfter && m.queueExtensionResumable() {
 		resumed := false
 		m, resumed = m.resumeExtendedQueue(m.playback.currentIndex + 1)
 		if resumed {
 			return m, nil
 		}
+		resumeFailed = true
 	}
 
 	// Radio mode: enqueue a new batch if enabled and guards pass.
 	if !wasStopAfter {
 		if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
 			m.radio.enqueuePending = true
-			m.playback.queueExhausted = true
-			m.playback.state = playback.StateIdle
-			m = m.resetPlaybackProgress()
-			m.statusBar.Artist = ""
-			m.statusBar.Title = ""
-			m.statusBar.PlaylistSource = ""
-			m.playback.currentHash = ""
-			m.playback.currentIndex = -1
-			m.missingTrackCount = 0
-			player.PlayQueueFinishedSound()
+			m = m.idleAfterQueueEnd(true)
+			if !resumeFailed {
+				player.PlayQueueFinishedSound()
+			}
 			return m, cmd
 		}
 	}
 
+	// Built before the state is cleared: the notice reads the missing-track
+	// count that idleAfterQueueEnd resets.
+	notice := m.queueEndNotice(wasStopAfter)
 	// Mark queue as exhausted so a subsequent paste can auto-resume.
-	if !wasStopAfter {
-		m.playback.queueExhausted = true
+	m = m.idleAfterQueueEnd(!wasStopAfter)
+
+	if resumeFailed {
+		// The "Resume failed" notification and the error sound are the whole
+		// report here; nothing finished, so neither the completion message nor
+		// the completion sound belongs on top of them.
+		return m, nil
 	}
 
+	m.statusBar.Notify(notice)
+	player.PlayQueueFinishedSound()
+	return m, nil
+}
+
+// idleAfterQueueEnd clears the now-playing state that every non-resuming exit of
+// handlePlaybackEndedMsg shares. exhausted marks the queue as replenishable so a
+// later extension resumes the cycle instead of reanchoring it; a
+// stop-after-current is the one end that is not exhaustion, and it leaves the
+// flag alone rather than clearing it.
+func (m Model) idleAfterQueueEnd(exhausted bool) Model {
+	if exhausted {
+		m.playback.queueExhausted = true
+	}
 	m.playback.state = playback.StateIdle
 	m = m.resetPlaybackProgress()
 	m.statusBar.Artist = ""
@@ -84,21 +109,22 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	m.statusBar.PlaylistSource = ""
 	m.playback.currentHash = ""
 	m.playback.currentIndex = -1
+	m.missingTrackCount = 0
+	return m
+}
 
-	var msg string
+// queueEndNotice builds the message announcing that playback stopped. It reads
+// missingTrackCount, so it must run before idleAfterQueueEnd clears it.
+func (m Model) queueEndNotice(wasStopAfter bool) string {
 	switch {
 	case wasStopAfter:
-		msg = "Stopped after track"
+		return "Stopped after track"
 	case m.missingTrackCount > 0:
-		msg = fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
+		return fmt.Sprintf("Queue finished (%d %s skipped — missing files)",
 			m.missingTrackCount, text.Pluralize(m.missingTrackCount, "track", "tracks"))
 	default:
-		msg = "Queue finished"
+		return "Queue finished"
 	}
-	m.missingTrackCount = 0
-	m.statusBar.Notify(msg)
-	player.PlayQueueFinishedSound()
-	return m, nil
 }
 
 // handlePlayerDisconnectedMsg resets TUI playback state when mpv disconnects
