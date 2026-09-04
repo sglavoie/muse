@@ -18,6 +18,7 @@ type radioState struct {
 	seedHash       string
 	syntheticSeed  *radio.SeedTrack // non-nil = use directly instead of hash lookup
 	enqueuePending bool
+	requestID      uint64
 	recentHashes   []string // ring buffer, cap RadioRecentCap
 }
 
@@ -44,13 +45,12 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 		m.radio.seedHash = m.playback.currentHash
 	} else {
 		m.radio.syntheticSeed = nil
+		m = m.supersedeRadioBatch()
 	}
 	m.statusBar.PushMsg(m.modeToggleMsg("Radio mode", playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	if m.radio.enabled {
-		cmd := m.radioMaybeEnqueueCmd()
-		if cmd != nil {
-			m.radio.enqueuePending = true
-		}
+		var cmd tea.Cmd
+		m, cmd = m.startRadioEnqueueCmd()
 		return m, cmd, true
 	}
 	return m, nil, true
@@ -82,25 +82,54 @@ func (m Model) radioRemainingCount() int {
 // Guards: radio enabled, no pending enqueue, stopAfterCurrent not set,
 // repeatMode != RepeatAll, library non-empty, remaining <= low-water-mark.
 func (m Model) radioMaybeEnqueueCmd() tea.Cmd {
-	if !m.radio.enabled {
-		return nil
-	}
-	if m.radio.enqueuePending {
-		return nil
-	}
-	if m.playback.stopAfterCurrent {
-		return nil
-	}
-	if m.playback.repeatMode == playback.RepeatAll {
-		return nil
-	}
-	if len(m.library.Index.Tracks()) == 0 {
-		return nil
-	}
-	if m.radioRemainingCount() > radioLowWaterMark {
+	if !m.radioCanEnqueue() {
 		return nil
 	}
 	return m.radioEnqueueCmd()
+}
+
+func (m Model) radioCanEnqueue() bool {
+	if !m.radio.enabled {
+		return false
+	}
+	if m.radio.enqueuePending {
+		return false
+	}
+	if m.playback.stopAfterCurrent {
+		return false
+	}
+	if m.playback.repeatMode == playback.RepeatAll {
+		return false
+	}
+	if len(m.library.Index.Tracks()) == 0 {
+		return false
+	}
+	if m.radioRemainingCount() > radioLowWaterMark {
+		return false
+	}
+	return true
+}
+
+// startRadioEnqueueCmd gives a newly admitted batch its identity and marks it
+// pending before returning the work. Keeping both mutations here prevents a
+// caller from launching work whose result cannot be distinguished from an
+// older batch invalidated by a clear or disable.
+func (m Model) startRadioEnqueueCmd() (Model, tea.Cmd) {
+	if !m.radioCanEnqueue() {
+		return m, nil
+	}
+	m.radio.requestID++
+	m.radio.enqueuePending = true
+	return m, m.radioEnqueueCmd()
+}
+
+// supersedeRadioBatch invalidates every result created from the current Radio
+// state. The generation advances even when no batch is pending so all queue
+// replacement boundaries have an unambiguous identity.
+func (m Model) supersedeRadioBatch() Model {
+	m.radio.requestID++
+	m.radio.enqueuePending = false
+	return m
 }
 
 // radioEnqueueCmd captures the current scoring inputs and returns a tea.Cmd
@@ -154,6 +183,7 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 	dismissedHashes := snapshotStringSet(m.dismissedHashes)
 	be := m.batchEnqueuer
 	recReader := m.recReader
+	requestID := m.radio.requestID
 
 	return func() tea.Msg {
 		// Two-pass scoring: first pass with metadata only to narrow candidates,
@@ -203,17 +233,18 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 		})
 		picked := radio.PickBatch(scored, radioBatchSize, 0.4)
 		if len(picked) == 0 {
-			return RadioBatchEnqueuedMsg{}
+			return RadioBatchEnqueuedMsg{RequestID: requestID}
 		}
 		ids, err := be.AppendTracks(picked, "Radio")
 		if err != nil {
-			return RadioBatchEnqueuedMsg{Err: err}
+			return RadioBatchEnqueuedMsg{RequestID: requestID, Err: err}
 		}
 		entries := newQueueEntries(picked, ids, "Radio")
 		return RadioBatchEnqueuedMsg{
-			Entries:  entries,
-			QueueIDs: ids,
-			WasEmpty: wasEmpty,
+			Entries:   entries,
+			QueueIDs:  ids,
+			WasEmpty:  wasEmpty,
+			RequestID: requestID,
 		}
 	}
 }
@@ -281,6 +312,15 @@ func buildTimeGenreBonus(affinities []db.HourGenreAffinity, hour int) map[string
 // triggers auto-resume if the queue was exhausted, and schedules the next
 // low-water-mark check.
 func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, tea.Cmd) {
+	// A disable, clear, replacement, or newer enqueue supersedes this result
+	// regardless of what the queue looks like now. AppendTracks commits before
+	// the message is delivered, so retire those exact rows before discarding the
+	// in-memory result. Do not clear enqueuePending: it may belong to the newer
+	// request whose identity caused this mismatch.
+	if msg.RequestID != m.radio.requestID {
+		m.discardRadioBatch(msg.QueueIDs)
+		return m, nil
+	}
 	m.radio.enqueuePending = false
 
 	if msg.Err != nil {
@@ -295,6 +335,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	// appended by the goroutine but appending them to the empty/disabled
 	// queue would resurrect playback the user just cancelled.
 	if !m.radio.enabled {
+		m.discardRadioBatch(msg.QueueIDs)
 		return m, nil
 	}
 	// Queue-cleared-in-flight guard: when the radio batch was launched the
@@ -306,6 +347,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	// user-initiated clear (queueExhausted reset by resetPlaybackState).
 	// Only the former should auto-resume by appending the in-flight batch.
 	if !msg.WasEmpty && len(m.queue.Entries) == 0 && !m.playback.queueExhausted {
+		m.discardRadioBatch(msg.QueueIDs)
 		return m, nil
 	}
 
@@ -334,4 +376,16 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	}
 
 	return m, nil
+}
+
+// discardRadioBatch reconciles durable state for a result that will not be
+// represented in the TUI queue. The rows remain soft-deleted for normal queue
+// maintenance to purge later, but ReadQueue can no longer restore them.
+func (m Model) discardRadioBatch(ids []int64) {
+	if len(ids) == 0 || m.batchEnqueuer == nil {
+		return
+	}
+	if err := m.batchEnqueuer.DequeueTracksSoft(ids); err != nil {
+		slog.Warn("radio discarded batch cleanup failed", "err", err)
+	}
 }

@@ -106,9 +106,7 @@ func (m Model) handleMixesRadioSeed() (Model, tea.Cmd) {
 		}
 	}
 	m.statusBar.PushMsg("Radio: seeded from "+mixName, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
-	cmd := m.radioMaybeEnqueueCmd()
-	if cmd != nil {
-		m.radio.enqueuePending = true
-	}
+	var cmd tea.Cmd
+	m, cmd = m.startRadioEnqueueCmd()
 	return m, cmd
 }

@@ -215,10 +215,8 @@ func (m Model) handleInsightsRadioSeed() (Model, tea.Cmd) {
 		}
 	}
 	m.statusBar.PushMsg("Radio: seeded from "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
-	cmd := m.radioMaybeEnqueueCmd()
-	if cmd != nil {
-		m.radio.enqueuePending = true
-	}
+	var cmd tea.Cmd
+	m, cmd = m.startRadioEnqueueCmd()
 	return m, cmd
 }
 

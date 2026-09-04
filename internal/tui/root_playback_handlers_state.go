@@ -316,10 +316,8 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
-	radioCmd := m.radioMaybeEnqueueCmd()
-	if radioCmd != nil {
-		m.radio.enqueuePending = true
-	}
+	var radioCmd tea.Cmd
+	m, radioCmd = m.startRadioEnqueueCmd()
 
 	// Pulse the now-playing row briefly so the user notices the transition.
 	m.pulseUntil = time.Now().Add(pulseDuration)

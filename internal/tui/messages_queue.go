@@ -23,8 +23,9 @@ type QueuePastedMsg struct {
 
 // RadioBatchEnqueuedMsg carries the result of a radio auto-enqueue batch.
 type RadioBatchEnqueuedMsg struct {
-	Entries  []queue.Entry
-	QueueIDs []int64
-	WasEmpty bool
-	Err      error
+	Entries   []queue.Entry
+	QueueIDs  []int64
+	WasEmpty  bool
+	RequestID uint64
+	Err       error
 }

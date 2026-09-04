@@ -1,11 +1,192 @@
 package tui
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
+
+// TestRadioBatchCancellationKeepsDurableQueueConsistent exercises the real
+// queue writer and reader across every cancellation boundary. The enqueue
+// command is completed before the model mutation, deterministically modeling
+// a committed batch whose Bubble Tea result has not been delivered yet.
+func TestRadioBatchCancellationKeepsDurableQueueConsistent(t *testing.T) {
+	t.Run("disable in flight", func(t *testing.T) {
+		m, d := newRadioBatchDBModel(t)
+		m, msg := runRadioBatch(t, m)
+		assertActiveQueueLen(t, d, 6)
+
+		next, _, _ := m.radioToggle()
+		m = next.(Model)
+		m, _ = m.handleRadioBatchEnqueuedMsg(msg)
+
+		if m.radio.enqueuePending {
+			t.Fatal("disabled Radio retained a pending enqueue")
+		}
+		if got := len(m.queue.Entries); got != 1 {
+			t.Fatalf("in-memory queue length = %d, want original row only", got)
+		}
+		assertActiveQueueLen(t, d, 1)
+	})
+
+	t.Run("clear in flight", func(t *testing.T) {
+		m, d := newRadioBatchDBModel(t)
+		m, msg := runRadioBatch(t, m)
+		assertActiveQueueLen(t, d, 6)
+
+		m = m.handleClearQueueMsg()
+		cancelRadioTestPurge(&m)
+		m, _ = m.handleRadioBatchEnqueuedMsg(msg)
+
+		if got := len(m.queue.Entries); got != 0 {
+			t.Fatalf("in-memory queue length = %d, want empty", got)
+		}
+		assertActiveQueueLen(t, d, 0)
+	})
+
+	t.Run("clear then repopulate before result", func(t *testing.T) {
+		m, d := newRadioBatchDBModel(t)
+		m, stale := runRadioBatch(t, m)
+		assertActiveQueueLen(t, d, 6)
+
+		m = m.handleClearQueueMsg()
+		cancelRadioTestPurge(&m)
+		replacement := sampleLibraryTracks()[5]
+		ids, err := m.batchEnqueuer.AppendTracks([]library.Track{replacement}, "Manual")
+		if err != nil {
+			t.Fatalf("append replacement: %v", err)
+		}
+		m.queue.Entries = newQueueEntries([]library.Track{replacement}, ids, "Manual")
+		m.playback.currentIndex = 0
+		m, radioCmd := m.startRadioEnqueueCmd()
+		if radioCmd == nil || !m.radio.enqueuePending {
+			t.Fatal("expected a newer Radio request after replacement")
+		}
+
+		m, _ = m.handleRadioBatchEnqueuedMsg(stale)
+
+		if !m.radio.enqueuePending {
+			t.Fatal("stale result cleared the newer Radio request's pending state")
+		}
+		if got := len(m.queue.Entries); got != 1 || m.queue.Entries[0].ID != ids[0] {
+			t.Fatalf("replacement queue changed after stale result: %+v", m.queue.Entries)
+		}
+		rows := assertActiveQueueLen(t, d, 1)
+		if rows[0].ID != ids[0] {
+			t.Fatalf("durable row ID = %d, want replacement ID %d", rows[0].ID, ids[0])
+		}
+	})
+
+	t.Run("current result appends normally", func(t *testing.T) {
+		m, d := newRadioBatchDBModel(t)
+		m, msg := runRadioBatch(t, m)
+		m, _ = m.handleRadioBatchEnqueuedMsg(msg)
+
+		if m.radio.enqueuePending {
+			t.Fatal("current Radio result retained pending state")
+		}
+		if got := len(m.queue.Entries); got != 6 {
+			t.Fatalf("in-memory queue length = %d, want original plus batch", got)
+		}
+		rows := assertActiveQueueLen(t, d, 6)
+		for i, entry := range m.queue.Entries {
+			if rows[i].ID != entry.ID {
+				t.Fatalf("row %d durable ID = %d, in-memory ID = %d", i, rows[i].ID, entry.ID)
+			}
+		}
+	})
+}
+
+func newRadioBatchDBModel(t *testing.T) (Model, *db.DB) {
+	t.Helper()
+	d, err := db.Open(filepath.Join(t.TempDir(), "radio-batch.db"))
+	if err != nil {
+		t.Fatalf("open DB: %v", err)
+	}
+	if err := db.Migrate(d.DB); err != nil {
+		d.Close()
+		t.Fatalf("migrate DB: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	w := db.NewWriter(ctx, d.DB)
+	t.Cleanup(func() {
+		cancel()
+		w.Wait()
+		if err := d.Close(); err != nil {
+			t.Errorf("close DB: %v", err)
+		}
+	})
+
+	tracks := sampleLibraryTracks()
+	now := time.Now().Unix()
+	for _, track := range tracks {
+		if _, err := d.Exec(
+			`INSERT INTO tracks (hash, path, artist, title, album, duration_ms, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			track.Hash, track.Path, track.Artist, track.Title, track.Album, int64(track.Duration*1000), now, now,
+		); err != nil {
+			t.Fatalf("seed track %s: %v", track.Hash, err)
+		}
+	}
+	ids, err := w.AppendTracks(tracks[:1], "Manual")
+	if err != nil {
+		t.Fatalf("seed queue: %v", err)
+	}
+	m := New(context.Background(),
+		WithLibraryTracks(tracks),
+		WithQueueEntries(newQueueEntries(tracks[:1], ids, "Manual")),
+		WithBatchEnqueuer(w),
+		WithQueueDequeuer(w),
+	)
+	m.radio.enabled = true
+	m.radio.seedHash = tracks[0].Hash
+	m.playback.currentIndex = 0
+	return m, d
+}
+
+func runRadioBatch(t *testing.T, m Model) (Model, RadioBatchEnqueuedMsg) {
+	t.Helper()
+	m, cmd := m.startRadioEnqueueCmd()
+	if cmd == nil {
+		t.Fatal("expected Radio enqueue command")
+	}
+	raw := cmd()
+	msg, ok := raw.(RadioBatchEnqueuedMsg)
+	if !ok {
+		t.Fatalf("Radio command returned %T", raw)
+	}
+	if msg.Err != nil {
+		t.Fatalf("Radio enqueue: %v", msg.Err)
+	}
+	if len(msg.QueueIDs) != radioBatchSize {
+		t.Fatalf("Radio batch size = %d, want %d", len(msg.QueueIDs), radioBatchSize)
+	}
+	return m, msg
+}
+
+func assertActiveQueueLen(t *testing.T, d *db.DB, want int) []db.QueueRow {
+	t.Helper()
+	rows, err := d.ReadQueue()
+	if err != nil {
+		t.Fatalf("read durable queue: %v", err)
+	}
+	if len(rows) != want {
+		t.Fatalf("durable queue length = %d, want %d", len(rows), want)
+	}
+	return rows
+}
+
+func cancelRadioTestPurge(m *Model) {
+	if m.undo.slot.cancelPurge != nil {
+		close(m.undo.slot.cancelPurge)
+		m.undo.slot.cancelPurge = nil
+	}
+}
 
 // TestRadioBatchDiscardedWhenDisabled verifies that a RadioBatchEnqueuedMsg
 // arriving after the user has toggled radio off does not resurrect playback by

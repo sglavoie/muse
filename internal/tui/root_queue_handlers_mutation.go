@@ -130,10 +130,10 @@ func (m Model) handleClearQueueMsg() Model {
 	// snapshot referenced; leaving visual.active=true with stale indices
 	// would corrupt the next visual selection after a re-enqueue.
 	m = exitVisualMode(m)
-	// Reset the radio enqueue-pending flag so the next track change can fire
-	// a fresh radio batch. The in-flight batch (if any) is discarded by the
-	// queue-cleared guard in handleRadioBatchEnqueuedMsg.
-	m.radio.enqueuePending = false
+	// Invalidate in-flight Radio work as well as opening the gate for a new
+	// batch. Identity rather than later queue length distinguishes the old
+	// result from natural exhaustion and from a repopulated replacement queue.
+	m = m.supersedeRadioBatch()
 	if setter, ok := m.player.(playerQueueSetter); ok {
 		setter.SetQueue(nil)
 	}
@@ -145,6 +145,7 @@ func (m Model) handleClearQueueMsg() Model {
 // subsequent enqueue becomes the only entry. Unlike handleClearQueueMsg this
 // does not set up an undo slot — the enqueue that follows will create its own.
 func (m Model) clearQueueForReplace() Model {
+	m = m.supersedeRadioBatch()
 	if len(m.queue.Entries) > 0 && m.undoer != nil {
 		go func(undoer queueDequeuer) {
 			if _, err := undoer.ClearQueueSoft(); err == nil {
