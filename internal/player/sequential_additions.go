@@ -6,11 +6,14 @@ package player
 // at the tail — and a row inserted at or before the cursor is a row positional
 // arithmetic will never reach even though the traversal never played it.
 //
-// This file holds the two pieces that close that gap: following the cursor row
-// by identity so an insertion cannot silently rename it, and recording the rows
-// that landed behind the cursor so the resume can still find them. It is the
-// shuffle-off counterpart to the unseen pool in shuffle.go, where reconciliation
-// already makes every brand-new identity eligible regardless of position.
+// This file holds the pieces that close that gap: following the cursor row by
+// identity so an insertion cannot silently rename it, recording the rows that
+// landed behind the cursor so the resume can still find them, and pinning the
+// frontier the traversal had reached so that stepping back onto one of those
+// rows does not turn everything the traversal already played into a successor.
+// It is the shuffle-off counterpart to the unseen pool in shuffle.go, where
+// reconciliation already makes every brand-new identity eligible regardless of
+// position.
 
 // unreachedAddition is a queue row that entered the queue behind the sequential
 // cursor and has not been played. The identity travels with the index because
@@ -87,10 +90,9 @@ func (m *Manager) recordUnreachedAdditionsLocked(prev []string) {
 	}
 }
 
-// unreachedAdditionsLocked returns the recorded additions that sit before limit
-// — the first index the positional scan would reach — in queue order, so a
-// resume attempts the earliest one first. Identities that no longer resolve to a
-// queue row simply drop out.
+// unreachedAdditionsLocked returns the recorded additions that sit before limit,
+// in queue order, so a resume attempts the earliest one first. Identities that no
+// longer resolve to a queue row simply drop out.
 //
 // The caller must hold m.mu.
 func (m *Manager) unreachedAdditionsLocked(limit int) []unreachedAddition {
@@ -130,4 +132,100 @@ func (m *Manager) forgetAdditionLocked(identity string) {
 	if len(m.unreachedAdditions) == 0 {
 		m.unreachedAdditions = nil
 	}
+}
+
+// forgetAdditionsThroughLocked drops every recorded addition at or before limit
+// — the ones a step onto limit has just moved past, the row it is starting
+// included — and returns what it removed so a failed load can put them back.
+//
+// The caller must hold m.mu.
+func (m *Manager) forgetAdditionsThroughLocked(limit int) []string {
+	pending := m.unreachedAdditionsLocked(limit + 1)
+	if len(pending) == 0 {
+		return nil
+	}
+	dropped := make([]string, 0, len(pending))
+	for _, add := range pending {
+		dropped = append(dropped, add.identity)
+		delete(m.unreachedAdditions, add.identity)
+	}
+	if len(m.unreachedAdditions) == 0 {
+		m.unreachedAdditions = nil
+	}
+	return dropped
+}
+
+// restoreAdditionsLocked reinstates identities dropped by a step that then
+// failed to load, so the rows stay eligible for the next attempt.
+//
+// The caller must hold m.mu.
+func (m *Manager) restoreAdditionsLocked(identities []string) {
+	if len(identities) == 0 {
+		return
+	}
+	if m.unreachedAdditions == nil {
+		m.unreachedAdditions = make(map[string]bool, len(identities))
+	}
+	for _, id := range identities {
+		m.unreachedAdditions[id] = true
+	}
+}
+
+// sequentialFrontierLocked resolves the recorded frontier to a live queue index,
+// or -1 when no frontier stands or its row has left the queue. It is meaningful
+// only while it is strictly ahead of the cursor; at or behind it, positional
+// continuation has already caught up and the frontier says nothing.
+//
+// The caller must hold m.mu.
+func (m *Manager) sequentialFrontierLocked() int {
+	if m.sequentialFrontier == "" {
+		return -1
+	}
+	return identityIndex(m.queue, m.sequentialFrontier)
+}
+
+// sequentialSuccessorsLocked returns, in the order an automatic shuffle-off
+// continuation must try them, the queue indices it may visit after the row at
+// from-1.
+//
+// With no frontier ahead of the cursor that is the plain positional scan every
+// stable queue takes. With one, the cursor is walking rows that were inserted
+// behind an exhausted traversal: the rows between it and the frontier are the
+// ones that already played, so continuing positionally would hand them back as
+// successors. The insertions that are still pending come first, in queue order,
+// and the scan resumes beyond the frontier — which is where a later tail append
+// lands.
+//
+// The caller must hold m.mu.
+func (m *Manager) sequentialSuccessorsLocked(from int) []int {
+	if from < 0 {
+		from = 0
+	}
+	n := len(m.queue)
+	frontier := m.sequentialFrontierLocked()
+	scanFrom := from
+	var out []int
+	if frontier >= from {
+		for _, add := range m.unreachedAdditionsLocked(frontier + 1) {
+			if add.index >= from {
+				out = append(out, add.index)
+			}
+		}
+		scanFrom = frontier + 1
+	}
+	for i := scanFrom; i < n; i++ {
+		out = append(out, i)
+	}
+	return out
+}
+
+// identityAtLocked returns the identity of the queue row at index, or "" when
+// index names no row.
+//
+// The caller must hold m.mu.
+func (m *Manager) identityAtLocked(index int) string {
+	if index < 0 || index >= len(m.queue) {
+		return ""
+	}
+	return queueIdentities(m.queue)[index]
 }

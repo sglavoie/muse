@@ -161,6 +161,40 @@ func TestPasteResumesIntoAddition(t *testing.T) {
 	assertResumedIntoAddition(t, m, p, 4)
 }
 
+// finishTrack models the natural end of the row that is playing: the player
+// promotes the gapless successor it had lined up and reports the row that
+// started, or — when it had none — reports the queue exhausted. It returns the
+// carried model and the queue row that started, -1 when the queue ran out.
+func finishTrack(m Model, p *fakeTraversalPlayer) (Model, int) {
+	started, ok := p.finishCurrent()
+	if !ok {
+		m, _ = m.handlePlaybackEndedMsg()
+		return m, -1
+	}
+	entry := m.queue.Entries[started]
+	m, _ = m.handleTrackChangedMsg(playback.TrackChangedMsg{
+		Hash: entry.Hash, Index: started, Artist: entry.Artist, Title: entry.Title,
+	})
+	return m, started
+}
+
+// assertQueueRanOut checks the model landed back on natural exhaustion rather
+// than on a row it already played.
+func assertQueueRanOut(t *testing.T, m Model, p *fakeTraversalPlayer, wantLoaded []int) {
+	t.Helper()
+	if m.playback.state != playback.StateIdle || !m.playback.queueExhausted {
+		t.Errorf("state = %v exhausted = %v; want idle and exhausted",
+			m.playback.state, m.playback.queueExhausted)
+	}
+	if !slices.Equal(p.loaded, wantLoaded) {
+		t.Errorf("loaded rows = %v, want only the insertions %v", p.loaded, wantLoaded)
+	}
+	if p.resumeCalls != 1 {
+		t.Errorf("ResumeAfterQueueExtension calls = %d, want 1; the exhaustion must not resume again",
+			p.resumeCalls)
+	}
+}
+
 // TestPasteBeforeCompletedRowResumesNewAddition covers the insertions that land
 // at or before the row a shuffle-off traversal finished on. Both queue paste and
 // "play next" insert at the cursor, and on an exhausted queue that is index 0,
@@ -198,6 +232,77 @@ func TestPasteBeforeCompletedRowResumesNewAddition(t *testing.T) {
 		})
 
 		assertResumedIntoAddition(t, m, p, 0)
+	})
+
+	t.Run("two pasted rows play in order and then the queue ends", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+
+		m = m.handleQueuePastedMsg(QueuePastedMsg{
+			Entries: []queue.Entry{
+				{ID: 12, Hash: "pasted-a", Path: "/pa.flac", Artist: "P", Title: "Pasted A"},
+				{ID: 13, Hash: "pasted-b", Path: "/pb.flac", Artist: "P", Title: "Pasted B"},
+			},
+			InsertPos: 0,
+		})
+
+		assertResumedIntoAddition(t, m, p, 0)
+
+		// The second pasted row is what the player had lined up: the rows between
+		// it and the cursor are the ones the traversal already finished.
+		m, started := finishTrack(m, p)
+		if started != 1 {
+			t.Fatalf("EOF started row %d, want the second pasted row 1", started)
+		}
+		m, started = finishTrack(m, p)
+		if started != -1 {
+			t.Fatalf("EOF started row %d, want the queue to run out", started)
+		}
+		assertQueueRanOut(t, m, p, []int{0, 1})
+	})
+
+	t.Run("a paste in the middle plays only the pasted rows", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+
+		// Pasting between two completed rows: positional continuation from the
+		// pasted row would step onto the row it was inserted above.
+		m = m.handleQueuePastedMsg(QueuePastedMsg{
+			Entries: []queue.Entry{
+				{ID: 12, Hash: "mid-a", Path: "/ma.flac", Artist: "M", Title: "Mid A"},
+				{ID: 13, Hash: "mid-b", Path: "/mb.flac", Artist: "M", Title: "Mid B"},
+			},
+			InsertPos: 2,
+		})
+
+		assertResumedIntoAddition(t, m, p, 2)
+
+		m, started := finishTrack(m, p)
+		if started != 3 {
+			t.Fatalf("EOF started row %d, want the second pasted row 3", started)
+		}
+		m, started = finishTrack(m, p)
+		if started != -1 {
+			t.Fatalf("EOF started row %d, want the queue to run out", started)
+		}
+		assertQueueRanOut(t, m, p, []int{2, 3})
+	})
+
+	t.Run("play next then the natural EOF ends the queue", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+
+		track := library.Track{Hash: "next-hash", Artist: "Next", Title: "Up", Path: "/next.flac"}
+		m = m.handleTrackEnqueuedMsg(libtui.TrackEnqueuedMsg{
+			Track: track, QueueID: 9, WasEmpty: false, InsertAfter: m.playNextIndex(),
+		})
+
+		assertResumedIntoAddition(t, m, p, 0)
+
+		// One insertion, so there is no successor to promote: the transition after
+		// it must end the queue instead of replaying row 1.
+		m, started := finishTrack(m, p)
+		if started != -1 {
+			t.Fatalf("EOF started row %d, want the queue to run out", started)
+		}
+		assertQueueRanOut(t, m, p, []int{0})
 	})
 
 	t.Run("a paste at the tail still resumes positionally", func(t *testing.T) {

@@ -607,21 +607,94 @@ func (m *Manager) setCurrentIndexLocked(i int) {
 // commitIndexLocked publishes index as the current queue index and returns the
 // undo that restores the previous one if the load that follows fails.
 //
+// This is the commit for a selection: an explicit one the user made, or a
+// shuffle step, both of which reanchor plain visible-order continuation on the
+// row they land. Automatic shuffle-off continuation goes through
+// commitSequentialStepLocked instead, which is the only thing that may keep a
+// frontier standing.
+//
 // The caller must hold m.mu.
 func (m *Manager) commitIndexLocked(index int) func() {
 	prev := m.currentIndex
 	prevAdditions := m.unreachedAdditions
+	prevFrontier := m.sequentialFrontier
 	m.setCurrentIndexLocked(index)
-	// A committed load establishes a new sequential position, and positional
+	// A committed selection establishes a new sequential position, and positional
 	// traversal never goes back: whatever had been inserted behind the old cursor
 	// is either the row that just started or is now behind the new one. Keeping
 	// the set would let a later resume jump backwards onto a row the user has
-	// already moved past.
+	// already moved past, and keeping a frontier would keep routing continuation
+	// around rows the selection has made reachable again.
 	m.unreachedAdditions = nil
+	m.sequentialFrontier = ""
 	return func() {
 		m.currentIndex = prev
 		m.unreachedAdditions = prevAdditions
+		m.sequentialFrontier = prevFrontier
 	}
+}
+
+// commitSequentialStepLocked publishes index for one automatic shuffle-off
+// continuation step: the gapless promotion at EOF, the fallback advance behind
+// it, and the positional tail of a resume.
+//
+// It differs from commitIndexLocked in what it does not throw away. A step is
+// not a selection: it consumes the insertions it has moved past and leaves the
+// ones still ahead of it, and it leaves the frontier where it is. That is what
+// lets a traversal that stepped back onto an insertion visit the rest of them on
+// the following EOFs instead of resolving currentIndex+1 into a row it already
+// played. With no frontier standing every recorded insertion sits behind the
+// cursor and a forward step drops all of them, which is exactly what
+// commitIndexLocked would have done.
+//
+// The caller must hold m.mu.
+func (m *Manager) commitSequentialStepLocked(index int) func() {
+	prev := m.currentIndex
+	dropped := m.forgetAdditionsThroughLocked(index)
+	m.setCurrentIndexLocked(index)
+	return func() {
+		m.currentIndex = prev
+		m.restoreAdditionsLocked(dropped)
+	}
+}
+
+// commitResumedAdditionLocked publishes index for a resume that stepped
+// backwards onto a row inserted behind an exhausted cursor.
+//
+// Moving the cursor back is what makes the rows the traversal already played
+// numeric successors again, so the position it had actually reached is pinned as
+// the frontier first. Every continuation from here consults that frontier rather
+// than the cursor, and only an explicit selection retires it.
+//
+// The commit runs twice for one load — once before the loadfile and once after
+// mpv accepts it — so establishing the frontier is conditional on the step still
+// being a step backwards; the second call finds the cursor already moved and
+// leaves the frontier alone.
+//
+// The caller must hold m.mu.
+func (m *Manager) commitResumedAdditionLocked(index int) func() {
+	prevFrontier := m.sequentialFrontier
+	if m.sequentialFrontier == "" && index < m.currentIndex {
+		m.sequentialFrontier = m.identityAtLocked(m.currentIndex)
+	}
+	undoStep := m.commitSequentialStepLocked(index)
+	return func() {
+		undoStep()
+		m.sequentialFrontier = prevFrontier
+	}
+}
+
+// commitReplayedIndexLocked publishes index for a replay of the row that is
+// already current. A replay restarts a row without moving the timeline, so
+// unlike every other commit it touches nothing else: the insertions still
+// pending and the frontier the traversal reached both describe what comes after
+// the replayed row just as they did before it.
+//
+// The caller must hold m.mu.
+func (m *Manager) commitReplayedIndexLocked(index int) func() {
+	prev := m.currentIndex
+	m.setCurrentIndexLocked(index)
+	return func() { m.currentIndex = prev }
 }
 
 // playlistClient returns the live IPC client for a playlist mutation, or nil when

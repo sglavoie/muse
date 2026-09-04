@@ -49,12 +49,14 @@ func (m *Manager) replayCurrentLocked() (int, error) {
 		return -1, fmt.Errorf("%w: no current entry to replay", ErrPlaybackFailed)
 	}
 
-	// Commit the same index the replacement is loading. It re-asserts nothing
-	// under normal conditions, but an EOF promotion racing this replay can move
+	// Commit the same index the replacement is loading, and nothing else: the
+	// replay does not step, so the pending insertions and the frontier are still
+	// the ones that describe what comes next. The commit re-asserts nothing under
+	// normal conditions, but an EOF promotion racing this replay can move
 	// currentIndex onto a prefetched entry under m.mu alone while the load is in
 	// flight; mpv is playing what this replacement loaded, so this is the commit
 	// that describes mpv.
-	if err := m.replaceLocked(entry, marker, func() func() { return m.commitIndexLocked(idx) }); err != nil {
+	if err := m.replaceLocked(entry, marker, func() func() { return m.commitReplayedIndexLocked(idx) }); err != nil {
 		return -1, err
 	}
 	return idx, nil
@@ -105,8 +107,14 @@ func (m *Manager) resumeAfterQueueExtensionLocked() (int, error) {
 //
 // A row whose file has vanished is dropped from the additions rather than
 // retried, mirroring the way the shuffle cycle excludes what it gave up on. When
-// nothing at all is playable the positional scan reports the traversal exhausted
-// as before.
+// nothing at all is playable the continuation reports the traversal exhausted as
+// before.
+//
+// Starting one of those rows pins the position the traversal had reached as a
+// frontier, because the cursor moving backwards is what would otherwise make
+// every row it already played a numeric successor again. The insertions that are
+// still pending sit ahead of the cursor from then on, so the continuation below
+// — and the EOF transitions after it — reach them without another resume.
 //
 // The caller must hold m.playlistMu.
 func (m *Manager) resumeSequentialLocked() (int, error) {
@@ -118,7 +126,7 @@ func (m *Manager) resumeSequentialLocked() (int, error) {
 	m.mu.RUnlock()
 
 	for _, add := range pending {
-		err := m.replaceLocked(queue[add.index], marker, func() func() { return m.commitIndexLocked(add.index) })
+		err := m.replaceLocked(queue[add.index], marker, func() func() { return m.commitResumedAdditionLocked(add.index) })
 		if err == nil {
 			return add.index, nil
 		}
@@ -129,5 +137,5 @@ func (m *Manager) resumeSequentialLocked() (int, error) {
 		m.forgetAdditionLocked(add.identity)
 		m.mu.Unlock()
 	}
-	return m.playSequentialFromLocked(seqNext)
+	return m.continueSequentialLocked(seqNext)
 }

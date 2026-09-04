@@ -290,7 +290,12 @@ func (m *Manager) promoteSequentialPrefetch(state eofState) (eofTransition, bool
 		return eofTransition{}, false
 	}
 
-	m.currentIndex = p.index
+	// Commit as a continuation step rather than by assignment: the prefetch may
+	// be one of the insertions a resume left pending, and consuming it here is
+	// what stops the next transition from resolving it a second time. A step also
+	// leaves the frontier standing, so the transition after this one still knows
+	// which rows are behind it.
+	m.commitSequentialStepLocked(p.index)
 	m.dropPrefetchTrackingLocked()
 	m.completedSlotPending = true
 	// The successor question the EOF snapshot left pending is answered: mpv is

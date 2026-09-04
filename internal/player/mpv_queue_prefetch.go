@@ -34,8 +34,11 @@ func (m *Manager) prefetchNextLocked() {
 	completedPending := m.completedSlotPending
 	cur := m.prefetchSnapshotLocked()
 	var upcoming []string
+	var successors []int
 	if shuffle {
 		upcoming = m.upcomingShuffleLocked()
+	} else {
+		successors = m.sequentialSuccessorsLocked(idx + 1)
 	}
 	m.mu.RUnlock()
 
@@ -77,16 +80,18 @@ func (m *Manager) prefetchNextLocked() {
 		return
 	}
 
-	// Resolve the successor without consuming shuffle history: under shuffle the
+	// Resolve the successor without consuming traversal state: under shuffle the
 	// next track is the first playable identity the traversal would visit, not
-	// idx+1. The resolved identity is committed to history only when the EOF
-	// transition to it is confirmed (see the end-file handler).
+	// idx+1, and with shuffle off it is the first playable row of the sequential
+	// continuation, which is idx+1 only while the cursor is the frontier. The
+	// resolved identity is committed to history only when the EOF transition to
+	// it is confirmed (see the end-file handler).
 	var nextIdx int
 	var nextPath, nextID string
 	if shuffle {
 		nextIdx, nextPath, nextID = resolveNextShufflePrefetch(queue, upcoming)
 	} else {
-		nextIdx, nextPath = resolveNextSequentialPrefetch(queue, idx)
+		nextIdx, nextPath = resolveNextSequentialPrefetch(queue, successors)
 	}
 	if nextIdx < 0 {
 		m.removePrefetchLocked()
@@ -118,10 +123,20 @@ func (m *Manager) prefetchNextLocked() {
 }
 
 // resolveNextSequentialPrefetch returns the index and path of the first playable
-// (present-on-disk) queue entry after idx, or (-1, "") when none exists. Used by
-// prefetchNext when shuffle is off.
-func resolveNextSequentialPrefetch(queue []QueueTrack, idx int) (int, string) {
-	for i := idx + 1; i < len(queue); i++ {
+// (present-on-disk) row among the sequential continuation's candidates, or
+// (-1, "") when none is. Used by prefetchNext when shuffle is off.
+//
+// It takes the candidate order rather than a starting index because the
+// continuation is not always "everything after the cursor": once a resume has
+// stepped back onto a row inserted behind an exhausted traversal, the rows in
+// between are ones that already played, and the successors are the remaining
+// insertions followed by whatever lies past the frontier. See
+// sequentialSuccessorsLocked.
+func resolveNextSequentialPrefetch(queue []QueueTrack, candidates []int) (int, string) {
+	for _, i := range candidates {
+		if i < 0 || i >= len(queue) {
+			continue
+		}
 		if _, err := os.Stat(queue[i].Path); err == nil {
 			return i, queue[i].Path
 		}

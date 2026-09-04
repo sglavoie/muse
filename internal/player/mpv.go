@@ -368,9 +368,19 @@ type Manager struct {
 	// shuffle-off counterpart of shuffleUnseen: with shuffle on, reconciliation
 	// puts every brand-new identity into the unseen pool and position is
 	// irrelevant. Recorded by SetQueue, consumed by the sequential resume, and
-	// discarded by every committed load. Guarded by mu; see
+	// discarded once the traversal has moved past them. Guarded by mu; see
 	// sequential_additions.go.
 	unreachedAdditions map[string]bool
+
+	// sequentialFrontier is the identity of the furthest row plain positional
+	// traversal has reached, recorded only while the cursor sits behind it —
+	// which happens when a resume steps back onto a row inserted behind an
+	// exhausted cursor. Everything between the cursor and the frontier has
+	// already played, so from there on "the next row" is the remaining
+	// insertions followed by whatever lies beyond the frontier, never
+	// currentIndex+1. Empty means the cursor is the frontier and continuation
+	// is plain arithmetic. Guarded by mu; see sequential_additions.go.
+	sequentialFrontier string
 
 	// permute returns a permutation of [0,n) used to randomize the unseen
 	// pool. Production wires math/rand/v2; tests inject a fixed permutation.

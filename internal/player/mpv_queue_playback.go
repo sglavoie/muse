@@ -86,6 +86,37 @@ func (m *Manager) playSequentialFromLocked(index int) (int, error) {
 	return -1, fmt.Errorf("%w: no playable entry starting at index %d", errTraversalExhausted, index)
 }
 
+// continueSequentialLocked is the shuffle-off traversal's automatic
+// continuation: the EOF advance and the positional tail of a resume.
+//
+// It differs from playSequentialFromLocked, which serves explicit selection,
+// only in where the candidates come from. A selection means "play the queue
+// forward from here"; a continuation means "play what the traversal has not
+// reached yet", and once a resume has stepped back onto an insertion those two
+// stop agreeing — from is behind rows that already played. The candidate order
+// comes from sequentialSuccessorsLocked, and each load is committed as a step so
+// the frontier survives it.
+//
+// The caller must hold m.playlistMu.
+func (m *Manager) continueSequentialLocked(from int) (int, error) {
+	m.mu.RLock()
+	candidates := m.sequentialSuccessorsLocked(from)
+	queue := m.queue
+	marker := m.marker
+	m.mu.RUnlock()
+
+	for _, i := range candidates {
+		err := m.replaceLocked(queue[i], marker, func() func() { return m.commitSequentialStepLocked(i) })
+		if err == nil {
+			return i, nil
+		}
+		if !errors.Is(err, ErrMissingFile) {
+			return -1, err
+		}
+	}
+	return -1, fmt.Errorf("%w: no playable entry left after index %d", errTraversalExhausted, from-1)
+}
+
 // playShuffleAnchoredLocked reanchors the shuffle cycle around index and plays
 // it, returning the queue index that actually started. The selected identity
 // becomes the sole history entry; every other queue identity is re-permuted into
@@ -251,9 +282,9 @@ func (m *Manager) advanceBackwardLocked() (int, error) {
 
 // advanceAfterCurrentLocked advances playback after the current track ends. It
 // is the internal traversal load used by auto-advance (EOF): it advances
-// existing shuffle history without reanchoring the cycle, or plays the
-// sequential next index when shuffle is off. It returns the queue index the
-// traversal landed on.
+// existing shuffle history without reanchoring the cycle, or continues the
+// shuffle-off traversal past the row that finished. It returns the queue index
+// the traversal landed on.
 //
 // It has no unlocked counterpart on purpose: its only caller runs it inside a
 // transaction it opened itself, so that the playlist generation the EOF was
@@ -267,7 +298,7 @@ func (m *Manager) advanceAfterCurrentLocked(seqNext int) (int, error) {
 	if shuffle {
 		return m.advanceForwardLocked()
 	}
-	return m.playSequentialFromLocked(seqNext)
+	return m.continueSequentialLocked(seqNext)
 }
 
 // RestartQueueCycle restarts playback of the queue from the beginning of a

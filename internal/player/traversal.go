@@ -24,6 +24,13 @@ func (m *Manager) QueueTraversal() QueueTraversal {
 // resume plays those before it scans forward, so a consumer counting only the
 // tail would read an extended queue as finished.
 //
+// Once a resume has stepped back onto one of those insertions the tail stops
+// being what is left: the rows between the cursor and the frontier have already
+// played. What remains is then the continuation itself — the insertions still
+// ahead plus whatever lies past the frontier — and counting the tail instead
+// would report an exhausted queue as having more to play, which is what makes a
+// consumer resume onto a row it already heard.
+//
 // The caller must hold m.mu.
 func (m *Manager) sequentialTraversalLocked() QueueTraversal {
 	n := len(m.queue)
@@ -36,7 +43,11 @@ func (m *Manager) sequentialTraversalLocked() QueueTraversal {
 	t := QueueTraversal{Order: order, CurrentPosition: -1, Remaining: n}
 	if m.currentIndex >= 0 && m.currentIndex < n {
 		t.CurrentPosition = m.currentIndex
-		t.Remaining = n - m.currentIndex - 1 + m.countUnreachedAdditionsLocked()
+		ahead := n - m.currentIndex - 1
+		if m.sequentialFrontierLocked() > m.currentIndex {
+			ahead = len(m.sequentialSuccessorsLocked(m.currentIndex + 1))
+		}
+		t.Remaining = ahead + m.countUnreachedAdditionsLocked()
 	}
 	return t
 }
