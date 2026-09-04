@@ -105,6 +105,7 @@ func NewWriter(ctx context.Context, db *sql.DB) *Writer {
 		cmds: make(chan writeCmd, writerChannelBuffer),
 		done: make(chan struct{}),
 	}
+	w.recoverPendingRadioTracks()
 	w.initSessionState()
 	go w.run(ctx)
 	return w

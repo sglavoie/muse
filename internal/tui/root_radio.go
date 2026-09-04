@@ -237,16 +237,25 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 		if len(picked) == 0 {
 			return RadioBatchEnqueuedMsg{RequestID: requestID}
 		}
-		ids, err := be.AppendTracks(picked, "Radio")
+		var ids []int64
+		var err error
+		pendingActivation := false
+		if pending, ok := be.(pendingRadioBatchEnqueuer); ok {
+			ids, err = pending.AppendRadioTracksPending(picked)
+			pendingActivation = err == nil
+		} else {
+			ids, err = be.AppendTracks(picked, "Radio")
+		}
 		if err != nil {
 			return RadioBatchEnqueuedMsg{RequestID: requestID, Err: err}
 		}
 		entries := newQueueEntries(picked, ids, "Radio")
 		return RadioBatchEnqueuedMsg{
-			Entries:   entries,
-			QueueIDs:  ids,
-			WasEmpty:  wasEmpty,
-			RequestID: requestID,
+			Entries:           entries,
+			QueueIDs:          ids,
+			WasEmpty:          wasEmpty,
+			RequestID:         requestID,
+			PendingActivation: pendingActivation,
 		}
 	}
 }
@@ -351,6 +360,19 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	if !msg.WasEmpty && len(m.queue.Entries) == 0 && !m.playback.queueExhausted {
 		m = m.discardRadioBatch(msg.QueueIDs)
 		return m, nil
+	}
+	if msg.PendingActivation {
+		pending, ok := m.batchEnqueuer.(pendingRadioBatchEnqueuer)
+		if !ok {
+			slog.Warn("radio pending batch activation unavailable")
+			m = m.discardRadioBatch(msg.QueueIDs)
+			return m, nil
+		}
+		if err := pending.ActivateRadioTracks(msg.QueueIDs); err != nil {
+			slog.Warn("radio pending batch activation failed", "err", err)
+			m = m.discardRadioBatch(msg.QueueIDs)
+			return m, nil
+		}
 	}
 
 	// Update recent-hashes ring buffer.

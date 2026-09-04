@@ -23,6 +23,14 @@ func (e *failOnceRadioBatchEnqueuer) AppendTracks(tracks []library.Track, source
 	return e.writer.AppendTracks(tracks, source)
 }
 
+func (e *failOnceRadioBatchEnqueuer) AppendRadioTracksPending(tracks []library.Track) ([]int64, error) {
+	return e.writer.AppendRadioTracksPending(tracks)
+}
+
+func (e *failOnceRadioBatchEnqueuer) ActivateRadioTracks(ids []int64) error {
+	return e.writer.ActivateRadioTracks(ids)
+}
+
 func (e *failOnceRadioBatchEnqueuer) DequeueTracksSoft(ids []int64) error {
 	if e.dequeueFailures > 0 {
 		e.dequeueFailures--
@@ -39,7 +47,7 @@ func TestRadioBatchCancellationKeepsDurableQueueConsistent(t *testing.T) {
 	t.Run("disable in flight", func(t *testing.T) {
 		m, d := newRadioBatchDBModel(t)
 		m, msg := runRadioBatch(t, m)
-		assertActiveQueueLen(t, d, 6)
+		assertActiveQueueLen(t, d, 1)
 
 		next, _, _ := m.radioToggle()
 		m = next.(Model)
@@ -57,7 +65,7 @@ func TestRadioBatchCancellationKeepsDurableQueueConsistent(t *testing.T) {
 	t.Run("clear in flight", func(t *testing.T) {
 		m, d := newRadioBatchDBModel(t)
 		m, msg := runRadioBatch(t, m)
-		assertActiveQueueLen(t, d, 6)
+		assertActiveQueueLen(t, d, 1)
 
 		m = m.handleClearQueueMsg()
 		cancelRadioTestPurge(&m)
@@ -72,7 +80,7 @@ func TestRadioBatchCancellationKeepsDurableQueueConsistent(t *testing.T) {
 	t.Run("clear then repopulate before result", func(t *testing.T) {
 		m, d := newRadioBatchDBModel(t)
 		m, stale := runRadioBatch(t, m)
-		assertActiveQueueLen(t, d, 6)
+		assertActiveQueueLen(t, d, 1)
 
 		m = m.handleClearQueueMsg()
 		cancelRadioTestPurge(&m)
@@ -133,7 +141,7 @@ func TestRadioBatchCleanupFailureRetainsReconciliation(t *testing.T) {
 	m.batchEnqueuer = flaky
 
 	m, stale := runRadioBatch(t, m)
-	assertActiveQueueLen(t, d, 6)
+	assertActiveQueueLen(t, d, 1)
 	m = m.supersedeRadioBatch()
 	m, newerCmd := m.startRadioEnqueueCmd()
 	assertRadioRequestPending(t, m, newerCmd)
@@ -142,6 +150,67 @@ func TestRadioBatchCleanupFailureRetainsReconciliation(t *testing.T) {
 	assertRadioCleanupRetained(t, m, d, stale.QueueIDs)
 	m = runRadioCleanupRetry(t, m)
 	assertRadioCleanupRecovered(t, m, d)
+}
+
+// TestRadioBatchCleanupSurvivesProcessExit proves the durable pending marker
+// outlives Model state. Even when the compensating delete fails and the retry
+// FIFO is lost with the process, the next Writer startup keeps the exact stale
+// QueueIDs out of ReadQueue and retires them for ordinary purge.
+func TestRadioBatchCleanupSurvivesProcessExit(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "radio-batch-restart.db")
+	d, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open DB: %v", err)
+	}
+	if err := db.Migrate(d.DB); err != nil {
+		d.Close()
+		t.Fatalf("migrate DB: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	writer := db.NewWriter(ctx, d.DB)
+	m := seedRadioBatchDBModel(t, d, writer)
+	flaky := &failOnceRadioBatchEnqueuer{writer: writer, dequeueFailures: 1}
+	m.batchEnqueuer = flaky
+
+	m, stale := runRadioBatch(t, m)
+	m = m.supersedeRadioBatch()
+	m, _ = m.handleRadioBatchEnqueuedMsg(stale)
+	if len(m.radio.cleanupBatches) != 1 {
+		t.Fatalf("failed cleanup was not retained before exit: %v", m.radio.cleanupBatches)
+	}
+	assertActiveQueueLen(t, d, 1)
+
+	cancel()
+	writer.Wait()
+	if err := d.Close(); err != nil {
+		t.Fatalf("close pre-restart DB: %v", err)
+	}
+
+	restartedDB, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("reopen DB: %v", err)
+	}
+	restartedCtx, restartedCancel := context.WithCancel(context.Background())
+	restartedWriter := db.NewWriter(restartedCtx, restartedDB.DB)
+	t.Cleanup(func() {
+		restartedCancel()
+		restartedWriter.Wait()
+		if err := restartedDB.Close(); err != nil {
+			t.Errorf("close restarted DB: %v", err)
+		}
+	})
+
+	rows := assertActiveQueueLen(t, restartedDB, 1)
+	for _, staleID := range stale.QueueIDs {
+		if rows[0].ID == staleID {
+			t.Fatalf("ReadQueue restored discarded Radio row %d after restart", staleID)
+		}
+		var deletedAt int64
+		if err := restartedDB.QueryRow(`SELECT deleted_at FROM queue WHERE id=?`, staleID).Scan(&deletedAt); err != nil {
+			t.Fatalf("read discarded Radio row %d after restart: %v", staleID, err)
+		}
+	}
 }
 
 func assertRadioRequestPending(t *testing.T, m Model, cmd tea.Cmd) {
@@ -162,7 +231,7 @@ func assertRadioCleanupRetained(t *testing.T, m Model, d *db.DB, wantIDs []int64
 	if len(m.radio.cleanupBatches) != 1 || !sameRadioQueueIDs(m.radio.cleanupBatches[0], wantIDs) {
 		t.Fatalf("retained cleanup batches = %v, want exact QueueIDs %v", m.radio.cleanupBatches, wantIDs)
 	}
-	assertActiveQueueLen(t, d, 6)
+	assertActiveQueueLen(t, d, 1)
 }
 
 func runRadioCleanupRetry(t *testing.T, m Model) Model {
@@ -221,6 +290,12 @@ func newRadioBatchDBModel(t *testing.T) (Model, *db.DB) {
 		}
 	})
 
+	m := seedRadioBatchDBModel(t, d, w)
+	return m, d
+}
+
+func seedRadioBatchDBModel(t *testing.T, d *db.DB, w *db.Writer) Model {
+	t.Helper()
 	tracks := sampleLibraryTracks()
 	now := time.Now().Unix()
 	for _, track := range tracks {
@@ -244,7 +319,7 @@ func newRadioBatchDBModel(t *testing.T) (Model, *db.DB) {
 	m.radio.enabled = true
 	m.radio.seedHash = tracks[0].Hash
 	m.playback.currentIndex = 0
-	return m, d
+	return m
 }
 
 func runRadioBatch(t *testing.T, m Model) (Model, RadioBatchEnqueuedMsg) {

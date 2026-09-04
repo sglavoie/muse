@@ -197,6 +197,14 @@ type batchEnqueuer interface {
 	DequeueTracksSoft(ids []int64) error
 }
 
+// pendingRadioBatchEnqueuer is the durable two-phase extension implemented by
+// db.Writer. Radio uses it when available so a batch is not visible to startup
+// restoration until the corresponding async result is accepted.
+type pendingRadioBatchEnqueuer interface {
+	AppendRadioTracksPending(tracks []library.Track) ([]int64, error)
+	ActivateRadioTracks(ids []int64) error
+}
+
 // playlistShuffler persists a full playlist track reorder (e.g. Fisher-Yates
 // shuffle). Root checks for it via type assertion on the playlistDeleter field.
 // When nil, the in-memory shuffle is still applied but not written to the database.
