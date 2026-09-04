@@ -37,12 +37,6 @@ type prefetchState struct {
 	loadGen  uint64
 }
 
-// maxPendingLoadStarts bounds the queue of loads waiting for their start-file.
-// Only a load whose start-file never reaches the reader can accumulate there,
-// and the correlation only ever needs the oldest few, so an overflow drops from
-// the front rather than growing without limit.
-const maxPendingLoadStarts = 8
-
 // replacementState is the correlation the end-file/eof decision needs: it names
 // the queue-owned playlist replacements that have begun but that mpv has not
 // confirmed yet.
@@ -156,12 +150,21 @@ func (m *Manager) noteFileStarted(gapless bool) {
 // generation, so the start-file answering it is correlated with the generation
 // that emitted it however long the event reader takes to get there.
 //
+// Nothing is ever dropped to bound the queue's length. The correlation is
+// positional: entry k names the generation of the k-th start-file still to be
+// read, so discarding the front shifts every entry behind it onto an earlier
+// load. Once enough loads have queued up, that shift hands a superseded entry
+// the live generation, and the end-file it emitted before it was discarded then
+// passes eofState.superseded and mutates the selection that displaced it.
+//
+// The queue is bounded by how far behind the event reader has fallen rather
+// than by a constant: an entry is withdrawn by cancelLoadStartLocked when mpv
+// rejects the load, consumed by the start-file that answers it, or dropped
+// wholesale by adoptCurrentLoad when the reader that was owed it is gone.
+//
 // The caller must hold m.mu.
 func (m *Manager) expectLoadStartLocked() {
 	m.pendingLoadStarts = append(m.pendingLoadStarts, m.loadGen)
-	if len(m.pendingLoadStarts) > maxPendingLoadStarts {
-		m.pendingLoadStarts = m.pendingLoadStarts[1:]
-	}
 }
 
 // cancelLoadStartLocked withdraws the expectation expectLoadStartLocked
@@ -189,6 +192,12 @@ func (m *Manager) takeLoadStartLocked() uint64 {
 	}
 	gen := m.pendingLoadStarts[0]
 	m.pendingLoadStarts = m.pendingLoadStarts[1:]
+	if len(m.pendingLoadStarts) == 0 {
+		// Drop the backing array instead of re-slicing further into it. A reader
+		// that is keeping up empties the queue on every load, which is the
+		// steady state, so this is where the storage a burst grew is returned.
+		m.pendingLoadStarts = nil
+	}
 	return gen
 }
 

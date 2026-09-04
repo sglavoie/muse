@@ -286,7 +286,13 @@ type Manager struct {
 	// replace` has been sent but whose start-file the event reader has not
 	// consumed yet. mpv answers loads in the order they were sent, so the front
 	// of this queue names the generation of the next load-induced start-file
-	// however far behind the reader has fallen. Guarded by mu.
+	// however far behind the reader has fallen.
+	//
+	// It is deliberately unbounded: the correlation is positional, so trimming
+	// it to a fixed length would relabel every start-file still queued behind
+	// the dropped entry. Its length is bounded by the reader's own backlog —
+	// every entry is withdrawn on a rejected load, consumed by the start-file
+	// answering it, or dropped with the reader that was owed it. Guarded by mu.
 	pendingLoadStarts []uint64
 
 	// gaplessSuccessors counts the entries appended behind the file mpv is
