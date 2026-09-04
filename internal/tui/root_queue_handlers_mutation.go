@@ -61,7 +61,7 @@ func (m Model) handleDequeueTrackMsg(msg queue.DequeueTrackMsg) Model {
 			// reports matching currentHash, so leaving it up would refuse the very
 			// start-file this branch is relying on.
 			m.playback.currentHash = ""
-			m.playback.awaitingSelectionStart = false
+			m.playback.lowerSelectionBarrier()
 			m.statusBar.Artist = ""
 			m.statusBar.Title = ""
 			m.statusBar.PlaylistSource = ""

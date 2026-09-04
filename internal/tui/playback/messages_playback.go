@@ -143,10 +143,18 @@ const (
 )
 
 // TrackChangedMsg is dispatched when the active track changes.
+//
+// QueueID is the occurrence identity: Hash names the track and two queue rows
+// holding the same track share it, so it cannot say which of them the player
+// started. Index cannot either — it describes the queue as it was when mpv
+// emitted the start-file, and a dequeue or a reorder since then leaves it in
+// range but pointing at an unrelated row. Only the queue row id survives both,
+// and the handler treats Index as a hint it validates against it.
 type TrackChangedMsg struct {
 	Artist         string
 	Title          string
 	PlaylistSource string // "Queue" or a named playlist name; defaults to "Queue" if empty
 	Hash           string // content hash of the new track; used for session persistence
 	Index          int    // queue index of the new track; used for now-playing highlight
+	QueueID        int64  // queue row id of the occurrence that started; 0 when unpersisted
 }

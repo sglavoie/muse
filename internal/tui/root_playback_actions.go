@@ -132,7 +132,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				// nothing is waiting on a selected row's start-file any more. The
 				// stop can beat that event out of mpv, and leaving the barrier up
 				// for a report that will never come would refuse the next one.
-				m.playback.awaitingSelectionStart = false
+				m.playback.lowerSelectionBarrier()
 				if m.playback.stopAfterCurrent {
 					m.playback.stopAfterCurrent = false
 					if sat, ok := m.player.(stopAfterToggler); ok {

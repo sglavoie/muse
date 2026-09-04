@@ -298,7 +298,7 @@ func TestEventReader_AdvancesOnEOFAfterRecovery(t *testing.T) {
 	m.SetEventCallbacks(EventCallbacks{
 		OnStatus:        func(string) {},
 		OnDisconnected:  func() {},
-		OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+		OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 		OnPlaybackEnded: func() {},
 		OnMissingFile:   func(string) {},
 	})

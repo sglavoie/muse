@@ -116,7 +116,7 @@ func (m Model) resetPlaybackState() Model {
 	// it: it admits reports matching currentHash, which is now empty, so leaving
 	// it up would refuse every track change from here on.
 	m.playback.pendingSelection = false
-	m.playback.awaitingSelectionStart = false
+	m.playback.lowerSelectionBarrier()
 	m.missingTrackCount = 0
 	if sat, ok := m.player.(stopAfterToggler); ok {
 		sat.SetStopAfterCurrent(false)

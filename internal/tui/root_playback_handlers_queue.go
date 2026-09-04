@@ -117,7 +117,7 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	}
 	// A refused load will never produce a start-file, so nothing else would ever
 	// lower the barrier. Drop it here whether or not the reset below runs.
-	m.playback.awaitingSelectionStart = false
+	m.playback.lowerSelectionBarrier()
 	// Discard the error if the user already moved on to a different track or
 	// cleared the queue between dispatch and arrival. Resetting unconditionally
 	// would clobber the now-correct playback state with a stale failure. A

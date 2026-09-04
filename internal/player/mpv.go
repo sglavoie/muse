@@ -39,8 +39,15 @@ type EventCallbacks struct {
 	// OnPlaybackEnded is called when auto-advance exhausts the queue.
 	OnPlaybackEnded func()
 	// OnTrackChanged is called when a new track starts (mpv "start-file" event).
-	// It receives the content hash, artist, title, playlist source, and queue index.
-	OnTrackChanged func(hash, artist, title, source string, index int)
+	// It receives the content hash, artist, title, playlist source, queue index,
+	// and the queue row id of the occurrence that started.
+	//
+	// queueID is what separates two queue rows holding the same track: the hash
+	// and the metadata are identical for both, and the index describes the queue
+	// as it was when mpv started the file rather than as the receiver sees it. It
+	// is zero for an occurrence that is not persisted, which is the only case in
+	// which duplicates remain indistinguishable.
+	OnTrackChanged func(hash, artist, title, source string, index int, queueID int64)
 	// OnPauseChanged is called when mpv's pause property changes.
 	OnPauseChanged func(paused bool)
 	// OnDisconnected is called at the start of handleRestart, before reconnection begins.

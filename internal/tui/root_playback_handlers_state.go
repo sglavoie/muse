@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -151,6 +152,38 @@ func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
 	return m
 }
 
+// raiseSelectionBarrier arms the track-event barrier for the queue occurrence
+// the user just selected. id is that occurrence's queue row id, or 0 when the
+// row is not persisted.
+func (p *playbackInfo) raiseSelectionBarrier(id int64) {
+	p.awaitingSelectionStart = true
+	p.awaitingSelectionID = id
+}
+
+// lowerSelectionBarrier retires the barrier. The two fields always move
+// together: a stale id left behind an already-lowered barrier would be compared
+// against the next selection's reports.
+func (p *playbackInfo) lowerSelectionBarrier() {
+	p.awaitingSelectionStart = false
+	p.awaitingSelectionID = 0
+}
+
+// startsSelectedOccurrence reports whether a track-change event is the report
+// the standing barrier is waiting for.
+//
+// The queue row id settles it whenever both sides have one: it names the
+// occurrence rather than the track, so the abandoned duplicate's delayed report
+// is told apart from the selected duplicate's arrival even though the two carry
+// the same hash, artist, and title. Falling back to the hash covers the rows
+// that have no durable id — an unpersisted queue — where nothing can separate
+// duplicates and the behaviour is the pre-existing one.
+func (m Model) startsSelectedOccurrence(msg playback.TrackChangedMsg) bool {
+	if m.playback.awaitingSelectionID != 0 && msg.QueueID != 0 {
+		return msg.QueueID == m.playback.awaitingSelectionID
+	}
+	return msg.Hash == m.playback.currentHash
+}
+
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.Cmd) {
@@ -169,13 +202,14 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	}
 
 	// Guard: a selection the player has not started yet outranks a report about
-	// any other row. While awaitingSelectionStart is set, currentHash is the row
-	// the user asked for and the player has already been told to move onto it, so
-	// a start-file naming a different entry describes the row that selection is
-	// in the middle of replacing — an older command that reached mpv first, or
-	// the gapless successor it was about to start. Applying it would move the
-	// current row off the newer selection, and the request identity that
-	// separates the two commands' results is not carried on this message.
+	// any other row. While awaitingSelectionStart is set, awaitingSelectionID is
+	// the occurrence the user asked for and the player has already been told to
+	// move onto it, so a start-file naming a different entry describes the row
+	// that selection is in the middle of replacing — an older command that
+	// reached mpv first, or the gapless successor it was about to start. Applying
+	// it would move the current row off the newer selection, and the request
+	// identity that separates the two commands' results is not carried on this
+	// message.
 	//
 	// The barrier is keyed to the start-file rather than to the selection's own
 	// result because the result is the earlier of the two: mpv answers the load
@@ -189,9 +223,10 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// armed here: handlePlayQueueIndexMsg disarms at dispatch, and the only
 	// re-arm is at the bottom of this handler, which a pending selection has not
 	// reached.
-	if m.playback.awaitingSelectionStart && msg.Hash != m.playback.currentHash {
+	if m.playback.awaitingSelectionStart && !m.startsSelectedOccurrence(msg) {
 		slog.Debug("track change discarded: a newer selection has not started yet",
-			"reported", msg.Hash, "selected", m.playback.currentHash)
+			"reported", msg.Hash, "reportedQueueID", msg.QueueID,
+			"selected", m.playback.currentHash, "selectedQueueID", m.playback.awaitingSelectionID)
 		return m, nil
 	}
 
@@ -208,7 +243,7 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// retires the track-event barrier — this report cleared the reader of every
 	// start-file that preceded it, so the next one describes the present.
 	m.playback.pendingSelection = false
-	m.playback.awaitingSelectionStart = false
+	m.playback.lowerSelectionBarrier()
 	m.playback.queueExhausted = false
 	if m.followNowPlaying && m.ActiveView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(idx)
@@ -269,23 +304,40 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 // trackChangeIndex resolves the queue row a track-change event names.
 //
-// msg.Index is taken as given while it is still in range. The queue can have
-// shrunk between mpv's event and this handler — a dequeue racing a gapless
-// transition — and the row is then found by identity instead.
+// msg.Index is only a hint about where the row was when mpv emitted the event.
+// The queue can have shrunk or been reordered before this handler ran — a
+// dequeue or a move racing a gapless transition — and an index that survives
+// the shuffle of positions still in range would then name an unrelated row. It
+// is accepted only when the entry sitting there is the occurrence the event
+// describes; otherwise the row is found by identity.
 //
-// A hash that is not in the queue at all resolves to -1 rather than falling back
-// to 0: pointing currentIndex at an unrelated track is worse than pointing it at
-// nothing, and the caller still updates the status bar from the message.
+// An occurrence that is not in the queue at all resolves to -1 rather than
+// falling back to 0: pointing currentIndex at an unrelated track is worse than
+// pointing it at nothing, and the caller still updates the status bar from the
+// message.
 func (m Model) trackChangeIndex(msg playback.TrackChangedMsg) int {
-	if msg.Index >= 0 && msg.Index < len(m.queue.Entries) {
+	if msg.Index >= 0 && msg.Index < len(m.queue.Entries) &&
+		occurrenceMatches(m.queue.Entries[msg.Index], msg) {
 		return msg.Index
 	}
 	for i, e := range m.queue.Entries {
-		if e.Hash == msg.Hash {
+		if occurrenceMatches(e, msg) {
 			return i
 		}
 	}
 	return -1
+}
+
+// occurrenceMatches reports whether queue row e is the occurrence a track-change
+// event names. The queue row id decides it whenever both sides carry one, so a
+// duplicate of the same track elsewhere in the queue is never mistaken for it;
+// rows with no durable id fall back to the content hash, under which duplicates
+// stay indistinguishable exactly as they were before.
+func occurrenceMatches(e queue.Entry, msg playback.TrackChangedMsg) bool {
+	if e.ID != 0 && msg.QueueID != 0 {
+		return e.ID == msg.QueueID
+	}
+	return e.Hash == msg.Hash
 }
 
 // trackNotifyCmd posts a desktop banner for a newly started track, or returns

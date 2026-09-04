@@ -151,7 +151,7 @@ func TestEndFileEOF_FallbackDoesNotBlockEventReader(t *testing.T) {
 		},
 		currentIndex: 0,
 		callbacks: EventCallbacks{
-			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 			OnPlaybackEnded: func() {},
 			OnStatus:        func(string) {},
 			OnMissingFile:   func(string) {},

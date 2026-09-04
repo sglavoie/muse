@@ -74,7 +74,7 @@ func TestStopAfterCurrent_EventReaderStops(t *testing.T) {
 		currentIndex: 0,
 		callbacks: EventCallbacks{
 			OnPlaybackEnded: func() { endedCh <- struct{}{} },
-			OnTrackChanged:  func(_, _, _, _ string, _ int) { trackChangedCount <- struct{}{} },
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) { trackChangedCount <- struct{}{} },
 		},
 	}
 	close(m.callbacksReady)

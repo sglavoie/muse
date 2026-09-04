@@ -54,7 +54,7 @@ func TestEndFileEOF_UsesPrefetchedPath(t *testing.T) {
 		},
 		currentIndex: 0,
 		callbacks: EventCallbacks{
-			OnTrackChanged: func(_, _, _, _ string, idx int) {
+			OnTrackChanged: func(_, _, _, _ string, idx int, _ int64) {
 				trackChangedCh <- idx
 			},
 			OnPlaybackEnded: func() {},
@@ -109,7 +109,7 @@ func TestEndFileEOF_UsesPrefetchedPath_UnpausesAfterAdvance(t *testing.T) {
 		},
 		currentIndex: 0,
 		callbacks: EventCallbacks{
-			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 			OnPlaybackEnded: func() {},
 		},
 	}
@@ -170,7 +170,7 @@ func TestEndFileEOF_GaplessSequenceContinuesAfterClearWithoutManualPlay(t *testi
 		callbacksReady:  make(chan struct{}),
 		prefetchedIndex: -1,
 		callbacks: EventCallbacks{
-			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 			OnPlaybackEnded: func() {},
 			OnStatus:        func(string) {},
 			OnMissingFile:   func(string) {},
@@ -299,7 +299,7 @@ func TestEndFileEOF_UsesPrefetchedPath_SkipsMissing(t *testing.T) {
 		},
 		currentIndex: 0,
 		callbacks: EventCallbacks{
-			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 			OnPlaybackEnded: func() {},
 			OnStatus:        func(string) {},
 			OnMissingFile:   func(string) {},
@@ -372,7 +372,7 @@ func TestEndFileEOF_PrefetchedIdxOutOfRange(t *testing.T) {
 		},
 		currentIndex: 0,
 		callbacks: EventCallbacks{
-			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 			OnPlaybackEnded: func() { endedCh <- struct{}{} },
 			OnStatus:        func(string) {},
 			OnMissingFile:   func(string) {},

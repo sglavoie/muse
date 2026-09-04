@@ -871,7 +871,7 @@ func noopEventCallbacks() EventCallbacks {
 		OnStatus:        func(string) {},
 		OnMissingFile:   func(string) {},
 		OnPlaybackEnded: func() {},
-		OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+		OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 		OnPauseChanged:  func(bool) {},
 	}
 }
@@ -907,7 +907,7 @@ func playbackEndedSignal(m *Manager) <-chan struct{} {
 			default:
 			}
 		},
-		OnTrackChanged: func(_, _, _, _ string, _ int) {},
+		OnTrackChanged: func(_, _, _, _ string, _ int, _ int64) {},
 		OnPauseChanged: func(bool) {},
 	})
 	return ended

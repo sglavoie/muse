@@ -54,7 +54,7 @@ func (m *Manager) emitCurrentTrackChanged() {
 	fn := m.callbacks.OnTrackChanged
 	m.mu.RUnlock()
 
-	fn(track.Hash, track.Artist, track.Title, track.Source, idx)
+	fn(track.Hash, track.Artist, track.Title, track.Source, idx, track.QueueID)
 }
 
 func (m *Manager) emitPlaybackEnded() {

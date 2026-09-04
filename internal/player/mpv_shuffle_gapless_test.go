@@ -137,7 +137,7 @@ func TestShuffleGaplessMatchesNonGapless(t *testing.T) {
 		prefetchedIndex: -1,
 		shufflePos:      -1,
 		callbacks: EventCallbacks{
-			OnTrackChanged:  func(_, _, _, _ string, _ int) {},
+			OnTrackChanged:  func(_, _, _, _ string, _ int, _ int64) {},
 			OnPlaybackEnded: func() {},
 			OnStatus:        func(string) {},
 			OnMissingFile:   func(string) {},

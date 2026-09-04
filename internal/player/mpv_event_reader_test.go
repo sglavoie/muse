@@ -46,7 +46,7 @@ func TestManager_EventReaderBlocksOnCallbacksReady(t *testing.T) {
 		callbacksReady: make(chan struct{}),
 		queue:          []QueueTrack{{Path: "/a.flac", Hash: "h0", Artist: "Art", Title: "Tit"}},
 		currentIndex:   0,
-		callbacks:      EventCallbacks{OnTrackChanged: func(_, _, _, _ string, _ int) { trackFired <- struct{}{} }},
+		callbacks:      EventCallbacks{OnTrackChanged: func(_, _, _, _ string, _ int, _ int64) { trackFired <- struct{}{} }},
 	}
 
 	go m.startEventReader(ctx, nil)
@@ -103,6 +103,7 @@ func TestEventReader_EmitsTrackInfoOnConnect(t *testing.T) {
 	type trackInfo struct {
 		hash, artist, title, source string
 		index                       int
+		queueID                     int64
 	}
 	got := make(chan trackInfo, 2)
 	m := &Manager{
@@ -111,12 +112,12 @@ func TestEventReader_EmitsTrackInfoOnConnect(t *testing.T) {
 		cancel:         cancel,
 		callbacksReady: make(chan struct{}),
 		queue: []QueueTrack{
-			{Path: "/a.flac", Hash: "h1", Artist: "Art1", Title: "Tit1", Source: "PL"},
+			{Path: "/a.flac", Hash: "h1", QueueID: 7, Artist: "Art1", Title: "Tit1", Source: "PL"},
 		},
 		currentIndex: 0,
 		callbacks: EventCallbacks{
-			OnTrackChanged: func(h, a, tl, src string, idx int) {
-				got <- trackInfo{h, a, tl, src, idx}
+			OnTrackChanged: func(h, a, tl, src string, idx int, qid int64) {
+				got <- trackInfo{h, a, tl, src, idx, qid}
 			},
 		},
 	}
@@ -126,7 +127,8 @@ func TestEventReader_EmitsTrackInfoOnConnect(t *testing.T) {
 
 	select {
 	case info := <-got:
-		if info.hash != "h1" || info.artist != "Art1" || info.title != "Tit1" || info.source != "PL" || info.index != 0 {
+		if info.hash != "h1" || info.artist != "Art1" || info.title != "Tit1" || info.source != "PL" ||
+			info.index != 0 || info.queueID != 7 {
 			t.Errorf("unexpected track info: %+v", info)
 		}
 	case <-time.After(2 * time.Second):
@@ -169,7 +171,7 @@ func TestEventReader_SkipsEmitWhenNoTrack(t *testing.T) {
 		queue:          nil,
 		currentIndex:   -1,
 		callbacks: EventCallbacks{
-			OnTrackChanged: func(_, _, _, _ string, _ int) {
+			OnTrackChanged: func(_, _, _, _ string, _ int, _ int64) {
 				fired <- struct{}{}
 			},
 		},

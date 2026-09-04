@@ -106,6 +106,13 @@ type playbackInfo struct {
 	// Retiring the barrier on that return would let the late report move the
 	// current row onto a track the player has already left.
 	awaitingSelectionStart bool
+	// awaitingSelectionID is the queue row id the barrier above is waiting for.
+	// The selected row's content hash cannot stand in for it: two occurrences of
+	// one track share that value, so the abandoned duplicate's delayed report
+	// would be read as the selected one's arrival and retire the barrier the
+	// newer selection is relying on. Zero when the selected row is not persisted,
+	// which is the only case that falls back to the hash.
+	awaitingSelectionID int64
 
 	pending pendingListen   // in-flight listen capture; see root_listen_capture.go
 	flushes []pendingListen // listens awaiting persistence, drained once per Update

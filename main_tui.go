@@ -200,8 +200,11 @@ func runTUI(ctx context.Context) error {
 		OnStatus:        func(s string) { p.Send(playback.PlayerStatusMsg{Text: s}) },
 		OnMissingFile:   func(path string) { p.Send(playback.MissingTrackMsg{Path: path}) },
 		OnPlaybackEnded: func() { p.Send(playback.PlaybackEndedMsg{}) },
-		OnTrackChanged: func(hash, artist, title, source string, index int) {
-			p.Send(playback.TrackChangedMsg{Hash: hash, Artist: artist, Title: title, PlaylistSource: source, Index: index})
+		OnTrackChanged: func(hash, artist, title, source string, index int, queueID int64) {
+			p.Send(playback.TrackChangedMsg{
+				Hash: hash, Artist: artist, Title: title,
+				PlaylistSource: source, Index: index, QueueID: queueID,
+			})
 		},
 		OnPauseChanged: func(paused bool) { p.Send(playback.PauseChangedMsg{Paused: paused}) },
 		OnDisconnected: func() { p.Send(playback.PlayerDisconnectedMsg{}) },

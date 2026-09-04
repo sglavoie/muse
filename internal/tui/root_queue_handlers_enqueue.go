@@ -219,7 +219,7 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	// raised with it and stays up past this request's own result, until the
 	// player reports starting the selected row; see awaitingSelectionStart.
 	m.playback.pendingSelection = true
-	m.playback.awaitingSelectionStart = true
+	m.playback.raiseSelectionBarrier(entry.ID)
 	return m, func() tea.Msg {
 		err, _ := gate.run(req, func() error { return p.PlayFromIndex(idx) })
 		return result(err)
