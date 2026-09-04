@@ -9,8 +9,9 @@ package player
 // This file holds the pieces that close that gap: following the cursor row by
 // identity so an insertion cannot silently rename it, recording the rows that
 // landed behind the cursor so the resume can still find them, and pinning the
-// frontier the traversal had reached so that stepping back onto one of those
-// rows does not turn everything the traversal already played into a successor.
+// prefix the traversal had already played so that stepping back onto one of
+// those rows does not turn all of it into successors again — a boundary that has
+// to survive the frontier row itself being deleted or replaced.
 // It is the shuffle-off counterpart to the unseen pool in shuffle.go, where
 // reconciliation already makes every brand-new identity eligible regardless of
 // position.
@@ -171,17 +172,62 @@ func (m *Manager) restoreAdditionsLocked(identities []string) {
 	}
 }
 
-// sequentialFrontierLocked resolves the recorded frontier to a live queue index,
-// or -1 when no frontier stands or its row has left the queue. It is meaningful
+// pinSequentialFrontierLocked records the rows the traversal has already played
+// — everything at or before the cursor that is not still-pending insertion — as
+// the completion boundary a step backwards has to respect.
+//
+// The whole prefix is recorded, not just the row the cursor sits on. That row is
+// the frontier while it lives, but a queue is editable: deleting it, or replacing
+// it through SetQueue, would otherwise leave nothing saying where playback had
+// got to, and continuation would fall back to plain arithmetic over rows that
+// already played. With the prefix recorded the boundary simply falls back onto
+// the deepest completed row that survived.
+//
+// The caller must hold m.mu.
+func (m *Manager) pinSequentialFrontierLocked() {
+	completed := make(map[string]bool)
+	for i, id := range queueIdentities(m.queue) {
+		if i > m.currentIndex {
+			break
+		}
+		// An insertion the resume has not started yet sits inside the prefix
+		// positionally but is not part of what played, so it must never become
+		// the boundary the other insertions are measured against.
+		if m.unreachedAdditions[id] {
+			continue
+		}
+		completed[id] = true
+	}
+	if len(completed) == 0 {
+		return
+	}
+	m.sequentialCompleted = completed
+}
+
+// sequentialFrontierLocked resolves the recorded completion boundary to a live
+// queue index — the furthest recorded row still in the queue — or -1 when no
+// boundary stands or every row it named has left the queue. It is meaningful
 // only while it is strictly ahead of the cursor; at or behind it, positional
 // continuation has already caught up and the frontier says nothing.
 //
+// Resolving to the furthest survivor rather than to one pinned identity is what
+// keeps a removal from resurrecting the rows behind it: whatever is left of the
+// completed prefix still separates it from the rows the traversal has yet to
+// reach, and a row appended past the whole prefix still lands beyond the
+// boundary.
+//
 // The caller must hold m.mu.
 func (m *Manager) sequentialFrontierLocked() int {
-	if m.sequentialFrontier == "" {
+	if len(m.sequentialCompleted) == 0 {
 		return -1
 	}
-	return identityIndex(m.queue, m.sequentialFrontier)
+	frontier := -1
+	for i, id := range queueIdentities(m.queue) {
+		if m.sequentialCompleted[id] {
+			frontier = i
+		}
+	}
+	return frontier
 }
 
 // sequentialSuccessorsLocked returns, in the order an automatic shuffle-off
@@ -217,15 +263,4 @@ func (m *Manager) sequentialSuccessorsLocked(from int) []int {
 		out = append(out, i)
 	}
 	return out
-}
-
-// identityAtLocked returns the identity of the queue row at index, or "" when
-// index names no row.
-//
-// The caller must hold m.mu.
-func (m *Manager) identityAtLocked(index int) string {
-	if index < 0 || index >= len(m.queue) {
-		return ""
-	}
-	return queueIdentities(m.queue)[index]
 }

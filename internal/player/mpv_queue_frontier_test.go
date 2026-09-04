@@ -176,6 +176,35 @@ func (h *seqEOFHarness) insertAt(pos int, extra ...QueueTrack) {
 	h.m.SetQueue(insertBefore(h.m, pos, extra...))
 }
 
+// removeAt deletes the queue row at pos the way the Queue view's delete does.
+func (h *seqEOFHarness) removeAt(pos int) {
+	h.t.Helper()
+	if err := h.m.RemoveFromQueue(pos); err != nil {
+		h.t.Fatalf("RemoveFromQueue(%d): %v", pos, err)
+	}
+}
+
+// replaceRowAt swaps the queue row at pos for entry and installs the result
+// through SetQueue, which is what a paste over an existing row does: the old row
+// leaves the queue without any row being deleted.
+func (h *seqEOFHarness) replaceRowAt(pos int, entry QueueTrack) {
+	h.t.Helper()
+	q := h.queueSnapshot()
+	q[pos] = entry
+	h.m.SetQueue(q)
+}
+
+// waitLoads blocks until path has been handed to mpv at least n times, whatever
+// the mode. A queue mutation clears the tracked successor and rebuilds it, so
+// this is how a test waits for the prefetch that describes the queue *after* the
+// mutation rather than reading the one from before it.
+func (h *seqEOFHarness) waitLoads(path string, n int) {
+	h.t.Helper()
+	waitForCommandCount(h.t, &h.mu, &h.received, func(cmd ipcTestCommand) bool {
+		return len(cmd) >= 2 && cmd.stringIs(0, cmdLoadfile) && cmd.stringIs(1, path)
+	}, n, 2*time.Second, "loadfile "+path)
+}
+
 // resume continues the traversal and asserts it landed on wantIdx.
 func (h *seqEOFHarness) resume(wantIdx int) {
 	h.t.Helper()
@@ -336,6 +365,158 @@ func TestSequentialInsertionResumeDoesNotReplayCompletedRowsAtNextEOF(t *testing
 			t.Fatalf("PlayFromIndex(1): %v", err)
 		}
 		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 1, 2, false)
+		h.endFile()
+		h.waitCurrentIndex(2)
+	})
+}
+
+// TestSequentialInsertionResumeFrontierRemovalDoesNotReplayCompletedRows is the
+// regression for editing the queue *while* a resumed insertion is playing behind
+// the rows that already finished.
+//
+// The completion boundary a resume pins is the only thing separating those rows
+// from the ones the traversal has yet to reach, and the row it names is as
+// deletable as any other. Losing it must not turn positional continuation back
+// on, because from a cursor that stepped backwards that means handing the
+// completed rows back as successors.
+func TestSequentialInsertionResumeFrontierRemovalDoesNotReplayCompletedRows(t *testing.T) {
+	t.Run("deleting the frontier after a head insertion still ends the queue", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-rm-head")
+		completed := h.queueSnapshot()
+
+		h.insertAt(0, h.extra[0], h.extra[1])
+		h.reset()
+		h.resume(0)
+		h.waitPrefetch(h.extra[1].Path)
+
+		// The row the traversal finished on is now the last one; deleting it
+		// leaves the rows it played behind still completed.
+		h.removeAt(4)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 0, 1, false)
+		h.waitLoads(h.extra[1].Path, 2)
+
+		h.endFile()
+		h.waitCurrentIndex(1)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 1, 0, false)
+
+		h.endFile()
+		h.waitEnded("the last insertion once the frontier row was deleted")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("deleting the frontier after a middle insertion keeps the pending one reachable", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-rm-mid")
+		completed := h.queueSnapshot()
+
+		h.m.SetQueue([]QueueTrack{completed[0], h.extra[0], completed[1], h.extra[1], completed[2]})
+		h.reset()
+		h.resume(1)
+		h.waitPrefetch(h.extra[1].Path)
+
+		// Deleting the frontier drops the boundary onto the completed row before
+		// it, which still sits between the cursor and the second insertion.
+		h.removeAt(4)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 1, 1, false)
+		h.waitLoads(h.extra[1].Path, 2)
+
+		h.endFile()
+		h.waitCurrentIndex(3)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 3, 0, false)
+
+		h.endFile()
+		h.waitEnded("the second middle insertion once the frontier row was deleted")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("the fallback advance honours the surviving boundary when gapless is off", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-rm-nogap")
+		completed := h.queueSnapshot()
+		if err := h.m.SetGapless(false); err != nil {
+			t.Fatalf("SetGapless(false): %v", err)
+		}
+
+		h.insertAt(0, h.extra[0], h.extra[1])
+		h.reset()
+		h.resume(0)
+		h.removeAt(4)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 0, 1, false)
+
+		// With no prefetch to promote, the end-file goes through the traversal
+		// advance; it must pick the remaining insertion and nothing else.
+		h.endFile()
+		h.waitCurrentIndex(1)
+		if got := h.loads(h.extra[1].Path); got != 1 {
+			t.Fatalf("the second insertion was loaded %d times, want 1", got)
+		}
+
+		h.endFile()
+		h.waitEnded("the second insertion without gapless once the frontier row was deleted")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("a tail append lands past what is left of the boundary", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-rm-tail")
+		completed := h.queueSnapshot()
+
+		h.insertAt(0, h.extra[0])
+		h.reset()
+		h.resume(0)
+		h.removeAt(3)
+
+		// The append still has to be reachable, and the two completed rows
+		// between it and the cursor still must not be.
+		h.insertAt(3, h.extra[1])
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3}, 0, 1, false)
+		h.waitPrefetch(h.extra[1].Path)
+
+		h.endFile()
+		h.waitCurrentIndex(3)
+		h.endFile()
+		h.waitEnded("the tail append once the frontier row was deleted")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("replacing the frontier row through SetQueue keeps the boundary", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-rm-swap")
+		completed := h.queueSnapshot()
+
+		h.insertAt(0, h.extra[0], h.extra[1])
+		h.reset()
+		h.resume(0)
+		h.waitPrefetch(h.extra[1].Path)
+
+		// A paste over the frontier row removes it without deleting a row: the
+		// track that takes its slot is new and eligible, the rows before it are
+		// not.
+		h.replaceRowAt(4, h.extra[2])
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 2, false)
+		h.waitLoads(h.extra[1].Path, 2)
+
+		h.endFile()
+		h.waitCurrentIndex(1)
+		h.waitPrefetch(h.extra[2].Path)
+		h.endFile()
+		h.waitCurrentIndex(4)
+
+		h.endFile()
+		h.waitEnded("the row that replaced the frontier")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("an explicit selection still retires the boundary", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-rm-select")
+
+		h.insertAt(0, h.extra[0])
+		h.reset()
+		h.resume(0)
+		h.removeAt(3)
+
+		// Selecting a completed row means "play the queue forward from here",
+		// whatever is left of the boundary the resume pinned.
+		if err := h.m.PlayFromIndex(1); err != nil {
+			t.Fatalf("PlayFromIndex(1): %v", err)
+		}
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2}, 1, 1, false)
 		h.endFile()
 		h.waitCurrentIndex(2)
 	})

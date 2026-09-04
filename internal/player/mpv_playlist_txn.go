@@ -650,7 +650,7 @@ func (m *Manager) setCurrentIndexLocked(i int) {
 func (m *Manager) commitIndexLocked(index int) func() {
 	prev := m.currentIndex
 	prevAdditions := m.unreachedAdditions
-	prevFrontier := m.sequentialFrontier
+	prevCompleted := m.sequentialCompleted
 	m.setCurrentIndexLocked(index)
 	// A committed selection establishes a new sequential position, and positional
 	// traversal never goes back: whatever had been inserted behind the old cursor
@@ -659,11 +659,11 @@ func (m *Manager) commitIndexLocked(index int) func() {
 	// already moved past, and keeping a frontier would keep routing continuation
 	// around rows the selection has made reachable again.
 	m.unreachedAdditions = nil
-	m.sequentialFrontier = ""
+	m.sequentialCompleted = nil
 	return func() {
 		m.currentIndex = prev
 		m.unreachedAdditions = prevAdditions
-		m.sequentialFrontier = prevFrontier
+		m.sequentialCompleted = prevCompleted
 	}
 }
 
@@ -695,25 +695,26 @@ func (m *Manager) commitSequentialStepLocked(index int) func() {
 // backwards onto a row inserted behind an exhausted cursor.
 //
 // Moving the cursor back is what makes the rows the traversal already played
-// numeric successors again, so the position it had actually reached is pinned as
-// the frontier first. Every continuation from here consults that frontier rather
-// than the cursor, and only an explicit selection retires it.
+// numeric successors again, so the prefix it had actually played is pinned as
+// the completion boundary first. Every continuation from here consults the
+// frontier that prefix resolves to rather than the cursor, and only an explicit
+// selection retires it.
 //
 // The commit runs twice for one load — once before the loadfile and once after
-// mpv accepts it — so establishing the frontier is conditional on the step still
+// mpv accepts it — so establishing the boundary is conditional on the step still
 // being a step backwards; the second call finds the cursor already moved and
-// leaves the frontier alone.
+// leaves the boundary alone.
 //
 // The caller must hold m.mu.
 func (m *Manager) commitResumedAdditionLocked(index int) func() {
-	prevFrontier := m.sequentialFrontier
-	if m.sequentialFrontier == "" && index < m.currentIndex {
-		m.sequentialFrontier = m.identityAtLocked(m.currentIndex)
+	prevCompleted := m.sequentialCompleted
+	if len(m.sequentialCompleted) == 0 && index < m.currentIndex {
+		m.pinSequentialFrontierLocked()
 	}
 	undoStep := m.commitSequentialStepLocked(index)
 	return func() {
 		undoStep()
-		m.sequentialFrontier = prevFrontier
+		m.sequentialCompleted = prevCompleted
 	}
 }
 

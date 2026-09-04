@@ -372,15 +372,19 @@ type Manager struct {
 	// sequential_additions.go.
 	unreachedAdditions map[string]bool
 
-	// sequentialFrontier is the identity of the furthest row plain positional
-	// traversal has reached, recorded only while the cursor sits behind it —
-	// which happens when a resume steps back onto a row inserted behind an
-	// exhausted cursor. Everything between the cursor and the frontier has
-	// already played, so from there on "the next row" is the remaining
-	// insertions followed by whatever lies beyond the frontier, never
-	// currentIndex+1. Empty means the cursor is the frontier and continuation
-	// is plain arithmetic. Guarded by mu; see sequential_additions.go.
-	sequentialFrontier string
+	// sequentialCompleted holds the identities of every row plain positional
+	// traversal had already played when the cursor stepped back behind them —
+	// which happens when a resume starts a row inserted behind an exhausted
+	// cursor. The furthest of them still in the queue is the frontier:
+	// everything up to it has already played, so from there on "the next row"
+	// is the remaining insertions followed by whatever lies beyond the
+	// frontier, never currentIndex+1. The whole completed prefix is recorded
+	// rather than just its last row so that removing or replacing that row
+	// leaves the boundary standing on the deepest survivor instead of dropping
+	// it and handing the completed rows back as successors. Empty means the
+	// cursor is the frontier and continuation is plain arithmetic. Guarded by
+	// mu; see sequential_additions.go.
+	sequentialCompleted map[string]bool
 
 	// permute returns a permutation of [0,n) used to randomize the unseen
 	// pool. Production wires math/rand/v2; tests inject a fixed permutation.
