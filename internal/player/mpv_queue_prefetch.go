@@ -181,6 +181,11 @@ func resolveNextShufflePrefetch(queue []QueueTrack, upcoming []string) (int, str
 // is otherwise untouched. A playlist replacement must NOT go through here: mpv
 // has already discarded the entry, so the playlist-remove would delete a live
 // row (replaceLocked drops the tracking instead).
+//
+// It is a no-op while an end-file is pending its transition: mpv has moved into
+// the tracked successor on its own, so position 1 is the row that is playing
+// rather than a parked one. See startedSuccessorLocked — the invalidation is
+// applied by the prefetch the EOF path re-runs once the transition resolves.
 func (m *Manager) clearPrefetch() {
 	m.playlistMu.Lock()
 	defer m.playlistMu.Unlock()

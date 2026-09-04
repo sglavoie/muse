@@ -884,11 +884,34 @@ func (m *Manager) appendPrefetchLocked(c *IPCClient, index int, path, identity s
 	return nil
 }
 
+// startedSuccessorLocked reports whether the tracked prefetch p is the entry mpv
+// has already entered rather than one still parked behind the current file.
+//
+// The two are the same slot and differ only in time. mpv owns its playlist: when
+// the entry that was playing ends, it moves straight into the appended successor
+// at position 1 and only then does the Manager get to decide what that means.
+// livenessEnding is exactly that interval — an end-file has been read and the
+// transition that promotes the successor onto the bookkeeping has not resolved —
+// so while it stands, the tracking names the row that is playing and a
+// playlist-remove aimed at position 1 would stop it.
+//
+// prefetchNextLocked reaches the same conclusion from the other side and leaves
+// the slot alone for the same reason; this is what extends that rule to the
+// direct invalidators, which reach the slot through clearPrefetch instead. The
+// interval is bounded: every branch of the EOF dispatch resolves it, and the
+// promotion and the fallback advance both re-run the prefetch afterwards, which
+// is where an invalidation that arrived mid-transition is finally applied.
+//
+// The caller must hold m.mu.
+func (m *Manager) startedSuccessorLocked(p prefetchState) bool {
+	return p.index >= 0 && m.liveness == livenessEnding
+}
+
 // removePrefetchLocked drops the tracked prefetch from mpv's playlist (position
 // 1) and from the Go bookkeeping in the same serialized step. It reports whether
 // mpv's playlist is now known to be free of the prefetched entry: false means the
-// removal could not be completed and the tracking was restored so a later
-// transaction retries it. Removing nothing succeeds.
+// removal could not be completed and the tracking was restored — or was never
+// given up — so a later transaction retries it. Removing nothing succeeds.
 //
 // The caller must hold m.playlistMu and must not hold m.mu.
 func (m *Manager) removePrefetchLocked() bool {
@@ -898,11 +921,20 @@ func (m *Manager) removePrefetchLocked() bool {
 	m.mu.Lock()
 	saved := m.prefetchSnapshotLocked()
 	had := saved.index >= 0
-	if had {
+	started := m.startedSuccessorLocked(saved)
+	if had && !started {
 		m.dropPrefetchTrackingLocked()
 	}
 	m.mu.Unlock()
 
+	if started {
+		// Position 1 is not a parked successor: mpv has already moved into it.
+		// Report the removal as incomplete rather than performing it — the entry
+		// is still in the playlist, and the EOF transition that owns it re-runs
+		// the prefetch once it resolves, which is where a genuine invalidation
+		// takes effect.
+		return false
+	}
 	if !had {
 		return true
 	}
