@@ -4,8 +4,10 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -55,21 +57,27 @@ func assertStillPlayingRow4(t *testing.T, m Model) {
 // Hash cannot tell these apart — both requests carry the same pair — so the
 // request identity is the only thing standing between an abandoned failure and
 // the state the newer request just established.
+//
+// Each subtest lets the first press reach the player before the second is
+// dispatched, which is the only way an abandoned request can carry a real
+// outcome now that the gate supersedes one still waiting to run. What the two
+// presses race over here is the delivery of their results, not their execution;
+// TestRapidDifferentTargetPlaybackKeepsLatestRequest covers the execution order.
 func TestRapidSameTargetPlaybackResultsUseLatestRequest(t *testing.T) {
 	t.Run("older failure cannot undo a newer success", func(t *testing.T) {
 		m, p := replayModel([]int{3, 1, 4, 0, 2}, 2) // playing queue row 4
 
-		// Two Enters on the playing row before either reaches the player.
+		// The first Enter on the playing row is refused by the player.
 		m, first := dispatchSelect(t, m, replayDisplayRow)
-		m, second := dispatchSelect(t, m, replayDisplayRow)
-
 		p.replayErr = errRefusedPlay
 		firstResult := runPlayCmd(t, first)
+		// The second Enter supersedes it and succeeds.
 		p.replayErr = nil
+		m, second := dispatchSelect(t, m, replayDisplayRow)
 		secondResult := runPlayCmd(t, second)
 
 		if p.replayCalls != 2 {
-			t.Fatalf("ReplayCurrent calls = %d, want 2 — both presses are replays", p.replayCalls)
+			t.Fatalf("ReplayCurrent calls = %d, want 2 — both presses reached the player", p.replayCalls)
 		}
 		if firstResult.Request == secondResult.Request {
 			t.Fatalf("both requests share identity %d; they must be distinguishable", firstResult.Request)
@@ -88,11 +96,10 @@ func TestRapidSameTargetPlaybackResultsUseLatestRequest(t *testing.T) {
 		m, p := replayModel([]int{3, 1, 4, 0, 2}, 2)
 
 		m, first := dispatchSelect(t, m, replayDisplayRow)
-		m, second := dispatchSelect(t, m, replayDisplayRow)
-
 		p.replayErr = errRefusedPlay
 		firstResult := runPlayCmd(t, first)
 		p.replayErr = nil
+		m, second := dispatchSelect(t, m, replayDisplayRow)
 		secondResult := runPlayCmd(t, second)
 
 		// The abandoned failure lands before the newer success this time.
@@ -106,10 +113,9 @@ func TestRapidSameTargetPlaybackResultsUseLatestRequest(t *testing.T) {
 		m, p := replayModel([]int{3, 1, 4, 0, 2}, 2)
 
 		m, first := dispatchSelect(t, m, replayDisplayRow)
-		m, second := dispatchSelect(t, m, replayDisplayRow)
-
 		firstResult := runPlayCmd(t, first) // succeeds
 		p.replayErr = errRefusedPlay
+		m, second := dispatchSelect(t, m, replayDisplayRow)
 		secondResult := runPlayCmd(t, second) // fails
 
 		m = m.handlePlayFromIndexResultMsg(firstResult)
@@ -132,8 +138,8 @@ func TestRapidSameTargetPlaybackResultsUseLatestRequest(t *testing.T) {
 		p.playFromIndexErrs = []error{errRefusedPlay, nil}
 
 		m, first := dispatchSelect(t, m, otherDisplayRow)
-		m, second := dispatchSelect(t, m, otherDisplayRow)
 		firstResult := runPlayCmd(t, first)
+		m, second := dispatchSelect(t, m, otherDisplayRow)
 		secondResult := runPlayCmd(t, second)
 
 		if !slices.Equal(p.playFromIndexCalls, []int{2, 2}) {
@@ -159,6 +165,133 @@ func TestRapidSameTargetPlaybackResultsUseLatestRequest(t *testing.T) {
 	})
 }
 
+// playResult type-asserts the outcome of a player command that was executed on
+// another goroutine. It runs on the test goroutine, which is the only one
+// allowed to call t.Fatalf.
+func playResult(t *testing.T, msg tea.Msg) playback.PlayFromIndexResultMsg {
+	t.Helper()
+	result, ok := msg.(playback.PlayFromIndexResultMsg)
+	if !ok {
+		t.Fatalf("expected PlayFromIndexResultMsg, got %T", msg)
+	}
+	return result
+}
+
+// TestRapidDifferentTargetPlaybackKeepsLatestRequest covers the race the request
+// identity alone could not settle: two Enters on two *different* rows whose
+// goroutines reach the player in the reverse of the order they were dispatched
+// in.
+//
+// Nothing about a tea.Cmd preserves dispatch order — the runtime schedules the
+// goroutines freely, and the player's own playlist mutex then serializes
+// whichever one arrives first — so the older selection could replace mpv with
+// the row the user had already moved away from, and go on to report that row as
+// the current track through a TrackChangedMsg that carries no request identity
+// at all. Neither guard on the result message helps: an older *successful*
+// command produces nothing to reject, and by then the damage is in the player.
+//
+// The two requests are released here from separate goroutines in reverse
+// execution order, and the newest one must be what the player is left holding
+// and what the TUI shows.
+func TestRapidDifferentTargetPlaybackKeepsLatestRequest(t *testing.T) {
+	m, p := replayModel([]int{3, 1, 4, 0, 2}, 2) // playing queue row 4
+
+	// Two different rows, neither of them the one playing, so both presses are
+	// genuine selections rather than replays.
+	const olderTarget, newerTarget = 0, 2
+	m, older := dispatchSelect(t, m, m.queue.FindEntryFilteredPosition(olderTarget))
+	m, newer := dispatchSelect(t, m, m.queue.FindEntryFilteredPosition(newerTarget))
+	if !m.playback.pendingSelection {
+		t.Fatal("a dispatched selection must be marked unconfirmed")
+	}
+
+	// Reverse execution order, made deterministic by releasing the older request
+	// only once the newer one has been to the player and back.
+	var (
+		wg               sync.WaitGroup
+		olderMsg, newMsg tea.Msg
+	)
+	newerDone := make(chan struct{})
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		defer close(newerDone)
+		newMsg = newer()
+	}()
+	go func() {
+		defer wg.Done()
+		<-newerDone
+		olderMsg = older()
+	}()
+	wg.Wait()
+	newerResult := playResult(t, newMsg)
+	olderResult := playResult(t, olderMsg)
+
+	if olderResult.Request >= newerResult.Request {
+		t.Fatalf("request identities = %d then %d, want the second dispatch to be newer",
+			olderResult.Request, newerResult.Request)
+	}
+	// The older request was superseded before it ran, so the player was never
+	// told to go back to the abandoned row.
+	if !slices.Equal(p.playFromIndexCalls, []int{newerTarget}) {
+		t.Errorf("PlayFromIndex calls = %v, want only the newer request's row %d",
+			p.playFromIndexCalls, newerTarget)
+	}
+	if slices.Contains(p.loaded, olderTarget) {
+		t.Errorf("loaded = %v, want the abandoned row %d never loaded", p.loaded, olderTarget)
+	}
+	// The player's actual target: the cursor sits on the newer selection.
+	tr := p.QueueTraversal()
+	if got := tr.Order[tr.CurrentPosition]; got != newerTarget {
+		t.Errorf("player is on queue row %d, want the newer request's row %d", got, newerTarget)
+	}
+	if olderResult.Err != nil {
+		t.Errorf("superseded request reported %v, want no failure surfaced for a call never made",
+			olderResult.Err)
+	}
+
+	// The other half of the finding: the abandoned row's own start-file event.
+	// It carries no request identity, so only the unresolved newer selection can
+	// tell the TUI not to believe it.
+	stale := m.queue.Entries[olderTarget]
+	m, _ = m.handleTrackChangedMsg(playback.TrackChangedMsg{
+		Hash: stale.Hash, Index: olderTarget, Artist: stale.Artist, Title: stale.Title,
+	})
+	assertCurrentRow(t, m, newerTarget)
+
+	// Results arrive in the same reverse order the commands ran in.
+	m = m.handlePlayFromIndexResultMsg(newerResult)
+	m = m.handlePlayFromIndexResultMsg(olderResult)
+	assertCurrentRow(t, m, newerTarget)
+	if msg := m.statusBar.TopNotification().Msg; strings.Contains(msg, "failed") {
+		t.Errorf("notification = %q, want the superseded selection to stay silent", msg)
+	}
+
+	// The player confirms the row it actually started, which is the newer one.
+	confirmed := m.queue.Entries[newerTarget]
+	m, _ = m.handleTrackChangedMsg(playback.TrackChangedMsg{
+		Hash: confirmed.Hash, Index: newerTarget, Artist: confirmed.Artist, Title: confirmed.Title,
+	})
+	assertCurrentRow(t, m, newerTarget)
+	if m.playback.pendingSelection {
+		t.Error("the player's start-file report must confirm the newer selection")
+	}
+}
+
+// assertCurrentRow checks the TUI is showing queue row idx as the current track.
+func assertCurrentRow(t *testing.T, m Model, idx int) {
+	t.Helper()
+	if m.playback.currentIndex != idx {
+		t.Errorf("currentIndex = %d, want %d", m.playback.currentIndex, idx)
+	}
+	if want := m.queue.Entries[idx].Hash; m.playback.currentHash != want {
+		t.Errorf("currentHash = %q, want row %d's %q", m.playback.currentHash, idx, want)
+	}
+	if m.playback.state != playback.StatePlaying {
+		t.Errorf("state = %v, want playing", m.playback.state)
+	}
+}
+
 // TestPendingSelectionIsNotMisclassifiedAsReplay covers the other half of the
 // race: Enter on a row the player has not been told about yet. The optimistic
 // update writes the selected row into currentIndex/currentHash immediately, so a
@@ -176,7 +309,8 @@ func TestPendingSelectionIsNotMisclassifiedAsReplay(t *testing.T) {
 	}
 	m, second := dispatchSelect(t, m, otherDisplayRow)
 
-	// The second request wins the race to the player.
+	// The second request reaches the player first, which supersedes the first
+	// one: it is answered without ever being sent.
 	secondResult := runPlayCmd(t, second)
 	firstResult := runPlayCmd(t, first)
 
@@ -186,8 +320,9 @@ func TestPendingSelectionIsNotMisclassifiedAsReplay(t *testing.T) {
 	if secondResult.Replay || firstResult.Replay {
 		t.Error("neither request may report itself as a replay")
 	}
-	if !slices.Equal(p.playFromIndexCalls, []int{2, 2}) {
-		t.Errorf("PlayFromIndex calls = %v, want both presses to name row 2", p.playFromIndexCalls)
+	if !slices.Equal(p.playFromIndexCalls, []int{2}) {
+		t.Errorf("PlayFromIndex calls = %v, want only the newest press to reach the player",
+			p.playFromIndexCalls)
 	}
 	// The point of the whole guard: row 4 must never be restarted. A misclassified
 	// replay would have loaded it, because that is where the player still was.
@@ -208,7 +343,7 @@ func TestPendingSelectionIsNotMisclassifiedAsReplay(t *testing.T) {
 		t.Errorf("replay = %v after %d ReplayCurrent calls, want a replay of the confirmed row",
 			thirdResult.Replay, p.replayCalls)
 	}
-	if !slices.Equal(p.playFromIndexCalls, []int{2, 2}) {
+	if !slices.Equal(p.playFromIndexCalls, []int{2}) {
 		t.Errorf("PlayFromIndex calls = %v, want the confirmed row replayed instead of reanchored",
 			p.playFromIndexCalls)
 	}

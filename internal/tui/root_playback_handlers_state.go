@@ -165,28 +165,33 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 		return m, nil
 	}
 
+	// Guard: a selection the player has not answered yet outranks a report about
+	// any other row. While pendingSelection is set, currentHash is the row the
+	// user asked for and the player has already been told to move onto it, so a
+	// start-file naming a different entry describes the row that selection is in
+	// the middle of replacing — an older command that reached mpv first, or the
+	// gapless successor it was about to start. Applying it would move the current
+	// row off the newer selection until the selection's own start-file arrives,
+	// and the request identity that separates the two commands' results is not
+	// carried on this message. The selection resolves the window either way: its
+	// own report confirms it below, and its failure resets playback outright.
+	//
+	// Ending the outgoing listen above this guard is safe because nothing can be
+	// armed here: handlePlayQueueIndexMsg disarms at dispatch, and the only
+	// re-arm is at the bottom of this handler, which a pending selection has not
+	// reached.
+	if m.playback.pendingSelection && msg.Hash != m.playback.currentHash {
+		slog.Debug("track change discarded: a newer selection is unresolved",
+			"reported", msg.Hash, "selected", m.playback.currentHash)
+		return m, nil
+	}
+
 	// Capture the outgoing hash before the overwrite below: the notification
 	// at the end of this handler must only fire on a genuine track change.
 	prevHash := m.playback.currentHash
 
 	m.playback.currentHash = msg.Hash
-	// Clamp index to queue bounds in case the queue shrank between the mpv
-	// event dispatch and TUI processing (e.g. dequeue raced with gapless
-	// transition).
-	idx := msg.Index
-	if idx < 0 || idx >= len(m.queue.Entries) {
-		idx = -1
-		for i, e := range m.queue.Entries {
-			if e.Hash == msg.Hash {
-				idx = i
-				break
-			}
-		}
-		// When the hash is not found in the queue, keep idx = -1 rather
-		// than falling back to 0. This prevents currentIndex from pointing
-		// at an unrelated track while still updating the status bar with
-		// the metadata from the message.
-	}
+	idx := m.trackChangeIndex(msg)
 	m.playback.currentIndex = idx
 	// The player has named the row it is on, which settles any selection still
 	// waiting for confirmation: from here currentIndex is the player's answer,
@@ -248,6 +253,27 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd(),
 		m.trackNotifyCmd(msg, prevHash))
+}
+
+// trackChangeIndex resolves the queue row a track-change event names.
+//
+// msg.Index is taken as given while it is still in range. The queue can have
+// shrunk between mpv's event and this handler — a dequeue racing a gapless
+// transition — and the row is then found by identity instead.
+//
+// A hash that is not in the queue at all resolves to -1 rather than falling back
+// to 0: pointing currentIndex at an unrelated track is worse than pointing it at
+// nothing, and the caller still updates the status bar from the message.
+func (m Model) trackChangeIndex(msg playback.TrackChangedMsg) int {
+	if msg.Index >= 0 && msg.Index < len(m.queue.Entries) {
+		return msg.Index
+	}
+	for i, e := range m.queue.Entries {
+		if e.Hash == msg.Hash {
+			return i
+		}
+	}
+	return -1
 }
 
 // trackNotifyCmd posts a desktop banner for a newly started track, or returns

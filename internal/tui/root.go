@@ -83,6 +83,11 @@ type playbackInfo struct {
 	// took, so an outcome that a newer request has already superseded is
 	// recognisable even when both requests named the same queue occurrence.
 	playRequestSeq uint64
+	// requests carries the same identity into the goroutines those requests run
+	// on, which is what makes them reach the player in dispatch order instead of
+	// in scheduler order. It is a pointer so every copy of the Model shares one
+	// gate; see root_play_request.go.
+	requests *playRequestGate
 	// pendingSelection is true while a dispatched PlayFromIndex has neither been
 	// confirmed by the player nor resolved by its own result. Until then
 	// currentIndex/currentHash above are the optimistic row the user asked for
@@ -358,7 +363,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		ActiveView:      viewLibrary,
 		cfg:             config.Defaults(),
 		library:         libtui.View{Fuzzy: library.SahilmFuzzySearcher{}},
-		playback:        playbackInfo{currentIndex: -1},
+		playback:        playbackInfo{currentIndex: -1, requests: &playRequestGate{}},
 		registry:        keys.NewRegistry(),
 		styles:          &initialStyles,
 		insightsPending: &insightsPendingWrites{},

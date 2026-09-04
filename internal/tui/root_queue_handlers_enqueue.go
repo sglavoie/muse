@@ -185,10 +185,17 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	// this same row. Without it, holding Enter on one row issues calls whose
 	// outcomes are indistinguishable and an older failure can undo a newer
 	// success.
-	m.playback.playRequestSeq++
+	//
+	// The same identity goes into the shared gate, which is what carries the
+	// dispatch order into the goroutines below: the runtime is free to run them
+	// in any order, and a stale one reaching the player last would leave mpv on
+	// a row the user has already moved away from. The gate lets the newest
+	// request through and supersedes the rest.
+	gate := m.playback.requests
+	req := gate.dispatch(m.playback.playRequestSeq)
+	m.playback.playRequestSeq = req
 	p := m.player
 	idx := msg.Index
-	req := m.playback.playRequestSeq
 	result := func(err error) tea.Msg {
 		return playback.PlayFromIndexResultMsg{
 			Request: req,
@@ -202,12 +209,18 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	if replay {
 		// ReplayCurrent leaves the player on the entry it is already holding, so
 		// the current row stays confirmed and a follow-up Enter can replay again.
-		return m, func() tea.Msg { return result(replayer.ReplayCurrent()) }
+		return m, func() tea.Msg {
+			err, _ := gate.run(req, replayer.ReplayCurrent)
+			return result(err)
+		}
 	}
 	// A new selection moves the player's current entry, and nothing has
 	// confirmed the move yet; see pendingSelection.
 	m.playback.pendingSelection = true
-	return m, func() tea.Msg { return result(p.PlayFromIndex(idx)) }
+	return m, func() tea.Msg {
+		err, _ := gate.run(req, func() error { return p.PlayFromIndex(idx) })
+		return result(err)
+	}
 }
 
 // selectionReplayer reports whether selecting queue row index means "restart the
