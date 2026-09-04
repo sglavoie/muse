@@ -681,13 +681,19 @@ func (m *Manager) commitIndexLocked(index int) func() {
 // cursor and a forward step drops all of them, which is exactly what
 // commitIndexLocked would have done.
 //
+// Where a frontier does stand the step also extends it: the row being started is
+// about to be a row that played, and inside a boundary that is recorded by
+// identity rather than inferred from the cursor.
+//
 // The caller must hold m.mu.
 func (m *Manager) commitSequentialStepLocked(index int) func() {
 	prev := m.currentIndex
 	dropped := m.forgetAdditionsThroughLocked(index)
+	undoCompleted := m.completeSequentialStepLocked(index)
 	m.setCurrentIndexLocked(index)
 	return func() {
 		m.currentIndex = prev
+		undoCompleted()
 		m.restoreAdditionsLocked(dropped)
 	}
 }

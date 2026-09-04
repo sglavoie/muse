@@ -11,7 +11,9 @@ package player
 // landed behind the cursor so the resume can still find them, and pinning the
 // prefix the traversal had already played so that stepping back onto one of
 // those rows does not turn all of it into successors again — a boundary that has
-// to survive the frontier row itself being deleted or replaced.
+// to survive the frontier row itself being deleted or replaced, and that keeps
+// growing as the resumed traversal plays on, because the span it covers stays as
+// editable as the rest of the queue.
 // It is the shuffle-off counterpart to the unseen pool in shuffle.go, where
 // reconciliation already makes every brand-new identity eligible regardless of
 // position.
@@ -183,6 +185,10 @@ func (m *Manager) restoreAdditionsLocked(identities []string) {
 // already played. With the prefix recorded the boundary simply falls back onto
 // the deepest completed row that survived.
 //
+// This only establishes the boundary. Every step the resumed traversal takes
+// from here adds the row it started, through completeSequentialStepLocked, so
+// the set keeps naming everything that played rather than only the prefix.
+//
 // The caller must hold m.mu.
 func (m *Manager) pinSequentialFrontierLocked() {
 	completed := make(map[string]bool)
@@ -236,11 +242,20 @@ func (m *Manager) sequentialFrontierLocked() int {
 //
 // With no frontier ahead of the cursor that is the plain positional scan every
 // stable queue takes. With one, the cursor is walking rows that were inserted
-// behind an exhausted traversal: the rows between it and the frontier are the
-// ones that already played, so continuing positionally would hand them back as
-// successors. The insertions that are still pending come first, in queue order,
-// and the scan resumes beyond the frontier — which is where a later tail append
-// lands.
+// behind an exhausted traversal: continuing positionally would hand the rows
+// between it and the frontier back as successors, because most of them are the
+// ones that already played.
+//
+// Most, not all — which is why the span is filtered by what played rather than
+// by what was recorded as an insertion. A queue stays editable while the
+// boundary stands: a "play next" drops a brand-new row at the cursor+1, and a
+// reorder can carry an unplayed tail row inwards. Neither is an insertion the
+// resume recorded (both land past the cursor, where SetQueue's bookkeeping does
+// not reach) and neither ever played, so the completed set is the only thing
+// that can tell them apart from their neighbours. Everything in the span the
+// boundary does not name is still owed to the traversal and comes first, in
+// queue order; the scan then resumes beyond the frontier, which is where a later
+// tail append lands.
 //
 // The caller must hold m.mu.
 func (m *Manager) sequentialSuccessorsLocked(from int) []int {
@@ -252,10 +267,12 @@ func (m *Manager) sequentialSuccessorsLocked(from int) []int {
 	scanFrom := from
 	var out []int
 	if frontier >= from {
-		for _, add := range m.unreachedAdditionsLocked(frontier + 1) {
-			if add.index >= from {
-				out = append(out, add.index)
+		ids := queueIdentities(m.queue)
+		for i := from; i <= frontier && i < n; i++ {
+			if m.sequentialCompleted[ids[i]] {
+				continue
 			}
+			out = append(out, i)
 		}
 		scanFrom = frontier + 1
 	}
@@ -263,4 +280,40 @@ func (m *Manager) sequentialSuccessorsLocked(from int) []int {
 		out = append(out, i)
 	}
 	return out
+}
+
+// completeSequentialStepLocked records the row at index as played when a
+// completion boundary is standing, and returns the undo for a load that then
+// failed.
+//
+// The boundary is what sequentialSuccessorsLocked filters the span with, so it
+// has to keep describing everything the traversal has finished, not only the
+// prefix the resume pinned. Without this, a row the resumed traversal played
+// would look unplayed the moment a reorder moved it back inside the span, and
+// continuation would hand it over a second time.
+//
+// It is deliberately inert while no boundary stands. Plain positional traversal
+// needs no completed set — the cursor alone says what is behind it — and
+// starting one here would create a boundary out of an ordinary step.
+//
+// The caller must hold m.mu.
+func (m *Manager) completeSequentialStepLocked(index int) func() {
+	if len(m.sequentialCompleted) == 0 || index < 0 || index >= len(m.queue) {
+		return func() {}
+	}
+	id := queueIdentities(m.queue)[index]
+	prev := m.sequentialCompleted
+	if prev[id] {
+		return func() {}
+	}
+	// Copy rather than mutate: commitIndexLocked and commitResumedAdditionLocked
+	// both undo by restoring the map they captured, and an in-place write would
+	// reach through those references.
+	next := make(map[string]bool, len(prev)+1)
+	for known := range prev {
+		next[known] = true
+	}
+	next[id] = true
+	m.sequentialCompleted = next
+	return func() { m.sequentialCompleted = prev }
 }

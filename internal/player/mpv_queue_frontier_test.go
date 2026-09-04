@@ -194,6 +194,23 @@ func (h *seqEOFHarness) replaceRowAt(pos int, entry QueueTrack) {
 	h.m.SetQueue(q)
 }
 
+// moveRow lifts the queue row at from and reinstalls the queue with it at to,
+// which is what a reorder in the Queue view does: no row enters or leaves the
+// queue, so the moved row keeps the identity it already had.
+func (h *seqEOFHarness) moveRow(from, to int) {
+	h.t.Helper()
+	q := h.queueSnapshot()
+	row := q[from]
+	rest := make([]QueueTrack, 0, len(q)-1)
+	rest = append(rest, q[:from]...)
+	rest = append(rest, q[from+1:]...)
+	out := make([]QueueTrack, 0, len(q))
+	out = append(out, rest[:to]...)
+	out = append(out, row)
+	out = append(out, rest[to:]...)
+	h.m.SetQueue(out)
+}
+
 // waitLoads blocks until path has been handed to mpv at least n times, whatever
 // the mode. A queue mutation clears the tracked successor and rebuilds it, so
 // this is how a test waits for the prefetch that describes the queue *after* the
@@ -519,5 +536,173 @@ func TestSequentialInsertionResumeFrontierRemovalDoesNotReplayCompletedRows(t *t
 		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2}, 1, 1, false)
 		h.endFile()
 		h.waitCurrentIndex(2)
+	})
+}
+
+// TestSequentialFrontierKeepsUnplayedInteriorRowsReachable is the regression for
+// editing the queue *inside* a standing completion boundary.
+//
+// The boundary the resume pinned describes which rows already played. It is not
+// a description of the span it covers: a "play next" drops a brand-new row
+// immediately after the resumed cursor, and a reorder can carry an unplayed tail
+// row into the same span. Neither row was ever played, so both are still owed to
+// the traversal, and continuation must reach them even though positional
+// arithmetic from the cursor runs straight through the completed rows around
+// them.
+func TestSequentialFrontierKeepsUnplayedInteriorRowsReachable(t *testing.T) {
+	t.Run("a play-next insertion inside the boundary is played", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-in-next")
+		completed := h.queueSnapshot()
+
+		h.insertAt(0, h.extra[0])
+		h.reset()
+		h.resume(0)
+
+		// A "play next" while the resumed insertion plays: the new row lands at
+		// cursor+1, ahead of every completed row rather than behind the cursor.
+		h.insertAt(1, h.extra[1])
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 1, false)
+		h.waitPrefetch(h.extra[1].Path)
+
+		h.endFile()
+		h.waitCurrentIndex(1)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 1, 0, false)
+
+		h.endFile()
+		h.waitEnded("the play-next insertion inside the boundary")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("a play-next insertion inside the boundary is played without gapless", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-in-next-nogap")
+		completed := h.queueSnapshot()
+		if err := h.m.SetGapless(false); err != nil {
+			t.Fatalf("SetGapless(false): %v", err)
+		}
+
+		h.insertAt(0, h.extra[0])
+		h.reset()
+		h.resume(0)
+
+		h.insertAt(1, h.extra[1])
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 1, false)
+
+		// With no prefetch to promote, the end-file goes through the fallback
+		// advance; it must pick the insertion and not a completed row.
+		h.endFile()
+		h.waitCurrentIndex(1)
+		if got := h.loads(h.extra[1].Path); got != 1 {
+			t.Fatalf("the play-next insertion was loaded %d times, want 1", got)
+		}
+
+		h.endFile()
+		h.waitEnded("the play-next insertion without gapless")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("an unplayed tail row moved inside the boundary is played", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-in-move")
+		completed := h.queueSnapshot()
+
+		h.insertAt(0, h.extra[0])
+		h.reset()
+		h.resume(0)
+
+		// Append past the boundary first, so the row is an ordinary unplayed tail
+		// row and not a fresh identity when the reorder carries it inwards.
+		h.insertAt(4, h.extra[1])
+		h.waitPrefetch(h.extra[1].Path)
+		h.moveRow(4, 1)
+
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 1, false)
+		h.waitLoads(h.extra[1].Path, 2)
+
+		h.endFile()
+		h.waitCurrentIndex(1)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 1, 0, false)
+
+		h.endFile()
+		h.waitEnded("the tail row moved inside the boundary")
+		h.assertNoReplays(completed...)
+	})
+
+	t.Run("an unplayed tail row moved inside the boundary is played without gapless", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-in-move-nogap")
+		completed := h.queueSnapshot()
+		if err := h.m.SetGapless(false); err != nil {
+			t.Fatalf("SetGapless(false): %v", err)
+		}
+
+		h.insertAt(0, h.extra[0])
+		h.reset()
+		h.resume(0)
+
+		h.insertAt(4, h.extra[1])
+		h.moveRow(4, 1)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 1, false)
+
+		h.endFile()
+		h.waitCurrentIndex(1)
+		if got := h.loads(h.extra[1].Path); got != 1 {
+			t.Fatalf("the moved tail row was loaded %d times, want 1", got)
+		}
+
+		h.endFile()
+		h.waitEnded("the tail row moved inside the boundary without gapless")
+		h.assertNoReplays(completed...)
+	})
+}
+
+// TestSequentialFrontierExcludesRowsPlayedAfterTheResume is the other half of
+// deriving continuation from played-versus-unplayed identity.
+//
+// Filtering the span by what played only excludes what the boundary names, and
+// the prefix the resume pinned is not the whole of what played: the traversal
+// keeps going from there. A row it started after the resume sits ahead of the
+// cursor arithmetic only until a reorder carries it back inside the span, and
+// from then on nothing but the boundary itself can say it is finished.
+func TestSequentialFrontierExcludesRowsPlayedAfterTheResume(t *testing.T) {
+	t.Run("a row played after the resume is not handed back by a reorder", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-in-done")
+		completed := h.queueSnapshot()
+
+		h.insertAt(0, h.extra[0], h.extra[1])
+		h.reset()
+		h.resume(0)
+		h.waitPrefetch(h.extra[1].Path)
+		h.endFile()
+		h.waitCurrentIndex(1)
+
+		// The first insertion has played. Moving it between the cursor and the
+		// frontier must not make it a successor of the row that followed it.
+		h.reset()
+		h.moveRow(0, 3)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 0, false)
+
+		h.endFile()
+		h.waitEnded("the traversal once the played insertion was moved inside the boundary")
+		h.assertNoReplays(append(completed, h.extra[0])...)
+	})
+
+	t.Run("the fallback advance excludes it too when gapless is off", func(t *testing.T) {
+		h := newSeqEOFHarness(t, "frontier-in-done-nogap")
+		completed := h.queueSnapshot()
+		if err := h.m.SetGapless(false); err != nil {
+			t.Fatalf("SetGapless(false): %v", err)
+		}
+
+		h.insertAt(0, h.extra[0], h.extra[1])
+		h.reset()
+		h.resume(0)
+		h.endFile()
+		h.waitCurrentIndex(1)
+
+		h.reset()
+		h.moveRow(0, 3)
+		assertTraversal(t, h.m.QueueTraversal(), []int{0, 1, 2, 3, 4}, 0, 0, false)
+
+		h.endFile()
+		h.waitEnded("the fallback advance once the played insertion was moved inside the boundary")
+		h.assertNoReplays(append(completed, h.extra[0])...)
 	})
 }
