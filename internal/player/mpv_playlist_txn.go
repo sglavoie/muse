@@ -248,10 +248,12 @@ func (m *Manager) cancelLoadStartLocked(gen uint64) {
 // event reader's connection came up: the last load mpv had answered by then and
 // the last one the Manager had recorded.
 //
-// answered is the boundary adoptCurrentLoad retires against. recorded bounds
-// what reconcileStartedLoad may retire afterwards — an expectation recorded
-// after this connection existed describes a load this reader is on the receiving
-// end of, whatever mpv reports playing.
+// answered is the boundary adoptCurrentLoad retires against. recorded says which
+// of the survivors were recorded before this connection existed, and those are
+// the only ones that can still name a start-file it will never be handed —
+// everything recorded afterwards belongs to a load this reader is on the
+// receiving end of. An expectation of the first kind is what raises the event
+// reader's adoption barrier; see reconcileStartedLoad.
 type readerObservation struct {
 	answered uint64
 	recorded uint64
@@ -328,8 +330,10 @@ func (m *Manager) dropLoadStartsLocked(n int) {
 	m.pendingLoadStarts = m.pendingLoadStarts[n:]
 }
 
-// startedPrefixLocked counts the expectations mpv proves it has already
-// executed, given the file it reports playing.
+// unobservedStartsLocked counts the expectations at the front of the queue whose
+// start-files a newly connected event reader can never be handed, given the file
+// mpv reports playing and how many start-files that reader read before the
+// report.
 //
 // Loads are sent one at a time under playlistMu and mpv executes them in the
 // order it receives them, so the entry that loaded the current file places every
@@ -339,21 +343,25 @@ func (m *Manager) dropLoadStartsLocked(n int) {
 // load whose event may still be coming; stopping at the first occurrence can
 // only leave a stale entry behind, never discard a live one.
 //
-// recorded bounds the search at the reader's own connection: an expectation
-// recorded after that instant belongs to a load whose start-file this reader
-// receives, and mpv naming its file says only that it got there first.
+// Having fired is not the same as having been missed, though. The report is
+// ordered in the reader's own event stream, so the start-files it read ahead of
+// it are exactly the ones mpv broadcast with this connection already open —
+// the last delivered of the loads that fired. Subtracting them leaves the prefix
+// that fired before this connection existed, which is what may be retired.
+//
+// delivered is the reader's whole count, so an entry mpv started on its own
+// behind a completed one inflates it. That only leaves an expectation behind,
+// which is the direction this has to err in: retiring one whose start-file is
+// still coming makes that event consume a generation it did not emit.
 //
 // The caller must hold m.mu.
-func (m *Manager) startedPrefixLocked(recorded uint64, playing string) int {
+func (m *Manager) unobservedStartsLocked(playing string, delivered int) int {
 	if playing == "" {
 		return 0
 	}
 	for i, pending := range m.pendingLoadStarts {
-		if pending.seq > recorded {
-			return 0
-		}
 		if pending.path == playing {
-			return i + 1
+			return max(i+1-delivered, 0)
 		}
 	}
 	return 0
@@ -441,11 +449,20 @@ func (m *Manager) resyncGaplessSuccessorsLocked() {
 // What it cannot decide is a load mpv had executed but not yet answered, whose
 // start-file therefore also predates this connection. reconcileStartedLoad
 // settles those, from the event stream itself.
-func (m *Manager) adoptCurrentLoad(obs readerObservation) {
+//
+// It reports whether such an undecidable expectation survived: one recorded
+// before this connection existed and still unanswered when it did. The caller
+// must then hold its event stream until mpv reports the file it is playing,
+// because the first start-file it reads would otherwise consume that
+// expectation — and if the expectation names an event this connection never
+// received, the load that consumed it is stamped with a generation it did not
+// emit and reads as superseded from the moment it begins.
+func (m *Manager) adoptCurrentLoad(obs readerObservation) bool {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.retireLoadStartsLocked(obs.answered)
 	m.restampObservedLoadLocked()
-	m.mu.Unlock()
+	return len(m.pendingLoadStarts) > 0 && m.pendingLoadStarts[0].seq <= obs.recorded
 }
 
 // reconcileStartedLoad completes the adoption above with the one thing a command
@@ -465,18 +482,23 @@ func (m *Manager) adoptCurrentLoad(obs readerObservation) {
 // an instant this reader can place against its own events, rather than against
 // when a command happened to return.
 //
-// The caller must not have dispatched a start-file yet — the reader checks that
-// before calling. An expectation already consumed is gone from the queue, and
-// matching mpv's file against what is left could then land on a later load of
-// the same path whose event is still to come.
-func (m *Manager) reconcileStartedLoad(obs readerObservation, playing string) {
+// delivered is how many start-files the reader read before that report, and it
+// is the other half of the same ordering. mpv can execute a load admitted after
+// the dial before it gets to the observe, so the report alone cannot say which
+// of the loads it proves have started were broadcast to this connection; the
+// events read ahead of it can. The caller must therefore have held every event
+// it read until this point rather than dispatching them — an expectation a
+// start-file has already consumed is gone from the queue, and matching mpv's
+// file against what is left could then land on a later load of the same path
+// whose event is still to come.
+func (m *Manager) reconcileStartedLoad(playing string, delivered int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	started := m.startedPrefixLocked(obs.recorded, playing)
-	if started == 0 {
+	unobserved := m.unobservedStartsLocked(playing, delivered)
+	if unobserved == 0 {
 		return
 	}
-	m.dropLoadStartsLocked(started)
+	m.dropLoadStartsLocked(unobserved)
 	m.restampObservedLoadLocked()
 }
 

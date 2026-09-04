@@ -59,6 +59,14 @@ type fakePlaylist struct {
 	// pathObserved records that a client has subscribed to the path property
 	// and the initial value that subscription emits is already on the stream.
 	pathObserved bool
+	// pathSnapshotHold defers that initial value instead of emitting it with the
+	// subscription, and pathSnapshotArrived records that the subscription reached
+	// the fake. mpv processes commands in the order it receives them, so a load
+	// admitted after a client connects but before mpv gets to that client's
+	// observe emits its start-file *ahead* of the snapshot; holding the snapshot
+	// is how a test stages that ordering.
+	pathSnapshotHold    bool
+	pathSnapshotArrived bool
 
 	events chan string
 	done   chan struct{}
@@ -436,9 +444,23 @@ func (f *fakePlaylist) finishCurrent() {
 // flag, so a test that waits for the flag knows the event on the stream names
 // the file mpv was playing before the wait returned — not one a command released
 // afterwards has since loaded.
+//
+// A hold installed by holdPathSnapshot defers both, to the instant it is
+// released: mpv samples the property when it gets round to the subscription, not
+// when the subscription was written.
 func (f *fakePlaylist) notePathObserved() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.pathSnapshotArrived = true
+	if f.pathSnapshotHold {
+		return
+	}
+	f.emitPathSnapshotLocked()
+}
+
+// emitPathSnapshotLocked puts mpv's answer to the path subscription on the
+// stream and marks it delivered.
+func (f *fakePlaylist) emitPathSnapshotLocked() {
 	f.emitLocked(pathEventLine(f.playingPathLocked()))
 	f.pathObserved = true
 }
@@ -601,6 +623,52 @@ func (f *fakePlaylist) waitForEventStream(t *testing.T) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		return f.subscribers > 0 && f.pathObserved
+	})
+}
+
+// holdPathSnapshot keeps mpv from answering the path subscription until the
+// returned release is called, while everything else — commands, the events they
+// emit, the rest of the stream — keeps running. It models mpv reaching a
+// client's observe only after it has executed the loads queued ahead of it, so a
+// start-file emitted in between is delivered ahead of the snapshot.
+//
+// The snapshot names the file mpv is playing at release, which is what mpv
+// reports: the property is read when the subscription is processed. The release
+// is idempotent and also runs via t.Cleanup, so a failed assertion cannot leave
+// a reader waiting on a snapshot that never comes.
+func (f *fakePlaylist) holdPathSnapshot(t *testing.T) func() {
+	t.Helper()
+	f.mu.Lock()
+	f.pathSnapshotHold = true
+	f.mu.Unlock()
+
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.pathSnapshotHold = false
+			if f.pathSnapshotArrived {
+				f.emitPathSnapshotLocked()
+			}
+		})
+	}
+	t.Cleanup(release)
+	return release
+}
+
+// waitForEventSubscriber blocks until the fake is relaying its async stream to a
+// connected client and that client's path subscription has reached the fake, so
+// an event emitted after it returns is delivered rather than dropped. Unlike
+// waitForEventStream it does not require the subscription to have been answered,
+// which is the point when the answer is held: the caller wants the window in
+// which the reader is connected and the snapshot is still to come.
+func (f *fakePlaylist) waitForEventSubscriber(t *testing.T) {
+	t.Helper()
+	f.waitFor(t, "a client to subscribe to the event stream", func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.subscribers > 0 && f.pathSnapshotArrived
 	})
 }
 
