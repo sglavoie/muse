@@ -24,6 +24,17 @@ package player
 // a stall to recover, while an idle playlist under an ended traversal is what
 // the user asked for and must be left alone.
 //
+// An end is not instantaneous, which is why there are three states rather than
+// two. Only stop-after-current can be decided where the end-file is read: the
+// flag says the traversal stops here whatever the queue holds. A natural end is
+// decided by the advance that follows it, inside a playlist transaction on a
+// background goroutine, and until that transaction runs nothing distinguishes a
+// track that will be followed by another from the last one in the queue.
+// livenessEnding is that interval, and it counts as not-live: the restart
+// supervisor and the best-effort prefetch both have to act during it, and
+// treating an EOF that may be an end as if the traversal were still running is
+// what lets them reinstate a track that had finished playing.
+//
 // Only an explicit operation makes an ended traversal live again. Every one of
 // them reaches mpv through replaceLocked (PlayFromIndex, Next, Previous,
 // RestartQueueCycle, ReplayCurrent, ResumeAfterQueueExtension, PlayQueueEntry)
@@ -57,10 +68,35 @@ const (
 	// purpose: the user armed stop-after-current, or the queue ran out at EOF.
 	// Best-effort work must not start audio from here.
 	livenessEnded
+
+	// livenessEnding means a natural end-file has been read and the advance that
+	// will either continue the traversal or exhaust it has not resolved yet. mpv
+	// is idle or draining and the entry lastTrackPath names has finished playing,
+	// so nothing may reinstate it: the state is not-live for exactly as long as
+	// that is true, and resolves into livenessLive when the advance loads a
+	// successor or into livenessEnded when it does not.
+	livenessEnding
 )
 
-// live reports whether a queue traversal is still in progress.
+// live reports whether a queue traversal is still in progress. A pending end is
+// not live: the decision it is waiting on can only confirm the end or start a
+// successor, and neither outcome makes the track that just finished resumable.
 func (l playbackLiveness) live() bool { return l == livenessLive }
+
+// String names the state for the logs, where "not live" now covers two distinct
+// situations and the number alone would not say which one suppressed a resume.
+func (l playbackLiveness) String() string {
+	switch l {
+	case livenessLive:
+		return "live"
+	case livenessEnding:
+		return "ending"
+	case livenessEnded:
+		return "ended"
+	default:
+		return "unknown"
+	}
+}
 
 // markPlaybackLiveLocked records that a load this Manager asked for has reached
 // mpv, so the traversal is running again. It is the counterpart of the two end
@@ -94,4 +130,47 @@ func (m *Manager) markPlaybackEnded() {
 	m.mu.Lock()
 	m.markPlaybackEndedLocked()
 	m.mu.Unlock()
+}
+
+// markPlaybackEnding records that a natural end-file has been dispatched and its
+// advance has not resolved yet. It is called from the event reader, so it must
+// stay a short critical section and must not wait on the playlist transaction it
+// is describing.
+//
+// gen is the playlist generation the EOF belongs to, and the mark is refused
+// once mpv has moved past it. A replacement that landed between the EOF snapshot
+// and this call has already published the row it made current and marked the
+// traversal live for it; the advance this pending end names will be dropped as
+// superseded, so claiming an end here would describe the user's selection
+// instead of the entry that finished.
+//
+// A traversal that is not live is left alone for the same reason: an end that has
+// already been confirmed is not reopened by a later end-file, and there is
+// nothing to keep pending.
+func (m *Manager) markPlaybackEnding(gen uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.playlistGen != gen || m.liveness != livenessLive {
+		return
+	}
+	m.liveness = livenessEnding
+}
+
+// settlePlaybackEnding resolves a pending end whose advance will never report
+// back: the transaction was superseded — by a queue-owned replacement or by an
+// mpv restart opening a new playlist generation — or it failed outright.
+//
+// The outcome is the end, not a return to live. mpv played the entry out and
+// nothing loaded a successor, so the traversal is over in the only sense this
+// state models, and lastTrackPath names a completed row that best-effort work
+// must not reinstate. Anything that did load a successor has already marked the
+// traversal live through replaceLocked, and that is what the state check
+// preserves.
+func (m *Manager) settlePlaybackEnding() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.liveness != livenessEnding {
+		return
+	}
+	m.liveness = livenessEnded
 }

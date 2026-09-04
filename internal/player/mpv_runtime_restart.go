@@ -42,6 +42,12 @@ type restoreState struct {
 	// whether there is anything to resume at all. lastTrackPath keeps naming the
 	// row that finished after stop-after-current or a traversal that ran out, so
 	// the path alone cannot tell an interrupted track from a completed one.
+	//
+	// A natural end that is still awaiting its exhaustion transaction reads as
+	// not-live here as well, which is what an outage racing that transaction
+	// depends on: the entry has finished playing whichever way the advance
+	// resolves, and this recovery would otherwise supersede the advance and
+	// reinstate it.
 	liveness playbackLiveness
 }
 
@@ -231,13 +237,22 @@ func (m *Manager) attemptRestart(restore restoreState) bool {
 // same way the Manager's other traversal state does. The user's next explicit
 // operation lifts it through replaceLocked exactly as it would have without the
 // outage.
+//
+// A natural end whose exhaustion transaction has not run yet is the same case
+// seen earlier. The entry has already played out, and this recovery is precisely
+// what supersedes that transaction — attemptRestart opens a new playlist
+// generation, so the advance is dropped rather than deciding anything. Resuming
+// on the grounds that the end is not confirmed would reload a completed track
+// and mark the traversal live for it, and the transaction it outran would never
+// contradict that.
 func (m *Manager) resumeAfterRestart(restore restoreState) {
 	if restore.path == "" {
 		return
 	}
 	if !restore.liveness.live() {
 		slog.Debug("mpv: restart: no resume for a traversal that had already ended",
-			"op", "restart-resume", "path", restore.path, "elapsed", restore.elapsed)
+			"op", "restart-resume", "path", restore.path, "elapsed", restore.elapsed,
+			"liveness", restore.liveness)
 		return
 	}
 	if err := m.loadFileAt(restore.path, restore.elapsed, restore.paused); err != nil {

@@ -166,7 +166,18 @@ func (m *Manager) dispatchEOF(state eofState) {
 
 	// No promotable prefetch: fall back to the traversal-aware advance, which
 	// reaches mpv through the serialized replacement primitive.
+	//
+	// The advance owns the decision, but it runs on a background goroutine behind
+	// the playlist transaction lock, and whether the queue has a successor left is
+	// exactly what it is going to find out. Record the pending end here, on the
+	// reader, before anything can block: from this instant mpv has played the
+	// entry out and no successor has been loaded, so until the transaction reports
+	// back the traversal must not read as live. An event-socket failure landing in
+	// that window is the case this closes — the restart supervisor snapshots
+	// liveness the moment recovery begins, and a snapshot taken while the
+	// exhaustion is still queued would resume the track that just finished.
 	nextIdx := state.currentIndex + 1
+	m.markPlaybackEnding(state.playlistGen)
 	safego.Go("player.advanceAfterEOF", func() {
 		m.markMissingEntries(skipped, state.marker)
 		m.advanceAfterEOF(nextIdx, state)
@@ -410,13 +421,25 @@ func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
 	})
 	switch {
 	case err == nil:
+		// The load landed, so replaceLocked has already marked the traversal live
+		// again: the pending end resolved into a successor.
 		return
 	case errors.Is(err, errEOFSuperseded):
+		// Nothing here will decide the end now. A queue-owned replacement that won
+		// the race marked the traversal live for the row it selected, which
+		// settlePlaybackEnding leaves alone; an mpv restart that opened the new
+		// generation loaded nothing, and the pending end becomes the end.
+		m.settlePlaybackEnding()
 		slog.Debug("mpv: eof: dropped an auto-advance whose playlist generation was replaced",
 			state.logAttrs("advance-after-current", err)...)
 	case errors.Is(err, errTraversalExhausted):
 		m.emitPlaybackEnded()
 	default:
+		// The queue was not exhausted, but no successor reached mpv either, so the
+		// entry that finished is still the last thing it played. Settling keeps
+		// best-effort work off an idle playlist; the queue position is untouched,
+		// so the user's next explicit operation resumes from where it was.
+		m.settlePlaybackEnding()
 		slog.Warn("mpv: eof: auto-advance failed without exhausting the queue",
 			state.logAttrs("advance-after-current", err)...)
 	}

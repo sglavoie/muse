@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 )
@@ -218,6 +219,103 @@ func TestRestartPreservesEndedPlaybackLiveness(t *testing.T) {
 	t.Run("a paused traversal still resumes paused", func(t *testing.T) {
 		assertRestartResumesLiveTraversal(t, "rst-live-pause", true, "pause=yes")
 	})
+}
+
+// TestRestartDoesNotResumePendingNaturalExhaustion pins the overlap the tests
+// above leave open: they wait for OnPlaybackEnded before restarting, so the
+// traversal is already recorded as ended when recovery snapshots it.
+//
+// A natural end is not decided where the end-file is read. The advance that
+// discovers the queue has run out is queued to a background goroutine and waits
+// for the playlist transaction lock, and an event-socket failure is exactly what
+// can start recovery inside that gap. The restart then supersedes the advance —
+// it opens a new playlist generation, so the transaction is dropped without
+// deciding anything — and a supervisor that read the traversal as still live
+// would reload the track that had just played out, and mark the traversal live
+// for it, with nothing left to contradict either.
+//
+// Holding playlistMu stands in for that delay: it parks the advance exactly
+// where a slow transaction would be, without any dependence on timing.
+func TestRestartDoesNotResumePendingNaturalExhaustion(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "rst-pend-exh")
+	queue := queueOf(t, 3)
+	installQueue(m, queue[:2], -1, true)
+	runEventReader(t, m, f)
+
+	// The last row has no successor, so the EOF takes the exhaustion path rather
+	// than promoting a prefetch.
+	if err := m.PlayFromIndex(1); err != nil {
+		t.Fatalf("PlayFromIndex(1): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 1))
+
+	// Park every playlist transaction from here on, the advance included.
+	m.playlistMu.Lock()
+	release := sync.OnceFunc(m.playlistMu.Unlock)
+	defer release()
+
+	f.finishCurrent()
+	f.waitFor(t, "mpv to go idle on the natural end", f.idle)
+	waitForLiveness(t, m, livenessEnding, "the dispatched end-file")
+
+	// The TUI persists the position on a timer, so the row that just finished is
+	// what the supervisor finds — the same resumable-looking path a confirmed end
+	// leaves behind.
+	m.SetCurrentPosition(queue[1].Path, 12.5)
+
+	restore := m.snapshotRestore()
+	if restore.path != queue[1].Path {
+		t.Fatalf("restore.path = %q, want the completed row %q", restore.path, queue[1].Path)
+	}
+	if restore.liveness.live() {
+		t.Fatalf("restore.liveness = %v, want a non-live state: the entry has played out whichever way the queued advance resolves",
+			restore.liveness)
+	}
+
+	next := restartOnto(t, m, restore)
+	assertNothingWasHandedToPlay(t, next)
+
+	// Let the superseded advance run. Its transaction belongs to the playlist
+	// generation the restart replaced, so it decides nothing — and the pending end
+	// must not decay back into a live traversal because of that.
+	release()
+	waitForLiveness(t, m, livenessEnded, "the superseded exhaustion transaction")
+
+	// Growing the queue on the fresh process schedules a best-effort prefetch,
+	// which append-plays into an idle playlist. Run one synchronously too so the
+	// assertions cannot pass merely by outrunning the scheduled goroutine.
+	m.AppendToQueue(queue[2])
+	m.prefetchNext()
+
+	assertNothingWasHandedToPlay(t, next)
+	if got := currentIdx(m); got != 1 {
+		t.Fatalf("currentIndex = %d, want 1: the restart moved the traversal", got)
+	}
+
+	// The end is still liftable: the user's next explicit selection restarts
+	// playback on the new process exactly as it would have without the outage.
+	if err := m.PlayFromIndex(2); err != nil {
+		t.Fatalf("PlayFromIndex(2) after the restart: %v", err)
+	}
+	next.waitFor(t, "the explicit selection to start playing", func() bool {
+		return next.playingPath() == queue[2].Path
+	})
+	if got := livenessOf(m); got != livenessLive {
+		t.Fatalf("liveness = %v, want live after an explicit selection", got)
+	}
+}
+
+// waitForLiveness polls until the manager's logical liveness reaches want.
+func waitForLiveness(t *testing.T, m *Manager, want playbackLiveness, desc string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if got := livenessOf(m); got == want {
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s to leave liveness = %v; want %v", desc, livenessOf(m), want)
 }
 
 // awaitPlaybackEnded blocks until the manager reports the traversal ended.
