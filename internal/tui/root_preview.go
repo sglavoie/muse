@@ -228,6 +228,7 @@ func (m Model) closePreview() Model {
 	}
 	m.overlay.preview = nil
 	m.overlay.previewPlayer = nil
+	m.overlay.previewStarting = false
 	m.overlay.previewDurationFilled = false
 	return m
 }

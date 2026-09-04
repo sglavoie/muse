@@ -34,6 +34,7 @@ import (
 type overlayInfo struct {
 	preview               *overlay.PreviewOverlay
 	previewPlayer         player.Previewer
+	previewStarting       bool
 	previewWasPlaying     bool
 	previewDurationFilled bool
 	nowPlaying            *overlay.NowPlayingOverlay

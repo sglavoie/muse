@@ -157,6 +157,7 @@ func (m Model) handlePauseChangedMsg(msg playback.PauseChangedMsg) (Model, tea.C
 
 // handlePreviewStartedMsg stores the preview player and overlay state.
 func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
+	m.overlay.previewStarting = false
 	if msg.request != 0 && msg.request != m.playback.requestSeq {
 		_ = msg.player.Close()
 		m.overlay.previewWasPlaying = false
@@ -172,6 +173,7 @@ func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
 // succeeded and only while no newer playback request has superseded it.
 func (m Model) handlePreviewPauseResultMsg(msg previewPauseResultMsg) (Model, tea.Cmd) {
 	if msg.request != m.playback.requestSeq || !msg.ran {
+		m.overlay.previewStarting = false
 		m.overlay.previewWasPlaying = false
 		return m, nil
 	}
@@ -179,6 +181,7 @@ func (m Model) handlePreviewPauseResultMsg(msg previewPauseResultMsg) (Model, te
 		if m.playback.state == playback.StatePaused {
 			m.playback.state = playback.StatePlaying
 		}
+		m.overlay.previewStarting = false
 		m.overlay.previewWasPlaying = false
 		slog.Warn("player pause for preview failed", "err", msg.err)
 		m.statusBar.Notify("Preview pause failed: " + msg.err.Error())
@@ -189,6 +192,7 @@ func (m Model) handlePreviewPauseResultMsg(msg previewPauseResultMsg) (Model, te
 
 // handlePreviewStartErrorMsg notifies the user and resumes main playback.
 func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) (Model, tea.Cmd) {
+	m.overlay.previewStarting = false
 	m.statusBar.Notify("Preview error: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	if msg.request != 0 && msg.request != m.playback.requestSeq {

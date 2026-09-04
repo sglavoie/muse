@@ -153,11 +153,15 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m, cmd := m.dismissPreview()
 			return m, cmd, true
 		}
+		if m.overlay.previewStarting {
+			return m, nil, true
+		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
 			m.statusBar.Notify("No track to preview")
 			return m, nil, true
 		}
+		m.overlay.previewStarting = true
 		m.overlay.previewWasPlaying = m.playback.state == playback.StatePlaying
 		if m.overlay.previewWasPlaying && m.player != nil {
 			m.playback.state = playback.StatePaused

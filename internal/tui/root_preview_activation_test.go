@@ -169,6 +169,75 @@ func TestPreviewPausesMainPlayback(t *testing.T) {
 	}
 }
 
+// TestPreviewActivationTwiceDoesNotLeakPreviewPlayer verifies that a second
+// preview keypress while the ordered pause is pending does not launch another
+// preview or erase the obligation to resume main playback on dismissal.
+func TestPreviewActivationTwiceDoesNotLeakPreviewPlayer(t *testing.T) {
+	mainPlayer := &stubPlayer{}
+	m := setupLibraryWithTrack(t)
+	m.player = mainPlayer
+	m.playback.state = playback.StatePlaying
+
+	first, pauseCmd, handled := m.handlePlaybackKeyAction(keys.ActionPreview)
+	if !handled || pauseCmd == nil {
+		t.Fatal("first activation did not queue its pause")
+	}
+	m = first.(Model)
+	second, secondCmd, handled := m.handlePlaybackKeyAction(keys.ActionPreview)
+	if !handled || secondCmd != nil {
+		t.Fatal("second activation was not absorbed while the first was pending")
+	}
+	m = second.(Model)
+	if !m.overlay.previewStarting || !m.overlay.previewWasPlaying {
+		t.Fatal("second activation lost the first activation state")
+	}
+
+	pauseResult, ok := pauseCmd().(previewPauseResultMsg)
+	if !ok {
+		t.Fatal("ordered pause returned the wrong message type")
+	}
+	next, startCmd := m.Update(pauseResult)
+	m = next.(Model)
+	if startCmd == nil {
+		t.Fatal("first activation did not become startable after its pause")
+	}
+	if !m.overlay.previewStarting {
+		t.Fatal("activation stopped being single-flight before preview startup completed")
+	}
+
+	previewPlayer := &stubPreviewer{}
+	next, _ = m.Update(previewStartedMsg{
+		player:  previewPlayer,
+		request: pauseResult.request,
+		overlay: overlay.PreviewOverlay{Artist: "A", Title: "T"},
+	})
+	m = next.(Model)
+	if m.overlay.previewPlayer != previewPlayer || previewPlayer.closeCalled {
+		t.Fatal("expected exactly one live preview player")
+	}
+	if m.overlay.previewStarting {
+		t.Fatal("preview activation remained in flight after startup")
+	}
+
+	next, resumeCmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = next.(Model)
+	if resumeCmd == nil {
+		t.Fatal("dismissal did not preserve the main-playback resume")
+	}
+	if !previewPlayer.closeCalled || m.overlay.previewPlayer != nil {
+		t.Fatal("dismissal did not close the only preview player")
+	}
+	next, _ = m.Update(playbackControlResult(t, resumeCmd()))
+	m = next.(Model)
+	if mainPlayer.pauseCalls != 1 || mainPlayer.playCalls != 1 {
+		t.Fatalf("main-player calls = pause %d, play %d; want 1 each",
+			mainPlayer.pauseCalls, mainPlayer.playCalls)
+	}
+	if m.overlay.previewWasPlaying {
+		t.Fatal("dismissal did not consume the resume obligation")
+	}
+}
+
 // TestPreviewOrdersAfterPendingSelection covers FR-015's dispatch windows.
 // Preview pause and both resume paths are ordering barriers: none may pass a
 // selection that the Update loop dispatched first, and a resume must also wait
