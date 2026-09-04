@@ -3,6 +3,7 @@ package player
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/sglavoie/muse/internal/safego"
@@ -938,7 +939,60 @@ func (m *Manager) removePrefetchLocked() bool {
 	if !had {
 		return true
 	}
+	return m.sendPrefetchRemovalLocked(saved)
+}
 
+// discardStartedSuccessorLocked takes position 1 away from mpv even though mpv is
+// playing it, and reports whether the slot is now known to be gone. It is a no-op
+// unless the tracked prefetch is a successor mpv has already entered.
+//
+// This is the opposite half of removePrefetchLocked's guard, and only one caller
+// is entitled to it: the EOF fallback advance, once it has established that the
+// transition resolves into no successor at all. Usually the transition adopts the
+// started row (the promotion) or overwrites it (the advance's own replacement),
+// and both leave mpv playing something the bookkeeping agrees with. What is left
+// is the case a mid-transition queue mutation opens — the tracked row was removed
+// or replaced between the EOF snapshot and the promotion, the promotion rejected
+// it, and the advance behind it found nothing to load. mpv is then playing a row
+// the traversal has just declined, and recording the end while it plays would
+// report an exhausted queue over audible playback, with the tracking still naming
+// the slot so the next best-effort cleanup would stop it as an afterthought.
+//
+// Removing it settles that: mpv is left holding only the entry that finished,
+// which is the same shape an ordinary exhaustion leaves behind.
+//
+// The caller must hold m.playlistMu and must not hold m.mu.
+func (m *Manager) discardStartedSuccessorLocked() bool {
+	m.mu.Lock()
+	saved := m.prefetchSnapshotLocked()
+	started := m.startedSuccessorLocked(saved)
+	if started {
+		m.dropPrefetchTrackingLocked()
+	}
+	m.mu.Unlock()
+
+	if !started {
+		return false
+	}
+	if m.sendPrefetchRemovalLocked(saved) {
+		return true
+	}
+	// The send restored the tracking, which is what lets a later cleanup finish
+	// the settlement: once this transition has resolved the pending end, the
+	// started-successor guard no longer stands and the ordinary invalidator
+	// removes the same slot.
+	slog.Warn("mpv: eof: the successor mpv started could not be discarded",
+		"path", saved.path, "index", saved.index)
+	return false
+}
+
+// sendPrefetchRemovalLocked performs the removal half shared by the prefetch
+// invalidators: it drops playlist position 1 in mpv and reconciles the gapless
+// accounting, restoring the caller's saved tracking if the command does not land.
+//
+// The caller must hold m.playlistMu, must not hold m.mu, and must already have
+// given up the tracking that saved describes.
+func (m *Manager) sendPrefetchRemovalLocked(saved prefetchState) bool {
 	c := m.playlistClient()
 	if c == nil {
 		m.restorePrefetchTracking(saved)

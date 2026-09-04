@@ -470,24 +470,7 @@ func (m *Manager) runEOFMaintenance(transition eofTransition, skipped []QueueTra
 // and would reset the playback toggle behind a queue that still has tracks. The
 // restart supervisor owns recovery from a broken connection.
 func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
-	_, err := m.runPlaylistTxnIndex(func() (int, error) {
-		m.mu.RLock()
-		gen := m.playlistGen
-		m.mu.RUnlock()
-		if gen != state.playlistGen {
-			return -1, errEOFSuperseded
-		}
-		idx, err := m.advanceAfterCurrentLocked(nextIdx)
-		if errors.Is(err, errTraversalExhausted) {
-			// The traversal ran out while mpv's playlist was already draining,
-			// so the idle that follows is the end of the queue rather than a
-			// stall. Recording it inside the transaction is what makes it safe:
-			// a replacement cannot interleave here, so the mark can never land
-			// on top of a load that has just started playing.
-			m.markPlaybackEnded()
-		}
-		return idx, err
-	})
+	_, err := m.runPlaylistTxnIndex(func() (int, error) { return m.advanceAfterEOFLocked(nextIdx, state) })
 	switch {
 	case err == nil:
 		// The load landed, so replaceLocked has already marked the traversal live
@@ -512,6 +495,43 @@ func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
 		slog.Warn("mpv: eof: auto-advance failed without exhausting the queue",
 			state.logAttrs("advance-after-current", err)...)
 	}
+}
+
+// advanceAfterEOFLocked is advanceAfterEOF's transaction body: the generation
+// re-check, the advance itself, and the settlement of whatever mpv is left
+// holding when the advance loads nothing.
+//
+// Every path out of this function that does not load leaves mpv's playlist as the
+// single entry that finished. That is already true when the successor was still
+// parked, and the discard is what makes it true in the one case where it is not:
+// a mid-transition queue mutation invalidated the row mpv had started, so the
+// promotion rejected it and the advance behind it has nothing to overwrite it
+// with. Discarding before the end is recorded is the ordering FR-008 turns on —
+// exhaustion may not be reported while mpv is still playing a row the traversal
+// has declined.
+//
+// The caller must hold m.playlistMu and must not hold m.mu.
+func (m *Manager) advanceAfterEOFLocked(nextIdx int, state eofState) (int, error) {
+	m.mu.RLock()
+	gen := m.playlistGen
+	m.mu.RUnlock()
+	if gen != state.playlistGen {
+		return -1, errEOFSuperseded
+	}
+	idx, err := m.advanceAfterCurrentLocked(nextIdx)
+	if err == nil {
+		return idx, nil
+	}
+	m.discardStartedSuccessorLocked()
+	if errors.Is(err, errTraversalExhausted) {
+		// The traversal ran out while mpv's playlist was already draining, so
+		// the idle that follows is the end of the queue rather than a stall.
+		// Recording it inside the transaction is what makes it safe: a
+		// replacement cannot interleave here, so the mark can never land on top
+		// of a load that has just started playing.
+		m.markPlaybackEnded()
+	}
+	return idx, err
 }
 
 // markMissingEntries marks each entry missing on disk. The caller must not hold
