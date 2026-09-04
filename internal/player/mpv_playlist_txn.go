@@ -34,7 +34,14 @@ type prefetchState struct {
 	path     string
 	identity string
 	gen      uint64
+	loadGen  uint64
 }
+
+// maxPendingLoadStarts bounds the queue of loads waiting for their start-file.
+// Only a load whose start-file never reaches the reader can accumulate there,
+// and the correlation only ever needs the oldest few, so an overflow drops from
+// the front rather than growing without limit.
+const maxPendingLoadStarts = 8
 
 // replacementState is the correlation the end-file/eof decision needs: it names
 // the queue-owned playlist replacements that have begun but that mpv has not
@@ -109,24 +116,106 @@ func (m *Manager) endReplacementLocked() {
 	// nothing. Hand it back, or that entry's own end-file would read as
 	// superseded and be discarded, stalling the queue.
 	//
-	// Unless mpv started a file inside the window on its own: a gapless
-	// transition into a prefetched successor is stamped with the new
-	// generation, so that generation is now the live one and must stand.
+	// Unless a file mpv reported starting inside the window claimed the
+	// generation it opened. Only a start this window's own load cannot account
+	// for does that — a restart resume, or an entry mpv began from an idle
+	// playlist — and it makes that generation the live one, so it must stand.
 	if !m.replacing.loaded && m.startedLoadGen != m.loadGen {
 		m.loadGen = m.replacing.prevLoadGen
 	}
 	m.replacing = replacementState{}
 }
 
-// noteFileStarted records that mpv has begun playing a file in the load
-// generation that is live now. The event reader calls it for every start-file,
-// which is what arms the end-file correlation: events arrive in order on one
-// socket, so the end-file of an entry is always read before the start-file of
-// whatever replaced it.
-func (m *Manager) noteFileStarted() {
+// noteFileStarted records the load generation of the file mpv has begun
+// playing. The event reader calls it for every start-file, which is what arms
+// the end-file correlation: events arrive in order on one socket, so the
+// end-file of an entry is always read before the start-file of whatever
+// replaced it.
+//
+// gapless says the previous event was an end-file/eof for an entry that had a
+// successor waiting behind it in mpv's playlist. mpv is then continuing inside
+// the generation that entry belongs to, so the correlation does not move — and
+// must not, because a replacement can complete while both events sit buffered
+// on the socket, and stamping the successor with the generation live at that
+// later instant is what would make its own end-file read as belonging to the
+// row the user just selected.
+//
+// Every other start-file answers a load the Manager sent, and takes the
+// generation of the oldest such load that has not been answered yet.
+func (m *Manager) noteFileStarted(gapless bool) {
 	m.mu.Lock()
-	m.startedLoadGen = m.loadGen
-	m.mu.Unlock()
+	defer m.mu.Unlock()
+	if gapless && m.startedLoadGen != 0 {
+		return
+	}
+	m.startedLoadGen = m.takeLoadStartLocked()
+	m.resyncGaplessSuccessorsLocked()
+}
+
+// expectLoadStartLocked records that a load has been sent in the live
+// generation, so the start-file answering it is correlated with the generation
+// that emitted it however long the event reader takes to get there.
+//
+// The caller must hold m.mu.
+func (m *Manager) expectLoadStartLocked() {
+	m.pendingLoadStarts = append(m.pendingLoadStarts, m.loadGen)
+	if len(m.pendingLoadStarts) > maxPendingLoadStarts {
+		m.pendingLoadStarts = m.pendingLoadStarts[1:]
+	}
+}
+
+// cancelLoadStartLocked withdraws the expectation expectLoadStartLocked
+// recorded for gen, for a load mpv rejected: it answers with an error rather
+// than a start-file, so nothing will ever consume it. It withdraws only the
+// most recent entry, since anything queued behind it belongs to another load.
+//
+// The caller must hold m.mu.
+func (m *Manager) cancelLoadStartLocked(gen uint64) {
+	n := len(m.pendingLoadStarts)
+	if n > 0 && m.pendingLoadStarts[n-1] == gen {
+		m.pendingLoadStarts = m.pendingLoadStarts[:n-1]
+	}
+}
+
+// takeLoadStartLocked consumes the generation of the next load-induced
+// start-file. An empty queue falls back to the live generation, which covers
+// the loads that do not pass through the transaction layer (session restore,
+// the post-restart resume) and an entry mpv started from an idle playlist.
+//
+// The caller must hold m.mu.
+func (m *Manager) takeLoadStartLocked() uint64 {
+	if len(m.pendingLoadStarts) == 0 {
+		return m.loadGen
+	}
+	gen := m.pendingLoadStarts[0]
+	m.pendingLoadStarts = m.pendingLoadStarts[1:]
+	return gen
+}
+
+// takeGaplessSuccessorLocked reports whether mpv has an appended entry waiting
+// behind the file it is playing, and consumes it: mpv starts that entry as the
+// end-file is emitted, so the expectation is spent by the very next start-file.
+//
+// The caller must hold m.mu.
+func (m *Manager) takeGaplessSuccessorLocked() bool {
+	if m.gaplessSuccessors <= 0 {
+		return false
+	}
+	m.gaplessSuccessors--
+	return true
+}
+
+// resyncGaplessSuccessorsLocked recomputes the successor count for a newly
+// correlated generation. mpv's playlist for that generation holds exactly the
+// tracked prefetch, if it was appended into it, and nothing else — every
+// earlier append belongs to a playlist the load just replaced.
+//
+// The caller must hold m.mu.
+func (m *Manager) resyncGaplessSuccessorsLocked() {
+	m.gaplessSuccessors = 0
+	if m.startedLoadGen != 0 && m.prefetchedIndex >= 0 && m.prefetchedLoadGen == m.startedLoadGen {
+		m.gaplessSuccessors = 1
+	}
 }
 
 // adoptCurrentLoad re-stamps the entry mpv is playing with the live load
@@ -135,6 +224,10 @@ func (m *Manager) noteFileStarted() {
 // scanning. Without it the correlation would keep naming a generation this
 // reader never saw a file start in, and would discard every end-file after it.
 //
+// Every start-file the previous reader was owed went to that same unscanned
+// socket, so the loads still waiting for one will never be answered on this
+// reader and their expectations are dropped with it.
+//
 // A reader that has never observed a file start leaves the correlation
 // disarmed instead of claiming the live generation for an entry it knows
 // nothing about.
@@ -142,6 +235,8 @@ func (m *Manager) adoptCurrentLoad() {
 	m.mu.Lock()
 	if m.startedLoadGen != 0 {
 		m.startedLoadGen = m.loadGen
+		m.pendingLoadStarts = nil
+		m.resyncGaplessSuccessorsLocked()
 	}
 	m.mu.Unlock()
 }
@@ -169,6 +264,7 @@ func (m *Manager) prefetchSnapshotLocked() prefetchState {
 		path:     m.prefetchedPath,
 		identity: m.prefetchedIdentity,
 		gen:      m.prefetchedGen,
+		loadGen:  m.prefetchedLoadGen,
 	}
 }
 
@@ -183,6 +279,7 @@ func (m *Manager) dropPrefetchTrackingLocked() {
 	m.prefetchedPath = ""
 	m.prefetchedIdentity = ""
 	m.prefetchedGen = 0
+	m.prefetchedLoadGen = 0
 }
 
 // restorePrefetchTracking reinstates a snapshot taken before a removal that
@@ -194,6 +291,7 @@ func (m *Manager) restorePrefetchTracking(s prefetchState) {
 	m.prefetchedPath = s.path
 	m.prefetchedIdentity = s.identity
 	m.prefetchedGen = s.gen
+	m.prefetchedLoadGen = s.loadGen
 	m.mu.Unlock()
 }
 
@@ -272,12 +370,18 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	// belongs to the entry this replacement is discarding, so the EOF decision
 	// must not read the state committed just above as if it described what
 	// ended.
+	// Claim the start-file this load will produce before sending it. mpv can
+	// emit that event before the command's own reply comes back, so recording
+	// the expectation afterwards would let the reader correlate it against
+	// whatever generation is live by then.
 	var undo func()
 	m.mu.Lock()
 	if commit != nil {
 		undo = commit()
 	}
 	m.beginReplacementLocked(entry.Path)
+	m.expectLoadStartLocked()
+	pendingGen := m.loadGen
 	m.mu.Unlock()
 
 	err := m.admitPlaylist(func(c *IPCClient) error {
@@ -292,6 +396,7 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		if undo != nil {
 			undo()
 		}
+		m.cancelLoadStartLocked(pendingGen)
 		m.endReplacementLocked()
 		m.mu.Unlock()
 		return err
@@ -350,6 +455,15 @@ func (m *Manager) appendPrefetchLocked(c *IPCClient, index int, path, identity s
 	m.prefetchedPath = path
 	m.prefetchedIdentity = identity
 	m.prefetchedGen = m.playlistGen
+	m.prefetchedLoadGen = m.loadGen
+	if m.startedLoadGen != 0 && m.loadGen == m.startedLoadGen {
+		// The successor went in behind the entry the event reader has
+		// correlated, so mpv will start it on its own when that entry ends.
+		// An append made in any other generation belongs to a load whose own
+		// start-file has not been read yet; resyncGaplessSuccessorsLocked
+		// picks it up when it is.
+		m.gaplessSuccessors++
+	}
 	m.mu.Unlock()
 	return nil
 }
@@ -386,6 +500,14 @@ func (m *Manager) removePrefetchLocked() bool {
 		m.restorePrefetchTracking(saved)
 		return false
 	}
+	// mpv no longer has the entry, so it can no longer start it on its own. A
+	// prefetch from another generation was never counted against the entry the
+	// reader has correlated, so there is nothing to give back for it.
+	m.mu.Lock()
+	if m.startedLoadGen != 0 && saved.loadGen == m.startedLoadGen && m.gaplessSuccessors > 0 {
+		m.gaplessSuccessors--
+	}
+	m.mu.Unlock()
 	return true
 }
 

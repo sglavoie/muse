@@ -33,6 +33,13 @@ type eofState struct {
 	loadGen        uint64
 	startedLoadGen uint64
 	marker         MissingMarker
+	// gaplessStart records that mpv had an appended successor waiting behind
+	// the entry that ended, so the start-file the reader reads next is that
+	// same entry's generation continuing rather than a newer load arriving.
+	// It is decided here because only this goroutine is still ordered against
+	// the socket; by the time the start-file is dispatched, a replacement may
+	// have come and gone.
+	gaplessStart bool
 }
 
 // superseded reports whether the entry that emitted this end-file had already
@@ -117,8 +124,20 @@ func (t eofTransition) logAttrs(op string, err error) []any {
 
 // handleEndOfFile runs the end-file/eof decision on the event-reader goroutine
 // and hands every operation that can block to the background.
-func (m *Manager) handleEndOfFile() {
+//
+// It reports whether mpv is moving into a successor that was already in its
+// playlist, which is what tells the reader how to correlate the start-file it
+// reads next. That answer holds whatever the decision below turns out to be:
+// it describes mpv's playlist at the moment the entry ended, not what the
+// Manager chooses to do about it.
+func (m *Manager) handleEndOfFile() bool {
 	state := m.snapshotEOF()
+	m.dispatchEOF(state)
+	return state.gaplessStart
+}
+
+// dispatchEOF acts on the snapshot handleEndOfFile took.
+func (m *Manager) dispatchEOF(state eofState) {
 	if state.superseded() {
 		// A queue-owned replacement has claimed this transition: it has already
 		// published the row (or the reanchored cycle) it is making current, so
@@ -176,6 +195,12 @@ func (m *Manager) snapshotEOF() eofState {
 		startedLoadGen: m.startedLoadGen,
 		marker:         m.marker,
 	}
+	// Spend the successor expectation whatever the decision below is: mpv
+	// starts the appended entry as it emits this end-file, so the next
+	// start-file is accounted for either way. A superseded EOF is no exception
+	// — the entry it belongs to was still leading mpv's playlist when it ended,
+	// and the successor behind it starts all the same.
+	state.gaplessStart = m.takeGaplessSuccessorLocked()
 	if state.superseded() {
 		return state
 	}

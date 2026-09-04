@@ -211,6 +211,14 @@ type Manager struct {
 	// handler must not promote it.
 	prefetchedGen uint64
 
+	// prefetchedLoadGen is the load generation the tracked prefetch was
+	// appended into (see loadGen). It is what says whether the successor sits
+	// behind the entry the event reader currently believes is playing, which
+	// playlistGen cannot answer: a replacement window bumps loadGen before mpv
+	// answers, so an append made inside one belongs to a load whose start-file
+	// has not been read yet. Guarded by mu.
+	prefetchedLoadGen uint64
+
 	// playlistMu is the playlist-transition lock. Every queue-owned mutation
 	// of mpv's internal playlist — the `loadfile ... replace` that starts a
 	// queue entry, the `loadfile ... append-play` that prefetches its
@@ -254,19 +262,40 @@ type Manager struct {
 	// entry emitted after it. Guarded by mu.
 	loadGen uint64
 
-	// startedLoadGen is the load generation that was live when mpv last
-	// reported a file starting. The event socket is ordered, so the end-file of
-	// an entry is always read before the start-file of whatever replaced it:
-	// at the moment an end-file is handled, this names the generation the
-	// entry that ended belongs to. A mismatch with loadGen therefore means a
-	// replacement has superseded that entry, whether or not its command is
-	// still in flight.
+	// startedLoadGen is the load generation of the file mpv last reported
+	// starting. The event socket is ordered, so the end-file of an entry is
+	// always read before the start-file of whatever replaced it: at the moment
+	// an end-file is handled, this names the generation the entry that ended
+	// belongs to. A mismatch with loadGen therefore means a replacement has
+	// superseded that entry, whether or not its command is still in flight.
+	//
+	// It is the generation that *emitted* the start-file, not the one that
+	// happened to be live when the reader dispatched it. Events can sit
+	// buffered on the socket across a whole replacement, so those are different
+	// generations, and reading the later one would re-arm an entry a
+	// replacement has already discarded. pendingLoadStarts and
+	// gaplessSuccessors are what supply the emitting generation.
 	//
 	// Zero means the correlation is disarmed: either the event reader has not
 	// observed a file start yet, or no replacement has ever been started, so
 	// there is no superseding load an end-file could belong to the wrong side
 	// of. Guarded by mu.
 	startedLoadGen uint64
+
+	// pendingLoadStarts is the FIFO of load generations whose `loadfile ...
+	// replace` has been sent but whose start-file the event reader has not
+	// consumed yet. mpv answers loads in the order they were sent, so the front
+	// of this queue names the generation of the next load-induced start-file
+	// however far behind the reader has fallen. Guarded by mu.
+	pendingLoadStarts []uint64
+
+	// gaplessSuccessors counts the entries appended behind the file mpv is
+	// reported to be playing (generation startedLoadGen) that it may still
+	// start on its own. It is what distinguishes the two kinds of start-file:
+	// a nonzero count at an end-file/eof means the start-file that follows is
+	// the same generation moving into its prefetched successor, not the arrival
+	// of a newer load. Guarded by mu.
+	gaplessSuccessors int
 
 	// Go-owned shuffle traversal state, all guarded by mu. When
 	// shuffleEnabled is true, Next/Previous consult this state instead of

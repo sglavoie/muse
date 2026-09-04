@@ -280,10 +280,11 @@ func TestEOF_ReplacementInFlightKeepsStopAfterCurrentArmed(t *testing.T) {
 	}
 }
 
-// waitForCorrelatedLoad blocks until the event reader has processed the
-// start-file of the entry mpv is playing. That stamp is what arms the end-file
-// correlation, so a test that wants to prove a *buffered* end-file is rejected
-// must first establish the entry it belongs to.
+// waitForCorrelatedLoad blocks until the entry mpv is playing is correlated with
+// the live load generation — the state in which an end-file from it is acted on
+// rather than discarded. A test that wants to prove a *buffered* end-file is
+// rejected must first establish that starting point; a test that drops a
+// buffered one must land back on it, or the queue is left stalled.
 func waitForCorrelatedLoad(t *testing.T, m *Manager, f *fakePlaylist) {
 	t.Helper()
 	f.waitFor(t, "the event reader to correlate the playing entry", func() bool {
@@ -380,6 +381,156 @@ func TestEOF_BufferedOldEventAfterReplacementDoesNotAdvance(t *testing.T) {
 		t.Fatalf("loadfile replace count = %d, want %d: the superseded EOF sent an advance of its own",
 			got, replacesBefore)
 	}
+}
+
+// TestEOF_BufferedStartAndEOFAfterReplacementDoesNotAdvance is the deterministic
+// regression for the ordering the test above deliberately excludes: it waits for
+// the playing entry to be correlated *before* it holds the socket, so the
+// start-file of the gapless successor is always dispatched while the generation
+// it belongs to is still live.
+//
+// Here the hold goes on first, so the successor's start-file is buffered too and
+// is only read once the replacement has been acknowledged. Stamping it with the
+// generation live at that later instant hands the discarded entry the
+// selection's generation, and the *second* buffered end-file — emitted by that
+// same superseded entry — then reads as live. Nothing in the state it is decided
+// against says otherwise: the promotion takes the selection's own prefetch as
+// the successor that just started, moves the current row onto it, and runs the
+// completed-slot cleanup against the selection's playlist, deleting the row mpv
+// is actually playing.
+//
+// Both events belong to entries the replacement discarded, so both must decide
+// nothing: the selected row stands and so does the successor prefetched for it.
+func TestEOF_BufferedStartAndEOFAfterReplacementDoesNotAdvance(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-buffered-start")
+	queue := queueOf(t, 5)
+	installQueue(m, queue, -1, true)
+	runEventReader(t, m, f)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 1))
+	assertPrefetch(t, m, queue, 1)
+	waitForCorrelatedLoad(t, m, f)
+
+	// Freeze the event socket. Every event below is buffered behind it,
+	// start-files included.
+	release := f.holdEvents(t)
+
+	// queue[0] plays out and mpv moves onto the prefetched queue[1] on its own:
+	// end-file/eof plus start-file, both unread.
+	f.finishCurrent()
+	// queue[1] plays out too. Nothing was prefetched behind it — the reader has
+	// not seen the transition yet, so no maintenance ran — and mpv goes idle
+	// after a second unread end-file/eof.
+	f.finishCurrent()
+
+	// The user selects a different row while all three events are still in the
+	// pipe. The selection runs end to end — playlist replaced, generation
+	// bumped, window closed — and its own successor is prefetched behind it.
+	if err := m.PlayFromIndex(3); err != nil {
+		t.Fatalf("PlayFromIndex(3): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 3, 4))
+	assertPrefetch(t, m, queue, 4)
+	removalsBefore := f.count(isPlaylistRemove)
+	replacesBefore := f.count(isLoadfileReplace)
+
+	// Only now does the reader get to the discarded entries' events, in the
+	// order mpv emitted them.
+	drainHeldEvents(t, m, f, release)
+	// The damage a promotion does lands in its background maintenance, after
+	// the decision itself has returned.
+	time.Sleep(150 * time.Millisecond)
+
+	if got := currentIdx(m); got != 3 {
+		t.Fatalf("currentIndex = %d, want 3: a buffered start-file re-armed the end-file that followed it", got)
+	}
+	if got := f.playingPath(); got != queue[3].Path {
+		t.Fatalf("mpv is playing %q, want the selected %q", got, queue[3].Path)
+	}
+	if got := f.entriesSnapshot(); !slices.Equal(got, paths(queue, 3, 4)) {
+		t.Fatalf("entries = %v, want %v: the selected row and its successor", got, paths(queue, 3, 4))
+	}
+	assertPrefetch(t, m, queue, 4)
+	if got := f.count(isPlaylistRemove); got != removalsBefore {
+		t.Fatalf("playlist-remove count = %d, want %d: the superseded EOF ran its completed-slot cleanup "+
+			"against the selection's playlist", got, removalsBefore)
+	}
+	if got := f.count(isLoadfileReplace); got != replacesBefore {
+		t.Fatalf("loadfile replace count = %d, want %d: the superseded EOF sent an advance of its own",
+			got, replacesBefore)
+	}
+	// The correlation must end up on the generation the selection loaded, or
+	// the next genuine end-file would be discarded and the queue would stall.
+	waitForCorrelatedLoad(t, m, f)
+}
+
+// TestEOF_BufferedLoadStartAcrossAReplacementKeepsItsOwnGeneration is the other
+// face of the same finding. Above it is a *gapless* start-file that survives a
+// replacement; here it is the start-file of a load, buffered while a second load
+// supersedes the first.
+//
+// mpv answers loads in the order they were sent, so the generation of a
+// start-file is fixed when the loadfile goes out, not when the reader gets to
+// it. Reading the live generation instead hands the first load's entry the
+// second load's stamp, and the end-file that entry emitted before it was
+// discarded then reads as live against the row the user just selected.
+func TestEOF_BufferedLoadStartAcrossAReplacementKeepsItsOwnGeneration(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-buffered-load-start")
+	queue := queueOf(t, 5)
+	installQueue(m, queue, -1, true)
+	runEventReader(t, m, f)
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 0, 1))
+	waitForCorrelatedLoad(t, m, f)
+
+	release := f.holdEvents(t)
+
+	// A first selection lands in mpv, but its start-file stays on the socket.
+	if err := m.PlayFromIndex(1); err != nil {
+		t.Fatalf("PlayFromIndex(1): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 1, 2))
+
+	// It then plays out, so its end-file is buffered behind its own start-file.
+	f.finishCurrent()
+
+	// A second selection supersedes all of it and prefetches its own successor.
+	if err := m.PlayFromIndex(3); err != nil {
+		t.Fatalf("PlayFromIndex(3): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 3, 4))
+	assertPrefetch(t, m, queue, 4)
+	removalsBefore := f.count(isPlaylistRemove)
+	replacesBefore := f.count(isLoadfileReplace)
+
+	drainHeldEvents(t, m, f, release)
+	time.Sleep(150 * time.Millisecond)
+
+	if got := currentIdx(m); got != 3 {
+		t.Fatalf("currentIndex = %d, want 3: a buffered load start-file took the newer load's generation", got)
+	}
+	if got := f.playingPath(); got != queue[3].Path {
+		t.Fatalf("mpv is playing %q, want the selected %q", got, queue[3].Path)
+	}
+	if got := f.entriesSnapshot(); !slices.Equal(got, paths(queue, 3, 4)) {
+		t.Fatalf("entries = %v, want %v: the selected row and its successor", got, paths(queue, 3, 4))
+	}
+	assertPrefetch(t, m, queue, 4)
+	if got := f.count(isPlaylistRemove); got != removalsBefore {
+		t.Fatalf("playlist-remove count = %d, want %d: the superseded EOF ran its completed-slot cleanup "+
+			"against the selection's playlist", got, removalsBefore)
+	}
+	if got := f.count(isLoadfileReplace); got != replacesBefore {
+		t.Fatalf("loadfile replace count = %d, want %d: the superseded EOF sent an advance of its own",
+			got, replacesBefore)
+	}
+	waitForCorrelatedLoad(t, m, f)
 }
 
 // TestEOF_BufferedOldEventAfterReplacementDoesNotMutateShuffle is the shuffle
@@ -479,13 +630,15 @@ func TestEOF_RejectedReplacementKeepsTheNextEOFLive(t *testing.T) {
 	assertPrefetch(t, m, queue, 2)
 }
 
-// TestEOF_GaplessStartInsideARejectedReplacementStaysLive covers the one case
-// where a window that loaded nothing must still keep the generation it opened:
-// mpv moved into the prefetched successor by itself while the window was open,
-// so the entry that is playing was stamped with the new generation as it
-// started. Handing the generation back would strand that stamp ahead of it and
-// discard the successor's own end-file — the same stall from the other
-// direction.
+// TestEOF_GaplessStartInsideARejectedReplacementStaysLive covers a window that
+// loaded nothing while mpv moved into the prefetched successor by itself.
+//
+// That successor was appended behind the entry the window is superseding, so it
+// belongs to the generation the window displaced rather than to the one the
+// window opened — the load that would have justified the new generation never
+// reached mpv. Handing the generation back on close is what keeps the two
+// matched. Leaving it open would strand the correlation behind the live
+// generation and discard the successor's own end-file, stalling the queue.
 func TestEOF_GaplessStartInsideARejectedReplacementStaysLive(t *testing.T) {
 	m, f := newFakePlaylistManager(t, "eof-gapless-in-window")
 	queue := queueOf(t, 3)
@@ -497,20 +650,20 @@ func TestEOF_GaplessStartInsideARejectedReplacementStaysLive(t *testing.T) {
 	}
 	f.waitForEntries(t, paths(queue, 0, 1))
 	waitForCorrelatedLoad(t, m, f)
-	startedBefore := startedLoadGenOf(m)
 
 	// Park a selection so the window stays open, then let mpv reach the end of
-	// the current entry inside it: the end-file is superseded and dropped, but
-	// the start-file of the successor mpv moved onto is real and stamps the
-	// generation the window opened.
+	// the current entry inside it. Spending the successor expectation is what
+	// proves the reader has dispatched that end-file from inside the window;
+	// the start-file it read next cannot be waited on directly, because its
+	// handler blocks on the command socket the parked loadfile is holding.
 	gate, selected := parkReplacement(t, m, f, 2)
 	f.finishCurrent()
-	f.waitFor(t, "the successor's start-file to be correlated", func() bool {
-		return startedLoadGenOf(m) != startedBefore
+	f.waitFor(t, "the superseded end-file to be dispatched inside the window", func() bool {
+		return gaplessSuccessorsOf(m) == 0
 	})
 
 	// The selection is then refused, so the window closes having loaded nothing
-	// — but the successor mpv is playing still belongs to its generation.
+	// — and the successor mpv is playing keeps matching the live generation.
 	f.failCommand("loadfile:replace", "device error")
 	gate.release()
 	f.unblock("loadfile:replace")
@@ -518,6 +671,7 @@ func TestEOF_GaplessStartInsideARejectedReplacementStaysLive(t *testing.T) {
 		t.Fatal("PlayFromIndex(2) succeeded; the fake was told to reject the load")
 	}
 	f.clearFailure("loadfile:replace")
+	waitForCorrelatedLoad(t, m, f)
 
 	// The successor now ends. Its end-file is the live one and must be acted on.
 	f.finishCurrent()
@@ -946,10 +1100,13 @@ func TestEOF_ShufflePrefetchPromotionCommitsHistory(t *testing.T) {
 	}
 }
 
-// startedLoadGenOf reads the load generation the event reader last correlated a
-// file start with.
-func startedLoadGenOf(m *Manager) uint64 {
+// gaplessSuccessorsOf reads how many appended entries mpv is still expected to
+// start on its own behind the file the event reader has correlated. The count is
+// spent as the end-file of the entry they sit behind is dispatched, which makes
+// it the one observable a test can wait on when the start-file that follows will
+// block on the command socket.
+func gaplessSuccessorsOf(m *Manager) int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.startedLoadGen
+	return m.gaplessSuccessors
 }

@@ -110,6 +110,14 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	m.adoptCurrentLoad()
 	m.emitCurrentTrackChanged()
 
+	// gaplessStart carries the one fact the previous event settled and the next
+	// one needs: whether mpv is continuing into an entry that was already in
+	// its playlist. Only this goroutine can settle it, because only here are
+	// the two events still adjacent — anything read from the Manager once the
+	// start-file is dispatched describes a state a replacement may have moved
+	// on from while both events sat buffered on the socket.
+	gaplessStart := false
+
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		var event ipcAsyncEvent
@@ -118,13 +126,14 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 		}
 		switch event.Event {
 		case "start-file":
-			// Stamp the entry mpv is entering with the load generation that is
-			// live now, before anything below can block. Events arrive in
+			// Stamp the entry mpv is entering with the generation that emitted
+			// this event, before anything below can block. Events arrive in
 			// order on this one socket, so an end-file read later is always
 			// the end of an entry stamped at or before this point: comparing
 			// its stamp against the live generation is what tells a genuine
 			// transition from one a replacement already superseded.
-			m.noteFileStarted()
+			m.noteFileStarted(gaplessStart)
+			gaplessStart = false
 
 			// Immediately sync the position so that a crash right after track
 			// start resumes at the correct file (elapsed≈0) rather than the
@@ -145,12 +154,15 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 		case "end-file":
 			if event.Reason != "eof" {
 				// "stop", "replace", "quit", "error" — do not auto-advance.
+				// mpv stopped the entry rather than playing it out, so nothing
+				// follows it gaplessly: the next start-file answers a load.
+				gaplessStart = false
 				continue
 			}
 			// The whole transition lives in handleEndOfFile: it makes the
 			// state decision here, on this goroutine, and hands everything
 			// that can block to one ordered background operation.
-			m.handleEndOfFile()
+			gaplessStart = m.handleEndOfFile()
 		case "property-change":
 			if event.Name != propPause {
 				continue
