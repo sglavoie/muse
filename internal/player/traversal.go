@@ -19,7 +19,10 @@ func (m *Manager) QueueTraversal() QueueTraversal {
 }
 
 // sequentialTraversalLocked snapshots plain visible-order traversal: the order
-// is the queue itself and everything after the current index is remaining.
+// is the queue itself and everything after the current index is remaining, plus
+// the rows that were inserted behind the cursor and are still eligible — the
+// resume plays those before it scans forward, so a consumer counting only the
+// tail would read an extended queue as finished.
 //
 // The caller must hold m.mu.
 func (m *Manager) sequentialTraversalLocked() QueueTraversal {
@@ -33,7 +36,7 @@ func (m *Manager) sequentialTraversalLocked() QueueTraversal {
 	t := QueueTraversal{Order: order, CurrentPosition: -1, Remaining: n}
 	if m.currentIndex >= 0 && m.currentIndex < n {
 		t.CurrentPosition = m.currentIndex
-		t.Remaining = n - m.currentIndex - 1
+		t.Remaining = n - m.currentIndex - 1 + m.countUnreachedAdditionsLocked()
 	}
 	return t
 }

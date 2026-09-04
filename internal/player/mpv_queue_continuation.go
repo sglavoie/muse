@@ -1,6 +1,9 @@
 package player
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // This file holds the two continuation operations: replaying what is already
 // playing, and picking traversal back up after the queue grew. Both exist
@@ -83,11 +86,48 @@ func (m *Manager) ResumeAfterQueueExtension() (int, error) {
 func (m *Manager) resumeAfterQueueExtensionLocked() (int, error) {
 	m.mu.RLock()
 	shuffle := m.shuffleEnabled
-	seqNext := m.currentIndex + 1
 	m.mu.RUnlock()
 
 	if shuffle {
 		return m.advanceForwardLocked()
+	}
+	return m.resumeSequentialLocked()
+}
+
+// resumeSequentialLocked continues a shuffle-off traversal after the queue grew.
+//
+// The rows that grew the queue are not always after the cursor: a paste or a
+// "play next" inserts at the cursor, and on an exhausted queue that is at or
+// before the row that finished. Those rows are attempted first, in queue order,
+// because currentIndex+1 would step past them and land on an already-played row
+// or on nothing at all. Only then does the positional scan run, which is what
+// every tail append still takes.
+//
+// A row whose file has vanished is dropped from the additions rather than
+// retried, mirroring the way the shuffle cycle excludes what it gave up on. When
+// nothing at all is playable the positional scan reports the traversal exhausted
+// as before.
+//
+// The caller must hold m.playlistMu.
+func (m *Manager) resumeSequentialLocked() (int, error) {
+	m.mu.RLock()
+	seqNext := m.currentIndex + 1
+	queue := m.queue
+	marker := m.marker
+	pending := m.unreachedAdditionsLocked(seqNext)
+	m.mu.RUnlock()
+
+	for _, add := range pending {
+		err := m.replaceLocked(queue[add.index], marker, func() func() { return m.commitIndexLocked(add.index) })
+		if err == nil {
+			return add.index, nil
+		}
+		if !errors.Is(err, ErrMissingFile) {
+			return -1, err
+		}
+		m.mu.Lock()
+		m.forgetAdditionLocked(add.identity)
+		m.mu.Unlock()
 	}
 	return m.playSequentialFromLocked(seqNext)
 }

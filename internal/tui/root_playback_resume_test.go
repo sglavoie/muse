@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
@@ -21,6 +22,28 @@ func exhaustedShuffleModel() (Model, *fakeTraversalPlayer) {
 	m := newModelWithTracks()
 	m.player = p
 	m.queue.Entries = sampleQueueEntries()
+	m.playback.state = playback.StateIdle
+	m.playback.queueExhausted = true
+	m.playback.currentIndex = -1
+	m.playback.currentHash = ""
+	return m, p
+}
+
+// exhaustedSequentialModel returns the shuffle-off counterpart of
+// exhaustedShuffleModel: a four-entry queue played straight through in visible
+// order, so the cycle ended on the last row. The player is seeded with the queue
+// so it can reconcile a later insertion by identity rather than by position.
+func exhaustedSequentialModel() (Model, *fakeTraversalPlayer) {
+	p := newFakeTraversalPlayer([]int{0, 1, 2, 3}, 3)
+	p.shuffled = false
+	m := newModelWithTracks()
+	m.player = p
+	m.queue.Entries = sampleQueueEntries()
+	tracks := make([]player.QueueTrack, len(m.queue.Entries))
+	for i, entry := range m.queue.Entries {
+		tracks[i] = queueTrackFromEntry(entry)
+	}
+	p.SetQueue(tracks)
 	m.playback.state = playback.StateIdle
 	m.playback.queueExhausted = true
 	m.playback.currentIndex = -1
@@ -136,6 +159,89 @@ func TestPasteResumesIntoAddition(t *testing.T) {
 	})
 
 	assertResumedIntoAddition(t, m, p, 4)
+}
+
+// TestPasteBeforeCompletedRowResumesNewAddition covers the insertions that land
+// at or before the row a shuffle-off traversal finished on. Both queue paste and
+// "play next" insert at the cursor, and on an exhausted queue that is index 0,
+// so plain currentIndex+1 arithmetic would step past the new row entirely — it
+// either replays a completed row or reports the queue exhausted again. The row
+// that was inserted is the one that must play, and nothing already heard may be
+// loaded a second time.
+func TestPasteBeforeCompletedRowResumesNewAddition(t *testing.T) {
+	t.Run("a paste before the completed row plays the pasted row", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+
+		m = m.handleQueuePastedMsg(QueuePastedMsg{
+			Entries:   []queue.Entry{{ID: 12, Hash: "pasted", Path: "/p.flac", Artist: "P", Title: "Pasted"}},
+			InsertPos: 0,
+		})
+
+		assertResumedIntoAddition(t, m, p, 0)
+		if len(m.queue.Entries) != 5 {
+			t.Errorf("queue length = %d, want 5", len(m.queue.Entries))
+		}
+	})
+
+	t.Run("play next on an exhausted queue plays the inserted row", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+
+		// With nothing playing, "play next" inserts at the front — before every
+		// row the traversal already consumed.
+		insertAt := m.playNextIndex()
+		if insertAt != 0 {
+			t.Fatalf("playNextIndex() = %d, want 0 on an exhausted queue", insertAt)
+		}
+		track := library.Track{Hash: "next-hash", Artist: "Next", Title: "Up", Path: "/next.flac"}
+		m = m.handleTrackEnqueuedMsg(libtui.TrackEnqueuedMsg{
+			Track: track, QueueID: 9, WasEmpty: false, InsertAfter: insertAt,
+		})
+
+		assertResumedIntoAddition(t, m, p, 0)
+	})
+
+	t.Run("a paste at the tail still resumes positionally", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+
+		m = m.handleQueuePastedMsg(QueuePastedMsg{
+			Entries:   []queue.Entry{{ID: 12, Hash: "appended", Path: "/tail.flac", Artist: "T", Title: "Tail"}},
+			InsertPos: len(m.queue.Entries),
+		})
+
+		assertResumedIntoAddition(t, m, p, 4)
+	})
+
+	t.Run("a pasted row missing from disk leaves the queue exhausted", func(t *testing.T) {
+		m, p := exhaustedSequentialModel()
+		// missing is keyed by queue index, and the paste below lands at 0. The
+		// row sitting there now is behind the cursor, so the flag only takes
+		// effect once the pasted row occupies that index.
+		p.missing[0] = true
+
+		m = m.handleQueuePastedMsg(QueuePastedMsg{
+			Entries:   []queue.Entry{{ID: 12, Hash: "gone", Path: "/gone.flac", Artist: "G", Title: "Gone"}},
+			InsertPos: 0,
+		})
+
+		if p.resumeCalls != 1 {
+			t.Errorf("ResumeAfterQueueExtension calls = %d, want 1", p.resumeCalls)
+		}
+		if len(p.loaded) != 0 {
+			t.Errorf("loaded %v; an unplayable insertion must not fall back onto a completed row", p.loaded)
+		}
+		if len(p.playFromIndexCalls) != 0 {
+			t.Errorf("PlayFromIndex called %v; a failed resume must not reanchor the cycle", p.playFromIndexCalls)
+		}
+		if m.playback.state != playback.StateIdle {
+			t.Errorf("state = %v, want StateIdle", m.playback.state)
+		}
+		if !m.playback.queueExhausted {
+			t.Error("queueExhausted must survive an unplayable insertion so the next extension retries")
+		}
+		if m.playback.currentIndex != -1 {
+			t.Errorf("currentIndex = %d, want -1 (nothing started)", m.playback.currentIndex)
+		}
+	})
 }
 
 // TestPlaybackEndedResumesIntoConcurrentExtension covers the fifth source: rows

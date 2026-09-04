@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/sglavoie/muse/internal/player"
 )
@@ -178,13 +179,17 @@ var errFakeNothingToReplay = errors.New("fake player: nothing to replay")
 // rows the cycle has not visited. It exists so the root handlers can be driven
 // through a completed shuffle cycle and its refill without an mpv process.
 //
-// It models tail growth only — appends and pastes at the end of the queue —
-// which is what every natural queue extension does.
+// A fake that was never told the queue models tail growth only — appends and
+// pastes at the end. Once SetQueue has seeded tracks it reconciles by identity
+// instead, so a row inserted before the cursor shifts the queue without renaming
+// the row the cycle is on. missing is keyed by queue index, so a test that
+// inserts rows must set it after the insertion.
 type fakeTraversalPlayer struct {
 	order    []int        // queue indices in traversal order
 	pos      int          // cursor into order; -1 when nothing is current
 	missing  map[int]bool // queue indices whose load fails
 	shuffled bool
+	tracks   []player.QueueTrack // last queue SetQueue was given; nil until seeded
 
 	loaded             []int // queue indices actually loaded, in order
 	playFromIndexCalls []int
@@ -292,18 +297,88 @@ func (f *fakeTraversalPlayer) PlayFromIndex(idx int) error {
 }
 
 // AppendToQueue extends the traversal with the appended row, which lands in the
-// unseen tail exactly as reconciliation puts it there.
-func (f *fakeTraversalPlayer) AppendToQueue(player.QueueTrack) {
+// unseen tail exactly as reconciliation puts it there. A seeded fake records the
+// row too, so a later SetQueue does not read it as brand new.
+func (f *fakeTraversalPlayer) AppendToQueue(track player.QueueTrack) {
 	f.order = append(f.order, len(f.order))
+	if f.tracks != nil {
+		f.tracks = append(f.tracks, track)
+	}
 }
 
-// SetQueue absorbs a rebuilt queue by extending the traversal to cover any rows
-// added at the tail; the existing cycle is left intact, as identity-based
-// reconciliation leaves it.
+// SetQueue absorbs a rebuilt queue. A fake that has never been given a queue has
+// no identities to compare against, so it can only reason positionally: it
+// extends the traversal to cover rows added at the tail. Once seeded it
+// reconciles by identity the way the Manager does, which is what makes a
+// mid-queue insertion observable.
 func (f *fakeTraversalPlayer) SetQueue(tracks []player.QueueTrack) {
-	for i := len(f.order); i < len(tracks); i++ {
-		f.order = append(f.order, i)
+	prev := f.tracks
+	f.tracks = append([]player.QueueTrack(nil), tracks...)
+	if prev == nil {
+		for i := len(f.order); i < len(tracks); i++ {
+			f.order = append(f.order, i)
+		}
+		return
 	}
+	f.reconcileByIdentity(prev, tracks)
+}
+
+// reconcileByIdentity rewrites the traversal order through the identity map
+// between the previous queue and the new one: surviving rows keep their place in
+// the cycle under their new queue index, rows that left drop out, and the cursor
+// follows the row it named rather than the position it held. Brand-new rows
+// become the next thing the traversal visits wherever they sit in the queue —
+// the unseen pool with shuffle on, the rows recorded as unreached with shuffle
+// off — which is the behaviour a resume after a mid-queue insertion depends on.
+func (f *fakeTraversalPlayer) reconcileByIdentity(prev, next []player.QueueTrack) {
+	newIndex := make(map[string]int, len(next))
+	for i, track := range next {
+		newIndex[fakeQueueIdentity(track)] = i
+	}
+
+	known := make(map[string]bool, len(prev))
+	order := make([]int, 0, len(next))
+	pos := -1
+	for cyclePos, queueIdx := range f.order {
+		if queueIdx < 0 || queueIdx >= len(prev) {
+			continue
+		}
+		id := fakeQueueIdentity(prev[queueIdx])
+		known[id] = true
+		idx, live := newIndex[id]
+		if !live {
+			continue
+		}
+		order = append(order, idx)
+		if cyclePos == f.pos {
+			pos = len(order) - 1
+		}
+	}
+
+	var additions []int
+	for i, track := range next {
+		if !known[fakeQueueIdentity(track)] {
+			additions = append(additions, i)
+		}
+	}
+	at := pos + 1
+	merged := make([]int, 0, len(order)+len(additions))
+	merged = append(merged, order[:at]...)
+	merged = append(merged, additions...)
+	merged = append(merged, order[at:]...)
+
+	f.order = merged
+	f.pos = pos
+}
+
+// fakeQueueIdentity names a queue row the way the Manager does: by queue ID when
+// the row has one, by content otherwise. It drops the Manager's occurrence
+// suffix because no test queues the same row twice.
+func fakeQueueIdentity(track player.QueueTrack) string {
+	if track.QueueID != 0 {
+		return fmt.Sprintf("q:%d", track.QueueID)
+	}
+	return "f:" + track.Hash + "|" + track.Path
 }
 
 // SetCurrentIndex records the index the TUI pushed. The real Manager clamps a

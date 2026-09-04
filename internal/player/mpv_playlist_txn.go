@@ -588,8 +588,18 @@ func (m *Manager) setCurrentIndexLocked(i int) {
 // The caller must hold m.mu.
 func (m *Manager) commitIndexLocked(index int) func() {
 	prev := m.currentIndex
+	prevAdditions := m.unreachedAdditions
 	m.setCurrentIndexLocked(index)
-	return func() { m.currentIndex = prev }
+	// A committed load establishes a new sequential position, and positional
+	// traversal never goes back: whatever had been inserted behind the old cursor
+	// is either the row that just started or is now behind the new one. Keeping
+	// the set would let a later resume jump backwards onto a row the user has
+	// already moved past.
+	m.unreachedAdditions = nil
+	return func() {
+		m.currentIndex = prev
+		m.unreachedAdditions = prevAdditions
+	}
 }
 
 // playlistClient returns the live IPC client for a playlist mutation, or nil when

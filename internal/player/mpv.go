@@ -355,6 +355,16 @@ type Manager struct {
 	// enabled, explicit reanchor, cycle restart) or shuffle is turned off.
 	shuffleExcluded map[string]bool
 
+	// unreachedAdditions holds the identities of rows that entered the queue at
+	// or before the sequential cursor, so plain currentIndex+1 arithmetic steps
+	// straight past them even though the traversal never played them. It is the
+	// shuffle-off counterpart of shuffleUnseen: with shuffle on, reconciliation
+	// puts every brand-new identity into the unseen pool and position is
+	// irrelevant. Recorded by SetQueue, consumed by the sequential resume, and
+	// discarded by every committed load. Guarded by mu; see
+	// sequential_additions.go.
+	unreachedAdditions map[string]bool
+
 	// permute returns a permutation of [0,n) used to randomize the unseen
 	// pool. Production wires math/rand/v2; tests inject a fixed permutation.
 	// Nil falls back to deterministic identity order (see permuteLocked).

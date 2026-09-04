@@ -8,17 +8,22 @@ import (
 
 // SetQueue replaces the ordered set of tracks used by PlayFromIndex. Call
 // whenever the playback queue changes (e.g. after loading from the database).
+//
+// The cursor is carried across the replacement by identity rather than by
+// position, so a row inserted before the current one shifts the queue without
+// renaming the row the traversal is on, and the rows that landed behind the
+// cursor are recorded as still eligible; see sequential_additions.go.
 func (m *Manager) SetQueue(entries []QueueTrack) {
 	m.mu.Lock()
+	prevIdentities := queueIdentities(m.queue)
+	prevCurrent := ""
+	if m.currentIndex >= 0 && m.currentIndex < len(prevIdentities) {
+		prevCurrent = prevIdentities[m.currentIndex]
+	}
 	m.queue = make([]QueueTrack, len(entries))
 	copy(m.queue, entries)
-	if m.currentIndex >= len(m.queue) {
-		if len(m.queue) > 0 {
-			m.currentIndex = len(m.queue) - 1
-		} else {
-			m.currentIndex = -1
-		}
-	}
+	m.relocateCurrentLocked(prevCurrent)
+	m.recordUnreachedAdditionsLocked(prevIdentities)
 	m.reconcileShuffleLocked()
 	m.mu.Unlock()
 	m.clearPrefetch()

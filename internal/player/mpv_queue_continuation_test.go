@@ -312,3 +312,229 @@ func TestResumeAfterQueueExtension_SequentialPlaysAppendedRows(t *testing.T) {
 	}
 	assertTraversal(t, m.QueueTraversal(), []int{0, 1, 2, 3, 4, 5, 6}, 6, 0, false)
 }
+
+// exhaustedSequentialQueue returns a connected manager with shuffle off whose
+// three-row queue has been played through to its last row and is now exhausted,
+// together with three further tracks a test can insert into it. The queue is
+// installed through SetQueue, so the manager holds the same identities a later
+// SetQueue insertion has to reconcile against.
+func exhaustedSequentialQueue(t *testing.T, name string, mu *sync.Mutex, received *[]ipcTestCommand) (*Manager, []QueueTrack) {
+	t.Helper()
+	m := newConnectedManager(t, name, mu, received)
+	m.SetMissingMarker(&countingMarker{})
+
+	q := shuffleTestQueue(t, 6)
+	m.SetQueue(append([]QueueTrack(nil), q[:3]...))
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	for range 2 {
+		if err := m.Next(); err != nil {
+			t.Fatalf("Next: %v", err)
+		}
+	}
+	if got := currentIdx(m); got != 2 {
+		t.Fatalf("after playing through, currentIndex = %d, want 2", got)
+	}
+	if err := m.Next(); !errors.Is(err, ErrPlaybackFailed) {
+		t.Fatalf("Next past the last row: want ErrPlaybackFailed, got %v", err)
+	}
+	return m, q[3:]
+}
+
+// queueEntryAt reads the manager's queue row at index under the lock.
+func queueEntryAt(m *Manager, index int) QueueTrack {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.queue[index]
+}
+
+// insertBefore returns the queue that results from splicing extra into the
+// manager's current queue at index pos.
+func insertBefore(m *Manager, pos int, extra ...QueueTrack) []QueueTrack {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]QueueTrack, 0, len(m.queue)+len(extra))
+	out = append(out, m.queue[:pos]...)
+	out = append(out, extra...)
+	out = append(out, m.queue[pos:]...)
+	return out
+}
+
+// TestResumeAfterQueueExtension_SequentialInsertionBeforeCompletedRow covers the
+// shuffle-off extension that is not an append: a paste or a "play next" inserts
+// at or before the row an exhausted traversal stopped on, so numeric
+// continuation (currentIndex+1) both misses the new row and lands on one that
+// already played. The completed row must survive the insertion by identity and
+// the resume must start the addition instead.
+func TestResumeAfterQueueExtension_SequentialInsertionBeforeCompletedRow(t *testing.T) {
+	t.Run("insertion at the head plays the new row", func(t *testing.T) {
+		var mu sync.Mutex
+		var received []ipcTestCommand
+		m, extra := exhaustedSequentialQueue(t, "seq-ins-head", &mu, &received)
+		completed := queueEntryAt(m, 2)
+
+		m.SetQueue(insertBefore(m, 0, extra[0]))
+
+		// The completed row moved with the insertion instead of being renamed to
+		// whatever slid into its slot, and the addition reads as still ahead.
+		if got := currentIdx(m); got != 3 {
+			t.Fatalf("currentIndex = %d after inserting a row at the head, want 3 (the completed row followed)", got)
+		}
+		assertTraversal(t, m.QueueTraversal(), []int{0, 1, 2, 3}, 3, 1, false)
+
+		mu.Lock()
+		received = nil
+		mu.Unlock()
+
+		idx, err := m.ResumeAfterQueueExtension()
+		if err != nil {
+			t.Fatalf("ResumeAfterQueueExtension: %v", err)
+		}
+		if idx != 0 || currentIdx(m) != 0 {
+			t.Fatalf("resume returned %d (currentIndex %d), want 0 (the inserted row)", idx, currentIdx(m))
+		}
+		if got := countCommands(&mu, &received, loadfileFor(extra[0].Path, "replace")); got != 1 {
+			t.Fatalf("loadfile replace of the inserted row: got %d, want 1", got)
+		}
+		if got := countCommands(&mu, &received, loadfileFor(completed.Path, "replace")); got != 0 {
+			t.Fatalf("the completed row was replayed %d times, want 0", got)
+		}
+	})
+
+	t.Run("insertion into the middle plays the new row", func(t *testing.T) {
+		var mu sync.Mutex
+		var received []ipcTestCommand
+		m, extra := exhaustedSequentialQueue(t, "seq-ins-mid", &mu, &received)
+		completed := queueEntryAt(m, 2)
+
+		// "Play next" on an exhausted queue inserts ahead of a row that already
+		// played, which is still behind the cursor.
+		m.SetQueue(insertBefore(m, 2, extra[0]))
+		mu.Lock()
+		received = nil
+		mu.Unlock()
+
+		idx, err := m.ResumeAfterQueueExtension()
+		if err != nil {
+			t.Fatalf("ResumeAfterQueueExtension: %v", err)
+		}
+		if idx != 2 || currentIdx(m) != 2 {
+			t.Fatalf("resume returned %d (currentIndex %d), want 2 (the inserted row)", idx, currentIdx(m))
+		}
+		if got := countCommands(&mu, &received, loadfileFor(completed.Path, "replace")); got != 0 {
+			t.Fatalf("the completed row was replayed %d times, want 0", got)
+		}
+	})
+
+	t.Run("the earliest insertion wins and is played once", func(t *testing.T) {
+		var mu sync.Mutex
+		var received []ipcTestCommand
+		m, extra := exhaustedSequentialQueue(t, "seq-ins-two", &mu, &received)
+
+		m.SetQueue(insertBefore(m, 0, extra[0], extra[1]))
+		if idx, err := m.ResumeAfterQueueExtension(); err != nil || idx != 0 {
+			t.Fatalf("first resume = (%d, %v), want (0, nil)", idx, err)
+		}
+		// Playing the addition established a new cursor; the second insertion is
+		// now the row right after it, which plain continuation reaches.
+		idx, err := m.ResumeAfterQueueExtension()
+		if err != nil {
+			t.Fatalf("second ResumeAfterQueueExtension: %v", err)
+		}
+		if idx != 1 {
+			t.Fatalf("second resume returned %d, want 1 (the other insertion)", idx)
+		}
+		if got := countCommands(&mu, &received, loadfileFor(extra[0].Path, "replace")); got != 1 {
+			t.Fatalf("the first insertion was loaded %d times, want 1", got)
+		}
+	})
+
+	t.Run("a missing insertion leaves the queue exhausted", func(t *testing.T) {
+		var mu sync.Mutex
+		var received []ipcTestCommand
+		m, _ := exhaustedSequentialQueue(t, "seq-ins-gone", &mu, &received)
+		completed := queueEntryAt(m, 2)
+
+		m.SetQueue(insertBefore(m, 0, missingTrack(t, 99)))
+		mu.Lock()
+		received = nil
+		mu.Unlock()
+
+		if _, err := m.ResumeAfterQueueExtension(); !errors.Is(err, ErrPlaybackFailed) {
+			t.Fatalf("resume into a missing insertion: want ErrPlaybackFailed, got %v", err)
+		}
+		if got := countCommands(&mu, &received, isLoadfileReplace); got != 0 {
+			t.Fatalf("a missing insertion sent %d replacements, want 0", got)
+		}
+		if got := countCommands(&mu, &received, loadfileFor(completed.Path, "replace")); got != 0 {
+			t.Fatalf("the completed row was replayed %d times, want 0", got)
+		}
+		if got := currentIdx(m); got != 3 {
+			t.Fatalf("currentIndex = %d after a failed resume, want 3 (the completed row)", got)
+		}
+		// The row it gave up on is not retried when a later extension arrives.
+		if _, err := m.ResumeAfterQueueExtension(); !errors.Is(err, ErrPlaybackFailed) {
+			t.Fatalf("second resume with nothing new: want ErrPlaybackFailed, got %v", err)
+		}
+		if got := countCommands(&mu, &received, isLoadfileReplace); got != 0 {
+			t.Fatalf("the missing insertion was retried: %d replacements, want 0", got)
+		}
+	})
+
+	t.Run("a tail append still resumes positionally", func(t *testing.T) {
+		var mu sync.Mutex
+		var received []ipcTestCommand
+		m, extra := exhaustedSequentialQueue(t, "seq-ins-tail", &mu, &received)
+
+		m.SetQueue(insertBefore(m, 3, extra[0]))
+		if got := currentIdx(m); got != 2 {
+			t.Fatalf("currentIndex = %d after a tail append, want 2 (unmoved)", got)
+		}
+		idx, err := m.ResumeAfterQueueExtension()
+		if err != nil {
+			t.Fatalf("ResumeAfterQueueExtension: %v", err)
+		}
+		if idx != 3 || currentIdx(m) != 3 {
+			t.Fatalf("resume returned %d (currentIndex %d), want 3 (the appended row)", idx, currentIdx(m))
+		}
+		assertTraversal(t, m.QueueTraversal(), []int{0, 1, 2, 3}, 3, 0, false)
+	})
+
+	t.Run("an insertion behind a live cursor is dropped once playback moves on", func(t *testing.T) {
+		var mu sync.Mutex
+		var received []ipcTestCommand
+		m, extra := exhaustedSequentialQueue(t, "seq-ins-live", &mu, &received)
+
+		// Start the queue over so the cursor is live with rows ahead of it, then
+		// insert behind it — a paste above the playing row.
+		if err := m.PlayFromIndex(0); err != nil {
+			t.Fatalf("PlayFromIndex(0): %v", err)
+		}
+		m.SetQueue(insertBefore(m, 0, extra[0]))
+		if got := currentIdx(m); got != 1 {
+			t.Fatalf("currentIndex = %d after inserting above the playing row, want 1", got)
+		}
+
+		// Playing on past it puts the insertion behind the cursor for good:
+		// positional traversal never goes back, so a later extension must resume
+		// into the appended row rather than jumping backwards onto it.
+		for range 2 {
+			if err := m.Next(); err != nil {
+				t.Fatalf("Next: %v", err)
+			}
+		}
+		if err := m.Next(); !errors.Is(err, ErrPlaybackFailed) {
+			t.Fatalf("Next past the last row: want ErrPlaybackFailed, got %v", err)
+		}
+
+		m.SetQueue(insertBefore(m, 4, extra[1]))
+		idx, err := m.ResumeAfterQueueExtension()
+		if err != nil {
+			t.Fatalf("ResumeAfterQueueExtension: %v", err)
+		}
+		if idx != 4 {
+			t.Fatalf("resume returned %d, want 4 (the appended row, not the insertion left behind)", idx)
+		}
+	})
+}
