@@ -136,14 +136,34 @@ func (m *Manager) endReplacementLocked() {
 //
 // Every other start-file answers a load the Manager sent, and takes the
 // generation of the oldest such load that has not been answered yet.
-func (m *Manager) noteFileStarted(gapless bool) {
+//
+// It also reports the queue occurrence the start belongs to, which is the same
+// question answered against the same two sources: gaplessOcc is the row the
+// transition handed mpv over to, and a load-induced start takes the row recorded
+// with the expectation it consumes. Either way the answer is state captured
+// before this start-file was read, never the current row re-read now — the caller
+// is about to block on IPC, and a selection racing it has already published its
+// own row as current.
+//
+// An unresolved occurrence falls back to that current row, which is what the
+// loads outside the transaction layer (session restore, the post-restart resume)
+// have always reported.
+func (m *Manager) noteFileStarted(gapless bool, gaplessOcc trackOccurrence) trackOccurrence {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if gapless && m.startedLoadGen != 0 {
-		return
+		return m.startOccurrenceLocked(gaplessOcc)
 	}
-	m.startedLoadGen = m.takeLoadStartLocked()
+	gen, occ := m.takeLoadStartLocked()
+	m.startedLoadGen = gen
 	m.resyncGaplessSuccessorsLocked()
+	if gapless && gaplessOcc.known {
+		// mpv continued into an entry that was already in its playlist, so the
+		// transition names the row even though the correlation fell through to a
+		// load expectation above.
+		return m.startOccurrenceLocked(gaplessOcc)
+	}
+	return m.startOccurrenceLocked(occ)
 }
 
 // pendingLoadStart is one unanswered load-start expectation: the load
@@ -168,10 +188,17 @@ func (m *Manager) noteFileStarted(gapless bool) {
 // file it is playing places every expectation up to the one that loaded it in
 // the past, whatever the Manager has been told about the commands themselves.
 // See reconcileStartedLoad.
+//
+// occ is the queue row the load is making current, captured in the same critical
+// section that publishes it. It is what the start-file this expectation names is
+// reported under: by the time that event is dispatched, a later replacement may
+// already have published its own row, so the current row no longer identifies
+// what mpv just started.
 type pendingLoadStart struct {
 	gen  uint64
 	seq  uint64
 	path string
+	occ  trackOccurrence
 }
 
 // expectLoadStartLocked records that a load has been sent in the live
@@ -194,16 +221,21 @@ type pendingLoadStart struct {
 // up mid-playback recognises the expectation mpv has already answered with the
 // entry it is playing.
 //
+// entry is the queue row being loaded, recorded alongside the position the
+// caller's commit has just published for it. Together they are the occurrence the
+// resulting start-file is reported under.
+//
 // It returns the sequence number it recorded, which the caller hands to
 // noteLoadStartSent once mpv has answered the load.
 //
 // The caller must hold m.mu.
-func (m *Manager) expectLoadStartLocked(path string) uint64 {
+func (m *Manager) expectLoadStartLocked(entry QueueTrack) uint64 {
 	m.loadStartSeq++
 	m.pendingLoadStarts = append(m.pendingLoadStarts, pendingLoadStart{
 		gen:  m.loadGen,
 		seq:  m.loadStartSeq,
-		path: path,
+		path: entry.Path,
+		occ:  trackOccurrence{track: entry, index: m.currentIndex, known: true},
 	})
 	return m.loadStartSeq
 }
@@ -367,17 +399,18 @@ func (m *Manager) unobservedStartsLocked(playing string, delivered int) int {
 	return 0
 }
 
-// takeLoadStartLocked consumes the generation of the next load-induced
-// start-file. An empty queue falls back to the live generation, which covers
-// the loads that do not pass through the transaction layer (session restore,
-// the post-restart resume) and an entry mpv started from an idle playlist.
+// takeLoadStartLocked consumes the generation and the queue occurrence of the
+// next load-induced start-file. An empty queue falls back to the live generation
+// and an unknown occurrence, which covers the loads that do not pass through the
+// transaction layer (session restore, the post-restart resume) and an entry mpv
+// started from an idle playlist.
 //
 // The caller must hold m.mu.
-func (m *Manager) takeLoadStartLocked() uint64 {
+func (m *Manager) takeLoadStartLocked() (uint64, trackOccurrence) {
 	if len(m.pendingLoadStarts) == 0 {
-		return m.loadGen
+		return m.loadGen, trackOccurrence{}
 	}
-	gen := m.pendingLoadStarts[0].gen
+	pending := m.pendingLoadStarts[0]
 	m.pendingLoadStarts = m.pendingLoadStarts[1:]
 	if len(m.pendingLoadStarts) == 0 {
 		// Drop the backing array instead of re-slicing further into it. A reader
@@ -385,7 +418,7 @@ func (m *Manager) takeLoadStartLocked() uint64 {
 		// steady state, so this is where the storage a burst grew is returned.
 		m.pendingLoadStarts = nil
 	}
-	return gen
+	return pending.gen, pending.occ
 }
 
 // takeGaplessSuccessorLocked reports whether mpv has an appended entry waiting
@@ -755,7 +788,7 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		undo = commit()
 	}
 	m.beginReplacementLocked(entry.Path)
-	pendingSeq := m.expectLoadStartLocked(entry.Path)
+	pendingSeq := m.expectLoadStartLocked(entry)
 	pendingGen := m.loadGen
 	m.mu.Unlock()
 

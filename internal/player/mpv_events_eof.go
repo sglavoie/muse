@@ -40,6 +40,11 @@ type eofState struct {
 	// the socket; by the time the start-file is dispatched, a replacement may
 	// have come and gone.
 	gaplessStart bool
+	// gaplessOcc is the queue row that successor is, resolved under the same lock
+	// for the same reason: it is the row the next start-file must be reported
+	// under, and a replacement completing before that event is dispatched would
+	// otherwise leave the current row naming the selection instead.
+	gaplessOcc trackOccurrence
 }
 
 // superseded reports whether the entry that emitted this end-file had already
@@ -126,14 +131,14 @@ func (t eofTransition) logAttrs(op string, err error) []any {
 // and hands every operation that can block to the background.
 //
 // It reports whether mpv is moving into a successor that was already in its
-// playlist, which is what tells the reader how to correlate the start-file it
-// reads next. That answer holds whatever the decision below turns out to be:
-// it describes mpv's playlist at the moment the entry ended, not what the
-// Manager chooses to do about it.
-func (m *Manager) handleEndOfFile() bool {
+// playlist — which is what tells the reader how to correlate the start-file it
+// reads next — and which queue row that successor is. Both answers hold whatever
+// the decision below turns out to be: they describe mpv's playlist at the moment
+// the entry ended, not what the Manager chooses to do about it.
+func (m *Manager) handleEndOfFile() (bool, trackOccurrence) {
 	state := m.snapshotEOF()
 	m.dispatchEOF(state)
-	return state.gaplessStart
+	return state.gaplessStart, state.gaplessOcc
 }
 
 // dispatchEOF acts on the snapshot handleEndOfFile took.
@@ -222,6 +227,14 @@ func (m *Manager) snapshotEOF() eofState {
 	// — the entry it belongs to was still leading mpv's playlist when it ended,
 	// and the successor behind it starts all the same.
 	state.gaplessStart = m.takeGaplessSuccessorLocked()
+	if state.gaplessStart {
+		// Name that successor now. This is the last point at which the row mpv is
+		// about to start is unambiguous: the promotion below commits it as the
+		// current row, but a replacement racing this EOF can publish its own row
+		// first, and the start-file would then be reported under the selection
+		// rather than under the entry mpv actually began.
+		state.gaplessOcc = m.gaplessOccurrenceLocked(state)
+	}
 	if state.superseded() {
 		return state
 	}
@@ -242,6 +255,29 @@ func (m *Manager) snapshotEOF() eofState {
 	// an exhausted or superseded advance settles it into a confirmed end.
 	m.markPlaybackEndingLocked()
 	return state
+}
+
+// gaplessOccurrenceLocked resolves the queue row mpv is starting on its own: the
+// tracked prefetch, located the way the promotion locates it — by identity under
+// shuffle, by position otherwise — and confirmed against the file that was
+// appended.
+//
+// It resolves nothing when the tracking no longer describes a live row. mpv still
+// starts the entry (it owns the playlist), but nothing here can say which queue
+// occurrence that is, so the report falls back to the current row exactly as it
+// did before.
+//
+// The caller must hold m.mu.
+func (m *Manager) gaplessOccurrenceLocked(state eofState) trackOccurrence {
+	p := state.prefetch
+	idx := p.index
+	if state.shuffle && p.identity != "" {
+		idx = identityIndex(m.queue, p.identity)
+	}
+	if idx < 0 || idx >= len(m.queue) || m.queue[idx].Path != p.path {
+		return trackOccurrence{}
+	}
+	return m.occurrenceAtLocked(idx)
 }
 
 // promotePrefetch commits the prefetched successor as the current track when it

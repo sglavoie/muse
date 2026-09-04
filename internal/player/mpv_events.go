@@ -43,18 +43,112 @@ func writeObserve(conn net.Conn, id int, property string) error {
 	return nil
 }
 
-func (m *Manager) emitCurrentTrackChanged() {
-	m.mu.RLock()
-	idx := m.currentIndex
-	if idx < 0 || idx >= len(m.queue) || m.callbacks.OnTrackChanged == nil {
-		m.mu.RUnlock()
+// trackOccurrence names the queue row one start-file belongs to: the row itself,
+// and the position it held when that start became attributable.
+//
+// It exists because the row cannot be read back from the Manager once the event
+// is being handled. The reader syncs the position before it reports the change,
+// which is an IPC round trip on the socket every playlist replacement also uses,
+// and a replacement publishes the row it is making current *before* it sends its
+// load. Rereading currentIndex after the sync therefore names the newer
+// selection, and the older start is reported as that selection's confirmation —
+// the TUI's barrier lowers on a report about a row mpv never started.
+//
+// The occurrence is captured instead where the start is still attributable: with
+// the load that will produce it (expectLoadStartLocked), or with the end-file
+// that hands mpv over to the successor already in its playlist (snapshotEOF).
+type trackOccurrence struct {
+	track QueueTrack
+	index int
+	// known separates a captured occurrence from the zero value. An unknown one
+	// falls back to the live current row, which is what the loads outside the
+	// transaction layer (session restore, the post-restart resume) and the
+	// reconnect emission below still resolve through.
+	known bool
+}
+
+// occurrenceAtLocked names the queue row at index, or an unknown occurrence when
+// index names no row.
+//
+// The caller must hold m.mu.
+func (m *Manager) occurrenceAtLocked(index int) trackOccurrence {
+	if index < 0 || index >= len(m.queue) {
+		return trackOccurrence{}
+	}
+	return trackOccurrence{track: m.queue[index], index: index, known: true}
+}
+
+// startOccurrenceLocked settles the occurrence a start-file is reported under: the
+// captured one when the start was attributable to a load or to a gapless
+// transition, and the live current row otherwise.
+//
+// A captured occurrence keeps its identity and re-derives only its position. The
+// index is the one part of the payload that describes where the row is *now*
+// rather than which row it is, and a queue mutation between the capture and the
+// report can have moved it.
+//
+// The caller must hold m.mu.
+func (m *Manager) startOccurrenceLocked(occ trackOccurrence) trackOccurrence {
+	if !occ.known {
+		return m.occurrenceAtLocked(m.currentIndex)
+	}
+	occ.index = m.occurrenceIndexLocked(occ)
+	return occ
+}
+
+// occurrenceIndexLocked locates occ in the live queue, preferring the position it
+// was captured at. A row that has left the queue resolves to -1 rather than to
+// whatever slid into its slot.
+//
+// The caller must hold m.mu.
+func (m *Manager) occurrenceIndexLocked(occ trackOccurrence) int {
+	if occ.index >= 0 && occ.index < len(m.queue) && sameOccurrence(m.queue[occ.index], occ.track) {
+		return occ.index
+	}
+	for i, entry := range m.queue {
+		if sameOccurrence(entry, occ.track) {
+			return i
+		}
+	}
+	return -1
+}
+
+// sameOccurrence reports whether two queue rows are the same occurrence. The
+// queue row id settles it whenever both sides carry one, so a duplicate of the
+// same track elsewhere in the queue is never mistaken for it; rows with no
+// durable id fall back to the path, under which duplicates are indistinguishable
+// exactly as they are everywhere else.
+func sameOccurrence(a, b QueueTrack) bool {
+	if a.QueueID != 0 && b.QueueID != 0 {
+		return a.QueueID == b.QueueID
+	}
+	return a.Path == b.Path
+}
+
+// emitTrackChanged reports occ to the TUI. An unknown occurrence names no row and
+// is not reported, which is what keeps a reader connecting to an empty queue
+// silent.
+func (m *Manager) emitTrackChanged(occ trackOccurrence) {
+	if !occ.known {
 		return
 	}
-	track := m.queue[idx]
+	m.mu.RLock()
 	fn := m.callbacks.OnTrackChanged
 	m.mu.RUnlock()
+	if fn == nil {
+		return
+	}
+	fn(occ.track.Hash, occ.track.Artist, occ.track.Title, occ.track.Source, occ.index, occ.track.QueueID)
+}
 
-	fn(track.Hash, track.Artist, track.Title, track.Source, idx, track.QueueID)
+// emitCurrentTrackChanged reports whatever row the Manager considers current.
+// Only the reconnect emission below uses it: it answers "what is playing" rather
+// than "what just started", so the live index is the right source there.
+func (m *Manager) emitCurrentTrackChanged() {
+	m.mu.RLock()
+	occ := m.occurrenceAtLocked(m.currentIndex)
+	m.mu.RUnlock()
+	m.emitTrackChanged(occ)
 }
 
 func (m *Manager) emitPlaybackEnded() {
@@ -213,6 +307,14 @@ type eventStream struct {
 	// both events sat buffered on the socket.
 	gaplessStart bool
 
+	// gaplessOcc is the queue row that transition hands mpv over to, resolved in
+	// the same critical section that decided gaplessStart. It travels with the
+	// flag for the same reason: by the time the successor's start-file is
+	// dispatched, a replacement may already have published its own row as the
+	// current one, and the row mpv actually started would then be reported under
+	// that newer selection's identity.
+	gaplessOcc trackOccurrence
+
 	// holdingForPath is the adoption barrier, raised by adoptCurrentLoad only
 	// when an expectation older than this connection outlived it. A stream with
 	// nothing left to reconcile never buffers, which is what keeps readers whose
@@ -272,13 +374,19 @@ func (s *eventStream) dispatch(event ipcAsyncEvent) {
 
 func (s *eventStream) startFile() {
 	// Stamp the entry mpv is entering with the generation that emitted this
-	// event, before anything below can block. Events are dispatched in the order
-	// mpv emitted them, so an end-file dispatched later is always the end of an
-	// entry stamped at or before this point: comparing its stamp against the live
-	// generation is what tells a genuine transition from one a replacement
-	// already superseded.
-	s.m.noteFileStarted(s.gaplessStart)
-	s.gaplessStart = false
+	// event, and resolve the queue row it belongs to, before anything below can
+	// block. Events are dispatched in the order mpv emitted them, so an end-file
+	// dispatched later is always the end of an entry stamped at or before this
+	// point: comparing its stamp against the live generation is what tells a
+	// genuine transition from one a replacement already superseded.
+	//
+	// The occurrence comes out of the same critical section for the same reason
+	// the generation does. Below this line the reader blocks on an IPC round trip,
+	// and a selection racing it publishes its own row as current before its load
+	// is even sent — so the row that started can only be named from state captured
+	// with the load or the transition that produced it, never re-read afterwards.
+	occ := s.m.noteFileStarted(s.gaplessStart, s.gaplessOcc)
+	s.gaplessStart, s.gaplessOcc = false, trackOccurrence{}
 
 	// Immediately sync the position so that a crash right after track start
 	// resumes at the correct file (elapsed≈0) rather than the previous track's
@@ -287,10 +395,10 @@ func (s *eventStream) startFile() {
 		slog.Warn("mpv: sync position failed on track start", "err", err)
 	}
 
-	// Notify the TUI that the active track has changed. Resolve the current
-	// track from the in-memory queue using currentIndex so the TUI can update
-	// the status bar and persist the correct hash.
-	s.m.emitCurrentTrackChanged()
+	// Notify the TUI that the active track has changed, naming the occurrence
+	// this start-file belongs to so the status bar, the persisted hash, and the
+	// TUI's selection barrier all describe the row mpv actually started.
+	s.m.emitTrackChanged(occ)
 
 	// Safety net: ensure the next track is always prefetched after a file
 	// starts. Covers mpv restarts (loadFileAt) and any edge case where prefetch
@@ -303,13 +411,13 @@ func (s *eventStream) endFile(reason string) {
 		// "stop", "replace", "quit", "error" — do not auto-advance. mpv stopped
 		// the entry rather than playing it out, so nothing follows it gaplessly:
 		// the next start-file answers a load.
-		s.gaplessStart = false
+		s.gaplessStart, s.gaplessOcc = false, trackOccurrence{}
 		return
 	}
 	// The whole transition lives in handleEndOfFile: it makes the state decision
 	// here, on the event goroutine, and hands everything that can block to one
 	// ordered background operation.
-	s.gaplessStart = s.m.handleEndOfFile()
+	s.gaplessStart, s.gaplessOcc = s.m.handleEndOfFile()
 }
 
 // propertyChange handles the subscriptions' ongoing values. propPath is
