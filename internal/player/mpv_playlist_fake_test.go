@@ -975,22 +975,69 @@ func prefetchTracking(m *Manager) (prefetchState, uint64) {
 	return m.prefetchSnapshotLocked(), m.playlistGen
 }
 
-// assertPrefetch checks the tracked prefetch points at wantIndex and is stamped
+// prefetchSettleTimeout bounds the wait in assertPrefetch. It matches waitFor's
+// deadline: the tracking is committed one lock acquisition after the append mpv
+// already answered, so anything approaching this bound is a real failure rather
+// than a slow scheduler.
+const prefetchSettleTimeout = 2 * time.Second
+
+// assertPrefetch waits until the tracked prefetch points at wantIndex stamped
 // with the live playlist generation — the condition the EOF handler requires
-// before promoting it.
+// before promoting it — and fails with the last state it observed if that never
+// becomes true.
+//
+// It waits rather than samples because the two facts a test synchronizes on are
+// committed in that order, not together: the fake mutates its modelled playlist
+// inside handleLoadfile, before the IPC reply is even written, while
+// appendPrefetchLocked records the tracking only after SendCommand returns. A
+// test that waits on the fake's playlist and then reads the bookkeeping is
+// therefore legitimately able to observe the in-between state and see
+// prefetchedIndex = -1. The production ordering is deliberate and unchanged —
+// the tracking must only ever describe an append mpv has already accepted — so
+// the synchronization belongs here.
+//
+// wantIndex < 0 stays a single sample. Waiting for the tracking to become empty
+// would turn "nothing may be prefetched here" into "nothing is prefetched by the
+// time something else clears it", which is the assertion those call sites exist
+// to make.
 func assertPrefetch(t *testing.T, m *Manager, queue []QueueTrack, wantIndex int) {
 	t.Helper()
-	got, gen := prefetchTracking(m)
-	if got.index != wantIndex {
-		t.Fatalf("prefetchedIndex = %d, want %d", got.index, wantIndex)
-	}
 	if wantIndex < 0 {
+		if got, _ := prefetchTracking(m); got.index != wantIndex {
+			t.Fatalf("prefetchedIndex = %d, want %d", got.index, wantIndex)
+		}
 		return
 	}
-	if got.path != queue[wantIndex].Path {
-		t.Fatalf("prefetchedPath = %q, want %q", got.path, queue[wantIndex].Path)
+
+	got, gen, ok := waitForPrefetch(m, queue, wantIndex)
+	if ok {
+		return
 	}
-	if got.gen != gen {
+	switch {
+	case got.index != wantIndex:
+		t.Fatalf("prefetchedIndex = %d, want %d after waiting %s for the tracking to commit",
+			got.index, wantIndex, prefetchSettleTimeout)
+	case got.path != queue[wantIndex].Path:
+		t.Fatalf("prefetchedPath = %q, want %q", got.path, queue[wantIndex].Path)
+	default:
 		t.Fatalf("prefetchedGen = %d, want playlistGen %d", got.gen, gen)
+	}
+}
+
+// waitForPrefetch polls the manager's prefetch bookkeeping until it names
+// wantIndex with the live playlist generation, and returns the last state it
+// observed together with whether that ever happened. The caller owns the
+// diagnostic, so the last sample is always the one it reports on.
+func waitForPrefetch(m *Manager, queue []QueueTrack, wantIndex int) (prefetchState, uint64, bool) {
+	deadline := time.Now().Add(prefetchSettleTimeout)
+	for {
+		got, gen := prefetchTracking(m)
+		if got.index == wantIndex && got.path == queue[wantIndex].Path && got.gen == gen {
+			return got, gen, true
+		}
+		if !time.Now().Before(deadline) {
+			return got, gen, false
+		}
+		time.Sleep(2 * time.Millisecond)
 	}
 }
