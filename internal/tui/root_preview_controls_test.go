@@ -173,12 +173,20 @@ func TestPreviewDismissResumesPlayback(t *testing.T) {
 	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
 
 	if nm.overlay.preview != nil {
 		t.Fatal("expected preview to be dismissed")
 	}
+	if cmd == nil {
+		t.Fatal("expected ordered resume command")
+	}
+	if sp.playCalls != 0 {
+		t.Fatal("resume blocked the Update loop")
+	}
+	next, _ = nm.Update(playbackControlResult(t, cmd()))
+	nm = next.(Model)
 	if sp.playCalls != 1 {
 		t.Fatalf("expected 1 Play call to resume playback, got %d", sp.playCalls)
 	}
@@ -198,9 +206,12 @@ func TestPreviewDismissDoesNotResumeIfNotPlaying(t *testing.T) {
 	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 	m.overlay.previewPlayer = &stubPreviewer{}
 
-	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	nm := next.(Model)
 
+	if cmd != nil {
+		t.Fatal("unexpected resume command when main playback was not active")
+	}
 	if sp.playCalls != 0 {
 		t.Fatalf("expected 0 Play calls when not previously playing, got %d", sp.playCalls)
 	}

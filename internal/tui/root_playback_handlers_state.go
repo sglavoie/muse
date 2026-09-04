@@ -157,25 +157,45 @@ func (m Model) handlePauseChangedMsg(msg playback.PauseChangedMsg) (Model, tea.C
 
 // handlePreviewStartedMsg stores the preview player and overlay state.
 func (m Model) handlePreviewStartedMsg(msg previewStartedMsg) Model {
+	if msg.request != 0 && msg.request != m.playback.requestSeq {
+		_ = msg.player.Close()
+		m.overlay.previewWasPlaying = false
+		return m
+	}
 	m.overlay.previewPlayer = msg.player
 	m.overlay.preview = &msg.overlay
 	m.overlay.previewDurationFilled = false
 	return m
 }
 
-// handlePreviewStartErrorMsg notifies the user and resumes main playback.
-func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) Model {
-	m.statusBar.Notify("Preview error: " + msg.err.Error())
-	player.PlaySound(player.SoundError)
-	if m.overlay.previewWasPlaying && m.player != nil {
-		if err := m.player.Play(); err != nil {
-			slog.Warn("player resume failed", "err", err)
-		} else {
+// handlePreviewPauseResultMsg starts the preview only after the ordered pause
+// succeeded and only while no newer playback request has superseded it.
+func (m Model) handlePreviewPauseResultMsg(msg previewPauseResultMsg) (Model, tea.Cmd) {
+	if msg.request != m.playback.requestSeq || !msg.ran {
+		m.overlay.previewWasPlaying = false
+		return m, nil
+	}
+	if msg.err != nil {
+		if m.playback.state == playback.StatePaused {
 			m.playback.state = playback.StatePlaying
 		}
+		m.overlay.previewWasPlaying = false
+		slog.Warn("player pause for preview failed", "err", msg.err)
+		m.statusBar.Notify("Preview pause failed: " + msg.err.Error())
+		return m, nil
 	}
-	m.overlay.previewWasPlaying = false
-	return m
+	return m, m.startPreviewCmd(msg.track, msg.request)
+}
+
+// handlePreviewStartErrorMsg notifies the user and resumes main playback.
+func (m Model) handlePreviewStartErrorMsg(msg previewStartErrorMsg) (Model, tea.Cmd) {
+	m.statusBar.Notify("Preview error: " + msg.err.Error())
+	player.PlaySound(player.SoundError)
+	if msg.request != 0 && msg.request != m.playback.requestSeq {
+		m.overlay.previewWasPlaying = false
+		return m, nil
+	}
+	return m.resumeAfterPreview()
 }
 
 // raiseSelectionBarrier arms the track-event barrier for the queue occurrence

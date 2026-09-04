@@ -136,8 +136,11 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case previewStartedMsg:
 		m = m.handlePreviewStartedMsg(msg)
 
+	case previewPauseResultMsg:
+		return m.handlePreviewPauseResultMsg(msg)
+
 	case previewStartErrorMsg:
-		m = m.handlePreviewStartErrorMsg(msg)
+		return m.handlePreviewStartErrorMsg(msg)
 
 	case overlay.TrackInfoMsg:
 		if msg.Err != nil {

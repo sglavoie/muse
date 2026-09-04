@@ -150,8 +150,8 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		return m, nil, true
 	case keys.ActionPreview:
 		if m.overlay.preview != nil {
-			m = m.dismissPreview()
-			return m, nil, true
+			m, cmd := m.dismissPreview()
+			return m, cmd, true
 		}
 		track, ok := m.focusedTrackForPreview()
 		if !ok {
@@ -160,12 +160,10 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		}
 		m.overlay.previewWasPlaying = m.playback.state == playback.StatePlaying
 		if m.overlay.previewWasPlaying && m.player != nil {
-			if err := m.player.Pause(); err != nil {
-				slog.Warn("player pause failed", "err", err)
-			}
 			m.playback.state = playback.StatePaused
+			return m, m.pauseForPreviewCmd(track), true
 		}
-		return m, m.startPreviewCmd(track), true
+		return m, m.startPreviewCmd(track, 0), true
 	case keys.ActionPlayPause:
 		if m.player != nil {
 			switch {

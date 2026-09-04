@@ -311,7 +311,8 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		m.overlay.queueSummary = nil
 		m.overlay.modesLegend = nil
 		m.overlay.trackInfo = nil
-		m = m.dismissPreview()
+		m = m.closePreview()
+		m.overlay.previewWasPlaying = false
 		return m, tea.Quit
 	case keys.ActionFilterBar:
 		return m, func() tea.Msg { return FilterBarMsg{} }

@@ -65,6 +65,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	}
 
 	var previewDurationCmd tea.Cmd
+	var previewDismissCmd tea.Cmd
 	if m.overlay.preview != nil && m.overlay.previewPlayer != nil {
 		if elapsed, total, err := m.overlay.previewPlayer.ElapsedPosition(); err == nil {
 			if finitePositive(elapsed) && finitePositive(total) {
@@ -76,7 +77,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 				}
 			}
 		} else {
-			m = m.dismissPreview()
+			m, previewDismissCmd = m.dismissPreview()
 		}
 	}
 
@@ -95,7 +96,7 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// invalidation site would miss it.
 	insightsCmd := m.insightsActiveRefreshCmd()
 	m, radioCleanupCmd := m.startRadioBatchCleanupCmd()
-	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd)
+	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

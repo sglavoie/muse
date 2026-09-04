@@ -159,7 +159,12 @@ func TestDismissPreviewDoesNotResumeOnPlayError(t *testing.T) {
 	m.overlay.previewWasPlaying = true
 	m.overlay.preview = &overlay.PreviewOverlay{Artist: "A", Title: "T"}
 
-	nm := m.dismissPreview()
+	nm, cmd := m.dismissPreview()
+	if cmd == nil {
+		t.Fatal("expected ordered resume command")
+	}
+	next, _ := nm.Update(playbackControlResult(t, cmd()))
+	nm = next.(Model)
 
 	if nm.playback.state != playback.StatePaused {
 		t.Fatalf("expected PlaybackPaused when resume fails, got %v", nm.playback.state)

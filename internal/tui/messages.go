@@ -3,6 +3,7 @@ package tui
 import (
 	"time"
 
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 )
@@ -75,10 +76,23 @@ type syncPositionMsg struct{}
 type previewStartedMsg struct {
 	player  player.Previewer
 	overlay overlay.PreviewOverlay
+	request uint64
 }
 
 // previewStartErrorMsg is dispatched when the preview player fails to start.
-type previewStartErrorMsg struct{ err error }
+type previewStartErrorMsg struct {
+	err     error
+	request uint64
+}
+
+// previewPauseResultMsg carries the ordered main-player pause that must finish
+// before a preview player is allowed to start.
+type previewPauseResultMsg struct {
+	request uint64
+	track   library.Track
+	err     error
+	ran     bool
+}
 
 // UndoMsg is dispatched when the user presses 'u'.
 type UndoMsg struct{}

@@ -38,11 +38,12 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 	}
 	switch msg.String() {
 	case "ctrl+c":
-		m = m.dismissPreview()
+		m = m.closePreview()
+		m.overlay.previewWasPlaying = false
 		return m, tea.Quit, true
 	case "esc", "P":
-		m = m.dismissPreview()
-		return m, nil, true
+		m, cmd := m.dismissPreview()
+		return m, cmd, true
 	case "space":
 		if m.overlay.previewPlayer != nil {
 			if err := m.overlay.previewPlayer.TogglePause(); err != nil {
@@ -152,7 +153,7 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 
 // startPreviewCmd returns a tea.Cmd that launches a PreviewPlayer, loads the
 // given track, and returns a previewStartedMsg on success.
-func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
+func (m Model) startPreviewCmd(track library.Track, request uint64) tea.Cmd {
 	ctx := m.appCtx
 	runtimeDir := m.runtimeDir
 	tagsLine := m.buildTagsLine(track.Hash)
@@ -161,7 +162,7 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 		socketPath := filepath.Join(runtimeDir, "muse-preview.sock")
 		pp := player.NewPreviewPlayer(ctx, socketPath)
 		if err := pp.Start(); err != nil {
-			return previewStartErrorMsg{err: err}
+			return previewStartErrorMsg{err: err, request: request}
 		}
 		if normalize {
 			if err := pp.SetAudioFilter("lavfi=[loudnorm]"); err != nil {
@@ -170,10 +171,11 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 		}
 		if err := pp.LoadAndPlay(track.Path); err != nil {
 			_ = pp.Close()
-			return previewStartErrorMsg{err: err}
+			return previewStartErrorMsg{err: err, request: request}
 		}
 		return previewStartedMsg{
-			player: pp,
+			player:  pp,
+			request: request,
 			overlay: overlay.PreviewOverlay{
 				Hash:      track.Hash,
 				Artist:    track.Artist,
@@ -186,22 +188,53 @@ func (m Model) startPreviewCmd(track library.Track) tea.Cmd {
 	}
 }
 
-// dismissPreview stops the preview player, clears the overlay, and resumes
-// main playback if it was playing before the preview started.
-func (m Model) dismissPreview() Model {
+// pauseForPreviewCmd orders the main-player pause after every request already
+// dispatched by the Update loop. The preview itself is started only when the
+// result is handled, after this command confirms the pause took effect.
+func (m *Model) pauseForPreviewCmd(track library.Track) tea.Cmd {
+	gate := m.playback.requests
+	req := gate.dispatchControl(m.playback.requestSeq)
+	m.playback.requestSeq = req
+	p := m.player
+	return func() tea.Msg {
+		err, ran := gate.run(req, p.Pause)
+		return previewPauseResultMsg{request: req, track: track, err: err, ran: ran}
+	}
+}
+
+// resumeAfterPreview queues main playback behind every earlier selection and
+// transport operation. The optimistic state keeps dismissal behavior
+// responsive; the ordinary control result restores it if Play fails.
+func (m Model) resumeAfterPreview() (Model, tea.Cmd) {
+	wasPlaying := m.overlay.previewWasPlaying
+	m.overlay.previewWasPlaying = false
+	if !wasPlaying || m.player == nil {
+		return m, nil
+	}
+	before := m.playback.state
+	m.playback.state = playback.StatePlaying
+	cmd := m.playbackControlCmd(
+		playbackControlPlay,
+		m.player.Play,
+		before,
+		m.playback.state,
+	)
+	return m, cmd
+}
+
+func (m Model) closePreview() Model {
 	if m.overlay.previewPlayer != nil {
 		_ = m.overlay.previewPlayer.Close()
 	}
 	m.overlay.preview = nil
 	m.overlay.previewPlayer = nil
 	m.overlay.previewDurationFilled = false
-	if m.overlay.previewWasPlaying && m.player != nil {
-		if err := m.player.Play(); err != nil {
-			slog.Warn("player resume after preview failed", "err", err)
-		} else {
-			m.playback.state = playback.StatePlaying
-		}
-	}
-	m.overlay.previewWasPlaying = false
 	return m
+}
+
+// dismissPreview stops the preview player, clears the overlay, and resumes
+// main playback if it was playing before the preview started.
+func (m Model) dismissPreview() (Model, tea.Cmd) {
+	m = m.closePreview()
+	return m.resumeAfterPreview()
 }
