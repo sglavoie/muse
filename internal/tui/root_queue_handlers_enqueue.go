@@ -196,7 +196,8 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	// a row the user has already moved away from. The gate lets the newest
 	// request through and supersedes the rest.
 	gate := m.playback.requests
-	req := gate.dispatch(m.playback.playRequestSeq)
+	req := gate.dispatch(m.playback.requestSeq)
+	m.playback.requestSeq = req
 	m.playback.playRequestSeq = req
 	p := m.player
 	idx := msg.Index

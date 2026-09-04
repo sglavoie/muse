@@ -1,14 +1,41 @@
 package tui
 
 import (
+	"runtime"
 	"slices"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
+
+func waitForPlayRequestWait(t *testing.T, gate *playRequestGate, req uint64) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		gate.mu.Lock()
+		state := gate.pending[req]
+		waiting := state != nil && state.waiting
+		gate.mu.Unlock()
+		if waiting {
+			return
+		}
+		runtime.Gosched()
+	}
+	t.Fatalf("request %d never waited for the pending selection", req)
+}
+
+func playbackControlResult(t *testing.T, msg tea.Msg) playbackControlResultMsg {
+	t.Helper()
+	result, ok := msg.(playbackControlResultMsg)
+	if !ok {
+		t.Fatalf("expected playbackControlResultMsg, got %T", msg)
+	}
+	return result
+}
 
 // This file covers the other half of the play-request ordering: what happens to
 // a selection that is still queued when playback is taken away from under it.
@@ -147,6 +174,133 @@ func TestStopSupersedesInFlightPlayRequest(t *testing.T) {
 		}
 		if m.playback.currentIndex != 2 {
 			t.Errorf("currentIndex = %d, want 2", m.playback.currentIndex)
+		}
+	})
+}
+
+// TestPlaybackControlsOrderAfterPendingSelection covers FR-013. A transport
+// control issued after an optimistic queue selection must act on the selected
+// physical row, even when its tea.Cmd goroutine runs before the selection's.
+func TestPlaybackControlsOrderAfterPendingSelection(t *testing.T) {
+	tests := []struct {
+		name        string
+		action      keys.Action
+		controlCall string
+		wantIndex   int
+		wantPaused  bool
+	}{
+		{name: "pause", action: keys.ActionPlayPause, controlCall: "Pause", wantIndex: 2, wantPaused: true},
+		{name: "next", action: keys.ActionNext, controlCall: "Next", wantIndex: 3},
+		{name: "previous", action: keys.ActionPrevious, controlCall: "Previous", wantIndex: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m, p := stoppableReplayModel([]int{0, 1, 2, 3, 4}, 0)
+			m, selection := m.handlePlayQueueIndexMsg(playback.PlayQueueIndexMsg{Index: 2})
+			if selection == nil {
+				t.Fatal("selection returned no player command")
+			}
+
+			next, control, handled := m.handlePlaybackKeyAction(tc.action)
+			if !handled || control == nil {
+				t.Fatal("transport action was not queued")
+			}
+			m = next.(Model)
+			controlReq := m.playback.requestSeq
+
+			controlDone := make(chan tea.Msg, 1)
+			go func() { controlDone <- control() }()
+			waitForPlayRequestWait(t, m.playback.requests, controlReq)
+			if len(p.calls) != 0 {
+				t.Fatalf("player calls before selection release = %v", p.calls)
+			}
+
+			selectionResult := runPlayCmd(t, selection)
+			controlResult := playbackControlResult(t, <-controlDone)
+			if selectionResult.Err != nil || controlResult.err != nil {
+				t.Fatalf("ordered calls failed: selection=%v control=%v",
+					selectionResult.Err, controlResult.err)
+			}
+			if !slices.Equal(p.calls, []string{"PlayFromIndex", tc.controlCall}) {
+				t.Fatalf("player calls = %v, want [PlayFromIndex %s]", p.calls, tc.controlCall)
+			}
+
+			// The player emits the selected row's start-file before the later
+			// control's state change. Feed those reports in the same order.
+			m, _ = m.handleTrackChangedMsg(trackChangeFor(m, 2))
+			if tc.action == keys.ActionPlayPause {
+				m, _ = m.handlePauseChangedMsg(playback.PauseChangedMsg{Paused: true})
+			} else {
+				m, _ = m.handleTrackChangedMsg(trackChangeFor(m, tc.wantIndex))
+			}
+			m, _ = m.handlePlaybackControlResultMsg(controlResult)
+
+			traversal := p.QueueTraversal()
+			if got := traversal.Order[traversal.CurrentPosition]; got != tc.wantIndex {
+				t.Errorf("player index = %d, want %d", got, tc.wantIndex)
+			}
+			if m.playback.currentIndex != tc.wantIndex {
+				t.Errorf("model index = %d, want %d", m.playback.currentIndex, tc.wantIndex)
+			}
+			if p.paused != tc.wantPaused {
+				t.Errorf("player paused = %t, want %t", p.paused, tc.wantPaused)
+			}
+			wantState := playback.StatePlaying
+			if tc.wantPaused {
+				wantState = playback.StatePaused
+			}
+			if m.playback.state != wantState {
+				t.Errorf("model state = %v, want %v", m.playback.state, wantState)
+			}
+		})
+	}
+
+	t.Run("play after pause", func(t *testing.T) {
+		m, p := stoppableReplayModel([]int{0, 1, 2, 3, 4}, 0)
+		m, selection := m.handlePlayQueueIndexMsg(playback.PlayQueueIndexMsg{Index: 2})
+
+		next, pauseCmd, _ := m.handlePlaybackKeyAction(keys.ActionPlayPause)
+		m = next.(Model)
+		pauseReq := m.playback.requestSeq
+		next, playCmd, _ := m.handlePlaybackKeyAction(keys.ActionPlayPause)
+		m = next.(Model)
+		playReq := m.playback.requestSeq
+
+		pauseDone := make(chan tea.Msg, 1)
+		playDone := make(chan tea.Msg, 1)
+		go func() { pauseDone <- pauseCmd() }()
+		go func() { playDone <- playCmd() }()
+		waitForPlayRequestWait(t, m.playback.requests, pauseReq)
+		waitForPlayRequestWait(t, m.playback.requests, playReq)
+
+		selectionResult := runPlayCmd(t, selection)
+		pauseResult := playbackControlResult(t, <-pauseDone)
+		playResult := playbackControlResult(t, <-playDone)
+		if selectionResult.Err != nil || pauseResult.err != nil || playResult.err != nil {
+			t.Fatalf("ordered calls failed: selection=%v pause=%v play=%v",
+				selectionResult.Err, pauseResult.err, playResult.err)
+		}
+		if !slices.Equal(p.calls, []string{"PlayFromIndex", "Pause", "Play"}) {
+			t.Fatalf("player calls = %v, want [PlayFromIndex Pause Play]", p.calls)
+		}
+
+		m = m.handlePlayFromIndexResultMsg(selectionResult)
+		m, _ = m.handleTrackChangedMsg(trackChangeFor(m, 2))
+		m, _ = m.handlePauseChangedMsg(playback.PauseChangedMsg{Paused: false})
+		m, _ = m.handlePlaybackControlResultMsg(pauseResult)
+		m, _ = m.handlePlaybackControlResultMsg(playResult)
+
+		traversal := p.QueueTraversal()
+		if got := traversal.Order[traversal.CurrentPosition]; got != 2 {
+			t.Errorf("player index = %d, want selected row 2", got)
+		}
+		if p.paused {
+			t.Error("player stayed paused after the later Play control")
+		}
+		if m.playback.currentIndex != 2 || m.playback.state != playback.StatePlaying {
+			t.Errorf("model = index %d state %v, want selected row 2 playing",
+				m.playback.currentIndex, m.playback.state)
 		}
 	})
 }

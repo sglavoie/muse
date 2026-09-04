@@ -12,6 +12,86 @@ import (
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
+type playbackControl uint8
+
+const (
+	playbackControlPause playbackControl = iota
+	playbackControlPlay
+	playbackControlNext
+	playbackControlPrevious
+)
+
+// playbackControlResultMsg reports an asynchronously ordered transport call.
+// before/after let a failed optimistic pause toggle restore the state it
+// replaced, provided no unrelated player event has moved the model elsewhere.
+type playbackControlResultMsg struct {
+	request uint64
+	control playbackControl
+	before  playback.State
+	after   playback.State
+	err     error
+	ran     bool
+}
+
+// playbackControlCmd queues a transport operation behind every earlier player
+// request. The wait occurs in this tea.Cmd, never on the Bubble Tea Update
+// goroutine.
+func (m *Model) playbackControlCmd(
+	control playbackControl,
+	call func() error,
+	before playback.State,
+	after playback.State,
+) tea.Cmd {
+	gate := m.playback.requests
+	req := gate.dispatchControl(m.playback.requestSeq)
+	m.playback.requestSeq = req
+	return func() tea.Msg {
+		err, ran := gate.run(req, call)
+		return playbackControlResultMsg{
+			request: req,
+			control: control,
+			before:  before,
+			after:   after,
+			err:     err,
+			ran:     ran,
+		}
+	}
+}
+
+func (m Model) handlePlaybackControlResultMsg(msg playbackControlResultMsg) (Model, tea.Cmd) {
+	if msg.request != m.playback.requestSeq || !msg.ran {
+		return m, nil
+	}
+	if msg.err != nil {
+		if m.playback.state == msg.after {
+			m.playback.state = msg.before
+		}
+		label := playbackControlLabel(msg.control)
+		slog.Warn(label+" failed", "err", msg.err)
+		m.statusBar.Notify(label + " failed: " + msg.err.Error())
+		return m, nil
+	}
+	if msg.control == playbackControlPause {
+		return m, m.sessionPositionCmd()
+	}
+	return m, nil
+}
+
+func playbackControlLabel(control playbackControl) string {
+	switch control {
+	case playbackControlPause:
+		return "Pause"
+	case playbackControlPlay:
+		return "Play"
+	case playbackControlNext:
+		return "Next"
+	case playbackControlPrevious:
+		return "Previous"
+	default:
+		return "Playback control"
+	}
+}
+
 // handlePlaybackKeyAction handles playback-related key actions (play/pause,
 // stop, next, previous, seek, volume, repeat, shuffle, preview, now-playing).
 // It returns true in the third value when the action was handled.
@@ -90,24 +170,29 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if m.player != nil {
 			switch {
 			case m.playback.state == playback.StatePlaying:
-				if err := m.player.Pause(); err != nil {
-					slog.Warn("pause failed", "err", err)
-					m.statusBar.Notify("Pause failed: " + err.Error())
-				} else {
-					m.playback.state = playback.StatePaused
-				}
-				return m, m.sessionPositionCmd(), true
+				before := m.playback.state
+				m.playback.state = playback.StatePaused
+				cmd := m.playbackControlCmd(
+					playbackControlPause,
+					m.player.Pause,
+					before,
+					m.playback.state,
+				)
+				return m, cmd, true
 			case len(m.queue.Entries) == 0:
 				m.statusBar.Notify("Queue is empty")
 				return m, nil, true
 			default:
 				if m.playback.state == playback.StatePaused {
-					if err := m.player.Play(); err != nil {
-						slog.Warn("play failed", "err", err)
-						m.statusBar.Notify("Play failed: " + err.Error())
-					} else {
-						m.playback.state = playback.StatePlaying
-					}
+					before := m.playback.state
+					m.playback.state = playback.StatePlaying
+					cmd := m.playbackControlCmd(
+						playbackControlPlay,
+						m.player.Play,
+						before,
+						m.playback.state,
+					)
+					return m, cmd, true
 				} else {
 					idx := m.playback.currentIndex
 					if idx < 0 || idx >= len(m.queue.Entries) {
@@ -157,18 +242,24 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		return m, m.sessionPositionCmd(), true
 	case keys.ActionNext:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.Next(); err != nil {
-				slog.Warn("next failed", "err", err)
-				m.statusBar.Notify("Next failed: " + err.Error())
-			}
+			cmd := m.playbackControlCmd(
+				playbackControlNext,
+				cp.Next,
+				m.playback.state,
+				m.playback.state,
+			)
+			return m, cmd, true
 		}
 		return m, nil, true
 	case keys.ActionPrevious:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.Previous(); err != nil {
-				slog.Warn("previous failed", "err", err)
-				m.statusBar.Notify("Previous failed: " + err.Error())
-			}
+			cmd := m.playbackControlCmd(
+				playbackControlPrevious,
+				cp.Previous,
+				m.playback.state,
+				m.playback.state,
+			)
+			return m, cmd, true
 		}
 		return m, nil, true
 	case keys.ActionSeekBack:

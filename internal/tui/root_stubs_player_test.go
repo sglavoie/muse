@@ -436,6 +436,7 @@ func (f *fakeTraversalPlayer) ResumeAfterQueueExtension() (int, error) {
 type fakeStoppablePlayer struct {
 	*fakeTraversalPlayer
 	stopped   bool
+	paused    bool
 	stopCalls int
 	stopErr   error
 	// calls interleaves the stops with the loads, so a test can assert which of
@@ -455,6 +456,18 @@ func (f *fakeStoppablePlayer) Stop() error {
 	}
 	f.stopped = true
 	f.prefetched = -1
+	return nil
+}
+
+func (f *fakeStoppablePlayer) Play() error {
+	f.calls = append(f.calls, "Play")
+	f.paused = false
+	return nil
+}
+
+func (f *fakeStoppablePlayer) Pause() error {
+	f.calls = append(f.calls, "Pause")
+	f.paused = true
 	return nil
 }
 
@@ -485,13 +498,30 @@ func (f *fakeStoppablePlayer) ResumeAfterQueueExtension() (int, error) {
 	return idx, err
 }
 
-// The rest of commandPlayer is inert: the teardown tests never issue these, but
-// the interface is all-or-nothing and Stop is only reachable through it.
+// The seek and volume calls stay inert; transport movement advances the fake
+// traversal so ordering tests can observe which physical row received it.
 func (f *fakeStoppablePlayer) SeekAbsolute(float64) error      { return nil }
 func (f *fakeStoppablePlayer) SeekRelative(float64) error      { return nil }
 func (f *fakeStoppablePlayer) SetVolumeRelative(float64) error { return nil }
-func (f *fakeStoppablePlayer) Next() error                     { return nil }
-func (f *fakeStoppablePlayer) Previous() error                 { return nil }
+func (f *fakeStoppablePlayer) Next() error {
+	f.calls = append(f.calls, "Next")
+	if f.pos+1 < len(f.order) {
+		f.pos++
+		f.loaded = append(f.loaded, f.order[f.pos])
+		f.resolvePrefetch()
+	}
+	return nil
+}
+
+func (f *fakeStoppablePlayer) Previous() error {
+	f.calls = append(f.calls, "Previous")
+	if f.pos > 0 {
+		f.pos--
+		f.loaded = append(f.loaded, f.order[f.pos])
+		f.resolvePrefetch()
+	}
+	return nil
+}
 
 // stubFailingVolumePlayer extends stubCommandPlayer to return errors from
 // SetVolumeRelative, used to test volume-drift prevention.

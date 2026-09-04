@@ -172,6 +172,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case playback.PlayFromIndexResultMsg:
 		m = m.handlePlayFromIndexResultMsg(msg)
 
+	case playbackControlResultMsg:
+		return m.handlePlaybackControlResultMsg(msg)
+
 	case playback.MissingTrackSelectedMsg:
 		return m.handleMissingTrackSelectedMsg(msg)
 

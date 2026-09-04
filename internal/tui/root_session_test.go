@@ -22,11 +22,15 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	m.playback.currentHash = "abc123"
 	m.playback.elapsedSecs = 42.5 // 42500 ms
 
-	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if cmd == nil {
+		t.Fatal("pause: expected non-nil player command")
+	}
+	_, cmd = next.(Model).Update(cmd())
 	if cmd == nil {
 		t.Fatal("pause: expected non-nil cmd for session position write")
 	}
-	cmd() // execute the cmd to trigger the write
+	cmd()
 	if len(sw.positionCalls) != 1 {
 		t.Fatalf("pause: expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
 	}
@@ -38,17 +42,21 @@ func TestPauseEmitsSessionPositionWriteCmd(t *testing.T) {
 	}
 }
 
-// TestPauseWithoutSessionWriterReturnsNilCmd verifies that pausing without a
-// session writer returns nil from the Cmd (no-op write path).
+// TestPauseWithoutSessionWriterReturnsNilCmd verifies that after the ordered
+// pause call finishes, its follow-up session write is nil without a writer.
 func TestPauseWithoutSessionWriterReturnsNilCmd(t *testing.T) {
 	p := &stubPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 	m.playback.state = playback.StatePlaying
 	m.queue.Entries = []queue.Entry{{ID: 1, Display: "Track"}}
 
-	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
-	if cmd != nil {
-		t.Fatal("pause without session writer: expected nil cmd")
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if cmd == nil {
+		t.Fatal("pause without session writer: expected a player command")
+	}
+	_, sessionCmd := next.(Model).Update(cmd())
+	if sessionCmd != nil {
+		t.Fatal("pause without session writer: expected nil session cmd")
 	}
 }
 

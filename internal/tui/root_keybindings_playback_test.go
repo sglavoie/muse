@@ -87,7 +87,11 @@ func TestNextTrackKey(t *testing.T) {
 	p := &stubSeekPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 
-	m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	if cmd == nil {
+		t.Fatal("n key: expected an asynchronous Next command")
+	}
+	cmd()
 
 	if p.nextCalls != 1 {
 		t.Fatalf("n key: expected 1 Next() call, got %d", p.nextCalls)
@@ -99,7 +103,11 @@ func TestPreviousTrackKey(t *testing.T) {
 	p := &stubSeekPlayer{}
 	m := New(context.Background(), WithPlayer(p))
 
-	m.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
+	if cmd == nil {
+		t.Fatal("p key: expected an asynchronous Previous command")
+	}
+	cmd()
 
 	if p.prevCalls != 1 {
 		t.Fatalf("p key: expected 1 Previous() call, got %d", p.prevCalls)

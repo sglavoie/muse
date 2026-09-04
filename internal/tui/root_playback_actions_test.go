@@ -34,15 +34,25 @@ func TestSpacePauseResumeFromAnyView(t *testing.T) {
 			m.playback.state = playback.StatePaused
 			m.queue.Entries = []queue.Entry{{ID: 1, Display: "Track 1"}}
 
-			// Space while paused -> Play() called.
-			next, _ := m.Update(spaceMsg)
+			// Space while paused queues Play() off the Update goroutine.
+			next, cmd := m.Update(spaceMsg)
 			nm := next.(Model)
+			if cmd == nil {
+				t.Fatal("first space returned no player command")
+			}
+			next, _ = nm.Update(cmd())
+			nm = next.(Model)
 			if p.playCalls != 1 || p.pauseCalls != 0 {
 				t.Fatalf("first space (%s): expected 1 Play call, got play=%d pause=%d", tc.name, p.playCalls, p.pauseCalls)
 			}
 
 			// Space while playing -> Pause() called.
-			_, _ = nm.Update(spaceMsg)
+			next, cmd = nm.Update(spaceMsg)
+			nm = next.(Model)
+			if cmd == nil {
+				t.Fatal("second space returned no player command")
+			}
+			_, _ = nm.Update(cmd())
 			if p.playCalls != 1 || p.pauseCalls != 1 {
 				t.Fatalf("second space (%s): expected 1 Pause call, got play=%d pause=%d", tc.name, p.playCalls, p.pauseCalls)
 			}

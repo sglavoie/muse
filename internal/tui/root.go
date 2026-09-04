@@ -77,11 +77,14 @@ type playbackInfo struct {
 	durationCorrected bool    // true once mpv duration has been compared/corrected for the current track
 	queueExhausted    bool    // true when playback stopped because the queue ran out of tracks
 
-	// playRequestSeq is the identity of the most recent asynchronous play or
-	// replay request dispatched by handlePlayQueueIndexMsg. It only ever
-	// increases, and every dispatch stamps its result message with the value it
-	// took, so an outcome that a newer request has already superseded is
-	// recognisable even when both requests named the same queue occurrence.
+	// requestSeq is the identity of the newest ordered player request of any
+	// kind. playRequestSeq separately remembers the newest selection whose
+	// PlayFromIndexResultMsg is still authoritative: a later transport control
+	// must order after that selection without hiding a selection failure.
+	requestSeq uint64
+	// Every selection dispatch stamps its result message with playRequestSeq, so
+	// an outcome that a newer selection or teardown superseded is recognisable
+	// even when both requests named the same queue occurrence.
 	playRequestSeq uint64
 	// requests carries the same identity into the goroutines those requests run
 	// on, which is what makes them reach the player in dispatch order instead of
