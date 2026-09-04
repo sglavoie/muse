@@ -304,6 +304,21 @@ type Manager struct {
 	// consumed and withdrawn from both ends. Guarded by mu.
 	loadStartSeq uint64
 
+	// sentLoadStartSeq is the highest loadStartSeq whose `loadfile ... replace`
+	// mpv has answered. It is the observation boundary an event reader captures
+	// when its connection comes up, and it is deliberately not loadStartSeq:
+	// that number is assigned before the command is sent, so it records the
+	// intent to load rather than anything about the event the load produces.
+	//
+	// mpv emits the start-file while it is executing the loadfile, before it
+	// writes the reply, so an answered load is one whose start-file has already
+	// fired — to whatever connections existed then. A load still in flight is
+	// the opposite case: its event has not been emitted yet, so it will be
+	// broadcast to the connection that just came up, and the expectation
+	// recorded for it must survive that reader's adoption even though it was
+	// recorded before the dial. Guarded by mu.
+	sentLoadStartSeq uint64
+
 	// gaplessSuccessors counts the entries appended behind the file mpv is
 	// reported to be playing (generation startedLoadGen) that it may still
 	// start on its own. It is what distinguishes the two kinds of start-file:

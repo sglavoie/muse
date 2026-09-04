@@ -1145,6 +1145,188 @@ func readerAdoptionBoundaryScenario(t *testing.T, m *Manager, f *fakePlaylist, q
 	waitForCorrelatedLoad(t, m, f)
 }
 
+// TestEOF_ReaderAdoptionKeepsLoadWhoseCommandSpansDial is the deterministic
+// regression for the boundary itself: what places a load-start expectation on
+// one side or the other of a reader's connection.
+//
+// The expectation is recorded before the loadfile is sent, because mpv can emit
+// the start-file before the command's own reply comes back. Placing it against
+// the connection by *when it was recorded* therefore measures the Manager's
+// intent to load rather than anything about the event that load produces: a
+// replacement admitted just before the reader dials can still be parked inside
+// mpv while the connection is established, and mpv then executes it — and
+// broadcasts its start-file — with this reader already on the receiving end.
+//
+// Retiring that expectation does not lose one correlation, it shifts every
+// other. The spanning load's buffered start-file finds only the later
+// replacement's generation queued and takes it, so the entry that replacement
+// discarded reads as the one mpv is playing: the end-file it emitted before
+// being discarded passes eofState.superseded, promotes the selection's own
+// successor as if it had just started, and runs the completed-slot cleanup
+// against the selection's playlist — deleting the row mpv is actually playing.
+//
+// Both buffered events belong to a superseded entry, so both must decide
+// nothing: the last selection stands, and so do its prefetch, mpv's playlist,
+// and the traversal position.
+func TestEOF_ReaderAdoptionKeepsLoadWhoseCommandSpansDial(t *testing.T) {
+	t.Run("sequential", func(t *testing.T) {
+		m, f := newUnwiredFakePlaylistManager(t, "eof-dial-span-seq")
+		queue := queueOf(t, 6)
+		installQueue(m, queue, -1, true)
+		readerAdoptionDialSpanScenario(t, m, f, queue)
+	})
+
+	// The shuffle half moves the traversal rather than the visible index: a
+	// promotion here consumes an identity onto the cycle the last selection
+	// reanchored, leaving a Previous entry that was never heard.
+	t.Run("shuffled", func(t *testing.T) {
+		m, f := newUnwiredFakePlaylistManager(t, "eof-dial-span-shuf")
+		queue := queueOf(t, 6)
+		m.mu.Lock()
+		m.gaplessEnabled = true
+		m.mu.Unlock()
+		buildShuffleState(t, m, queue, 0, reversePermute)
+		readerAdoptionDialSpanScenario(t, m, f, queue)
+	})
+}
+
+// readerAdoptionDialSpanScenario plays one load with no reader connected at all,
+// parks the next one inside mpv and brings the reader up while it is still in
+// flight, admits a third once that one has played out, and only then lets the
+// reader adopt and read everything mpv emitted meanwhile.
+//
+// The manager it is given must still have its callbacks unwired: that park is
+// what holds startEventReader between its dial and its adoption, so the spanning
+// load can be released with the connection established and nothing yet adopted.
+func readerAdoptionDialSpanScenario(t *testing.T, m *Manager, f *fakePlaylist, queue []QueueTrack) {
+	t.Helper()
+
+	// Model mpv's broadcast, so "this reader could not have seen it" is a fact
+	// about the fake and not merely about timing.
+	f.dropUnsubscribedEvents()
+
+	// A load performed with no event reader anywhere. mpv answers it, so its
+	// start-file has already fired by the time anything connects: this is the
+	// expectation the adoption must retire.
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForPlayingWithSuccessor(t, queue[0].Path)
+	appendsBefore := f.count(isLoadfileAppend)
+
+	// The next replacement is parked inside mpv before it can execute, so its
+	// expectation is recorded while its start-file is still to come.
+	gate := f.block(t, "loadfile:replace")
+	spanning := make(chan error, 1)
+	go func() { spanning <- m.PlayFromIndex(2) }()
+	gate.waitArrived(t, "the replacement that spans the reader's dial")
+
+	// The reader connects on top of that in-flight command. The fake relaying
+	// its stream proves the dial returned — the boundary is captured between the
+	// two — and the unwired callbacks then park the reader before it adopts.
+	go m.startEventReader(m.ctx, nil)
+	f.waitForEventStream(t)
+
+	// Freeze the stream at the socket. Everything mpv emits from here is
+	// observable to this reader and none of it is read yet, which is the state
+	// the adoption below has to reason about.
+	release := f.holdEvents(t)
+
+	// Let the parked load through. Its refill is refused so the entry it starts
+	// ends alone: the end-file that follows is then the only event between the
+	// two start-files, and each start-file answers exactly one load.
+	f.failCommandOnce("loadfile:append-play", "mpv rejected the append")
+	f.unblock("loadfile:replace")
+	if err := <-spanning; err != nil {
+		t.Fatalf("PlayFromIndex(2): %v", err)
+	}
+	f.waitFor(t, "the spanning replacement to attempt its refill", func() bool {
+		return f.count(isLoadfileAppend) > appendsBefore
+	})
+	f.clearFailure("loadfile:append-play")
+	if got := f.entriesSnapshot(); !slices.Equal(got, paths(queue, 2)) {
+		t.Fatalf("entries = %v, want %v: the superseded entry must end without a successor",
+			got, paths(queue, 2))
+	}
+	supersededGen := loadGenOf(m)
+
+	// It plays out, so the end-file of an entry the next replacement is about to
+	// discard now sits between the two unread start-files.
+	f.finishCurrent()
+
+	// The last replacement supersedes all of it and prefetches its own successor
+	// behind itself, still before the reader has adopted anything.
+	if err := m.PlayFromIndex(4); err != nil {
+		t.Fatalf("PlayFromIndex(4): %v", err)
+	}
+	f.waitForPlayingWithSuccessor(t, queue[4].Path)
+	// The append reaches mpv before the tracking that describes it is recorded,
+	// so the playlist holding two entries is not yet proof that the Manager has a
+	// promotable successor. Wait for the tracking itself.
+	f.waitFor(t, "the selection's own successor to be tracked", func() bool {
+		got, gen := prefetchTracking(m)
+		return got.index >= 0 && got.gen == gen
+	})
+	selectedGen := loadGenOf(m)
+
+	wantEntries := f.entriesSnapshot()
+	wantPrefetch, _ := prefetchTracking(m)
+	removalsBefore := f.count(isPlaylistRemove)
+	replacesBefore := f.count(isLoadfileReplace)
+	if got := pendingLoadStartsOf(m); len(got) != 3 {
+		t.Fatalf("pendingLoadStarts = %v, want the unobserved load plus the spanning one and the selection", got)
+	}
+
+	// Wiring the callbacks releases the parked reader into its adoption. The
+	// stream is still frozen, so nothing consumes the queue behind it and the
+	// length it settles on is the adoption's own decision.
+	m.SetEventCallbacks(noopEventCallbacks())
+	f.waitFor(t, "the reader to adopt the current load", func() bool {
+		return len(pendingLoadStartsOf(m)) != 3
+	})
+	if got := pendingLoadStartsOf(m); !slices.Equal(got, []uint64{supersededGen, selectedGen}) {
+		t.Fatalf("pendingLoadStarts = %v, want %v: adoption retired the load whose command was still "+
+			"in flight when this reader dialled, whose start-file it will read",
+			got, []uint64{supersededGen, selectedGen})
+	}
+
+	// Only now does the reader reach the buffered events, in the order mpv
+	// emitted them.
+	drainHeldEvents(t, m, f, release)
+	// The damage a promotion does lands in its background maintenance, after the
+	// decision itself has returned.
+	time.Sleep(150 * time.Millisecond)
+
+	if got := currentIdx(m); got != 4 {
+		t.Fatalf("currentIndex = %d, want 4: the spanning load's start-file took the newer load's generation", got)
+	}
+	if got := f.playingPath(); got != queue[4].Path {
+		t.Fatalf("mpv is playing %q, want the selected %q", got, queue[4].Path)
+	}
+	if got := f.entriesSnapshot(); !slices.Equal(got, wantEntries) {
+		t.Fatalf("entries = %v, want %v: the selected row and its successor", got, wantEntries)
+	}
+	if got, _ := prefetchTracking(m); got != wantPrefetch {
+		t.Fatalf("prefetch = %+v, want %+v: a superseded EOF consumed the selection's successor",
+			got, wantPrefetch)
+	}
+	if got := f.count(isPlaylistRemove); got != removalsBefore {
+		t.Fatalf("playlist-remove count = %d, want %d: the superseded EOF ran its completed-slot cleanup "+
+			"against the selection's playlist", got, removalsBefore)
+	}
+	if got := f.count(isLoadfileReplace); got != replacesBefore {
+		t.Fatalf("loadfile replace count = %d, want %d: the superseded EOF sent an advance of its own",
+			got, replacesBefore)
+	}
+	if history, pos, _ := shuffleSnapshotForTest(m); len(history) > 1 || pos > 0 {
+		t.Fatalf("shuffleHistory = %v pos = %d, want the reanchored selection alone: "+
+			"a superseded EOF committed onto the new cycle", history, pos)
+	}
+	// The correlation must land on the generation the last selection loaded, or
+	// the next genuine end-file would be discarded and the queue would stall.
+	waitForCorrelatedLoad(t, m, f)
+}
+
 // TestEOF_GaplessTransitionRemovesCompletedSlotBeforeAppending covers the happy
 // path and the ordering inside it: mpv advances to the prefetched entry on its
 // own, and the maintenance that follows removes the finished entry before

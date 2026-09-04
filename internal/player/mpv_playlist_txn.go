@@ -151,12 +151,17 @@ func (m *Manager) noteFileStarted(gapless bool) {
 // load in the stream of loads this process has issued.
 //
 // seq exists for the event reader's observation boundary. mpv broadcasts an
-// event to the connections that exist when it fires, so an expectation recorded
-// before a reader's event connection came up names a start-file that reader can
-// never be handed, while one recorded afterwards names an event it will read.
-// Nothing else separates the two: the generation moves for reasons unrelated to
-// when the reader connected, and the queue's own length says nothing about when
-// any particular entry joined it.
+// event to the connections that exist when it fires, so an expectation whose
+// start-file was already emitted when a reader's connection came up names an
+// event that reader can never be handed, while one whose load had not been
+// executed yet names an event it will read. Nothing else separates the two: the
+// generation moves for reasons unrelated to when the reader connected, and the
+// queue's own length says nothing about when any particular entry joined it.
+//
+// The number is compared against sentLoadStartSeq rather than loadStartSeq, so
+// what places an expectation against the connection is the moment mpv answered
+// its load — the only observable that says the start-file has fired — and not
+// the earlier moment the Manager decided to send it.
 type pendingLoadStart struct {
 	gen uint64
 	seq uint64
@@ -178,13 +183,40 @@ type pendingLoadStart struct {
 // rejects the load, consumed by the start-file that answers it, or retired by
 // retireLoadStartsLocked when the reader that was owed it is gone.
 //
+// It returns the sequence number it recorded, which the caller hands to
+// noteLoadStartSent once mpv has answered the load.
+//
 // The caller must hold m.mu.
-func (m *Manager) expectLoadStartLocked() {
+func (m *Manager) expectLoadStartLocked() uint64 {
 	m.loadStartSeq++
 	m.pendingLoadStarts = append(m.pendingLoadStarts, pendingLoadStart{
 		gen: m.loadGen,
 		seq: m.loadStartSeq,
 	})
+	return m.loadStartSeq
+}
+
+// noteLoadStartSent records that mpv has answered the load recorded under seq,
+// which is what places that load's start-file in time: mpv emits the event while
+// it executes the loadfile and replies afterwards, so the answer proves the
+// event has already fired.
+//
+// It is the observation boundary an event reader captures on connecting, and it
+// is why a load whose command spans that dial keeps its expectation: nothing has
+// answered it, so its start-file is still to come and the new connection will be
+// handed it.
+//
+// It never moves backwards. Loads are sent one at a time under playlistMu, and a
+// send deferred to the reconnect queue is replayed under it too, so the
+// answers arrive in the order the expectations were recorded — the guard is
+// there so a future path that breaks that ordering cannot silently widen the
+// boundary back over an unanswered load.
+func (m *Manager) noteLoadStartSent(seq uint64) {
+	m.mu.Lock()
+	if seq > m.sentLoadStartSeq {
+		m.sentLoadStartSeq = seq
+	}
+	m.mu.Unlock()
 }
 
 // cancelLoadStartLocked withdraws the expectation expectLoadStartLocked
@@ -208,6 +240,14 @@ func (m *Manager) cancelLoadStartLocked(gen uint64) {
 // start-files that went to sockets this reader never had from the ones naming
 // start-files it will read. adoptCurrentLoad retires exactly the former.
 //
+// The boundary is the last load mpv has *answered*, not the last one recorded.
+// A recorded load says only that the Manager decided to send it: the command can
+// still be blocked in the IPC send while this connection is being established,
+// and mpv then executes it — and emits its start-file — with this reader already
+// on the receiving end. Placing the boundary at the intent would retire that
+// expectation, and the first event this reader does read would consume a
+// generation belonging to a later load.
+//
 // It must be read before the reader blocks on anything, so the boundary
 // describes the connection rather than how long the reader took to reach its
 // scan loop: activateConnection opens the command gate before it spawns the
@@ -216,12 +256,13 @@ func (m *Manager) cancelLoadStartLocked(gen uint64) {
 func (m *Manager) loadStartBoundary() uint64 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.loadStartSeq
+	return m.sentLoadStartSeq
 }
 
-// retireLoadStartsLocked drops the expectations recorded at or before boundary,
-// for a reader that can never be handed the start-files answering them, and
-// keeps every expectation recorded after it.
+// retireLoadStartsLocked drops the expectations whose loads mpv had already
+// answered at boundary — their start-files were emitted to connections this
+// reader did not have — and keeps every expectation still unanswered then,
+// including one whose command was in flight across the reader's own dial.
 //
 // Retiring the whole queue instead would be wrong in the same way trimming it
 // to a fixed length was: the surviving entries name start-files this reader is
@@ -299,18 +340,22 @@ func (m *Manager) resyncGaplessSuccessorsLocked() {
 // in, and would discard every end-file after it.
 //
 // boundary is that reader's observation boundary, taken by loadStartBoundary as
-// soon as its connection existed. Every start-file owed to a load recorded
-// before it went to a socket this reader never had — activateConnection replays
-// the queued commands before it spawns the reader, so a queued replacement's own
-// start-file predates this connection too — and none of them will ever be
-// answered here: an expectation left behind would be consumed by the first
-// start-file this reader *can* read, handing that load a generation it did not
-// emit and making its own end-file read as superseded from the moment it began.
+// soon as its connection existed: the last load mpv had answered by then. Every
+// start-file owed to one of those went to a socket this reader never had —
+// activateConnection replays the queued commands before it spawns the reader, so
+// a queued replacement's own start-file predates this connection too — and none
+// of them will ever be answered here: an expectation left behind would be
+// consumed by the first start-file this reader *can* read, handing that load a
+// generation it did not emit and making its own end-file read as superseded from
+// the moment it began.
 //
-// Everything recorded after the boundary is the opposite case and must survive.
+// Everything mpv had not answered by then is the opposite case and must survive.
 // The command gate is open by the time the reader is spawned, so a live
 // replacement — several of them — can be admitted while it is still coming up,
-// and each one emits a start-file this connection receives.
+// and each one emits a start-file this connection receives. So does the one
+// whose command was already in flight when the reader dialled: it is unanswered
+// at the boundary precisely because mpv has not executed it yet, and it will
+// emit into this connection like the rest.
 //
 // The stamp follows from what is left. With the queue empty, the entry mpv is
 // playing is the one the live generation loaded. With expectations preserved,
@@ -486,7 +531,7 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		undo = commit()
 	}
 	m.beginReplacementLocked(entry.Path)
-	m.expectLoadStartLocked()
+	pendingSeq := m.expectLoadStartLocked()
 	pendingGen := m.loadGen
 	m.mu.Unlock()
 
@@ -494,6 +539,13 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		if _, err := c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no"); err != nil {
 			return err
 		}
+		// mpv has executed the load, so the start-file this expectation is
+		// waiting for has already been emitted. Recording that here rather than
+		// on the success path below is what makes the boundary describe the
+		// event: a send deferred to the reconnect queue is marked when the drain
+		// finally performs it, and a send still parked inside mpv is not marked
+		// at all, so a reader connecting meanwhile keeps its expectation.
+		m.noteLoadStartSent(pendingSeq)
 		m.bestEffortUnpauseWith(c)
 		return nil
 	})
