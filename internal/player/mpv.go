@@ -282,8 +282,8 @@ type Manager struct {
 	// of. Guarded by mu.
 	startedLoadGen uint64
 
-	// pendingLoadStarts is the FIFO of load generations whose `loadfile ...
-	// replace` has been sent but whose start-file the event reader has not
+	// pendingLoadStarts is the FIFO of load-start expectations whose `loadfile
+	// ... replace` has been sent but whose start-file the event reader has not
 	// consumed yet. mpv answers loads in the order they were sent, so the front
 	// of this queue names the generation of the next load-induced start-file
 	// however far behind the reader has fallen.
@@ -292,8 +292,17 @@ type Manager struct {
 	// it to a fixed length would relabel every start-file still queued behind
 	// the dropped entry. Its length is bounded by the reader's own backlog —
 	// every entry is withdrawn on a rejected load, consumed by the start-file
-	// answering it, or dropped with the reader that was owed it. Guarded by mu.
-	pendingLoadStarts []uint64
+	// answering it, or retired with the reader that was owed it. Guarded by mu.
+	pendingLoadStarts []pendingLoadStart
+
+	// loadStartSeq numbers the load-start expectations in the order they were
+	// recorded, so an expectation can be placed against the instant an event
+	// reader's connection came up. It is what makes the reader observation
+	// boundary expressible: the generation cannot say when a load was issued —
+	// it moves for reasons of its own and is handed back by a window that
+	// loaded nothing — and the queue's length cannot either, since entries are
+	// consumed and withdrawn from both ends. Guarded by mu.
+	loadStartSeq uint64
 
 	// gaplessSuccessors counts the entries appended behind the file mpv is
 	// reported to be playing (generation startedLoadGen) that it may still

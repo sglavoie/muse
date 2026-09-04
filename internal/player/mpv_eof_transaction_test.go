@@ -874,7 +874,7 @@ func TestEOF_ReaderRestartAdoptsTheLiveLoadGeneration(t *testing.T) {
 	m.loadGen++
 	m.mu.Unlock()
 
-	m.adoptCurrentLoad()
+	m.adoptCurrentLoad(m.loadStartBoundary())
 
 	// The entry mpv is playing now ends. It is the live one, so the queue keeps
 	// running: without the adoption its end-file looks superseded and is dropped.
@@ -963,6 +963,186 @@ func TestEOF_InitialActivationDropsUnobservedLoadStartExpectation(t *testing.T) 
 		got, gen := prefetchTracking(m)
 		return got.index == 4 && got.path == queue[4].Path && got.gen == gen
 	})
+}
+
+// TestEOF_ReaderAdoptionPreservesObservableLoadExpectations is the deterministic
+// regression for the other side of that adoption: the expectations it must not
+// retire.
+//
+// activateConnection opens the command gate when its drain completes and only
+// then spawns the event reader, so from the instant that reader's connection
+// exists until the instant it adopts, the manager keeps accepting explicit
+// selections — and every one of them emits a start-file to a socket this reader
+// is already on the receiving end of. Retiring the whole pending queue discards
+// those generations together with the prefix that really was unobservable.
+//
+// Two replacements in that window are what makes the loss visible. The first
+// buffered start-file then finds the queue empty and falls back to the live
+// generation, so the entry the second replacement discarded reads as the one mpv
+// is playing: the end-file it emitted before it was discarded passes
+// eofState.superseded, promotes the selection's own prefetch as if it were the
+// successor that had just started, and runs the completed-slot cleanup against
+// the selection's playlist — deleting the row mpv is actually playing.
+//
+// Both events belong to a superseded entry, so both must decide nothing: the
+// last selection stands, and so do its prefetch, mpv's playlist, and the
+// traversal position.
+func TestEOF_ReaderAdoptionPreservesObservableLoadExpectations(t *testing.T) {
+	t.Run("sequential", func(t *testing.T) {
+		m, f := newUnwiredFakePlaylistManager(t, "eof-adopt-boundary-seq")
+		queue := queueOf(t, 6)
+		installQueue(m, queue, -1, true)
+		readerAdoptionBoundaryScenario(t, m, f, queue)
+	})
+
+	// The shuffle half moves the traversal rather than the visible index: a
+	// promotion here consumes an identity onto the cycle the last selection
+	// reanchored, leaving a Previous entry that was never heard.
+	t.Run("shuffled", func(t *testing.T) {
+		m, f := newUnwiredFakePlaylistManager(t, "eof-adopt-boundary-shuf")
+		queue := queueOf(t, 6)
+		m.mu.Lock()
+		m.gaplessEnabled = true
+		m.mu.Unlock()
+		buildShuffleState(t, m, queue, 0, reversePermute)
+		readerAdoptionBoundaryScenario(t, m, f, queue)
+	})
+}
+
+// readerAdoptionBoundaryScenario replays a load with no reader connected, admits
+// two more once the reader's connection exists but before it has adopted, and
+// then lets that reader read everything mpv emitted while it was parked.
+//
+// The manager it is given must still have its callbacks unwired: that is what
+// holds startEventReader between its dial and its adoption, which is the window
+// under test.
+func readerAdoptionBoundaryScenario(t *testing.T, m *Manager, f *fakePlaylist, queue []QueueTrack) {
+	t.Helper()
+
+	// Model mpv's broadcast: the replayed load's start-file must be genuinely
+	// unobservable to the reader that comes up after it, not merely early.
+	f.dropUnsubscribedEvents()
+
+	// The manager is mid-activation — a client is installed but the gate is
+	// still closed — so this selection is captured for replay rather than sent.
+	m.mu.Lock()
+	client := m.client
+	m.activating = true
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	if got := f.count(isLoadfileReplace); got != 0 {
+		t.Fatalf("loadfile replace count = %d, want 0: the load was meant to be queued for replay", got)
+	}
+
+	// Activation replays it against mpv, rebuilds the prefetch, and spawns the
+	// reader. With the callbacks unwired the reader connects and then parks, so
+	// its event connection exists and it has adopted nothing.
+	m.activateConnection(m.ctx, client, nil)
+	f.waitForPlayingWithSuccessor(t, queue[0].Path)
+	f.waitForEventStream(t)
+
+	// Freeze the stream at the socket. Everything mpv emits from here is
+	// observable to this reader — it is connected — and none of it is read yet,
+	// which is exactly the state the adoption below has to reason about.
+	release := f.holdEvents(t)
+
+	// The first live replacement of the window. Its refill is refused so the
+	// entry it starts ends alone: the end-file that follows is then the only
+	// event between the two start-files, and each start-file answers exactly one
+	// load.
+	appendsBefore := f.count(isLoadfileAppend)
+	f.failCommandOnce("loadfile:append-play", "mpv rejected the append")
+	if err := m.PlayFromIndex(2); err != nil {
+		t.Fatalf("PlayFromIndex(2): %v", err)
+	}
+	f.waitFor(t, "the first admitted replacement to attempt its refill", func() bool {
+		return f.count(isLoadfileAppend) > appendsBefore
+	})
+	f.clearFailure("loadfile:append-play")
+	if got := f.entriesSnapshot(); !slices.Equal(got, paths(queue, 2)) {
+		t.Fatalf("entries = %v, want %v: the superseded entry must end without a successor",
+			got, paths(queue, 2))
+	}
+	supersededGen := loadGenOf(m)
+
+	// It plays out, so the end-file of an entry the next replacement is about to
+	// discard now sits between the two unread start-files.
+	f.finishCurrent()
+
+	// The second live replacement supersedes all of it and prefetches its own
+	// successor behind itself.
+	if err := m.PlayFromIndex(4); err != nil {
+		t.Fatalf("PlayFromIndex(4): %v", err)
+	}
+	f.waitForPlayingWithSuccessor(t, queue[4].Path)
+	// The append reaches mpv before the tracking that describes it is recorded,
+	// so the playlist holding two entries is not yet proof that the Manager has a
+	// promotable successor. Wait for the tracking itself.
+	f.waitFor(t, "the selection's own successor to be tracked", func() bool {
+		got, gen := prefetchTracking(m)
+		return got.index >= 0 && got.gen == gen
+	})
+	selectedGen := loadGenOf(m)
+
+	wantEntries := f.entriesSnapshot()
+	wantPrefetch, _ := prefetchTracking(m)
+	removalsBefore := f.count(isPlaylistRemove)
+	replacesBefore := f.count(isLoadfileReplace)
+	if got := pendingLoadStartsOf(m); len(got) != 3 {
+		t.Fatalf("pendingLoadStarts = %v, want the replayed load plus the two admitted since", got)
+	}
+
+	// Wiring the callbacks releases the parked reader into its adoption. The
+	// stream is still frozen, so nothing consumes the queue behind it and the
+	// length it settles on is the adoption's own decision.
+	m.SetEventCallbacks(noopEventCallbacks())
+	f.waitFor(t, "the reader to adopt the current load", func() bool {
+		return len(pendingLoadStartsOf(m)) != 3
+	})
+	if got := pendingLoadStartsOf(m); !slices.Equal(got, []uint64{supersededGen, selectedGen}) {
+		t.Fatalf("pendingLoadStarts = %v, want %v: adoption retired a generation whose start-file "+
+			"this reader can still read", got, []uint64{supersededGen, selectedGen})
+	}
+
+	// Only now does the reader reach the buffered events, in the order mpv
+	// emitted them.
+	drainHeldEvents(t, m, f, release)
+	// The damage a promotion does lands in its background maintenance, after the
+	// decision itself has returned.
+	time.Sleep(150 * time.Millisecond)
+
+	if got := currentIdx(m); got != 4 {
+		t.Fatalf("currentIndex = %d, want 4: a buffered load start-file took the newer load's generation", got)
+	}
+	if got := f.playingPath(); got != queue[4].Path {
+		t.Fatalf("mpv is playing %q, want the selected %q", got, queue[4].Path)
+	}
+	if got := f.entriesSnapshot(); !slices.Equal(got, wantEntries) {
+		t.Fatalf("entries = %v, want %v: the selected row and its successor", got, wantEntries)
+	}
+	if got, _ := prefetchTracking(m); got != wantPrefetch {
+		t.Fatalf("prefetch = %+v, want %+v: a superseded EOF consumed the selection's successor",
+			got, wantPrefetch)
+	}
+	if got := f.count(isPlaylistRemove); got != removalsBefore {
+		t.Fatalf("playlist-remove count = %d, want %d: the superseded EOF ran its completed-slot cleanup "+
+			"against the selection's playlist", got, removalsBefore)
+	}
+	if got := f.count(isLoadfileReplace); got != replacesBefore {
+		t.Fatalf("loadfile replace count = %d, want %d: the superseded EOF sent an advance of its own",
+			got, replacesBefore)
+	}
+	if history, pos, _ := shuffleSnapshotForTest(m); len(history) > 1 || pos > 0 {
+		t.Fatalf("shuffleHistory = %v pos = %d, want the reanchored selection alone: "+
+			"a superseded EOF committed onto the new cycle", history, pos)
+	}
+	// The correlation must land on the generation the last selection loaded, or
+	// the next genuine end-file would be discarded and the queue would stall.
+	waitForCorrelatedLoad(t, m, f)
 }
 
 // TestEOF_GaplessTransitionRemovesCompletedSlotBeforeAppending covers the happy
@@ -1352,11 +1532,25 @@ func gaplessSuccessorsOf(m *Manager) int {
 }
 
 // pendingLoadStartsOf reads the load generations still waiting for the
-// start-file that answers them. An entry the event reader can never be handed —
-// one whose event was emitted before the reader connected — is a stale
-// correlation that the next start-file would consume in its place.
+// start-file that answers them, in queue order. An entry the event reader can
+// never be handed — one whose event was emitted before the reader connected — is
+// a stale correlation that the next start-file would consume in its place; an
+// entry retired even though its event is still coming is the same error
+// mirrored, and shows up here as a generation that has gone missing.
 func pendingLoadStartsOf(m *Manager) []uint64 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return append([]uint64(nil), m.pendingLoadStarts...)
+	gens := make([]uint64, 0, len(m.pendingLoadStarts))
+	for _, pending := range m.pendingLoadStarts {
+		gens = append(gens, pending.gen)
+	}
+	return gens
+}
+
+// loadGenOf reads the live load generation, which after a completed replacement
+// is the generation that replacement loaded.
+func loadGenOf(m *Manager) uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.loadGen
 }

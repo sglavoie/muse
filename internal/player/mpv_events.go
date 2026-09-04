@@ -55,6 +55,15 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	}
 	defer conn.Close()
 
+	// The connection exists, so mpv broadcasts to it every event it emits from
+	// here on. Capture the observation boundary now, before anything below can
+	// block: the command gate is already open by the time activateConnection
+	// spawns this goroutine, so the loads recorded from this point are live
+	// replacements whose start-files this reader will read, and the adoption
+	// below has to keep their generations rather than retire them along with the
+	// prefix that was emitted before this dial.
+	boundary := m.loadStartBoundary()
+
 	// Close the connection when the context is cancelled so the scanner
 	// unblocks and the goroutine exits cleanly.
 	done := make(chan struct{})
@@ -106,8 +115,11 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	// reader connected (race during reconnect / session restore). That same
 	// unobserved start-file is what adoptCurrentLoad accounts for: the
 	// end-file correlation below would otherwise still name the load
-	// generation the previous reader last saw a file start in.
-	m.adoptCurrentLoad()
+	// generation the previous reader last saw a file start in. It retires the
+	// expectations from before the boundary captured above and keeps the ones
+	// belonging to replacements admitted since — this wait on the callbacks is
+	// itself part of that window.
+	m.adoptCurrentLoad(boundary)
 	m.emitCurrentTrackChanged()
 
 	// gaplessStart carries the one fact the previous event settled and the next

@@ -653,6 +653,21 @@ func mustSend(t *testing.T, c *IPCClient, args ...any) {
 // client, with no-op callbacks installed so the event reader can run.
 func newFakePlaylistManager(t *testing.T, name string) (*Manager, *fakePlaylist) {
 	t.Helper()
+	m, f := newUnwiredFakePlaylistManager(t, name)
+	m.SetEventCallbacks(noopEventCallbacks())
+	return m, f
+}
+
+// newUnwiredFakePlaylistManager is newFakePlaylistManager with the callbacks
+// left unwired, so startEventReader parks on callbacksReady — after its event
+// connection is established and before it adopts the current load.
+//
+// That park is the only deterministic handle on the interval between the two,
+// which is the window in which a live replacement's start-file is already
+// observable but not yet accounted for. Call SetEventCallbacks with
+// noopEventCallbacks to release it.
+func newUnwiredFakePlaylistManager(t *testing.T, name string) (*Manager, *fakePlaylist) {
+	t.Helper()
 	f := newFakePlaylist(t, name)
 
 	m := NewManager(f.sock)
@@ -666,14 +681,19 @@ func newFakePlaylistManager(t *testing.T, name string) (*Manager, *fakePlaylist)
 	m.mu.Lock()
 	m.client = client
 	m.mu.Unlock()
-	m.SetEventCallbacks(EventCallbacks{
+	return m, f
+}
+
+// noopEventCallbacks is the callback set the fake-playlist tests install: every
+// hook wired, none of them doing anything.
+func noopEventCallbacks() EventCallbacks {
+	return EventCallbacks{
 		OnStatus:        func(string) {},
 		OnMissingFile:   func(string) {},
 		OnPlaybackEnded: func() {},
 		OnTrackChanged:  func(_, _, _, _ string, _ int) {},
 		OnPauseChanged:  func(bool) {},
-	})
-	return m, f
+	}
 }
 
 // runEventReader starts the manager's event reader against the fake and waits

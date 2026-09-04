@@ -146,6 +146,22 @@ func (m *Manager) noteFileStarted(gapless bool) {
 	m.resyncGaplessSuccessorsLocked()
 }
 
+// pendingLoadStart is one unanswered load-start expectation: the load
+// generation a `loadfile ... replace` was sent in, and the position of that
+// load in the stream of loads this process has issued.
+//
+// seq exists for the event reader's observation boundary. mpv broadcasts an
+// event to the connections that exist when it fires, so an expectation recorded
+// before a reader's event connection came up names a start-file that reader can
+// never be handed, while one recorded afterwards names an event it will read.
+// Nothing else separates the two: the generation moves for reasons unrelated to
+// when the reader connected, and the queue's own length says nothing about when
+// any particular entry joined it.
+type pendingLoadStart struct {
+	gen uint64
+	seq uint64
+}
+
 // expectLoadStartLocked records that a load has been sent in the live
 // generation, so the start-file answering it is correlated with the generation
 // that emitted it however long the event reader takes to get there.
@@ -159,12 +175,16 @@ func (m *Manager) noteFileStarted(gapless bool) {
 //
 // The queue is bounded by how far behind the event reader has fallen rather
 // than by a constant: an entry is withdrawn by cancelLoadStartLocked when mpv
-// rejects the load, consumed by the start-file that answers it, or dropped
-// wholesale by adoptCurrentLoad when the reader that was owed it is gone.
+// rejects the load, consumed by the start-file that answers it, or retired by
+// retireLoadStartsLocked when the reader that was owed it is gone.
 //
 // The caller must hold m.mu.
 func (m *Manager) expectLoadStartLocked() {
-	m.pendingLoadStarts = append(m.pendingLoadStarts, m.loadGen)
+	m.loadStartSeq++
+	m.pendingLoadStarts = append(m.pendingLoadStarts, pendingLoadStart{
+		gen: m.loadGen,
+		seq: m.loadStartSeq,
+	})
 }
 
 // cancelLoadStartLocked withdraws the expectation expectLoadStartLocked
@@ -175,9 +195,54 @@ func (m *Manager) expectLoadStartLocked() {
 // The caller must hold m.mu.
 func (m *Manager) cancelLoadStartLocked(gen uint64) {
 	n := len(m.pendingLoadStarts)
-	if n > 0 && m.pendingLoadStarts[n-1] == gen {
+	if n > 0 && m.pendingLoadStarts[n-1].gen == gen {
 		m.pendingLoadStarts = m.pendingLoadStarts[:n-1]
 	}
+}
+
+// loadStartBoundary captures the observation boundary of an event reader whose
+// connection has just been established.
+//
+// mpv broadcasts an event to the connections that exist at the instant it
+// fires, so this instant separates the load-start expectations naming
+// start-files that went to sockets this reader never had from the ones naming
+// start-files it will read. adoptCurrentLoad retires exactly the former.
+//
+// It must be read before the reader blocks on anything, so the boundary
+// describes the connection rather than how long the reader took to reach its
+// scan loop: activateConnection opens the command gate before it spawns the
+// reader, so live replacements can be admitted throughout that interval, and
+// every one of them emits a start-file this connection receives.
+func (m *Manager) loadStartBoundary() uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.loadStartSeq
+}
+
+// retireLoadStartsLocked drops the expectations recorded at or before boundary,
+// for a reader that can never be handed the start-files answering them, and
+// keeps every expectation recorded after it.
+//
+// Retiring the whole queue instead would be wrong in the same way trimming it
+// to a fixed length was: the surviving entries name start-files this reader is
+// about to read, and dropping them makes the first of those fall back to the
+// live generation. The entry it belongs to then reads as the one mpv is playing
+// even though a later replacement has already discarded it, and the end-file it
+// emitted before that is acted on against the selection that displaced it.
+//
+// The caller must hold m.mu.
+func (m *Manager) retireLoadStartsLocked(boundary uint64) {
+	retired := 0
+	for retired < len(m.pendingLoadStarts) && m.pendingLoadStarts[retired].seq <= boundary {
+		retired++
+	}
+	if retired == len(m.pendingLoadStarts) {
+		// Drop the backing array rather than re-slice to an empty tail, the way
+		// takeLoadStartLocked does once the reader has caught up.
+		m.pendingLoadStarts = nil
+		return
+	}
+	m.pendingLoadStarts = m.pendingLoadStarts[retired:]
 }
 
 // takeLoadStartLocked consumes the generation of the next load-induced
@@ -190,7 +255,7 @@ func (m *Manager) takeLoadStartLocked() uint64 {
 	if len(m.pendingLoadStarts) == 0 {
 		return m.loadGen
 	}
-	gen := m.pendingLoadStarts[0]
+	gen := m.pendingLoadStarts[0].gen
 	m.pendingLoadStarts = m.pendingLoadStarts[1:]
 	if len(m.pendingLoadStarts) == 0 {
 		// Drop the backing array instead of re-slicing further into it. A reader
@@ -227,32 +292,59 @@ func (m *Manager) resyncGaplessSuccessorsLocked() {
 	}
 }
 
-// adoptCurrentLoad re-stamps the entry mpv is playing with the live load
-// generation, for an event reader that is starting mid-playback: a reconnect or
-// a subprocess restart emits its start-file to a socket this reader was not yet
-// scanning. Without it the correlation would keep naming a generation this
-// reader never saw a file start in, and would discard every end-file after it.
+// adoptCurrentLoad re-stamps the entry mpv is playing for an event reader that
+// is starting mid-playback: a reconnect or a subprocess restart emits its
+// start-file to a socket this reader was not yet scanning. Without it the
+// correlation would keep naming a generation this reader never saw a file start
+// in, and would discard every end-file after it.
 //
-// Every start-file the recorded loads were owed went to that same unscanned
-// socket — activateConnection replays the queued commands before it spawns the
-// reader, so a queued replacement's own start-file predates this connection
-// too. None of them will ever be answered here, so the whole queue is retired
-// unconditionally: an expectation left behind would be consumed by the first
+// boundary is that reader's observation boundary, taken by loadStartBoundary as
+// soon as its connection existed. Every start-file owed to a load recorded
+// before it went to a socket this reader never had — activateConnection replays
+// the queued commands before it spawns the reader, so a queued replacement's own
+// start-file predates this connection too — and none of them will ever be
+// answered here: an expectation left behind would be consumed by the first
 // start-file this reader *can* read, handing that load a generation it did not
 // emit and making its own end-file read as superseded from the moment it began.
 //
-// The stamp is a separate matter. A reader that has never observed a file start
-// leaves the correlation disarmed instead of claiming the live generation for
-// an entry it knows nothing about; retiring the queue is what keeps the first
-// load it does observe correlated with itself.
-func (m *Manager) adoptCurrentLoad() {
+// Everything recorded after the boundary is the opposite case and must survive.
+// The command gate is open by the time the reader is spawned, so a live
+// replacement — several of them — can be admitted while it is still coming up,
+// and each one emits a start-file this connection receives.
+//
+// The stamp follows from what is left. With the queue empty, the entry mpv is
+// playing is the one the live generation loaded. With expectations preserved,
+// the loads they name have not started as far as this reader is concerned, so
+// what it will see ending first still belongs to the generation the oldest of
+// them displaced. A reader that has never observed a file start leaves the
+// correlation disarmed either way, instead of claiming a generation for an entry
+// it knows nothing about.
+func (m *Manager) adoptCurrentLoad(boundary uint64) {
 	m.mu.Lock()
-	m.pendingLoadStarts = nil
+	m.retireLoadStartsLocked(boundary)
 	if m.startedLoadGen != 0 {
-		m.startedLoadGen = m.loadGen
+		m.startedLoadGen = m.observedLoadGenLocked()
 	}
 	m.resyncGaplessSuccessorsLocked()
 	m.mu.Unlock()
+}
+
+// observedLoadGenLocked names the generation of the entry mpv is playing as far
+// as a newly connected reader can tell.
+//
+// A surviving expectation is what makes this differ from the live generation:
+// beginReplacementLocked opens a generation one above the one it displaces, so
+// the oldest unanswered load names the entry it superseded exactly. Stamping the
+// live generation over that would make an entry a replacement has already
+// discarded read as the live one, and the end-file it emitted before being
+// discarded would then advance the queue past the selection that replaced it.
+//
+// The caller must hold m.mu.
+func (m *Manager) observedLoadGenLocked() uint64 {
+	if len(m.pendingLoadStarts) == 0 {
+		return m.loadGen
+	}
+	return m.pendingLoadStarts[0].gen - 1
 }
 
 // beginReplacement is beginReplacementLocked for a caller that does not hold m.mu.
