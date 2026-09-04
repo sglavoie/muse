@@ -233,20 +233,25 @@ func (m *Manager) resyncGaplessSuccessorsLocked() {
 // scanning. Without it the correlation would keep naming a generation this
 // reader never saw a file start in, and would discard every end-file after it.
 //
-// Every start-file the previous reader was owed went to that same unscanned
-// socket, so the loads still waiting for one will never be answered on this
-// reader and their expectations are dropped with it.
+// Every start-file the recorded loads were owed went to that same unscanned
+// socket — activateConnection replays the queued commands before it spawns the
+// reader, so a queued replacement's own start-file predates this connection
+// too. None of them will ever be answered here, so the whole queue is retired
+// unconditionally: an expectation left behind would be consumed by the first
+// start-file this reader *can* read, handing that load a generation it did not
+// emit and making its own end-file read as superseded from the moment it began.
 //
-// A reader that has never observed a file start leaves the correlation
-// disarmed instead of claiming the live generation for an entry it knows
-// nothing about.
+// The stamp is a separate matter. A reader that has never observed a file start
+// leaves the correlation disarmed instead of claiming the live generation for
+// an entry it knows nothing about; retiring the queue is what keeps the first
+// load it does observe correlated with itself.
 func (m *Manager) adoptCurrentLoad() {
 	m.mu.Lock()
+	m.pendingLoadStarts = nil
 	if m.startedLoadGen != 0 {
 		m.startedLoadGen = m.loadGen
-		m.pendingLoadStarts = nil
-		m.resyncGaplessSuccessorsLocked()
 	}
+	m.resyncGaplessSuccessorsLocked()
 	m.mu.Unlock()
 }
 

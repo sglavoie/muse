@@ -886,6 +886,85 @@ func TestEOF_ReaderRestartAdoptsTheLiveLoadGeneration(t *testing.T) {
 	assertPrefetch(t, m, queue, 2)
 }
 
+// TestEOF_InitialActivationDropsUnobservedLoadStartExpectation covers the
+// adoption path on a reader whose correlation has never been armed.
+//
+// activateConnection replays the commands captured during the outage and only
+// then spawns the event reader, so a queued playlist replacement reaches mpv
+// while nothing is scanning the event socket: the start-file it produces is
+// broadcast to connections that do not exist yet, and the expectation recorded
+// for it can never be answered. Retiring those expectations only when
+// startedLoadGen is nonzero leaves this one in place — an initial reader's
+// correlation is deliberately disarmed — and the next load's start-file then
+// consumes the dead generation instead of its own. That load reads as
+// superseded from the instant it starts, its end-file is discarded, and
+// auto-advance stalls with mpv idle at the end of the track.
+func TestEOF_InitialActivationDropsUnobservedLoadStartExpectation(t *testing.T) {
+	m, f := newFakePlaylistManager(t, "eof-initial-reader-adopt")
+	queue := queueOf(t, 5)
+	installQueue(m, queue, -1, true)
+	// Model mpv's broadcast: the replayed load's start-file must be genuinely
+	// unobservable to the reader that comes up after it, not merely early.
+	f.dropUnsubscribedEvents()
+
+	// The manager is mid-activation — a client is installed but the gate is
+	// still closed — so the selection is captured for replay rather than sent,
+	// and no event reader exists to observe what replaying it will produce.
+	m.mu.Lock()
+	client := m.client
+	m.activating = true
+	m.cmdQueue = []func() error{}
+	m.mu.Unlock()
+
+	if err := m.PlayFromIndex(0); err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	if got := f.count(isLoadfileReplace); got != 0 {
+		t.Fatalf("loadfile replace count = %d, want 0: the load was meant to be queued for replay", got)
+	}
+
+	// Activation replays it against mpv, rebuilds the prefetch, and only then
+	// starts the reader.
+	m.activateConnection(m.ctx, client, nil)
+	f.waitForEntries(t, paths(queue, 0, 1))
+	f.waitForEventStream(t)
+
+	// The expectation that replay left behind names a start-file this reader
+	// cannot ever read, so the adoption has to retire it.
+	f.waitFor(t, "the initial reader to retire the unobservable load expectation", func() bool {
+		return len(pendingLoadStartsOf(m)) == 0
+	})
+
+	// A load performed now is the first one this reader can correlate, and it
+	// must be stamped with its own generation rather than with the retired one.
+	if err := m.PlayFromIndex(2); err != nil {
+		t.Fatalf("PlayFromIndex(2): %v", err)
+	}
+	f.waitForEntries(t, paths(queue, 2, 3))
+	waitForCorrelatedLoad(t, m, f)
+	// Wait for the successor to be tracked and counted rather than merely
+	// present in mpv's playlist: appendPrefetchLocked records the tracking only
+	// after the command returns, and a promotion decided before that lands
+	// would take the fallback advance instead.
+	f.waitFor(t, "the selection's successor to be tracked as a gapless one", func() bool {
+		got, gen := prefetchTracking(m)
+		return got.index == 3 && got.gen == gen && gaplessSuccessorsOf(m) == 1
+	})
+
+	// Its end-file is therefore live: mpv moves into the prefetched successor
+	// and the queue keeps running instead of stopping at the end of the track.
+	f.finishCurrent()
+	waitForCurrentIndex(t, m, 3)
+	if got := f.playingPath(); got != queue[3].Path {
+		t.Fatalf("mpv is playing %q, want the promoted successor %q", got, queue[3].Path)
+	}
+	f.waitForEntries(t, paths(queue, 3, 4))
+	f.waitFor(t, "the promoted transition to refill the prefetch", func() bool {
+		got, gen := prefetchTracking(m)
+		return got.index == 4 && got.path == queue[4].Path && got.gen == gen
+	})
+}
+
 // TestEOF_GaplessTransitionRemovesCompletedSlotBeforeAppending covers the happy
 // path and the ordering inside it: mpv advances to the prefetched entry on its
 // own, and the maintenance that follows removes the finished entry before
@@ -1270,4 +1349,14 @@ func gaplessSuccessorsOf(m *Manager) int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.gaplessSuccessors
+}
+
+// pendingLoadStartsOf reads the load generations still waiting for the
+// start-file that answers them. An entry the event reader can never be handed —
+// one whose event was emitted before the reader connected — is a stale
+// correlation that the next start-file would consume in its place.
+func pendingLoadStartsOf(m *Manager) []uint64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]uint64(nil), m.pendingLoadStarts...)
 }

@@ -47,6 +47,14 @@ type fakePlaylist struct {
 	// accepting commands and keeps emitting, but the manager's event reader
 	// sees nothing until the hold is released.
 	eventHold chan struct{}
+	// subscribers counts the connections currently relaying the async event
+	// stream, and dropUnsubscribed makes emit discard whatever fires while
+	// that count is zero. mpv broadcasts an event to the clients connected at
+	// the instant it fires, so a reader that comes up afterwards never sees
+	// it; the fake otherwise buffers every event on one channel and would hand
+	// that late reader the events emitted before it connected.
+	subscribers      int
+	dropUnsubscribed bool
 
 	events chan string
 	done   chan struct{}
@@ -154,6 +162,14 @@ func (f *fakePlaylist) serve(conn net.Conn) {
 	dec := json.NewDecoder(conn)
 
 	streaming := false
+	defer func() {
+		if streaming {
+			f.mu.Lock()
+			f.subscribers--
+			f.mu.Unlock()
+		}
+	}()
+
 	for {
 		var req ipcTestRequest
 		if err := dec.Decode(&req); err != nil {
@@ -168,6 +184,9 @@ func (f *fakePlaylist) serve(conn net.Conn) {
 		}
 		if !streaming && req.Command.stringIs(0, cmdObserveProperty) {
 			streaming = true
+			f.mu.Lock()
+			f.subscribers++
+			f.mu.Unlock()
 			go f.stream(conn, &writeMu)
 		}
 	}
@@ -367,6 +386,12 @@ func (f *fakePlaylist) finishCurrent() {
 // nothing is draining them, so a test that never subscribes cannot wedge the
 // server behind a full channel.
 func (f *fakePlaylist) emit(events ...string) {
+	f.mu.Lock()
+	unobservable := f.dropUnsubscribed && f.subscribers == 0
+	f.mu.Unlock()
+	if unobservable {
+		return
+	}
 	for _, e := range events {
 		select {
 		case f.events <- e:
@@ -445,6 +470,31 @@ func (f *fakePlaylist) holdEvents(t *testing.T) func() {
 	}
 	t.Cleanup(release)
 	return release
+}
+
+// dropUnsubscribedEvents makes the fake discard the events it emits while no
+// client is relaying its async stream, which is how mpv behaves: an event goes
+// to the connections that exist when it fires and is gone afterwards. Use it
+// for a test whose premise is an event the manager's reader could not have
+// observed — one emitted by a load that reached mpv before that reader
+// connected — since the buffered stream would otherwise deliver it late.
+func (f *fakePlaylist) dropUnsubscribedEvents() {
+	f.mu.Lock()
+	f.dropUnsubscribed = true
+	f.mu.Unlock()
+}
+
+// waitForEventStream blocks until the fake is relaying its async stream to a
+// connected client, so an event emitted after it returns is delivered rather
+// than dropped. The observe-property command reaching the fake is not that
+// barrier: the stream is attached only once that command has been answered.
+func (f *fakePlaylist) waitForEventStream(t *testing.T) {
+	t.Helper()
+	f.waitFor(t, "a client to subscribe to the event stream", func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.subscribers > 0
+	})
 }
 
 // unblock removes the barrier for key and releases anything parked on it.
