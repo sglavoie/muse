@@ -102,6 +102,20 @@ func (e *ipcAsyncEvent) boolData() (bool, bool, error) {
 	return value, true, nil
 }
 
+// stringData returns the event's payload as a string, or "" when it is absent,
+// null, or not a string — which is how mpv reports an unavailable property, such
+// as the path of a playlist that has gone idle.
+func (e *ipcAsyncEvent) stringData() string {
+	if e.isNullData() {
+		return ""
+	}
+	var value string
+	if err := json.Unmarshal(e.Data, &value); err != nil {
+		return ""
+	}
+	return value
+}
+
 // IPCClient is a thin JSON-IPC client for mpv's Unix domain socket protocol.
 // Each SendCommand call is synchronous: it writes a request and reads lines
 // until it finds the matching response (by request_id), buffering any async

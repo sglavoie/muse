@@ -293,6 +293,10 @@ type Manager struct {
 	// the dropped entry. Its length is bounded by the reader's own backlog —
 	// every entry is withdrawn on a rejected load, consumed by the start-file
 	// answering it, or retired with the reader that was owed it. Guarded by mu.
+	//
+	// Each entry also carries the file its load makes current, so a reader coming
+	// up mid-playback can recognise the expectation mpv answers with the entry it
+	// reports playing. See reconcileStartedLoad.
 	pendingLoadStarts []pendingLoadStart
 
 	// loadStartSeq numbers the load-start expectations in the order they were
@@ -316,7 +320,13 @@ type Manager struct {
 	// the opposite case: its event has not been emitted yet, so it will be
 	// broadcast to the connection that just came up, and the expectation
 	// recorded for it must survive that reader's adoption even though it was
-	// recorded before the dial. Guarded by mu.
+	// recorded before the dial.
+	//
+	// It is a lower bound on what has started and never an upper one: a load mpv
+	// is executing when the reader dials is unanswered too, and its start-file is
+	// just as unobservable. Only mpv naming the file it is playing separates
+	// those two, which is what reconcileStartedLoad does from the event stream
+	// once the reader is scanning it. Guarded by mu.
 	sentLoadStartSeq uint64
 
 	// gaplessSuccessors counts the entries appended behind the file mpv is

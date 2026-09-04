@@ -37,12 +37,13 @@ import (
 type fakePlaylist struct {
 	sock string
 
-	mu      sync.Mutex
-	entries []string
-	current int // playlist position of the current entry; -1 when idle
-	log     []ipcTestCommand
-	fails   map[string]*fakeFailure
-	gates   map[string]*fakeGate
+	mu         sync.Mutex
+	entries    []string
+	current    int // playlist position of the current entry; -1 when idle
+	log        []ipcTestCommand
+	fails      map[string]*fakeFailure
+	gates      map[string]*fakeGate
+	replyGates map[string]*fakeGate
 	// eventHold, while non-nil, parks the async event stream: mpv keeps
 	// accepting commands and keeps emitting, but the manager's event reader
 	// sees nothing until the hold is released.
@@ -55,6 +56,9 @@ type fakePlaylist struct {
 	// that late reader the events emitted before it connected.
 	subscribers      int
 	dropUnsubscribed bool
+	// pathObserved records that a client has subscribed to the path property
+	// and the initial value that subscription emits is already on the stream.
+	pathObserved bool
 
 	events chan string
 	done   chan struct{}
@@ -120,12 +124,13 @@ func newFakePlaylistAt(t *testing.T, sock string) *fakePlaylist {
 	t.Helper()
 
 	f := &fakePlaylist{
-		sock:    sock,
-		current: -1,
-		fails:   make(map[string]*fakeFailure),
-		gates:   make(map[string]*fakeGate),
-		events:  make(chan string, 64),
-		done:    make(chan struct{}),
+		sock:       sock,
+		current:    -1,
+		fails:      make(map[string]*fakeFailure),
+		gates:      make(map[string]*fakeGate),
+		replyGates: make(map[string]*fakeGate),
+		events:     make(chan string, 64),
+		done:       make(chan struct{}),
 	}
 
 	os.Remove(f.sock)
@@ -191,12 +196,18 @@ func (f *fakePlaylist) serve(conn net.Conn) {
 		if err != nil {
 			return
 		}
-		if !streaming && req.Command.stringIs(0, cmdObserveProperty) {
+		if !req.Command.stringIs(0, cmdObserveProperty) {
+			continue
+		}
+		if !streaming {
 			streaming = true
 			f.mu.Lock()
 			f.subscribers++
 			f.mu.Unlock()
 			go f.stream(conn, &writeMu)
+		}
+		if req.Command.stringIs(2, propPath) {
+			f.notePathObserved()
 		}
 	}
 }
@@ -240,8 +251,8 @@ func (f *fakePlaylist) awaitEventRelease() bool {
 	}
 }
 
-// handle records the command, applies any barrier or forced failure, and then
-// mutates the modelled playlist.
+// handle records the command, applies any barrier or forced failure, mutates the
+// modelled playlist, and finally waits out any barrier installed on the reply.
 func (f *fakePlaylist) handle(req ipcTestRequest) ipcTestResponse {
 	cmd := req.Command
 	if len(cmd) == 0 {
@@ -253,6 +264,24 @@ func (f *fakePlaylist) handle(req ipcTestRequest) ipcTestResponse {
 		return errorResponse(req, "shutting down")
 	}
 
+	resp := f.perform(req, cmd, key)
+
+	// The reply is the last thing mpv does with a command: it has executed it and
+	// emitted whatever the execution produced by now. Parking here therefore
+	// models the interval a client spends still waiting on a load mpv has already
+	// started playing.
+	f.mu.Lock()
+	gate := f.replyGates[key]
+	f.mu.Unlock()
+	if !awaitGate(gate, f.done) {
+		return errorResponse(req, "shutting down")
+	}
+	return resp
+}
+
+// perform applies the forced failure for the command's key, if any, and
+// otherwise mutates the modelled playlist.
+func (f *fakePlaylist) perform(req ipcTestRequest, cmd ipcTestCommand, key string) ipcTestResponse {
 	if msg, failed := f.takeFailure(key); failed {
 		// mpv rejected the command, so the playlist is left untouched.
 		return errorResponse(req, msg)
@@ -276,6 +305,13 @@ func (f *fakePlaylist) record(key string, cmd ipcTestCommand) bool {
 	gate := f.gates[key]
 	f.mu.Unlock()
 
+	return awaitGate(gate, f.done)
+}
+
+// awaitGate announces a command's arrival at gate and blocks until it is
+// released. A nil gate passes straight through; it reports false when done
+// closed while the command was parked.
+func awaitGate(gate *fakeGate, done <-chan struct{}) bool {
 	if gate == nil {
 		return true
 	}
@@ -286,7 +322,7 @@ func (f *fakePlaylist) record(key string, cmd ipcTestCommand) bool {
 	select {
 	case <-gate.released:
 		return true
-	case <-f.done:
+	case <-done:
 		return false
 	}
 }
@@ -391,14 +427,44 @@ func (f *fakePlaylist) finishCurrent() {
 	f.emit(pending...)
 }
 
+// notePathObserved models mpv answering an observe of `path`: besides the
+// command reply, it emits the property's current value on the async stream,
+// ahead of whatever it emits next. That first property-change is what tells a
+// reader which file mpv was playing when its subscription landed.
+//
+// The value is sampled and queued in the same critical section that raises the
+// flag, so a test that waits for the flag knows the event on the stream names
+// the file mpv was playing before the wait returned — not one a command released
+// afterwards has since loaded.
+func (f *fakePlaylist) notePathObserved() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.emitLocked(pathEventLine(f.playingPathLocked()))
+	f.pathObserved = true
+}
+
+// pathEventLine is the property-change mpv emits for `path`. An idle playlist
+// has no current file, and mpv reports that unavailability as null data rather
+// than as an empty string.
+func pathEventLine(path string) string {
+	if path == "" {
+		return `{"event":"property-change","id":2,"name":"path","data":null}`
+	}
+	return fmt.Sprintf(`{"event":"property-change","id":2,"name":"path","data":%q}`, path)
+}
+
 // emit pushes raw event lines onto the async stream. Events are dropped when
 // nothing is draining them, so a test that never subscribes cannot wedge the
 // server behind a full channel.
 func (f *fakePlaylist) emit(events ...string) {
 	f.mu.Lock()
-	unobservable := f.dropUnsubscribed && f.subscribers == 0
-	f.mu.Unlock()
-	if unobservable {
+	defer f.mu.Unlock()
+	f.emitLocked(events...)
+}
+
+// emitLocked is emit for a caller that already holds f.mu.
+func (f *fakePlaylist) emitLocked(events ...string) {
+	if f.dropUnsubscribed && f.subscribers == 0 {
 		return
 	}
 	for _, e := range events {
@@ -453,6 +519,36 @@ func (f *fakePlaylist) block(t *testing.T, key string) *fakeGate {
 	return g
 }
 
+// blockReply parks the *reply* to every command with the given key, after the
+// fake has run it: mpv's playlist already holds the loaded file and its
+// start-file has already been emitted, while the client is still blocked in the
+// send. That interval is what separates the event from the answer, so a reader
+// connecting inside it sees neither.
+//
+// The gate is also released via t.Cleanup so a failed assertion cannot hang the
+// suite.
+func (f *fakePlaylist) blockReply(t *testing.T, key string) *fakeGate {
+	t.Helper()
+	g := &fakeGate{arrived: make(chan struct{}, 8), released: make(chan struct{})}
+	f.mu.Lock()
+	f.replyGates[key] = g
+	f.mu.Unlock()
+	t.Cleanup(g.release)
+	return g
+}
+
+// unblockReply removes the reply barrier for key and releases anything parked on
+// it.
+func (f *fakePlaylist) unblockReply(key string) {
+	f.mu.Lock()
+	g := f.replyGates[key]
+	delete(f.replyGates, key)
+	f.mu.Unlock()
+	if g != nil {
+		g.release()
+	}
+}
+
 // holdEvents stops the async event stream at the socket: mpv still runs every
 // command it is given and still emits, but nothing reaches the manager's event
 // reader until the returned release is called. It models an event socket the
@@ -494,15 +590,17 @@ func (f *fakePlaylist) dropUnsubscribedEvents() {
 }
 
 // waitForEventStream blocks until the fake is relaying its async stream to a
-// connected client, so an event emitted after it returns is delivered rather
-// than dropped. The observe-property command reaching the fake is not that
+// connected client and that client's path subscription has been answered, so an
+// event emitted after it returns is delivered rather than dropped, and the
+// initial path value already on the stream describes mpv as it was before the
+// caller went on. The observe-property command reaching the fake is not that
 // barrier: the stream is attached only once that command has been answered.
 func (f *fakePlaylist) waitForEventStream(t *testing.T) {
 	t.Helper()
 	f.waitFor(t, "a client to subscribe to the event stream", func() bool {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		return f.subscribers > 0
+		return f.subscribers > 0 && f.pathObserved
 	})
 }
 
@@ -536,6 +634,11 @@ func (f *fakePlaylist) currentPos() int {
 func (f *fakePlaylist) playingPath() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	return f.playingPathLocked()
+}
+
+// playingPathLocked is playingPath for a caller that already holds f.mu.
+func (f *fakePlaylist) playingPathLocked() string {
 	if f.current < 0 || f.current >= len(f.entries) {
 		return ""
 	}

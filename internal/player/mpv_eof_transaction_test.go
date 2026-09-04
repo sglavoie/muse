@@ -1327,6 +1327,131 @@ func readerAdoptionDialSpanScenario(t *testing.T, m *Manager, f *fakePlaylist, q
 	waitForCorrelatedLoad(t, m, f)
 }
 
+// TestEOF_ReaderAdoptionRetiresLoadWhoseEventPredatesDial is the deterministic
+// regression for the other end of that boundary: an expectation whose
+// start-file was emitted before the reader connected, but whose loadfile was
+// answered after.
+//
+// mpv emits the start-file while it executes a load and replies once it is
+// done, so the answer proves the event has fired and nothing proves it has not.
+// A load already executing when the reader dials is therefore unanswered at the
+// boundary — indistinguishable, by the reply alone, from one still parked
+// inside mpv — and adoption keeps its expectation for an event that went to
+// sockets this reader never had.
+//
+// Kept, it is consumed by the first start-file this reader *can* read. That
+// load is stamped with the generation of the one before it, so it reads as
+// superseded from the instant it begins: the end-file it emits at the end of
+// the track is discarded as belonging to a replaced entry, no advance is made,
+// and playback stops with mpv idle.
+//
+// The reply gate is what makes the window a fact rather than a timing: mpv has
+// loaded the file and emitted its start-file to nobody, and the Manager learns
+// the command returned only after the reader's connection exists.
+func TestEOF_ReaderAdoptionRetiresLoadWhoseEventPredatesDial(t *testing.T) {
+	t.Run("sequential", func(t *testing.T) {
+		m, f := newUnwiredFakePlaylistManager(t, "eof-predates-dial-seq")
+		queue := queueOf(t, 5)
+		installQueue(m, queue, -1, true)
+		readerAdoptionEventPredatesDialScenario(t, m, f, queue)
+	})
+
+	// The shuffle half runs the same window with the traversal driving the
+	// advance, so the correlation is proved live against a promotion that
+	// consumes a shuffle identity rather than the next row.
+	t.Run("shuffled", func(t *testing.T) {
+		m, f := newUnwiredFakePlaylistManager(t, "eof-predates-dial-shuf")
+		queue := queueOf(t, 5)
+		m.mu.Lock()
+		m.gaplessEnabled = true
+		m.mu.Unlock()
+		buildShuffleState(t, m, queue, 0, reversePermute)
+		readerAdoptionEventPredatesDialScenario(t, m, f, queue)
+	})
+}
+
+// readerAdoptionEventPredatesDialScenario parks a load's reply inside mpv once
+// it has already started playing the file, brings the reader up in that
+// interval, and only then lets the command return — so the expectation is
+// recorded before the dial, answered after it, and names a start-file that was
+// broadcast while no reader existed.
+//
+// The manager it is given must still have its callbacks unwired: that park is
+// what holds startEventReader between its dial and its adoption.
+func readerAdoptionEventPredatesDialScenario(t *testing.T, m *Manager, f *fakePlaylist, queue []QueueTrack) {
+	t.Helper()
+
+	// Model mpv's broadcast, so "this reader could not have seen it" is a fact
+	// about the fake and not merely about timing.
+	f.dropUnsubscribedEvents()
+
+	// The load runs inside mpv — its file is current and its start-file is
+	// emitted to the sockets that exist, which is none — and then parks on its
+	// way back to the Manager.
+	gate := f.blockReply(t, "loadfile:replace")
+	predating := make(chan error, 1)
+	go func() { predating <- m.PlayFromIndex(0) }()
+	gate.waitArrived(t, "the reply to the load whose start-file predates the dial")
+	if got := f.playingPath(); got != queue[0].Path {
+		t.Fatalf("mpv is playing %q, want %q: the load must have executed before its reply parks",
+			got, queue[0].Path)
+	}
+
+	// The reader connects on top of that unanswered command. Waiting for the
+	// stream proves the dial returned and mpv answered the path subscription, so
+	// what that subscription put on the stream names the file above.
+	go m.startEventReader(m.ctx, nil)
+	f.waitForEventStream(t)
+
+	// Only now does the load return, so the Manager marks it sent after the
+	// reader's boundary was captured: the reply says nothing about which side of
+	// the connection the event fell on.
+	f.unblockReply("loadfile:replace")
+	if err := <-predating; err != nil {
+		t.Fatalf("PlayFromIndex(0): %v", err)
+	}
+	f.waitForPlayingWithSuccessor(t, queue[0].Path)
+	if got := pendingLoadStartsOf(m); len(got) != 1 {
+		t.Fatalf("pendingLoadStarts = %v, want the one load recorded before the dial", got)
+	}
+
+	// Wiring the callbacks releases the parked reader into its adoption, and the
+	// path value already on the stream settles what the reply could not.
+	m.SetEventCallbacks(noopEventCallbacks())
+	f.waitFor(t, "the reader to retire the expectation whose start-file predates its dial", func() bool {
+		return len(pendingLoadStartsOf(m)) == 0
+	})
+
+	// A load performed now is the first one this reader can correlate, and it
+	// must be stamped with its own generation rather than with the retired one.
+	if err := m.PlayFromIndex(2); err != nil {
+		t.Fatalf("PlayFromIndex(2): %v", err)
+	}
+	f.waitForPlayingWithSuccessor(t, queue[2].Path)
+	waitForCorrelatedLoad(t, m, f)
+	// Wait for the successor to be tracked and counted rather than merely present
+	// in mpv's playlist: appendPrefetchLocked records the tracking only after the
+	// command returns, and a promotion decided before that lands would take the
+	// fallback advance instead.
+	f.waitFor(t, "the selection's successor to be tracked as a gapless one", func() bool {
+		got, gen := prefetchTracking(m)
+		return got.index >= 0 && got.gen == gen && gaplessSuccessorsOf(m) == 1
+	})
+	successor, _ := prefetchTracking(m)
+
+	// Its end-file is therefore live: mpv moves into the prefetched successor and
+	// the queue keeps running instead of stopping at the end of the track.
+	f.finishCurrent()
+	waitForCurrentIndex(t, m, successor.index)
+	if got := f.playingPath(); got != successor.path {
+		t.Fatalf("mpv is playing %q, want the promoted successor %q", got, successor.path)
+	}
+	f.waitFor(t, "the promoted transition to refill the prefetch", func() bool {
+		got, gen := prefetchTracking(m)
+		return got.index >= 0 && got.index != successor.index && got.gen == gen
+	})
+}
+
 // TestEOF_GaplessTransitionRemovesCompletedSlotBeforeAppending covers the happy
 // path and the ordering inside it: mpv advances to the prefetched entry on its
 // own, and the maintenance that follows removes the finished entry before

@@ -12,6 +12,37 @@ import (
 	"github.com/sglavoie/muse/internal/safego"
 )
 
+// mpv's observe ids for the properties the event reader subscribes to. They
+// name the subscription rather than the request, and mpv echoes them back on
+// every property-change; the reader keys off the property name, so they only
+// have to be distinct.
+const (
+	observeIDPause = 1
+	observeIDPath  = 2
+)
+
+// writeObserve subscribes the event connection to one mpv property. mpv answers
+// an observe by emitting the property's current value as a property-change on
+// the same stream, so the subscription doubles as a snapshot ordered against
+// every event that follows it.
+func writeObserve(conn net.Conn, id int, property string) error {
+	req, err := json.Marshal(ipcRequest{
+		Command:   []any{cmdObserveProperty, id, property},
+		RequestID: 0,
+	})
+	if err != nil {
+		// Marshalling a static request essentially never fails, but if it does
+		// the subscription cannot be established. It is reported like the write
+		// failure below so the caller restarts the generation rather than
+		// silently running without it.
+		return fmt.Errorf("marshal observe %s: %w", property, err)
+	}
+	if _, err := conn.Write(append(req, '\n')); err != nil {
+		return fmt.Errorf("observe %s: %w", property, err)
+	}
+	return nil
+}
+
 func (m *Manager) emitCurrentTrackChanged() {
 	m.mu.RLock()
 	idx := m.currentIndex
@@ -62,7 +93,7 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	// replacements whose start-files this reader will read, and the adoption
 	// below has to keep their generations rather than retire them along with the
 	// prefix that was emitted before this dial.
-	boundary := m.loadStartBoundary()
+	obs := m.loadStartBoundary()
 
 	// Close the connection when the context is cancelled so the scanner
 	// unblocks and the goroutine exits cleanly.
@@ -82,23 +113,20 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 
 	// Subscribe to mpv's pause property so we learn about external pause
 	// toggles (e.g. AirPods hardware button via macOS media key routing).
-	observeCmd, err := json.Marshal(ipcRequest{
-		Command:   []any{cmdObserveProperty, 1, propPause},
-		RequestID: 0,
-	})
-	if err != nil {
-		// Marshalling a static request essentially never fails, but if it does
-		// the pause subscription cannot be established; treat it like the write
-		// failure below so the generation restarts rather than silently
-		// running without external pause notifications.
-		slog.Warn("mpv: event reader: failed to marshal observe command", "err", err)
-		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: marshal observe: %w", err))
-		return
-	}
-	observeCmd = append(observeCmd, '\n')
-	if _, err := conn.Write(observeCmd); err != nil {
+	if err := writeObserve(conn, observeIDPause, propPause); err != nil {
 		slog.Warn("mpv: event reader: failed to observe pause property", "err", err)
 		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: observe pause: %w", err))
+		return
+	}
+	// Subscribe to path as well, for its initial value rather than for the
+	// changes: mpv answers an observe by emitting the property's current value
+	// on this stream, ahead of whatever it emits next. That first
+	// property-change is the one observable that places the file mpv is playing
+	// in the same sequence as the start-files around it, which is what
+	// reconcileStartedLoad needs and what a command reply cannot give.
+	if err := writeObserve(conn, observeIDPath, propPath); err != nil {
+		slog.Warn("mpv: event reader: failed to observe path property", "err", err)
+		m.handleConnectionFailure(ctx, client, fmt.Errorf("event reader: observe path: %w", err))
 		return
 	}
 
@@ -119,7 +147,7 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	// expectations from before the boundary captured above and keeps the ones
 	// belonging to replacements admitted since — this wait on the callbacks is
 	// itself part of that window.
-	m.adoptCurrentLoad(boundary)
+	m.adoptCurrentLoad(obs)
 	m.emitCurrentTrackChanged()
 
 	// gaplessStart carries the one fact the previous event settled and the next
@@ -129,6 +157,14 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 	// start-file is dispatched describes a state a replacement may have moved
 	// on from while both events sat buffered on the socket.
 	gaplessStart := false
+
+	// reconciled records that mpv's initial report of the file it is playing has
+	// been read. Only the first one can settle the adoption: every later
+	// property-change describes mpv after events this reader has already
+	// dispatched, and startedSeen says one of those has consumed an expectation,
+	// which leaves the queue no longer aligned with what mpv is naming.
+	reconciled := false
+	startedSeen := false
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
@@ -146,6 +182,7 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			// transition from one a replacement already superseded.
 			m.noteFileStarted(gaplessStart)
 			gaplessStart = false
+			startedSeen = true
 
 			// Immediately sync the position so that a crash right after track
 			// start resumes at the correct file (elapsed≈0) rather than the
@@ -176,19 +213,28 @@ func (m *Manager) startEventReader(ctx context.Context, client *IPCClient) {
 			// that can block to one ordered background operation.
 			gaplessStart = m.handleEndOfFile()
 		case "property-change":
-			if event.Name != propPause {
-				continue
-			}
-			paused, ok, err := event.boolData()
-			if err != nil || !ok {
-				continue
-			}
-			m.mu.Lock()
-			m.lastPaused = paused
-			fn := m.callbacks.OnPauseChanged
-			m.mu.Unlock()
-			if fn != nil {
-				fn(paused)
+			switch event.Name {
+			case propPause:
+				paused, ok, err := event.boolData()
+				if err != nil || !ok {
+					continue
+				}
+				m.mu.Lock()
+				m.lastPaused = paused
+				fn := m.callbacks.OnPauseChanged
+				m.mu.Unlock()
+				if fn != nil {
+					fn(paused)
+				}
+			case propPath:
+				if reconciled {
+					continue
+				}
+				reconciled = true
+				if startedSeen {
+					continue
+				}
+				m.reconcileStartedLoad(obs, event.stringData())
 			}
 		}
 	}
