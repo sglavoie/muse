@@ -109,9 +109,18 @@ func commandKey(cmd ipcTestCommand) string {
 // and every accepted connection are torn down via t.Cleanup.
 func newFakePlaylist(t *testing.T, name string) *fakePlaylist {
 	t.Helper()
+	return newFakePlaylistAt(t, shortSockPath(t, name))
+}
+
+// newFakePlaylistAt starts a fake playlist server on a caller-supplied socket
+// path, so a test can stand a second, empty one up where the first was after
+// the restart supervisor has torn the old process down. Everything else matches
+// newFakePlaylist.
+func newFakePlaylistAt(t *testing.T, sock string) *fakePlaylist {
+	t.Helper()
 
 	f := &fakePlaylist{
-		sock:    shortSockPath(t, name),
+		sock:    sock,
 		current: -1,
 		fails:   make(map[string]*fakeFailure),
 		gates:   make(map[string]*fakeGate),

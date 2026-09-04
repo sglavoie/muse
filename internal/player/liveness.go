@@ -30,6 +30,13 @@ package player
 // or through the two isolated session loads that bypass the transaction layer
 // (LoadFilePaused, loadFileAt).
 //
+// An mpv restart is not one of those operations, which is why liveness has to
+// survive it: the process is new but the traversal is the same one, and the
+// bookkeeping that says where it is (lastTrackPath, currentIndex) still names
+// the row an intentional end finished on. resumeAfterRestart is what keeps the
+// distinction — it carries this value into the recovery and only reaches
+// loadFileAt for a traversal that was still running.
+//
 // Pause and Stop are not ends: muse's Stop pauses and seeks to zero, so mpv
 // still holds the current entry and the traversal is still positioned on it.
 // Neither leaves mpv idle, so neither can be restarted by an append.

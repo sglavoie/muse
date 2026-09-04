@@ -37,12 +37,24 @@ type restoreState struct {
 	hasVolume  bool
 	repeatMode string
 	gapless    bool
+	// liveness is the logical playback liveness the outage interrupted. It is
+	// the one restore field that is not a property to re-send: it decides
+	// whether there is anything to resume at all. lastTrackPath keeps naming the
+	// row that finished after stop-after-current or a traversal that ran out, so
+	// the path alone cannot tell an interrupted track from a completed one.
+	liveness playbackLiveness
 }
 
 // snapshotRestore captures the current user-visible playback state under the
 // manager lock. Audio filters (normalize, EQ, stereo widening) are not copied
 // here: the audioFilters map itself survives the subprocess restart, so
 // restoreStableProperties re-reads it directly.
+//
+// Liveness is snapshotted with the rest, at the moment the outage began, rather
+// than read again when the resume runs: a user command issued during the outage
+// queues through the transaction layer and marks the traversal live for a load
+// it will replay itself once the connection is back, and resuming the
+// pre-outage entry on top of it would play a row nobody selected.
 func (m *Manager) snapshotRestore() restoreState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -54,6 +66,7 @@ func (m *Manager) snapshotRestore() restoreState {
 		hasVolume:  m.volumeKnown,
 		repeatMode: m.repeatMode,
 		gapless:    m.gaplessEnabled,
+		liveness:   m.liveness,
 	}
 }
 
@@ -193,13 +206,43 @@ func (m *Manager) attemptRestart(restore restoreState) bool {
 		// Stable properties first, resume second (replay of queued user
 		// commands happens afterwards, inside activateConnection).
 		m.restoreStableProperties(restore)
-		if restore.path != "" {
-			if err := m.loadFileAt(restore.path, restore.elapsed, restore.paused); err != nil {
-				slog.Warn("mpv: resume after restart failed", "err", err)
-			}
-		}
+		m.resumeAfterRestart(restore)
 	})
 	return true
+}
+
+// resumeAfterRestart reinstates the entry the outage interrupted on the fresh
+// mpv process — but only when there was one.
+//
+// A restart is process health, and process health is not playback liveness. The
+// fields that describe *where* the traversal is survive an intentional end
+// untouched: EOF leaves lastTrackPath naming the row that finished for both
+// stop-after-current and a queue that ran out, and currentIndex keeps naming it
+// too, precisely so the successor stays resolvable. Loading that path back is
+// therefore indistinguishable from a genuine resume by shape alone, and doing it
+// unpaused would start audio the user had stopped — and loadFileAt would mark
+// the traversal live again, undoing the end so the next best-effort append could
+// restart it as well.
+//
+// So the logical liveness the outage interrupted is what decides. An ended
+// traversal is recovered by leaving the fresh mpv idle, which is the state the
+// crashed one was deliberately in; nothing needs to be sent to reproduce it, and
+// nothing here touches m.liveness, so the end carries through the restart the
+// same way the Manager's other traversal state does. The user's next explicit
+// operation lifts it through replaceLocked exactly as it would have without the
+// outage.
+func (m *Manager) resumeAfterRestart(restore restoreState) {
+	if restore.path == "" {
+		return
+	}
+	if !restore.liveness.live() {
+		slog.Debug("mpv: restart: no resume for a traversal that had already ended",
+			"op", "restart-resume", "path", restore.path, "elapsed", restore.elapsed)
+		return
+	}
+	if err := m.loadFileAt(restore.path, restore.elapsed, restore.paused); err != nil {
+		slog.Warn("mpv: resume after restart failed", "err", err)
+	}
 }
 
 // reapProcess waits for cmd to exit so it does not remain a zombie, bounding the

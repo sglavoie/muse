@@ -79,6 +79,12 @@ func isLoadfileAppend(cmd ipcTestCommand) bool {
 	return len(cmd) >= 3 && cmd.stringIs(0, "loadfile") && cmd.stringIs(2, "append-play")
 }
 
+// isAnyLoadfile matches every loadfile whatever its mode, for an assertion whose
+// point is that mpv was handed nothing at all to play.
+func isAnyLoadfile(cmd ipcTestCommand) bool {
+	return len(cmd) >= 2 && cmd.stringIs(0, "loadfile")
+}
+
 func isLoadfileReplace(cmd ipcTestCommand) bool {
 	return len(cmd) >= 3 && cmd.stringIs(0, "loadfile") && cmd.stringIs(2, "replace")
 }

@@ -46,7 +46,10 @@ func (m *Manager) loadFileAt(path string, elapsed float64, paused bool) error {
 	}
 	// The resume reinstates the entry the outage interrupted, so the traversal
 	// is live again on the new process. Restarting mpv is process health and
-	// says nothing on its own about logical liveness; this load does.
+	// says nothing on its own about logical liveness; this load does. It is
+	// reached only for a traversal that was live when the outage began —
+	// resumeAfterRestart owns that decision, because from here the path of an
+	// interrupted track and the path of one that played out look identical.
 	m.markPlaybackLive()
 	return nil
 }
