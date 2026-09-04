@@ -169,28 +169,38 @@ func (m *Manager) dispatchEOF(state eofState) {
 	//
 	// The advance owns the decision, but it runs on a background goroutine behind
 	// the playlist transaction lock, and whether the queue has a successor left is
-	// exactly what it is going to find out. Record the pending end here, on the
-	// reader, before anything can block: from this instant mpv has played the
-	// entry out and no successor has been loaded, so until the transaction reports
-	// back the traversal must not read as live. An event-socket failure landing in
-	// that window is the case this closes — the restart supervisor snapshots
-	// liveness the moment recovery begins, and a snapshot taken while the
-	// exhaustion is still queued would resume the track that just finished.
+	// exactly what it is going to find out. Until it reports back the traversal
+	// must not read as live: mpv has played the entry out and no successor has
+	// been loaded. That pending end was already recorded by snapshotEOF, in the
+	// same critical section as the snapshot, so nothing — least of all a recovery
+	// snapshot racing this dispatch — can observe the completed entry as live.
 	nextIdx := state.currentIndex + 1
-	m.markPlaybackEnding(state.playlistGen)
 	safego.Go("player.advanceAfterEOF", func() {
 		m.markMissingEntries(skipped, state.marker)
 		m.advanceAfterEOF(nextIdx, state)
 	})
 }
 
-// snapshotEOF captures the state the EOF decision is made from and consumes the
-// stop-after-current flag, which must fire exactly once.
+// snapshotEOF captures the state the EOF decision is made from, consumes the
+// stop-after-current flag, which must fire exactly once, and publishes the end
+// the entry that finished has already reached.
 //
-// A superseded EOF consumes nothing: stop-after-current is armed against the
-// track the user is listening to, and the entry a replacement is discarding is
-// no longer that track, so spending the flag here would make it fire silently
-// against a row that never finished.
+// Recording liveness here rather than after the decision is what makes the end
+// atomic with the state it was decided from. Every branch below this lock leaves
+// the traversal not-live for at least as long as it takes to answer "is there a
+// successor": stop-after-current answers it immediately, the gapless promotion
+// answers it under the next acquisition of this same lock, and the fallback
+// advance answers it a background goroutine and a playlist transaction later. A
+// recovery snapshot taken in any of those intervals must not read the completed
+// entry as resumable, and only a mark taken in this critical section is ordered
+// ahead of all of them — lastTrackPath still names the row that just finished,
+// so a live-looking snapshot is a reload of a completed track.
+//
+// A superseded EOF records nothing and consumes nothing: stop-after-current is
+// armed against the track the user is listening to, and the entry a replacement
+// is discarding is no longer that track, so spending the flag — or claiming an
+// end — here would fire silently against a row that never finished while the
+// replacement it belongs to is making its own row current.
 func (m *Manager) snapshotEOF() eofState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -223,7 +233,14 @@ func (m *Manager) snapshotEOF() eofState {
 		// a stop-after-current EOF as an ordinary "next track is due".
 		m.stopAfterCurrent = false
 		m.markPlaybackEndedLocked()
+		return state
 	}
+	// A natural end, whose outcome nothing here knows yet. The traversal holds
+	// the pending state until whichever branch of the dispatch resolves it: the
+	// gapless promotion marks it live again for the successor mpv already
+	// started, replaceLocked does the same for a successor the advance loads, and
+	// an exhausted or superseded advance settles it into a confirmed end.
+	m.markPlaybackEndingLocked()
 	return state
 }
 
@@ -276,6 +293,13 @@ func (m *Manager) promoteSequentialPrefetch(state eofState) (eofTransition, bool
 	m.currentIndex = p.index
 	m.dropPrefetchTrackingLocked()
 	m.completedSlotPending = true
+	// The successor question the EOF snapshot left pending is answered: mpv is
+	// already playing the next entry, so the traversal is running again. This has
+	// to happen under the same lock as the commit — runEOFMaintenance's own refill
+	// is a best-effort append, which is suppressed while the traversal is not
+	// live, so a promotion that left the pending end standing would starve the
+	// gapless transition it just committed.
+	m.markPlaybackLiveLocked()
 	return eofTransition{
 		index:  p.index,
 		path:   p.path,
@@ -316,6 +340,10 @@ func (m *Manager) promoteShufflePrefetch(state eofState) (eofTransition, []Queue
 	m.currentIndex = committed
 	m.dropPrefetchTrackingLocked()
 	m.completedSlotPending = true
+	// Same as the sequential promotion: mpv started the successor gaplessly, so
+	// the pending end resolves back into a live traversal here rather than being
+	// left for the maintenance that is about to append behind it.
+	m.markPlaybackLiveLocked()
 	return eofTransition{
 		index:    committed,
 		path:     p.path,

@@ -29,6 +29,7 @@ func (m *Manager) prefetchNextLocked() {
 	gapless := m.gaplessEnabled
 	stop := m.stopAfterCurrent
 	live := m.liveness.live()
+	ending := m.liveness == livenessEnding
 	shuffle := m.shuffleEnabled
 	completedPending := m.completedSlotPending
 	cur := m.prefetchSnapshotLocked()
@@ -45,6 +46,20 @@ func (m *Manager) prefetchNextLocked() {
 		// make every later slot-1 removal address a live row. The EOF
 		// maintenance re-runs this once the removal succeeds; if it failed, the
 		// next EOF replaces the playlist and clears the condition.
+		return
+	}
+
+	if ending {
+		// An end-file has been read and the decision that follows it has not
+		// resolved. mpv's playlist is mid-transition in the same way: the entry
+		// that finished is still at position 0, and position 1 is either the
+		// successor mpv started gaplessly — the promotion has not consumed the
+		// tracking naming it yet — or nothing at all. Suppress the append as for
+		// any other traversal that is not live, but leave the tracking and the
+		// slot alone, because removing position 1 here would delete the row mpv
+		// has just moved onto. The EOF path re-runs this once it resolves: through
+		// the maintenance after a promotion, through the replacement transaction
+		// after an advance.
 		return
 	}
 

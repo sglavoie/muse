@@ -69,12 +69,17 @@ const (
 	// Best-effort work must not start audio from here.
 	livenessEnded
 
-	// livenessEnding means a natural end-file has been read and the advance that
-	// will either continue the traversal or exhaust it has not resolved yet. mpv
-	// is idle or draining and the entry lastTrackPath names has finished playing,
-	// so nothing may reinstate it: the state is not-live for exactly as long as
-	// that is true, and resolves into livenessLive when the advance loads a
-	// successor or into livenessEnded when it does not.
+	// livenessEnding means a natural end-file has been read and the successor
+	// question has not been answered yet. mpv is idle or draining and the entry
+	// lastTrackPath names has finished playing, so nothing may reinstate it: the
+	// state is not-live for exactly as long as that is true.
+	//
+	// It resolves into livenessLive as soon as a successor is confirmed — the
+	// tracked prefetch mpv had already started gaplessly, or a load the fallback
+	// advance sends — and into livenessEnded when neither happens. It is entered
+	// in the same critical section that snapshots the EOF, before either outcome
+	// is known, because that is the only ordering in which a recovery snapshot
+	// cannot slip in front of it.
 	livenessEnding
 )
 
@@ -132,25 +137,27 @@ func (m *Manager) markPlaybackEnded() {
 	m.mu.Unlock()
 }
 
-// markPlaybackEnding records that a natural end-file has been dispatched and its
-// advance has not resolved yet. It is called from the event reader, so it must
-// stay a short critical section and must not wait on the playlist transaction it
-// is describing.
+// markPlaybackEndingLocked records that a natural end-file has been read and the
+// decision that will either continue the traversal or exhaust it has not
+// resolved yet.
 //
-// gen is the playlist generation the EOF belongs to, and the mark is refused
-// once mpv has moved past it. A replacement that landed between the EOF snapshot
-// and this call has already published the row it made current and marked the
-// traversal live for it; the advance this pending end names will be dropped as
-// superseded, so claiming an end here would describe the user's selection
-// instead of the entry that finished.
+// It is deliberately Locked-only, with no unlocked counterpart: the mark has to
+// be published in the same critical section that captures the EOF state, or a
+// recovery snapshot taken in between reads the completed entry as still live and
+// reloads it. Everything the EOF decision then does — promoting a prefetch,
+// falling back to the traversal advance — happens after this state is already
+// visible, so the pending end is ordered ahead of every reader of liveness
+// rather than racing them.
 //
-// A traversal that is not live is left alone for the same reason: an end that has
-// already been confirmed is not reopened by a later end-file, and there is
-// nothing to keep pending.
-func (m *Manager) markPlaybackEnding(gen uint64) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.playlistGen != gen || m.liveness != livenessLive {
+// A traversal that is not live is left alone: an end that has already been
+// confirmed is not reopened by a later end-file, and there is nothing to keep
+// pending. The generation the EOF belongs to needs no check here for the same
+// reason the mark is atomic — a replacement cannot have landed between the
+// snapshot and this line, because they are one lock acquisition.
+//
+// The caller must hold m.mu.
+func (m *Manager) markPlaybackEndingLocked() {
+	if m.liveness != livenessLive {
 		return
 	}
 	m.liveness = livenessEnding
