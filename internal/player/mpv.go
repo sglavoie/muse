@@ -102,6 +102,16 @@ type Manager struct {
 	// liveness.go. Guarded by mu.
 	liveness playbackLiveness
 
+	// pendingEOFSettlement records an EOF fallback that could not yet stop the
+	// invalid successor mpv had already begun playing. The liveness settlement
+	// is withheld while this is true: a bounded removal retry may settle the
+	// successor in place, otherwise the restart path consumes the flag only after
+	// the old process has been reaped. pendingExhaustionReport says that the same
+	// settlement also owes OnPlaybackEnded because traversal had run out. Both
+	// are guarded by mu.
+	pendingEOFSettlement    bool
+	pendingExhaustionReport bool
+
 	// marker persists missing-file state to the database. Set via
 	// SetMissingMarker. When nil, PlayFromIndex uses a no-op marker.
 	marker MissingMarker

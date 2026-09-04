@@ -181,3 +181,47 @@ func (m *Manager) settlePlaybackEnding() {
 	}
 	m.liveness = livenessEnded
 }
+
+// resolvePendingEOFSettlementAfterDiscard claims the settlement after an
+// in-process removal has stopped the invalid successor. False means recovery
+// already consumed it or a newer operation made playback live. An exhausted
+// traversal is marked ended here, atomically with claiming its owed callback.
+func (m *Manager) resolvePendingEOFSettlementAfterDiscard(exhausted bool) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.pendingEOFSettlement || m.liveness != livenessEnding {
+		return false
+	}
+	m.pendingEOFSettlement = false
+	m.pendingExhaustionReport = false
+	if exhausted {
+		m.markPlaybackEndedLocked()
+	}
+	return true
+}
+
+// settlePendingEOFAfterProcessStop consumes the settlement deferred by a failed
+// started-successor discard. The restart path calls it only after the old
+// process has been reaped, which is the first point at which that successor is
+// confirmed unable to produce audio. A user selection queued during the outage
+// has already marked playback live and suppresses the stale settlement.
+func (m *Manager) settlePendingEOFAfterProcessStop() {
+	m.mu.Lock()
+	if !m.pendingEOFSettlement {
+		m.mu.Unlock()
+		return
+	}
+	report := m.pendingExhaustionReport
+	m.pendingEOFSettlement = false
+	m.pendingExhaustionReport = false
+	if m.liveness != livenessEnding {
+		m.mu.Unlock()
+		return
+	}
+	m.markPlaybackEndedLocked()
+	fn := m.callbacks.OnPlaybackEnded
+	m.mu.Unlock()
+	if report && fn != nil {
+		fn()
+	}
+}

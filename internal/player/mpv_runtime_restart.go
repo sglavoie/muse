@@ -173,6 +173,10 @@ func (m *Manager) attemptRestart(restore restoreState) bool {
 
 	// Reap the old process on every attempt so it never lingers as a zombie.
 	m.reapProcess(oldCmd)
+	// A failed EOF settlement can only be reported now: before the reap, the
+	// invalid successor may still have been audible even though its command
+	// connection was already detached.
+	m.settlePendingEOFAfterProcessStop()
 
 	if err := os.Remove(m.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		slog.Warn("player: remove socket", "path", m.socketPath, "err", err)

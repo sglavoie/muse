@@ -391,6 +391,133 @@ func TestEOF_InvalidatedStartedSuccessorDoesNotEndWhilePlaying(t *testing.T) {
 	})
 }
 
+// TestEOF_FailedStartedSuccessorDiscardDefersPlaybackEnded covers the failure
+// half of FR-008. A rejected removal may be retried, and a broken transport may
+// be handed to recovery, but neither path may report exhaustion while the
+// invalid successor is still producing audio.
+func TestEOF_FailedStartedSuccessorDiscardDefersPlaybackEnded(t *testing.T) {
+	t.Run("an mpv error is retried before the end is reported", func(t *testing.T) {
+		w := openEOFPendingWindow(t, "eofdisc-mpv")
+		w.m.SetQueue(w.queue[:1])
+		w.assertSuccessorIntact(t)
+
+		// Reject only the first settlement attempt. The retry must use the
+		// tracking restored by that failure and stop the same started row.
+		w.f.failCommandOnce("playlist-remove", "temporary playlist failure")
+		w.m.dispatchEOF(w.state)
+
+		w.ended.await(t)
+		if got := w.ended.playingAtEnd(); got != "" {
+			t.Fatalf("OnPlaybackEnded fired while mpv was playing %q after the first removal failed", got)
+		}
+		if got := w.ended.count(); got != 1 {
+			t.Fatalf("OnPlaybackEnded fired %d times, want 1", got)
+		}
+		if got := w.f.count(isPlaylistRemove); got != startedSuccessorDiscardAttempts {
+			t.Fatalf("playlist-remove count = %d, want %d (one failure and one bounded retry): %v",
+				got, startedSuccessorDiscardAttempts, w.f.commands())
+		}
+		w.f.waitForEntries(t, paths(w.queue, 0))
+		if !w.f.idle() {
+			t.Fatalf("mpv is playing %q after the successful retry, want idle", w.f.playingPath())
+		}
+		if got := livenessOf(w.m); got != livenessEnded {
+			t.Fatalf("liveness = %v, want ended after the retry settled the successor", got)
+		}
+		w.m.mu.RLock()
+		pending := w.m.pendingEOFSettlement || w.m.pendingExhaustionReport
+		w.m.mu.RUnlock()
+		if pending {
+			t.Fatal("successful retry left an EOF settlement pending")
+		}
+		assertPrefetch(t, w.m, w.queue, -1)
+	})
+
+	t.Run("a transport error stays pending until recovery stops the old process", func(t *testing.T) {
+		w := openEOFPendingWindow(t, "eofdisc-io")
+		w.m.SetQueue(w.queue[:1])
+		w.assertSuccessorIntact(t)
+
+		w.m.mu.RLock()
+		client := w.m.client
+		w.m.mu.RUnlock()
+		if client == nil {
+			t.Fatal("manager has no command client to fail")
+		}
+		if err := client.Close(); err != nil {
+			t.Fatalf("close command transport: %v", err)
+		}
+
+		w.m.dispatchEOF(w.state)
+		select {
+		case <-w.m.DisconnectCh():
+		case <-time.After(2 * time.Second):
+			t.Fatal("failed discard did not hand the broken command transport to recovery")
+		}
+
+		if got := w.ended.count(); got != 0 {
+			t.Fatalf("OnPlaybackEnded fired %d times before recovery stopped the audible successor", got)
+		}
+		if got := livenessOf(w.m); got != livenessEnding {
+			t.Fatalf("liveness = %v, want ending while recovery still owes the settlement", got)
+		}
+		w.m.mu.RLock()
+		pendingSettlement := w.m.pendingEOFSettlement
+		pendingReport := w.m.pendingExhaustionReport
+		w.m.mu.RUnlock()
+		if !pendingSettlement || !pendingReport {
+			t.Fatalf("pending settlement/report = %v/%v, want both retained for recovery",
+				pendingSettlement, pendingReport)
+		}
+		if got := w.f.playingPath(); got != w.queue[1].Path {
+			t.Fatalf("old mpv is playing %q, want the still-audible successor %q", got, w.queue[1].Path)
+		}
+		w.f.waitForEntries(t, paths(w.queue, 0, 1))
+		assertPrefetch(t, w.m, w.queue, 1)
+		if got := w.f.count(isPlaylistRemove); got != 0 {
+			t.Fatalf("closed transport delivered %d playlist-remove commands, want 0", got)
+		}
+
+		restore := w.m.snapshotRestore()
+		if restore.liveness != livenessEnding {
+			t.Fatalf("restore liveness = %v, want ending so recovery cannot resume the completed row", restore.liveness)
+		}
+
+		// attemptRestart calls the settlement hook immediately after reaping the
+		// old process. This fake has no subprocess to reap, so model that exact
+		// result before driving the production recovery sequence.
+		w.f.mu.Lock()
+		w.f.current = -1
+		w.f.entries = nil
+		w.f.mu.Unlock()
+		next := restartOnto(t, w.m, restore)
+
+		w.ended.await(t)
+		if got := w.ended.playingAtEnd(); got != "" {
+			t.Fatalf("OnPlaybackEnded fired while the old process was still playing %q", got)
+		}
+		if got := w.ended.count(); got != 1 {
+			t.Fatalf("OnPlaybackEnded fired %d times across recovery, want 1", got)
+		}
+		if got := livenessOf(w.m); got != livenessEnded {
+			t.Fatalf("liveness = %v, want ended after recovery stopped the successor", got)
+		}
+		if got := currentIdx(w.m); got != 0 {
+			t.Fatalf("currentIndex = %d, want 0: recovery moved the exhausted traversal", got)
+		}
+		w.m.mu.RLock()
+		pendingSettlement = w.m.pendingEOFSettlement
+		pendingReport = w.m.pendingExhaustionReport
+		w.m.mu.RUnlock()
+		if pendingSettlement || pendingReport {
+			t.Fatalf("pending settlement/report = %v/%v after recovery, want both consumed",
+				pendingSettlement, pendingReport)
+		}
+		assertPrefetch(t, w.m, w.queue, -1)
+		assertNothingWasHandedToPlay(t, next)
+	})
+}
+
 // shortName maps a case name onto a socket-safe fragment: the fake playlist's
 // socket path is length-bounded, so the names above cannot be used verbatim.
 func shortName(name string) string {

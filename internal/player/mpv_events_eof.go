@@ -2,10 +2,20 @@ package player
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/sglavoie/muse/internal/safego"
 )
+
+// errStartedSuccessorUnsettled marks an EOF whose invalid gapless successor
+// could not be removed. It is distinct from the traversal error underneath it:
+// mpv may still be producing audio, so liveness — and, for exhaustion,
+// OnPlaybackEnded — may not settle until a retry succeeds or recovery stops the
+// old process.
+var errStartedSuccessorUnsettled = errors.New("started successor remains unsettled")
+
+const startedSuccessorDiscardAttempts = 2
 
 // This file holds the end-file/eof transition: the single place where a track
 // finishing turns into the next one starting.
@@ -484,6 +494,15 @@ func (m *Manager) advanceAfterEOF(nextIdx int, state eofState) {
 		m.settlePlaybackEnding()
 		slog.Debug("mpv: eof: dropped an auto-advance whose playlist generation was replaced",
 			state.logAttrs("advance-after-current", err)...)
+	case errors.Is(err, errStartedSuccessorUnsettled):
+		// mpv may still be playing the successor that no longer belongs to the
+		// traversal. Keep the EOF settlement pending and make the restart
+		// supervisor own the old process. An exhausted traversal's report is
+		// emitted only after that process has actually been reaped; a selection
+		// queued during the outage can supersede it by marking playback live first.
+		m.handoffPendingEOFSettlement(err)
+		slog.Warn("mpv: eof: invalid started successor survived bounded discard; restarting mpv",
+			state.logAttrs("discard-started-successor", err)...)
 	case errors.Is(err, errTraversalExhausted):
 		m.emitPlaybackEnded()
 	default:
@@ -522,16 +541,91 @@ func (m *Manager) advanceAfterEOFLocked(nextIdx int, state eofState) (int, error
 	if err == nil {
 		return idx, nil
 	}
-	m.discardStartedSuccessorLocked()
-	if errors.Is(err, errTraversalExhausted) {
-		// The traversal ran out while mpv's playlist was already draining, so
-		// the idle that follows is the end of the queue rather than a stall.
-		// Recording it inside the transaction is what makes it safe: a
-		// replacement cannot interleave here, so the mark can never land on top
-		// of a load that has just started playing.
-		m.markPlaybackEnded()
+	exhausted := errors.Is(err, errTraversalExhausted)
+	startedSuccessor, prepareErr := m.prepareStartedSuccessorSettlement(state.playlistGen, exhausted)
+	if prepareErr != nil {
+		return idx, prepareErr
+	}
+	if !startedSuccessor {
+		// Isolated Managers with neither an IPC client nor a restart channel do
+		// not own a process whose audio can still be running. Preserve their
+		// ordinary exhaustion path; a production Manager always has the channel,
+		// even when recovery has already detached its client.
+		if exhausted {
+			m.markPlaybackEnded()
+		}
+		return idx, err
+	}
+	if discardErr := m.discardStartedSuccessorWithRetryLocked(); discardErr != nil {
+		return idx, fmt.Errorf("%w: %w", errStartedSuccessorUnsettled, discardErr)
+	}
+	if !m.resolvePendingEOFSettlementAfterDiscard(exhausted) {
+		// Recovery already consumed the settlement after stopping this process,
+		// or an explicit operation made the traversal live. In either case this
+		// transaction has no end left to resolve or emit.
+		return idx, errEOFSuperseded
 	}
 	return idx, err
+}
+
+// prepareStartedSuccessorSettlement re-checks the process generation after the
+// traversal attempt and publishes the pending settlement before its first IPC.
+// A transport failure can be observed by the health check as soon as
+// SendCommand releases the client lock, so recovery must see this state even if
+// it outruns the EOF goroutine after that return.
+func (m *Manager) prepareStartedSuccessorSettlement(gen uint64, exhausted bool) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.playlistGen != gen {
+		return false, errEOFSuperseded
+	}
+	started := m.startedSuccessorLocked(m.prefetchSnapshotLocked()) &&
+		(m.client != nil || m.disconnectCh != nil)
+	if started {
+		m.pendingEOFSettlement = true
+		m.pendingExhaustionReport = exhausted
+	}
+	return started, nil
+}
+
+// discardStartedSuccessorWithRetryLocked gives a transient mpv rejection one
+// bounded retry before escalating to process recovery. Each failed attempt
+// restores the same tracking, so the next attempt can identify the slot again;
+// no attempt resolves the pending EOF unless the removal actually lands.
+//
+// The caller must hold m.playlistMu and must not hold m.mu.
+func (m *Manager) discardStartedSuccessorWithRetryLocked() error {
+	var err error
+	for range startedSuccessorDiscardAttempts {
+		err = m.discardStartedSuccessorLocked()
+		if err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
+// handoffPendingEOFSettlement routes the installed generation through the same
+// guarded disconnect transition used by the health check and event reader. The
+// pending state was published before the failed IPC attempt, so recovery cannot
+// reap the process ahead of the settlement it must consume.
+func (m *Manager) handoffPendingEOFSettlement(err error) {
+	m.mu.Lock()
+	if !m.pendingEOFSettlement || m.liveness != livenessEnding {
+		// A replacement or an already-running recovery settled the successor
+		// before this goroutine reached the handoff. Retire any stale flags and
+		// leave the live/new generation alone.
+		m.pendingEOFSettlement = false
+		m.pendingExhaustionReport = false
+		m.mu.Unlock()
+		return
+	}
+	ctx := m.ctx
+	client := m.client
+	m.mu.Unlock()
+	if client != nil && ctx != nil {
+		m.handleConnectionFailure(ctx, client, err)
+	}
 }
 
 // markMissingEntries marks each entry missing on disk. The caller must not hold

@@ -945,12 +945,12 @@ func (m *Manager) removePrefetchLocked() bool {
 	if !had {
 		return true
 	}
-	return m.sendPrefetchRemovalLocked(saved)
+	return m.sendPrefetchRemovalLocked(saved) == nil
 }
 
 // discardStartedSuccessorLocked takes position 1 away from mpv even though mpv is
-// playing it, and reports whether the slot is now known to be gone. It is a no-op
-// unless the tracked prefetch is a successor mpv has already entered.
+// playing it, and returns an error when the slot is not known to be gone. It is a
+// no-op unless the tracked prefetch is a successor mpv has already entered.
 //
 // This is the opposite half of removePrefetchLocked's guard, and only one caller
 // is entitled to it: the EOF fallback advance, once it has established that the
@@ -968,7 +968,7 @@ func (m *Manager) removePrefetchLocked() bool {
 // which is the same shape an ordinary exhaustion leaves behind.
 //
 // The caller must hold m.playlistMu and must not hold m.mu.
-func (m *Manager) discardStartedSuccessorLocked() bool {
+func (m *Manager) discardStartedSuccessorLocked() error {
 	m.mu.Lock()
 	saved := m.prefetchSnapshotLocked()
 	started := m.startedSuccessorLocked(saved)
@@ -978,18 +978,18 @@ func (m *Manager) discardStartedSuccessorLocked() bool {
 	m.mu.Unlock()
 
 	if !started {
-		return false
+		return nil
 	}
-	if m.sendPrefetchRemovalLocked(saved) {
-		return true
+	if err := m.sendPrefetchRemovalLocked(saved); err == nil {
+		return nil
+	} else {
+		// The send restored the tracking, which keeps this end recoverable: a
+		// bounded retry can identify the same slot, and process recovery can drop
+		// it wholesale without losing the pending end report.
+		slog.Warn("mpv: eof: the successor mpv started could not be discarded",
+			"path", saved.path, "index", saved.index, "err", err)
+		return err
 	}
-	// The send restored the tracking, which is what lets a later cleanup finish
-	// the settlement: once this transition has resolved the pending end, the
-	// started-successor guard no longer stands and the ordinary invalidator
-	// removes the same slot.
-	slog.Warn("mpv: eof: the successor mpv started could not be discarded",
-		"path", saved.path, "index", saved.index)
-	return false
 }
 
 // sendPrefetchRemovalLocked performs the removal half shared by the prefetch
@@ -998,15 +998,15 @@ func (m *Manager) discardStartedSuccessorLocked() bool {
 //
 // The caller must hold m.playlistMu, must not hold m.mu, and must already have
 // given up the tracking that saved describes.
-func (m *Manager) sendPrefetchRemovalLocked(saved prefetchState) bool {
+func (m *Manager) sendPrefetchRemovalLocked(saved prefetchState) error {
 	c := m.playlistClient()
 	if c == nil {
 		m.restorePrefetchTracking(saved)
-		return false
+		return fmt.Errorf("%w: no playlist client for prefetch removal", ErrNotConnected)
 	}
 	if _, err := c.SendCommand(cmdPlaylistRemove, 1); err != nil {
 		m.restorePrefetchTracking(saved)
-		return false
+		return err
 	}
 	// mpv no longer has the entry, so it can no longer start it on its own. A
 	// prefetch from another generation was never counted against the entry the
@@ -1016,7 +1016,7 @@ func (m *Manager) sendPrefetchRemovalLocked(saved prefetchState) bool {
 		m.gaplessSuccessors--
 	}
 	m.mu.Unlock()
-	return true
+	return nil
 }
 
 // removeCompletedLocked drops the track that just finished (playlist position 0)
