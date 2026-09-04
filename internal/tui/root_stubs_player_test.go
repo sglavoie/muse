@@ -423,6 +423,76 @@ func (f *fakeTraversalPlayer) ResumeAfterQueueExtension() (int, error) {
 	return -1, errFakeTraversalExhausted
 }
 
+// fakeStoppablePlayer is fakeTraversalPlayer plus commandPlayer, which is what
+// the teardown paths need: Stop and the queue clear only touch the player when
+// it accepts commands, so a traversal-owning fake that refuses them cannot be
+// used to prove a stop supersedes a selection. The base fake stays
+// non-commandPlayer on purpose — the replay tests rely on resetPlaybackState
+// finding no Stop to call — so this wraps it rather than widening it.
+//
+// stopped is the audible state: Stop sets it, and any load clears it again, so
+// a test can assert that a superseded request did not restart playback without
+// having to reason about call counts.
+type fakeStoppablePlayer struct {
+	*fakeTraversalPlayer
+	stopped   bool
+	stopCalls int
+	stopErr   error
+	// calls interleaves the stops with the loads, so a test can assert which of
+	// the two the player was told last.
+	calls []string
+}
+
+func newFakeStoppablePlayer(order []int, pos int) *fakeStoppablePlayer {
+	return &fakeStoppablePlayer{fakeTraversalPlayer: newFakeTraversalPlayer(order, pos)}
+}
+
+func (f *fakeStoppablePlayer) Stop() error {
+	f.calls = append(f.calls, "Stop")
+	f.stopCalls++
+	if f.stopErr != nil {
+		return f.stopErr
+	}
+	f.stopped = true
+	f.prefetched = -1
+	return nil
+}
+
+func (f *fakeStoppablePlayer) PlayFromIndex(idx int) error {
+	f.calls = append(f.calls, "PlayFromIndex")
+	err := f.fakeTraversalPlayer.PlayFromIndex(idx)
+	if err == nil {
+		f.stopped = false
+	}
+	return err
+}
+
+func (f *fakeStoppablePlayer) ReplayCurrent() error {
+	f.calls = append(f.calls, "ReplayCurrent")
+	err := f.fakeTraversalPlayer.ReplayCurrent()
+	if err == nil {
+		f.stopped = false
+	}
+	return err
+}
+
+func (f *fakeStoppablePlayer) ResumeAfterQueueExtension() (int, error) {
+	f.calls = append(f.calls, "ResumeAfterQueueExtension")
+	idx, err := f.fakeTraversalPlayer.ResumeAfterQueueExtension()
+	if err == nil {
+		f.stopped = false
+	}
+	return idx, err
+}
+
+// The rest of commandPlayer is inert: the teardown tests never issue these, but
+// the interface is all-or-nothing and Stop is only reachable through it.
+func (f *fakeStoppablePlayer) SeekAbsolute(float64) error      { return nil }
+func (f *fakeStoppablePlayer) SeekRelative(float64) error      { return nil }
+func (f *fakeStoppablePlayer) SetVolumeRelative(float64) error { return nil }
+func (f *fakeStoppablePlayer) Next() error                     { return nil }
+func (f *fakeStoppablePlayer) Previous() error                 { return nil }
+
 // stubFailingVolumePlayer extends stubCommandPlayer to return errors from
 // SetVolumeRelative, used to test volume-drift prevention.
 type stubFailingVolumePlayer struct {

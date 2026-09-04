@@ -98,8 +98,16 @@ func (m *Model) clampQueueCursorAndScroll() {
 // in the model and status bar.
 func (m Model) resetPlaybackState() Model {
 	m = m.endCurrentListen()
+	// Abandoning playback outranks every selection still queued behind it. One
+	// of them may have been dispatched but not yet run, and running it after
+	// this would restart audio the model has already declared idle — or, when
+	// the queue is being repopulated, aim its stale index at whichever rows
+	// replaced the ones it was chosen from.
 	if cp, ok := m.player.(commandPlayer); ok {
-		_ = cp.Stop() // stop before new playback, failure is non-fatal
+		// stop before new playback, failure is non-fatal
+		_ = m.playRequestExclusive(cp.Stop)
+	} else {
+		m.supersedePlayRequests()
 	}
 	m.playback.state = playback.StateIdle
 	m = m.resetPlaybackProgress()

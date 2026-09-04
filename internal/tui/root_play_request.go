@@ -29,10 +29,19 @@ import "sync"
 //
 // Whichever goroutine wins the race, the outcome is the same: the newest
 // dispatched request is the one that decides what plays.
+//
+// Teardown and the synchronous player calls join the same ordering through
+// supersede and runExclusive: abandoning playback (Stop, a queue clear) or
+// starting it from the Update goroutine (autoplay, an extension resume) counts
+// as a newer request, so a selection still waiting to run is cancelled rather
+// than allowed to restart or retarget playback behind it.
 type playRequestGate struct {
-	// exec serializes the player calls themselves. It is never taken on the
-	// Update goroutine — only inside the dispatched commands — so a slow mpv
-	// round trip cannot stall the UI.
+	// exec serializes the player calls themselves. Requests dispatched to a
+	// goroutine take it there; the Update goroutine takes it only in
+	// runExclusive, for a call it is already making synchronously, and only
+	// behind a supersede that has already emptied the queue of older requests.
+	// Each such call already serializes against the in-flight one inside the
+	// player itself, so the gate adds ordering rather than a new way to stall.
 	exec sync.Mutex
 
 	mu sync.Mutex
@@ -43,22 +52,35 @@ type playRequestGate struct {
 	latest uint64
 }
 
-// dispatch records a new request and returns its identity, superseding every
-// request dispatched before it. prev is the caller's current identity, so the
-// counter is continuous even for a Model built without a gate.
+// supersede invalidates every request dispatched before now and returns the
+// identity that does it. prev is the caller's current identity, so the counter
+// is continuous even for a Model built without a gate.
+//
+// The caller must adopt the returned value as its own playRequestSeq. The two
+// halves of a cancellation need both numbers: the gate's copy is what keeps a
+// superseded request from reaching the player, and the model's copy is what
+// discards the result message that request still produces.
 //
 // It is called on the Update goroutine and never blocks on the player.
-func (g *playRequestGate) dispatch(prev uint64) uint64 {
-	req := prev + 1
+func (g *playRequestGate) supersede(prev uint64) uint64 {
 	if g == nil {
-		return req
+		return prev + 1
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if req > g.latest {
-		g.latest = req
+	// latest normally already mirrors prev; taking the larger of the two keeps
+	// the counter monotonic for a model whose seq ran ahead of the gate.
+	if prev > g.latest {
+		g.latest = prev
 	}
-	return req
+	g.latest++
+	return g.latest
+}
+
+// dispatch records a new request and returns its identity, superseding every
+// request dispatched before it.
+func (g *playRequestGate) dispatch(prev uint64) uint64 {
+	return g.supersede(prev)
 }
 
 // run performs request req's player call, unless a newer request has been
@@ -86,4 +108,40 @@ func (g *playRequestGate) superseded(req uint64) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return req < g.latest
+}
+
+// runExclusive performs a player call the Update goroutine is making itself,
+// as the newest request. It returns the identity the caller must adopt.
+//
+// Superseding is not enough on its own for these calls. A request that already
+// passed the gate's check is inside the player, and cancellation cannot reach
+// it; holding exec makes this call queue behind that one instead of racing it,
+// so an older selection can never be the last thing the player was told. What
+// it waits on it would have waited on anyway — the player serializes a Stop
+// against the command socket and a PlayFromIndex or resume against the playlist
+// transaction — so the wait is the same one, taken one layer earlier.
+func (g *playRequestGate) runExclusive(prev uint64, call func() error) (uint64, error) {
+	req := g.supersede(prev)
+	if g == nil {
+		return req, call()
+	}
+	g.exec.Lock()
+	defer g.exec.Unlock()
+	return req, call()
+}
+
+// supersedePlayRequests cancels every play request dispatched so far. Callers
+// that abandon playback without touching the player use it directly; those that
+// do touch it want playRequestExclusive, which also orders against the request
+// that is already inside the player.
+func (m *Model) supersedePlayRequests() {
+	m.playback.playRequestSeq = m.playback.requests.supersede(m.playback.playRequestSeq)
+}
+
+// playRequestExclusive makes a synchronous player call the newest play request,
+// cancelling the older ones and waiting out whichever one is already running.
+func (m *Model) playRequestExclusive(call func() error) error {
+	req, err := m.playback.requests.runExclusive(m.playback.playRequestSeq, call)
+	m.playback.playRequestSeq = req
+	return err
 }

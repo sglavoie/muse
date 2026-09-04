@@ -89,11 +89,23 @@ func (m Model) resumeExtendedQueue(fallbackIndex int) (Model, bool) {
 // resumeExtendedQueueIndex performs the resume itself and returns the queue
 // index that started playing. The PlayFromIndex fallback can only report the
 // index it was handed: a player without the extension has no traversal to ask.
-func (m Model) resumeExtendedQueueIndex(fallbackIndex int) (int, error) {
+//
+// The receiver is a pointer because both branches move the play-request
+// identity forward: resuming is a synchronous player call made on the Update
+// goroutine, and it supersedes the selections queued behind it for the same
+// reason autoplay does. A value receiver would leave that bump in a copy, so
+// the superseded requests' results would still look current to the model.
+func (m *Model) resumeExtendedQueueIndex(fallbackIndex int) (int, error) {
 	if resumer, ok := m.player.(queueExtensionResumer); ok {
-		return resumer.ResumeAfterQueueExtension()
+		var idx int
+		var callErr error
+		_ = m.playRequestExclusive(func() error {
+			idx, callErr = resumer.ResumeAfterQueueExtension()
+			return callErr
+		})
+		return idx, callErr
 	}
-	if err := m.player.PlayFromIndex(fallbackIndex); err != nil {
+	if err := m.playRequestExclusive(func() error { return m.player.PlayFromIndex(fallbackIndex) }); err != nil {
 		return -1, err
 	}
 	return fallbackIndex, nil

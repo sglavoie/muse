@@ -113,7 +113,11 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	if m.player == nil {
 		return m
 	}
-	if err := m.player.PlayFromIndex(0); err != nil {
+	// Autoplay is a selection like any other, made on the Update goroutine
+	// instead of in a command: it has to supersede the queued ones, or a
+	// selection dispatched against the queue this one just replaced could land
+	// on top of the row that is starting here.
+	if err := m.playRequestExclusive(func() error { return m.player.PlayFromIndex(0) }); err != nil {
 		m.playback.state = playback.StateIdle
 		m.statusBar.Notify("Play failed: " + err.Error())
 		player.PlaySound(player.SoundError)

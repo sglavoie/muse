@@ -120,7 +120,11 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		return m, nil, true
 	case keys.ActionStop:
 		if cp, ok := m.player.(commandPlayer); ok {
-			if err := cp.Stop(); err != nil {
+			// An explicit stop supersedes every selection still queued behind it,
+			// whether or not the stop itself succeeds: a dispatched-but-unrun
+			// selection reaching the player after this would start audio the user
+			// has just asked to end.
+			if err := m.playRequestExclusive(cp.Stop); err != nil {
 				slog.Warn("stop failed", "err", err)
 				m.statusBar.Notify("Stop failed: " + err.Error())
 			} else {
