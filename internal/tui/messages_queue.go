@@ -29,3 +29,10 @@ type RadioBatchEnqueuedMsg struct {
 	RequestID uint64
 	Err       error
 }
+
+// radioBatchCleanupMsg reports one compensating delete attempt for a stale
+// Radio batch. QueueIDs identifies the exact retained batch being reconciled.
+type radioBatchCleanupMsg struct {
+	QueueIDs []int64
+	Err      error
+}

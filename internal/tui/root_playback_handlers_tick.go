@@ -94,7 +94,8 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// performs on a path whose Cmd is discarded, so an eager reload at each
 	// invalidation site would miss it.
 	insightsCmd := m.insightsActiveRefreshCmd()
-	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd, fadeCmd, insightsCmd)
+	m, radioCleanupCmd := m.startRadioBatchCleanupCmd()
+	return m, tea.Batch(tickCmd(), previewDurationCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

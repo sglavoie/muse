@@ -14,12 +14,14 @@ import (
 
 // radioState holds all mutable radio-mode fields for the root Model.
 type radioState struct {
-	enabled        bool
-	seedHash       string
-	syntheticSeed  *radio.SeedTrack // non-nil = use directly instead of hash lookup
-	enqueuePending bool
-	requestID      uint64
-	recentHashes   []string // ring buffer, cap RadioRecentCap
+	enabled         bool
+	seedHash        string
+	syntheticSeed   *radio.SeedTrack // non-nil = use directly instead of hash lookup
+	enqueuePending  bool
+	requestID       uint64
+	recentHashes    []string // ring buffer, cap RadioRecentCap
+	cleanupBatches  [][]int64
+	cleanupInFlight bool
 }
 
 const (
@@ -318,7 +320,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	// in-memory result. Do not clear enqueuePending: it may belong to the newer
 	// request whose identity caused this mismatch.
 	if msg.RequestID != m.radio.requestID {
-		m.discardRadioBatch(msg.QueueIDs)
+		m = m.discardRadioBatch(msg.QueueIDs)
 		return m, nil
 	}
 	m.radio.enqueuePending = false
@@ -335,7 +337,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	// appended by the goroutine but appending them to the empty/disabled
 	// queue would resurrect playback the user just cancelled.
 	if !m.radio.enabled {
-		m.discardRadioBatch(msg.QueueIDs)
+		m = m.discardRadioBatch(msg.QueueIDs)
 		return m, nil
 	}
 	// Queue-cleared-in-flight guard: when the radio batch was launched the
@@ -347,7 +349,7 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 	// user-initiated clear (queueExhausted reset by resetPlaybackState).
 	// Only the former should auto-resume by appending the in-flight batch.
 	if !msg.WasEmpty && len(m.queue.Entries) == 0 && !m.playback.queueExhausted {
-		m.discardRadioBatch(msg.QueueIDs)
+		m = m.discardRadioBatch(msg.QueueIDs)
 		return m, nil
 	}
 
@@ -380,12 +382,63 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 
 // discardRadioBatch reconciles durable state for a result that will not be
 // represented in the TUI queue. The rows remain soft-deleted for normal queue
-// maintenance to purge later, but ReadQueue can no longer restore them.
-func (m Model) discardRadioBatch(ids []int64) {
+// maintenance to purge later. A failed delete retains the exact batch for the
+// periodic retry path so ReadQueue cannot restore it permanently.
+func (m Model) discardRadioBatch(ids []int64) Model {
 	if len(ids) == 0 || m.batchEnqueuer == nil {
-		return
+		return m
 	}
 	if err := m.batchEnqueuer.DequeueTracksSoft(ids); err != nil {
 		slog.Warn("radio discarded batch cleanup failed", "err", err)
+		m.radio.cleanupBatches = append(m.radio.cleanupBatches, append([]int64(nil), ids...))
 	}
+	return m
+}
+
+// startRadioBatchCleanupCmd starts at most one retained cleanup retry. The
+// existing one-second tick calls it, bounding repeated database failures while
+// ensuring every failed batch remains live until its compensating delete wins.
+func (m Model) startRadioBatchCleanupCmd() (Model, tea.Cmd) {
+	if m.radio.cleanupInFlight || len(m.radio.cleanupBatches) == 0 || m.batchEnqueuer == nil {
+		return m, nil
+	}
+	ids := append([]int64(nil), m.radio.cleanupBatches[0]...)
+	be := m.batchEnqueuer
+	m.radio.cleanupInFlight = true
+	return m, func() tea.Msg {
+		return radioBatchCleanupMsg{QueueIDs: ids, Err: be.DequeueTracksSoft(ids)}
+	}
+}
+
+// handleRadioBatchCleanupMsg removes only the exact front batch after its
+// compensating delete succeeds. Failures leave it queued for the next tick;
+// neither outcome touches the identity or pending bit of a newer Radio request.
+func (m Model) handleRadioBatchCleanupMsg(msg radioBatchCleanupMsg) Model {
+	if !m.radio.cleanupInFlight || len(m.radio.cleanupBatches) == 0 ||
+		!sameRadioQueueIDs(m.radio.cleanupBatches[0], msg.QueueIDs) {
+		return m
+	}
+	m.radio.cleanupInFlight = false
+	if msg.Err != nil {
+		slog.Warn("radio discarded batch cleanup retry failed", "err", msg.Err)
+		return m
+	}
+	m.radio.cleanupBatches[0] = nil
+	m.radio.cleanupBatches = m.radio.cleanupBatches[1:]
+	if len(m.radio.cleanupBatches) == 0 {
+		m.radio.cleanupBatches = nil
+	}
+	return m
+}
+
+func sameRadioQueueIDs(left, right []int64) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
 }

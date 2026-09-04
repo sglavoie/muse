@@ -2,15 +2,34 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
+
+type failOnceRadioBatchEnqueuer struct {
+	writer          *db.Writer
+	dequeueFailures int
+}
+
+func (e *failOnceRadioBatchEnqueuer) AppendTracks(tracks []library.Track, source string) ([]int64, error) {
+	return e.writer.AppendTracks(tracks, source)
+}
+
+func (e *failOnceRadioBatchEnqueuer) DequeueTracksSoft(ids []int64) error {
+	if e.dequeueFailures > 0 {
+		e.dequeueFailures--
+		return errors.New("injected Radio cleanup failure")
+	}
+	return e.writer.DequeueTracksSoft(ids)
+}
 
 // TestRadioBatchCancellationKeepsDurableQueueConsistent exercises the real
 // queue writer and reader across every cancellation boundary. The enqueue
@@ -101,6 +120,85 @@ func TestRadioBatchCancellationKeepsDurableQueueConsistent(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestRadioBatchCleanupFailureRetainsReconciliation proves a transient
+// compensating-delete failure cannot lose the stale batch. Its exact QueueIDs
+// survive in Model state, a later retry removes those durable rows, and the
+// newer Radio request remains pending throughout.
+func TestRadioBatchCleanupFailureRetainsReconciliation(t *testing.T) {
+	m, d := newRadioBatchDBModel(t)
+	writer := m.batchEnqueuer.(*db.Writer)
+	flaky := &failOnceRadioBatchEnqueuer{writer: writer, dequeueFailures: 1}
+	m.batchEnqueuer = flaky
+
+	m, stale := runRadioBatch(t, m)
+	assertActiveQueueLen(t, d, 6)
+	m = m.supersedeRadioBatch()
+	m, newerCmd := m.startRadioEnqueueCmd()
+	assertRadioRequestPending(t, m, newerCmd)
+
+	m, _ = m.handleRadioBatchEnqueuedMsg(stale)
+	assertRadioCleanupRetained(t, m, d, stale.QueueIDs)
+	m = runRadioCleanupRetry(t, m)
+	assertRadioCleanupRecovered(t, m, d)
+}
+
+func assertRadioRequestPending(t *testing.T, m Model, cmd tea.Cmd) {
+	t.Helper()
+	if cmd == nil || !m.radio.enqueuePending {
+		t.Fatal("expected a newer Radio request to remain pending")
+	}
+}
+
+func assertRadioCleanupRetained(t *testing.T, m Model, d *db.DB, wantIDs []int64) {
+	t.Helper()
+	if !m.radio.enqueuePending {
+		t.Fatal("failed stale cleanup cleared the newer Radio request's pending state")
+	}
+	if len(m.queue.Entries) != 1 {
+		t.Fatalf("stale batch entered the in-memory queue: %+v", m.queue.Entries)
+	}
+	if len(m.radio.cleanupBatches) != 1 || !sameRadioQueueIDs(m.radio.cleanupBatches[0], wantIDs) {
+		t.Fatalf("retained cleanup batches = %v, want exact QueueIDs %v", m.radio.cleanupBatches, wantIDs)
+	}
+	assertActiveQueueLen(t, d, 6)
+}
+
+func runRadioCleanupRetry(t *testing.T, m Model) Model {
+	t.Helper()
+	m, tickBatch := m.handleTickMsg()
+	if tickBatch == nil || !m.radio.cleanupInFlight {
+		t.Fatal("periodic tick did not start the retained cleanup retry")
+	}
+	rawBatch := tickBatch()
+	batch, ok := rawBatch.(tea.BatchMsg)
+	if !ok || len(batch) == 0 {
+		t.Fatalf("tick returned %T, want a non-empty command batch", rawBatch)
+	}
+	raw := batch[len(batch)-1]()
+	retryMsg, ok := raw.(radioBatchCleanupMsg)
+	if !ok {
+		t.Fatalf("cleanup retry returned %T", raw)
+	}
+	if retryMsg.Err != nil {
+		t.Fatalf("cleanup retry failed: %v", retryMsg.Err)
+	}
+	return m.handleRadioBatchCleanupMsg(retryMsg)
+}
+
+func assertRadioCleanupRecovered(t *testing.T, m Model, d *db.DB) {
+	t.Helper()
+	if len(m.radio.cleanupBatches) != 0 || m.radio.cleanupInFlight {
+		t.Fatalf("successful cleanup left retry state: batches=%v inFlight=%t", m.radio.cleanupBatches, m.radio.cleanupInFlight)
+	}
+	if !m.radio.enqueuePending {
+		t.Fatal("successful stale cleanup cleared the newer Radio request's pending state")
+	}
+	rows := assertActiveQueueLen(t, d, 1)
+	if rows[0].ID != m.queue.Entries[0].ID {
+		t.Fatalf("ReadQueue restored discarded rows: got IDs %v, want only %d", rows, m.queue.Entries[0].ID)
+	}
 }
 
 func newRadioBatchDBModel(t *testing.T) (Model, *db.DB) {

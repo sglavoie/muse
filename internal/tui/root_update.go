@@ -384,6 +384,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case RadioBatchEnqueuedMsg:
 		return m.handleRadioBatchEnqueuedMsg(msg)
 
+	case radioBatchCleanupMsg:
+		m = m.handleRadioBatchCleanupMsg(msg)
+
 	case mixCountsLoadedMsg:
 		m = m.handleMixCountsLoadedMsg(msg)
 
