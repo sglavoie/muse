@@ -97,9 +97,18 @@ func (j *journey) start() {
 		j.t.Fatal("the first selection is not a replay: nothing was playing")
 	}
 	j.m = m.handlePlayFromIndexResultMsg(res)
+	// mpv answers the load on the IPC socket and reports the file it started on
+	// the event socket, in that order, so the selection is only fully started
+	// once its own start-file lands. Every later report in this journey — the
+	// EOF handovers below — is emitted by the same reader after this one, which
+	// is what entitles them to move the current row off the selected entry.
+	j.trackChanged(3)
 
 	if !slices.Equal(j.p.playFromIndexCalls, []int{3}) {
 		j.t.Fatalf("PlayFromIndex calls = %v, want [3]", j.p.playFromIndexCalls)
+	}
+	if j.m.playback.awaitingSelectionStart {
+		j.t.Fatal("the player's start-file report must retire the selection barrier")
 	}
 	if j.m.playback.currentIndex != 3 || j.m.playback.state != playback.StatePlaying {
 		j.t.Fatalf("after start: currentIndex = %d state = %v; want 3 playing",

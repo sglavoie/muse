@@ -57,7 +57,11 @@ func (m Model) handleDequeueTrackMsg(msg queue.DequeueTrackMsg) Model {
 			// paused state persists across subsequent gapless transitions,
 			// causing every next track to start paused until relaunch.
 			// Clear only the TUI bookkeeping; start-file will repopulate it.
+			// That means the track-event barrier has to come down too: it admits
+			// reports matching currentHash, so leaving it up would refuse the very
+			// start-file this branch is relying on.
 			m.playback.currentHash = ""
+			m.playback.awaitingSelectionStart = false
 			m.statusBar.Artist = ""
 			m.statusBar.Title = ""
 			m.statusBar.PlaylistSource = ""

@@ -278,6 +278,92 @@ func TestRapidDifferentTargetPlaybackKeepsLatestRequest(t *testing.T) {
 	}
 }
 
+// TestLateStaleTrackChangeCannotOverwriteNewestSelection covers the delivery
+// order the request identity cannot reach at all: a start-file event.
+//
+// The player answers a load on the IPC socket, but it reports a started file
+// from the event reader, and that reader syncs the position before it dispatches
+// the report. So the two channels can invert: mpv confirms the newest load while
+// the previous row's start-file is still sitting in the reader. That report
+// carries no request identity, and by the time it lands the newest request has
+// already been answered — so if a successful answer is taken as proof that
+// nothing older is still in flight, the stale report walks straight through and
+// puts the TUI on a row the player left.
+//
+// Only the selected row's own start-file proves the reader is caught up, which
+// is why success alone must not retire the barrier.
+func TestLateStaleTrackChangeCannotOverwriteNewestSelection(t *testing.T) {
+	// Two different rows, neither of them the one playing, so both presses are
+	// genuine selections rather than replays.
+	const olderTarget, newerTarget = 0, 1
+
+	t.Run("a delayed report from the abandoned row is refused", func(t *testing.T) {
+		m, p := replayModel([]int{3, 1, 4, 0, 2}, 2) // playing queue row 4
+
+		// The older selection reaches the player and is accepted: mpv loads the
+		// abandoned row and emits its start-file, which the reader is still
+		// holding while it syncs the position.
+		m, older := dispatchSelect(t, m, m.queue.FindEntryFilteredPosition(olderTarget))
+		olderResult := runPlayCmd(t, older)
+		// The user moves on before that report is delivered.
+		m, newer := dispatchSelect(t, m, m.queue.FindEntryFilteredPosition(newerTarget))
+		newerResult := runPlayCmd(t, newer)
+
+		if olderResult.Err != nil || newerResult.Err != nil {
+			t.Fatalf("test setup: both loads must be accepted, got %v / %v",
+				olderResult.Err, newerResult.Err)
+		}
+		if !slices.Equal(p.playFromIndexCalls, []int{olderTarget, newerTarget}) {
+			t.Fatalf("PlayFromIndex calls = %v, want both requests to reach the player in order",
+				p.playFromIndexCalls)
+		}
+
+		// The newest request is answered, which confirms the row for replay
+		// purposes but says nothing about what the event reader still holds.
+		m = m.handlePlayFromIndexResultMsg(newerResult)
+		m = m.handlePlayFromIndexResultMsg(olderResult) // superseded, discarded
+
+		// The abandoned row's start-file finally arrives.
+		m, _ = m.handleTrackChangedMsg(trackChangeFor(m, olderTarget))
+		assertCurrentRow(t, m, newerTarget)
+		if tr := p.QueueTraversal(); tr.Order[tr.CurrentPosition] != newerTarget {
+			t.Errorf("player is on queue row %d, want the newest request's row %d",
+				tr.Order[tr.CurrentPosition], newerTarget)
+		}
+
+		// The newest selection's own report still lands and retires the barrier.
+		m, _ = m.handleTrackChangedMsg(trackChangeFor(m, newerTarget))
+		assertCurrentRow(t, m, newerTarget)
+		if m.playback.awaitingSelectionStart {
+			t.Error("the selected row's own start-file must retire the barrier")
+		}
+	})
+
+	t.Run("gapless advance applies once the selection has started", func(t *testing.T) {
+		m, p := replayModel([]int{3, 1, 4, 0, 2}, 2)
+
+		m, cmd := dispatchSelect(t, m, m.queue.FindEntryFilteredPosition(newerTarget))
+		m = m.handlePlayFromIndexResultMsg(runPlayCmd(t, cmd))
+		m, _ = m.handleTrackChangedMsg(trackChangeFor(m, newerTarget))
+
+		// The traversal plays that row out and mpv starts the successor it had
+		// already prefetched. Nothing is superseded here, so the barrier must not
+		// be standing in the way of an ordinary auto-advance.
+		next, ok := p.finishCurrent()
+		if !ok {
+			t.Fatal("test setup: the traversal must have a gapless successor")
+		}
+		m, _ = m.handleTrackChangedMsg(trackChangeFor(m, next))
+		assertCurrentRow(t, m, next)
+	})
+}
+
+// trackChangeFor builds the start-file report the player emits for queue row idx.
+func trackChangeFor(m Model, idx int) playback.TrackChangedMsg {
+	e := m.queue.Entries[idx]
+	return playback.TrackChangedMsg{Hash: e.Hash, Index: idx, Artist: e.Artist, Title: e.Title}
+}
+
 // assertCurrentRow checks the TUI is showing queue row idx as the current track.
 func assertCurrentRow(t *testing.T, m Model, idx int) {
 	t.Helper()

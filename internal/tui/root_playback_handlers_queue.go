@@ -103,11 +103,21 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	}
 	// The latest request has now been answered, so the current row is whatever
 	// the player made of it rather than an unconfirmed optimistic guess. This
-	// runs for a failure too: the reset below is itself a resolution.
+	// runs for a failure too: the reset below is itself a resolution. Enter on
+	// the row is a genuine replay again from here.
 	m.playback.pendingSelection = false
 	if msg.Err == nil {
+		// The track-event barrier is deliberately left standing. A successful
+		// load says mpv accepted the selected row, not that it has finished
+		// reporting the rows it started before it — the event reader syncs the
+		// position between reading a start-file and dispatching it, so an
+		// abandoned selection's report can still be in flight. Only that row's
+		// own start-file retires the barrier, in handleTrackChangedMsg.
 		return m
 	}
+	// A refused load will never produce a start-file, so nothing else would ever
+	// lower the barrier. Drop it here whether or not the reset below runs.
+	m.playback.awaitingSelectionStart = false
 	// Discard the error if the user already moved on to a different track or
 	// cleared the queue between dispatch and arrival. Resetting unconditionally
 	// would clobber the now-correct playback state with a stale failure. A

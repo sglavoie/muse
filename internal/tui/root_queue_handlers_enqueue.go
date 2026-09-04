@@ -215,8 +215,11 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 		}
 	}
 	// A new selection moves the player's current entry, and nothing has
-	// confirmed the move yet; see pendingSelection.
+	// confirmed the move yet; see pendingSelection. The track-event barrier is
+	// raised with it and stays up past this request's own result, until the
+	// player reports starting the selected row; see awaitingSelectionStart.
 	m.playback.pendingSelection = true
+	m.playback.awaitingSelectionStart = true
 	return m, func() tea.Msg {
 		err, _ := gate.run(req, func() error { return p.PlayFromIndex(idx) })
 		return result(err)

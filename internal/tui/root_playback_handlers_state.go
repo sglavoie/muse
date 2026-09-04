@@ -18,6 +18,9 @@ import (
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	wasStopAfter := m.playback.stopAfterCurrent
 	m.playback.stopAfterCurrent = false
+	// Nothing lowers awaitingSelectionStart here: the traversal cannot have
+	// exhausted before the reader dispatched the start-file of the row it played
+	// out, and that report already retired the barrier.
 
 	// One snapshot before the branch cascade covers all four exits below.
 	m = m.endCurrentListen()
@@ -165,23 +168,29 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 		return m, nil
 	}
 
-	// Guard: a selection the player has not answered yet outranks a report about
-	// any other row. While pendingSelection is set, currentHash is the row the
-	// user asked for and the player has already been told to move onto it, so a
-	// start-file naming a different entry describes the row that selection is in
-	// the middle of replacing — an older command that reached mpv first, or the
-	// gapless successor it was about to start. Applying it would move the current
-	// row off the newer selection until the selection's own start-file arrives,
-	// and the request identity that separates the two commands' results is not
-	// carried on this message. The selection resolves the window either way: its
-	// own report confirms it below, and its failure resets playback outright.
+	// Guard: a selection the player has not started yet outranks a report about
+	// any other row. While awaitingSelectionStart is set, currentHash is the row
+	// the user asked for and the player has already been told to move onto it, so
+	// a start-file naming a different entry describes the row that selection is
+	// in the middle of replacing — an older command that reached mpv first, or
+	// the gapless successor it was about to start. Applying it would move the
+	// current row off the newer selection, and the request identity that
+	// separates the two commands' results is not carried on this message.
+	//
+	// The barrier is keyed to the start-file rather than to the selection's own
+	// result because the result is the earlier of the two: mpv answers the load
+	// on the IPC socket while the event reader is still syncing the position of
+	// the start-file it read before it. Only the selected row's report, below,
+	// proves every earlier one has already been delivered. A refused load lowers
+	// the barrier in handlePlayFromIndexResultMsg instead, since no start-file
+	// will follow it.
 	//
 	// Ending the outgoing listen above this guard is safe because nothing can be
 	// armed here: handlePlayQueueIndexMsg disarms at dispatch, and the only
 	// re-arm is at the bottom of this handler, which a pending selection has not
 	// reached.
-	if m.playback.pendingSelection && msg.Hash != m.playback.currentHash {
-		slog.Debug("track change discarded: a newer selection is unresolved",
+	if m.playback.awaitingSelectionStart && msg.Hash != m.playback.currentHash {
+		slog.Debug("track change discarded: a newer selection has not started yet",
 			"reported", msg.Hash, "selected", m.playback.currentHash)
 		return m, nil
 	}
@@ -195,8 +204,11 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	m.playback.currentIndex = idx
 	// The player has named the row it is on, which settles any selection still
 	// waiting for confirmation: from here currentIndex is the player's answer,
-	// not the optimistic guess, so Enter on it is a genuine replay again.
+	// not the optimistic guess, so Enter on it is a genuine replay again. It also
+	// retires the track-event barrier — this report cleared the reader of every
+	// start-file that preceded it, so the next one describes the present.
 	m.playback.pendingSelection = false
+	m.playback.awaitingSelectionStart = false
 	m.playback.queueExhausted = false
 	if m.followNowPlaying && m.ActiveView == viewQueue {
 		m.queue = m.queue.ScrollToNowPlaying(idx)

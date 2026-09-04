@@ -112,8 +112,11 @@ func (m Model) resetPlaybackState() Model {
 	m.playback.currentIndex = -1
 	// Nothing is current, so there is no optimistic selection left to protect;
 	// leaving the flag set would make the next confirmed row look unresolved and
-	// silently turn its replay into a reanchoring selection.
+	// silently turn its replay into a reanchoring selection. The barrier goes with
+	// it: it admits reports matching currentHash, which is now empty, so leaving
+	// it up would refuse every track change from here on.
 	m.playback.pendingSelection = false
+	m.playback.awaitingSelectionStart = false
 	m.missingTrackCount = 0
 	if sat, ok := m.player.(stopAfterToggler); ok {
 		sat.SetStopAfterCurrent(false)

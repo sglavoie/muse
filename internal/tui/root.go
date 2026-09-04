@@ -95,6 +95,17 @@ type playbackInfo struct {
 	// current track. A replay does not set it: ReplayCurrent restarts the
 	// current entry without moving it, so what is current stays confirmed.
 	pendingSelection bool
+	// awaitingSelectionStart is true from the moment a selection is dispatched
+	// until the player's own start-file names the selected row. It is the barrier
+	// that lets handleTrackChangedMsg refuse a report about any other row, and it
+	// deliberately outlives pendingSelection: a successful PlayFromIndex only
+	// proves mpv accepted the load, not that every start-file mpv emitted before
+	// it has been delivered. The event reader blocks in SyncPosition between
+	// reading a start-file and dispatching it, so the row an abandoned selection
+	// briefly started can still be reported after the newer load has returned.
+	// Retiring the barrier on that return would let the late report move the
+	// current row onto a track the player has already left.
+	awaitingSelectionStart bool
 
 	pending pendingListen   // in-flight listen capture; see root_listen_capture.go
 	flushes []pendingListen // listens awaiting persistence, drained once per Update
