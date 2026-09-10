@@ -250,6 +250,11 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 			return fmt.Errorf("merge tags delete source rows: %w", err)
 		}
 
+		// Re-point DJ settings and seed references in the same transaction.
+		if err := remapDJTagRefs(tx, sourceID, destID); err != nil {
+			return err
+		}
+
 		// Soft-delete the source tag.
 		if _, err := tx.Exec(
 			`UPDATE tags SET deleted_at = ? WHERE id = ?`,
@@ -260,4 +265,31 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 
 		return tx.Commit()
 	})
+}
+
+// remapDJTagRefs re-points every DJ settings filter and captured seed reference
+// from sourceID to destID. It runs inside the MergeTags transaction so a merge
+// can never leave half the references behind.
+//
+// Both the active session and every recipe are covered, including soft-deleted
+// recipes: their references must stay valid so restoring one restores a working
+// recipe rather than one filtering on a tag that no longer exists.
+//
+// The source tag is soft-deleted by the merge, so leaving its references in
+// place would turn every DJ filter mentioning it into an unresolved reference
+// that pauses the DJ — the opposite of what merging two tags means.
+func remapDJTagRefs(tx *sql.Tx, sourceID, destID int64) error {
+	// OR IGNORE skips owners that already reference the destination in the same
+	// role; the delete below clears those now-redundant source rows.
+	if _, err := tx.Exec(
+		`UPDATE OR IGNORE dj_tag_refs SET tag_id = ? WHERE tag_id = ?`, destID, sourceID,
+	); err != nil {
+		return fmt.Errorf("merge tags re-point dj refs: %w", err)
+	}
+	if _, err := tx.Exec(
+		`DELETE FROM dj_tag_refs WHERE tag_id = ?`, sourceID,
+	); err != nil {
+		return fmt.Errorf("merge tags delete redundant dj refs: %w", err)
+	}
+	return nil
 }
