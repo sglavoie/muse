@@ -340,6 +340,11 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
+	// The DJ seed moves only under Follow, and only here: every stale-event
+	// guard above has already passed, so this is the player's confirmation of
+	// the row it is actually on rather than a start-file a newer selection
+	// superseded. An Anchor session keeps the context it was captured with.
+	m = m.djNoteTrackChanged(msg.Hash, time.Now())
 	var radioCmd tea.Cmd
 	m, radioCmd = m.startRadioEnqueueCmd()
 

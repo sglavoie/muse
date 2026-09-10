@@ -43,11 +43,20 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 			slog.Warn("session: write radio mode", "err", err)
 		}
 	}
+	// The DJ session lifecycle moves with the toggle. An ordinary `A` press is
+	// the least specific start there is, so it seeds from the current track
+	// (and from the whole library when nothing is playing) whatever view the
+	// user happens to be in; the contextual entry points below pass a different
+	// request. Restoring is not a start: a session resumed at launch keeps the
+	// seed it was captured with, and only a deliberate press captures a fresh
+	// one.
 	if m.radio.enabled {
 		m.radio.seedHash = m.playback.currentHash
+		m, _ = m.djStartFor(djSeedCurrent, time.Now())
 	} else {
 		m.radio.syntheticSeed = nil
 		m = m.supersedeRadioBatch()
+		m = m.djStop()
 	}
 	m.statusBar.PushMsg(m.modeToggleMsg("Radio mode", playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	if m.radio.enabled {

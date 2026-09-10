@@ -52,6 +52,18 @@ type RestoredSession struct {
 	// Volume is the last-saved volume percentage (0–100).
 	// Negative means no volume was persisted; callers should fall back to default.
 	Volume int
+
+	// DJ is the persisted Auto-DJ session: the applied settings snapshot, the
+	// seed captured when the session started, and the discovery rounding carry.
+	// Zero when nothing was saved or when DJStateErr is non-nil.
+	DJ db.DJSession
+
+	// DJStateErr reports saved Auto-DJ state that could not be used — invalid
+	// persisted settings, or state written by a newer build. It is surfaced to
+	// the user rather than repaired: replacing unreadable filters with stock
+	// defaults would silently turn a restrictive session into an unrestricted
+	// one. The rest of the session still restores normally.
+	DJStateErr error
 }
 
 // Deps holds injectable operations for the startup sequence. LaunchMPV is

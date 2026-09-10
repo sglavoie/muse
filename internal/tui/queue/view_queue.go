@@ -3,6 +3,7 @@ package queue
 import (
 	"charm.land/bubbles/v2/textinput"
 
+	"github.com/sglavoie/muse/internal/radio"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -24,6 +25,17 @@ type Entry struct {
 	TrackNumber    int    // track number from audio metadata; 0 = unknown
 	DiscNumber     int    // disc number from audio metadata; 0 = unknown
 	OrigIdx        int    // index in the unfiltered/unsorted entries slice; set by filteredEntries
+
+	// DJOwned reports that the Auto-DJ chose this row and may replace it when
+	// the user applies new settings. It mirrors the stored provenance flag and
+	// is never inferred from SourcePlaylist, which is a display label: a
+	// playlist the user named "Radio" and every row written before migration
+	// 024 read as false and stay protected from a refresh.
+	DJOwned bool
+
+	// DJReasons is the planner's explanation for a DJ selection, empty for
+	// manual entries. Display data only; nothing decides ownership from it.
+	DJReasons radio.Reasons
 }
 
 // View renders the playback queue panel.

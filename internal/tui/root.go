@@ -339,9 +339,15 @@ type Model struct {
 	// WithFreshLibrary to switch to Recently Added mode on first launch.
 	freshLibrary bool
 
-	playback playbackInfo // current playback state, repeat, shuffle, volume, position
-	radio    radioState   // auto-DJ / radio mode state
-	djData   djDataState  // revision of the data Auto-DJ planning reads
+	playback playbackInfo   // current playback state, repeat, shuffle, volume, position
+	radio    radioState     // auto-DJ / radio mode state
+	djData   djDataState    // revision of the data Auto-DJ planning reads
+	dj       djSessionState // persisted Auto-DJ session: settings, seed, allocation
+
+	// djWriter persists Auto-DJ session transitions. May be nil; set via
+	// WithDJWriter. Every write goes through the transitions in
+	// root_dj_session.go so the stored row always describes the running session.
+	djWriter djSessionWriter
 
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
 	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.
@@ -398,6 +404,11 @@ func New(ctx context.Context, opts ...Option) Model {
 		styles:          &initialStyles,
 		insightsPending: &insightsPendingWrites{},
 		metadataWrites:  metadata.NewWriteQueue(),
+		// Stock DJ settings before anything is restored. The zero
+		// radio.Settings has an empty anchor mode and fails validation, so a
+		// Model built without WithDJSession would otherwise carry settings no
+		// plan could be built from.
+		dj: djSessionState{settings: defaultDJSettings()},
 	}
 	for _, opt := range opts {
 		opt(&m)

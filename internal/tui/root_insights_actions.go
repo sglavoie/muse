@@ -209,6 +209,9 @@ func (m Model) handleInsightsRadioSeed() (Model, tea.Cmd) {
 	m.radio.syntheticSeed = &seed
 	m.radio.enabled = true
 	m.radio.seedHash = ""
+	// The drilldown is the explicitly targeted collection here, so it outranks
+	// the focused row; a bulk selection inside it still wins.
+	m, _ = m.djStartFromTracks(label, tracks, time.Now())
 	if m.sessionWriter != nil {
 		if err := m.sessionWriter.WriteRadioMode(true); err != nil {
 			slog.Warn("session: write radio mode", "err", err)

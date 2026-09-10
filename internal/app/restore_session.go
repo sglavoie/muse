@@ -44,7 +44,26 @@ func RestoreSession(database *db.DB, writer *db.Writer) (*RestoredSession, error
 
 	restored := buildRestoredSession(queueEntries, playerTracks, sess)
 	restored.RecentHashes = recentHashes
+	restored.DJ, restored.DJStateErr = restoreDJSession(database)
 	return restored, nil
+}
+
+// restoreDJSession loads the persisted Auto-DJ session.
+//
+// A read failure is deliberately not fatal to startup and is deliberately not
+// repaired into defaults either. ReadDJSession already refuses to hand back a
+// half-usable session — substituting stock settings would trade the user's
+// restrictive filters for an unrestricted DJ — so the zero session is carried
+// forward with the error beside it. The DJ then starts stopped, its saved state
+// is left on disk for repair, and the rest of the session (queue, transport,
+// volume) restores exactly as it would have.
+func restoreDJSession(database *db.DB) (db.DJSession, error) {
+	session, err := database.ReadDJSession()
+	if err != nil {
+		slog.Warn("restore session: read dj session", "err", err)
+		return db.DJSession{}, err
+	}
+	return session, nil
 }
 
 func restoreQueue(rows []db.QueueRow, writer *db.Writer) ([]queue.Entry, []player.QueueTrack) {
@@ -106,6 +125,12 @@ func queueEntryFromRow(row db.QueueRow, missing bool) queue.Entry {
 		SourcePlaylist: row.SourcePlaylist,
 		TrackNumber:    row.TrackNumber,
 		DiscNumber:     row.DiscNumber,
+		// Ownership and the planner's explanation are restored with the row.
+		// Without them every DJ-owned entry would read back as a manual one
+		// after a restart, and the first "apply while active" refresh would
+		// find nothing of its own to replace.
+		DJOwned:   row.DJOwned,
+		DJReasons: row.DJReasons,
 	}
 }
 

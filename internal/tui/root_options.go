@@ -348,6 +348,24 @@ func WithRadioMode(enabled bool) Option {
 	return func(m *Model) { m.radio.enabled = enabled }
 }
 
+// WithDJSession restores the persisted Auto-DJ session: the applied settings
+// snapshot, the seed captured when the session started, and the discovery
+// rounding carry.
+//
+// restoreErr is saved state this build refused to use. Pass it through rather
+// than dropping it: the DJ then starts stopped on stock settings and the
+// failure is reportable, where silently substituting defaults would replace the
+// user's restrictive filters with an unrestricted DJ.
+func WithDJSession(session db.DJSession, restoreErr error) Option {
+	return func(m *Model) { *m = m.djRestore(session, restoreErr) }
+}
+
+// WithDJWriter sets the writer that persists Auto-DJ session transitions
+// (start, stop, resume, reseed, apply, allocation).
+func WithDJWriter(w djSessionWriter) Option {
+	return func(m *Model) { m.djWriter = w }
+}
+
 // WithRadioRecentHashes seeds the radio recent-history ring buffer, e.g. from
 // play history at startup so avoidance of just-heard tracks survives a
 // restart. Input is oldest-first; entries beyond RadioRecentCap are dropped

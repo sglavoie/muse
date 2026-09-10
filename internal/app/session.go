@@ -70,6 +70,11 @@ func ApplyRestoredSession(
 	tui.WithShuffle(restored.Shuffle)(model)
 	tui.WithRadioMode(restored.RadioMode)(model)
 	tui.WithRadioRecentHashes(restored.RecentHashes)(model)
+	// Applied here rather than after the current-track block below, which
+	// returns early when the restored track turns out to be unavailable: the DJ
+	// session is independent of whether that one row survived, and skipping it
+	// would silently drop the user's settings and filters.
+	tui.WithDJSession(restored.DJ, restored.DJStateErr)(model)
 	vol := restored.Volume
 	if vol < 0 {
 		vol = defaultVolume

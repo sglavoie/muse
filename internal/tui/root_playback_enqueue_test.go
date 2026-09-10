@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -287,7 +288,9 @@ func TestClearQueueThenBatchEnqueuedRebuildsPlayerQueueAndStartsPlayback(t *test
 		t.Fatalf("BatchEnqueuedMsg: expected %d AppendToQueue calls, got %d", len(entries), len(p.appendToQueueCalls))
 	}
 	for i, want := range entries {
-		if got := nm.queue.Entries[i]; got != want {
+		// DeepEqual rather than ==: an entry now carries its DJ reasons, which
+		// are a slice.
+		if got := nm.queue.Entries[i]; !reflect.DeepEqual(got, want) {
 			t.Fatalf("BatchEnqueuedMsg: entry %d = %+v, want %+v", i, got, want)
 		}
 		if got, wantTrack := p.appendToQueueCalls[i], queueTrackFromEntry(want); got != wantTrack {

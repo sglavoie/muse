@@ -360,6 +360,10 @@ func djPlanBatch(in djInputs, req radio.PlanRequest, alloc radio.Allocation, rea
 	pi := in.PlanInput(req, alloc)
 	pools := radio.Partition(pi)
 	targets := pools.HydrationTargets(pi, djHydrationPerGroup)
-	signals := djLoadSignals(reader, targets, req.Seed.TrackHash, now)
+	// CoOccurrenceHash rather than TrackHash: a collection or whole-library seed
+	// carries a synthetic hash that matches no play-history row, so asking for
+	// it would spend a query to learn nothing and would report the session as
+	// seeded when its one seed-relative signal is unavailable by construction.
+	signals := djLoadSignals(reader, targets, req.Seed.CoOccurrenceHash(), now)
 	return radio.PlanFrom(signals.applyTo(pi), pools), signals, nil
 }
