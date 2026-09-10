@@ -109,6 +109,7 @@ var helpSectionsTable = []HelpSection{
 			{"z", "Toggle shuffle"},
 			{"ctrl+n", "Stop after current track"},
 			{"A", "Toggle radio mode (Auto-DJ)"},
+			{"ctrl+a", "Tune Auto-DJ (presets, discovery, filters)"},
 			{"u", "Undo"},
 			{"/", "Filter (Library / Queue / Browse / Favorites / Tags / Mixes)"},
 			{"P", "Preview focused track"},

@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/tui/autodj"
 	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	"github.com/sglavoie/muse/internal/tui/filter"
@@ -53,6 +54,7 @@ type overlayInfo struct {
 	tagMergePicker        *tagtui.TagMergePicker
 	tagFilterPicker       *tagtui.TagFilterPicker
 	favoriteTargetPicker  *favtui.TargetPicker
+	autoDJ                *autodj.TunePanel
 }
 
 // undoInfo holds the reversible undo slot.
@@ -348,6 +350,11 @@ type Model struct {
 	// djRefresh tracks the immediate queue refresh an Apply launches: its
 	// identity, its withdrawal flag, and what the last one did.
 	djRefresh djRefreshState
+
+	// autoDJPanel is the identity of the Tune panel commit awaiting an
+	// acknowledgement. See root_autodj_panel.go for why the counter lives here
+	// rather than inside the overlay.
+	autoDJPanel autoDJPanelState
 
 	// djWriter persists Auto-DJ session transitions. May be nil; set via
 	// WithDJWriter. Every write goes through the transitions in

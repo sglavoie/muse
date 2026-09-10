@@ -111,6 +111,8 @@ func (m Model) ActiveOverlayName() string {
 		return "tag_filter_picker"
 	case m.overlay.favoriteTargetPicker != nil:
 		return "favorite_target_picker"
+	case m.overlay.autoDJ != nil:
+		return "autodj_tune"
 	default:
 		return ""
 	}

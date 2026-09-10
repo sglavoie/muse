@@ -36,12 +36,7 @@ const RadioRecentCap = 30
 // radioToggle flips radio mode on or off, notifies the user, and kicks off an
 // initial enqueue when enabling.
 func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
-	m.radio.enabled = !m.radio.enabled
-	if m.sessionWriter != nil {
-		if err := m.sessionWriter.WriteRadioMode(m.radio.enabled); err != nil {
-			slog.Warn("session: write radio mode", "err", err)
-		}
-	}
+	m = m.radioSetEnabled(!m.radio.enabled)
 	// The DJ session lifecycle moves with the toggle. An ordinary `A` press is
 	// the least specific start there is, so it seeds from the current track
 	// (and from the whole library when nothing is playing) whatever view the

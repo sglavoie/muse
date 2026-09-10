@@ -29,8 +29,9 @@ func registerDefaultBindings(r *Registry) {
 	registerInsightsBindings(r)
 }
 
-func registerGlobalBindings(r *Registry) {
-	r.register(ContextGlobal, "ctrl+c", ActionQuit)
+// registerGlobalTransportBindings covers the keys that drive the player itself:
+// what is playing, where in it, and how loudly.
+func registerGlobalTransportBindings(r *Registry) {
 	r.register(ContextGlobal, "space", ActionPlayPause)
 	r.register(ContextGlobal, "s", ActionStop)
 	r.register(ContextGlobal, "n", ActionNext)
@@ -41,6 +42,11 @@ func registerGlobalBindings(r *Registry) {
 	r.register(ContextGlobal, "shift+right", ActionSeekForwardLong)
 	r.register(ContextGlobal, "=", ActionVolumeUp)
 	r.register(ContextGlobal, "-", ActionVolumeDown)
+}
+
+func registerGlobalBindings(r *Registry) {
+	registerGlobalTransportBindings(r)
+	r.register(ContextGlobal, "ctrl+c", ActionQuit)
 	r.register(ContextGlobal, "1", ActionSwitchLibrary)
 	r.register(ContextGlobal, "2", ActionSwitchPlaylists)
 	r.register(ContextGlobal, "3", ActionSwitchQueue)
@@ -79,6 +85,9 @@ func registerGlobalBindings(r *Registry) {
 	r.register(ContextGlobal, "t", ActionTagPicker)
 	r.register(ContextGlobal, "ctrl+t", ActionTagFilter)
 	r.register(ContextGlobal, "A", ActionRadioToggle)
+	// 'A' stays the one-press toggle; ctrl+a is its tuning sibling, opening the
+	// panel that edits what the DJ is about to play instead of switching it on.
+	r.register(ContextGlobal, "ctrl+a", ActionAutoDJTune)
 	r.register(ContextGlobal, "f", ActionFocusNowPlaying)
 }
 

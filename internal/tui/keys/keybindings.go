@@ -63,6 +63,7 @@ import (
 //   !   | —              | —          | —          | —          | —             | —          | —          | —           | anti-rut
 //   h, backspace | —     | —          | —          | —          | —             | —          | tag-back   | —           | —
 //   ctrl+y/x/p | —       | —          | —          | yank/cut/paste | —         | —          | —          | —           | —
+//   ctrl+a | autodj-tune | =          | =          | =          | =             | =          | =          | =           | =
 //
 // Entries marked "*" are intentional shadows of a global binding with a
 // different action. Each must be registered via registerWithReason so the
@@ -250,6 +251,7 @@ const (
 	ActionInsightsJumpBrowse   // 'b': jump to the focused row's artist in Browse
 	ActionInsightsSavePlaylist // 'S': save the drilled-in tracks as a playlist
 	ActionInsightsMergeGenre   // 'm': fold a Data Health genre collision into one spelling
+	ActionAutoDJTune           // 'ctrl+a': open the Auto-DJ Tune panel
 )
 
 // RegistryKey is the composite map key for registry lookups.

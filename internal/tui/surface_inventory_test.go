@@ -46,6 +46,7 @@ var surfaceAuditedPackages = []string{
 	"github.com/sglavoie/muse/internal/tui/browse",
 	"github.com/sglavoie/muse/internal/tui/insights",
 	"github.com/sglavoie/muse/internal/tui/mixes",
+	"github.com/sglavoie/muse/internal/tui/autodj",
 	"github.com/sglavoie/muse/internal/tui/uitest",
 }
 

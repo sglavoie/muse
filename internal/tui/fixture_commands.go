@@ -17,6 +17,7 @@ func safeDirectCommandIDs() map[string]struct{} {
 		"help.modes_legend":      {},
 		"debug.show":             {},
 		"radio.toggle":           {},
+		"autodj.tune":            {},
 		"nav.playlists":          {},
 		"nav.queue":              {},
 		"nav.favorites":          {},

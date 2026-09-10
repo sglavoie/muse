@@ -74,7 +74,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 
 <!-- BEGIN GENERATED: package layers -->
 
-**32 packages, 132 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
+**33 packages, 135 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
 
 | Level | Packages |
 |---:|---|
@@ -84,7 +84,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | L4 | `tui/browse`, `tui/favorites`, `tui/metadata`, `tui/queue`, `tui/settings`, `tui/smartrules`, `tui/tags` |
 | L3 | `tui/albums`, `tui/genres`, `tui/insights`, `tui/mixes`, `tui/overlay`, `tui/playlists`, `tui/statusbar` |
 | L2 | `tui/artists`, `tui/library`, `tui/playback` |
-| L1 | `tui/chart`, `tui/keys`, `tui/palette`, `tui/sorting`, `tui/strip` |
+| L1 | `tui/autodj`, `tui/chart`, `tui/keys`, `tui/palette`, `tui/sorting`, `tui/strip` |
 | L0 | `internal/desktop`, `tui/buckets`, `tui/filter`, `tui/layout`, `tui/styles`, `tui/text` |
 
 | Package | Level | Direct imports within the graph |
@@ -92,7 +92,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `main` | L7 | `internal/app` (L6), `tui/uitest` (L6), `internal/tui` (L5), `tui/playback` (L2) |
 | `internal/app` | L6 | `internal/tui` (L5), `tui/queue` (L4), `tui/playback` (L2) |
 | `tui/uitest` | L6 | `internal/tui` (L5), `tui/palette` (L1) |
-| `internal/tui` | L5 | `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/keys` (L1), `tui/palette` (L1), `tui/sorting` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `internal/tui` | L5 | `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/autodj` (L1), `tui/keys` (L1), `tui/palette` (L1), `tui/sorting` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/browse` | L4 | `tui/albums` (L3), `tui/genres` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/styles` (L0) |
 | `tui/favorites` | L4 | `tui/overlay` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/metadata` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
@@ -110,6 +110,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/artists` | L2 | `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/library` | L2 | `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/playback` | L2 | `tui/keys` (L1) |
+| `tui/autodj` | L1 | `tui/styles` (L0), `tui/text` (L0) |
 | `tui/chart` | L1 | `tui/styles` (L0) |
 | `tui/keys` | L1 | `tui/styles` (L0) |
 | `tui/palette` | L1 | `tui/filter` (L0), `tui/styles` (L0), `tui/text` (L0) |
@@ -130,7 +131,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 |---|---:|---:|---:|---:|---|
 | `internal/desktop` | 6 | 0 | 6 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
-| `tui/keys` | 151 | 41 | 108 | 2 | `tui` + 11 view packages |
+| `tui/keys` | 152 | 41 | 109 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 60 | 39 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 96 | 29 | 66 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags` |
 | `tui/statusbar` | 50 | 1 | 48 | 1 | `tui`, `queue`, `uitest` |
@@ -141,6 +142,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
+| `tui/autodj` | 37 | 0 | 35 | 2 | `tui` |
 | `tui/uitest` | 72 | 0 | 35 | 37 | `main` |
 
 ## Why single-consumer packages stay exported
@@ -182,6 +184,8 @@ API without naming it.
 | `playback.ModeIndicator` | element type of `playback.ModeIndicators`' result |
 | `overlay.GoToKind` | `GoToOption.Kind` and `GoToPickedMsg.Kind` |
 | `statusbar.NotifPriority` | parameter of `StatusBar.PushMsg` |
+| `autodj.Action` | result of `TunePanel.HandleKey` |
+| `autodj.Tone` | `StatusLine.Tone` field |
 | `settings.Tab`, `settings.Action` | `SettingsOverlay.Tab` field and `SettingsOverlay.HandleKey` result |
 | `smartrules.Action`, `metadata.Action` | `SmartRuleEditor.HandleKey` / `Editor.HandleKey` results |
 | `metadata.Field` | type of the exported const `metadata.FieldDuration` |
@@ -209,7 +213,7 @@ to `tui.UITestSnapshot` in `internal/tui/uitest_snapshot.go`.
 
 ## Per-identifier inventory
 
-Every exported identifier of the fourteen packages in the summary above, with
+Every exported identifier of the fifteen packages in the summary above, with
 the packages outside its own directory that reference it. The pre-existing
 packages are not inventoried here; they are reported in the next section.
 
@@ -253,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**889 exported identifiers across 14 packages**: 153 reached from two or more packages, 681 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
+**927 exported identifiers across 15 packages**: 153 reached from two or more packages, 717 from exactly one, 57 from none (21 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -318,6 +322,7 @@ export must either earn a justification, be recorded in
 | `tui/keys` | `ActionAlbumOpen` | const | `internal/tui` | root |
 | `tui/keys` | `ActionArtistBack` | const | `internal/tui` | root |
 | `tui/keys` | `ActionArtistOpen` | const | `internal/tui` | root |
+| `tui/keys` | `ActionAutoDJTune` | const | `internal/tui` | root |
 | `tui/keys` | `ActionBrowseModeNext` | const | `internal/tui` | root |
 | `tui/keys` | `ActionBrowseModePrev` | const | `internal/tui` | root |
 | `tui/keys` | `ActionBulkAction` | const | `internal/tui` | root |
@@ -1074,6 +1079,43 @@ export must either earn a justification, be recorded in
 | `tui/mixes` | `MixesView.SelectedMix` | field | `internal/tui` | root |
 | `tui/mixes` | `MixesView.SetSize` | method | — | iface: internal/tui.resizable |
 | `tui/mixes` | `MixesView.TrackView` | field | `internal/tui` | root |
+| `tui/autodj` | `Action` | type | — | api |
+| `tui/autodj` | `ActionCancel` | const | `internal/tui` | root |
+| `tui/autodj` | `ActionCommit` | const | `internal/tui` | root |
+| `tui/autodj` | `Applied` | type | `internal/tui` | root |
+| `tui/autodj` | `Applied.Active` | field | `internal/tui` | root |
+| `tui/autodj` | `Applied.Err` | field | `internal/tui` | root |
+| `tui/autodj` | `Applied.Settings` | field | `internal/tui` | root |
+| `tui/autodj` | `Applied.Token` | field | `internal/tui` | root |
+| `tui/autodj` | `Catalog` | type | `internal/tui` | root |
+| `tui/autodj` | `Catalog.Artists` | field | `internal/tui` | root |
+| `tui/autodj` | `Catalog.Genres` | field | `internal/tui` | root |
+| `tui/autodj` | `Catalog.Tags` | field | `internal/tui` | root |
+| `tui/autodj` | `New` | func | `internal/tui` | root |
+| `tui/autodj` | `Options` | type | `internal/tui` | root |
+| `tui/autodj` | `Options.Active` | field | `internal/tui` | root |
+| `tui/autodj` | `Options.Applied` | field | `internal/tui` | root |
+| `tui/autodj` | `Options.Catalog` | field | `internal/tui` | root |
+| `tui/autodj` | `StatusLine` | type | `internal/tui` | root |
+| `tui/autodj` | `StatusLine.Text` | field | `internal/tui` | root |
+| `tui/autodj` | `StatusLine.Tone` | field | `internal/tui` | root |
+| `tui/autodj` | `Tone` | type | — | api |
+| `tui/autodj` | `ToneError` | const | `internal/tui` | root |
+| `tui/autodj` | `ToneInfo` | const | `internal/tui` | root |
+| `tui/autodj` | `ToneWarn` | const | `internal/tui` | root |
+| `tui/autodj` | `TunePanel` | type | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.Ack` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.AppliedSettings` | method | `internal/tui†` | root (tests only) |
+| `tui/autodj` | `TunePanel.Busy` | method | `internal/tui†` | root (tests only) |
+| `tui/autodj` | `TunePanel.CommitLabel` | method | `internal/tui†` | root (tests only) |
+| `tui/autodj` | `TunePanel.Cursor` | method | `internal/tui†` | root (tests only) |
+| `tui/autodj` | `TunePanel.Dirty` | method | `internal/tui†` | root (tests only) |
+| `tui/autodj` | `TunePanel.Draft` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.Err` | method | `internal/tui†` | root (tests only) |
+| `tui/autodj` | `TunePanel.HandleKey` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.Render` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.Submit` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.Unresolved` | method | `internal/tui†` | root (tests only) |
 | `tui/uitest` | `NewUITestDriver` | func | `main` | harness |
 | `tui/uitest` | `ObserveOptions` | type | `main` | harness |
 | `tui/uitest` | `ObserveOptions.IncludeANSI` | field | `main` | harness |

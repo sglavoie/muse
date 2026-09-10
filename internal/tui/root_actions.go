@@ -425,6 +425,8 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		return m.openTagPicker()
 	case keys.ActionTagFilter:
 		return m.handleTagFilterAction()
+	case keys.ActionAutoDJTune:
+		return m.openAutoDJTunePanel()
 	}
 	if hint := hintForAction(action, m.ActiveView, m.browse.Mode); hint != "" {
 		m.statusBar.PushMsg(hint, 3*time.Second, statusbar.NotifInfo)

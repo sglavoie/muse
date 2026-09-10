@@ -38,5 +38,6 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.tagPicker != nil ||
 		m.overlay.tagMergePicker != nil ||
 		m.overlay.tagFilterPicker != nil ||
-		m.overlay.favoriteTargetPicker != nil
+		m.overlay.favoriteTargetPicker != nil ||
+		m.overlay.autoDJ != nil
 }

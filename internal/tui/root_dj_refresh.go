@@ -148,6 +148,12 @@ func (m Model) djApply(settings radio.Settings, now time.Time) (Model, tea.Cmd, 
 // The retry budget is deliberately not touched here: djStartRefreshCmd calls
 // this on its way in, and a relaunch must not refund its own budget.
 func (m Model) supersedeDJRefresh() Model {
+	// A Tune-panel commit waiting on the refresh being withdrawn is answered
+	// here: its result will be filed as late, so nothing downstream would ever
+	// report back to the panel.
+	if m.djRefresh.pending {
+		m = m.withdrawAutoDJPanelWait()
+	}
 	if m.djRefresh.cancel != nil {
 		m.djRefresh.cancel.Store(true)
 	}
@@ -556,10 +562,11 @@ func (m Model) handleDJRefreshDoneMsg(msg djRefreshDoneMsg) (Model, tea.Cmd) {
 	m.djRefresh.pending = false
 	m.djRefresh.cancel = nil
 	if !msg.valid {
-		return m.recordDJRefreshFailure(msg, time.Now())
+		m, cmd := m.recordDJRefreshFailure(msg, time.Now())
+		return m.ackAutoDJRefresh(msg.err), cmd
 	}
 	m = m.adoptDJRefreshRows(msg.committed)
-	return m.adoptDJRefreshState(msg, time.Now()), nil
+	return m.adoptDJRefreshState(msg, time.Now()).ackAutoDJRefresh(nil), nil
 }
 
 // reconcileLateDJRefresh answers for a result a disable, a clear, a reseed, or a

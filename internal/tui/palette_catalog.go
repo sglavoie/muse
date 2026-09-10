@@ -88,6 +88,7 @@ var paletteCatalog = []paletteEntry{
 
 	{act: keys.ActionDebug, id: "debug.show", name: "Show debug panel", category: "dev", ctx: keys.ContextGlobal},
 	{act: keys.ActionRadioToggle, id: "radio.toggle", name: "Toggle radio mode", category: "mode", ctx: keys.ContextGlobal},
+	{act: keys.ActionAutoDJTune, id: "autodj.tune", name: "Tune Auto-DJ…", category: "mode", ctx: keys.ContextGlobal},
 
 	{act: keys.ActionRepeatCycle, id: "playback.repeat.cycle", name: "Cycle repeat mode", category: "mode", ctx: keys.ContextGlobal},
 	{act: keys.ActionShuffleToggle, id: "playback.shuffle.toggle", name: "Toggle shuffle", category: "mode", ctx: keys.ContextGlobal},
