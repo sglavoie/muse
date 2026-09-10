@@ -366,6 +366,17 @@ func WithDJWriter(w djSessionWriter) Option {
 	return func(m *Model) { m.djWriter = w }
 }
 
+// WithDJQueueWriter sets the writer that prepares, publishes, and retires
+// Auto-DJ queue batches.
+//
+// It supersedes the pre-DJ pending-radio path wherever both are injected: rows
+// it publishes carry DJ ownership and the planner's reasons, and the discovery
+// carry the batch advanced lands in the same transaction, so a crash between
+// publishing a batch and recording what it consumed is not representable.
+func WithDJQueueWriter(w djQueueWriter) Option {
+	return func(m *Model) { m.djQueue = w }
+}
+
 // WithRadioRecentHashes seeds the radio recent-history ring buffer, e.g. from
 // play history at startup so avoidance of just-heard tracks survives a
 // restart. Input is oldest-first; entries beyond RadioRecentCap are dropped

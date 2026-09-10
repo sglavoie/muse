@@ -6,11 +6,22 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
+
+// radioMaybeEnqueueCmd answers the admission question alone: would a refill be
+// launched from this state? It discards the Model that launching returns, which
+// is what the tests below want — they assert on whether a batch starts, not on
+// the identity it is given, and dropping the identity keeps them from asserting
+// on a request counter they never advance.
+func (m Model) radioMaybeEnqueueCmd() tea.Cmd {
+	_, cmd := m.startRadioEnqueueCmd()
+	return cmd
+}
 
 // TestRadioToggleOnOff verifies that actionRadioToggle flips radio.enabled and
 // calls WriteRadioMode on the session writer each time.

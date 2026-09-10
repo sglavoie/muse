@@ -128,7 +128,11 @@ func (m Model) djStart(seed radio.SeedSnapshot) Model {
 	m.dj.seed = seed
 	m.dj.allocation = radio.Allocation{}
 	m.dj.restored = false
-	return m.djPersist()
+	// A refill already in flight was planned about the previous subject, so it
+	// is disowned here rather than left for the acceptance check: under Follow
+	// anchoring a moved seed is ordinary drift, and only the request identity
+	// can tell that one apart from the user deliberately starting elsewhere.
+	return m.supersedeRadioBatch().djPersist()
 }
 
 // djStartFor begins a session seeded by the given request and returns the label
@@ -169,7 +173,7 @@ func (m Model) djStop() Model {
 	m.dj.seed = radio.SeedSnapshot{}
 	m.dj.allocation = radio.Allocation{}
 	m.dj.restored = false
-	return m.djPersistStop()
+	return m.supersedeRadioBatch().djPersistStop()
 }
 
 // djResume re-activates a restored-but-stopped session against its own seed.
@@ -191,7 +195,7 @@ func (m Model) djReseed(seed radio.SeedSnapshot) Model {
 	}
 	m.dj.seed = seed
 	m.dj.restored = false
-	return m.djPersist()
+	return m.supersedeRadioBatch().djPersist()
 }
 
 // djApplySettings adopts a new settings snapshot.
@@ -207,7 +211,7 @@ func (m Model) djApplySettings(settings radio.Settings) (Model, error) {
 	m.dj.settings = settings.Normalized()
 	m.dj.allocation = radio.Allocation{}
 	m.dj.restoreErr = nil
-	return m.djPersist(), nil
+	return m.supersedeRadioBatch().djPersist(), nil
 }
 
 // djAdoptAllocation records the rounding carry of an accepted batch. Only
@@ -219,6 +223,20 @@ func (m Model) djAdoptAllocation(alloc radio.Allocation) Model {
 	}
 	m.dj.allocation = alloc.Normalized()
 	return m.djPersist()
+}
+
+// djNoteAllocation records a carry the accept transaction already persisted.
+//
+// The DJ queue writer commits the allocation in the same transaction that
+// publishes the batch, so re-issuing djPersist here would rewrite the whole
+// session row — recipe, filters and all — for a column that is already correct,
+// and would do it from a Model whose settings may have moved on since.
+func (m Model) djNoteAllocation(alloc radio.Allocation) Model {
+	if !m.dj.active {
+		return m
+	}
+	m.dj.allocation = alloc.Normalized()
+	return m
 }
 
 // djNoteTrackChanged re-anchors a Follow session on a confirmed track change.

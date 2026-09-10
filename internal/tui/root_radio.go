@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
-	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
@@ -89,16 +88,14 @@ func (m Model) radioRemainingCount() int {
 	return len(m.queue.Entries) - m.playback.currentIndex - 1
 }
 
-// radioMaybeEnqueueCmd returns an enqueue Cmd when all guards pass, or nil.
+// radioCanEnqueue reports whether a refill may be launched.
+//
 // Guards: radio enabled, no pending enqueue, stopAfterCurrent not set,
-// repeatMode != RepeatAll, library non-empty, remaining <= low-water-mark.
-func (m Model) radioMaybeEnqueueCmd() tea.Cmd {
-	if !m.radioCanEnqueue() {
-		return nil
-	}
-	return m.radioEnqueueCmd()
-}
-
+// repeatMode != RepeatAll, library non-empty, remaining <= low-water-mark, and
+// the planner not parked on inputs that have not moved since it last came back
+// with nothing. That last guard is what keeps an empty candidate set, an
+// unresolved tag reference, or a failing writer from turning the low-water-mark
+// check into a loop that re-asks the same question forever.
 func (m Model) radioCanEnqueue() bool {
 	if !m.radio.enabled {
 		return false
@@ -118,7 +115,7 @@ func (m Model) radioCanEnqueue() bool {
 	if m.radioRemainingCount() > radioLowWaterMark {
 		return false
 	}
-	return true
+	return m.djLiveAllowed(time.Now())
 }
 
 // startRadioEnqueueCmd gives a newly admitted batch its identity and marks it
@@ -140,135 +137,84 @@ func (m Model) startRadioEnqueueCmd() (Model, tea.Cmd) {
 func (m Model) supersedeRadioBatch() Model {
 	m.radio.requestID++
 	m.radio.enqueuePending = false
+	// A replacement boundary is a deliberate change of what the DJ is refilling
+	// into, so neither the park nor the stale-retry budget earned under the old
+	// state applies to the new one.
+	m.djPlan.block = djPlanBlock{}
+	m.djPlan.staleRetries = 0
 	return m
 }
 
-// radioEnqueueCmd captures the current scoring inputs and returns a tea.Cmd
-// that scores the library, picks a batch, appends to DB, and returns
+// radioEnqueueCmd captures the current planning inputs and returns a tea.Cmd
+// that plans one batch and persists it as hidden rows, returning
 // RadioBatchEnqueuedMsg.
+//
+// Everything the goroutine reads is copied here, on the update loop: the data
+// snapshot, the applied settings, the seed, the discovery carry, and the
+// fingerprint acceptance will validate the result against. Reading any of it
+// from the Model inside the closure would both race the update loop and defeat
+// the point of the fingerprint, which is to describe one fixed set of inputs.
 func (m Model) radioEnqueueCmd() tea.Cmd {
-	if m.batchEnqueuer == nil {
+	persist := m.djPersister()
+	if !persist.available() {
 		return nil
 	}
-
-	seed := radio.SeedTrack{}
-	if m.radio.syntheticSeed != nil {
-		seed = *m.radio.syntheticSeed
-	} else {
-		seedHash := m.radio.seedHash
-		if seedHash == "" {
-			seedHash = m.playback.currentHash
-		}
-		if t, ok := m.library.Index.FindByHash(seedHash); ok {
-			seed.Hash = t.Hash
-			seed.Artist = t.Artist
-			seed.Album = t.Album
-			seed.Genres = library.SplitGenres(t.Genre)
-			seed.Duration = t.Duration
-			if tags, ok2 := m.trackTags[seedHash]; ok2 {
-				// Snapshot the tag set: the live map is mutated by the Update
-				// loop (applyTagToggle) and reading it concurrently from the
-				// closure goroutine would race.
-				seedTags := make(map[int64]struct{}, len(tags))
-				for id := range tags {
-					seedTags[id] = struct{}{}
-				}
-				seed.TagIDs = seedTags
-			}
-		} else if seedHash != "" {
-			seed.Hash = seedHash
-		}
+	now := time.Now()
+	in := m.captureDJInputs(now)
+	req := radio.PlanRequest{
+		Settings:    m.dj.settings,
+		Seed:        m.djPlanSeed(now),
+		BatchSize:   radioBatchSize,
+		RequestedAt: now,
 	}
-
-	recentSet := m.radioRecentSet()
-
-	queueSet := make(map[string]struct{}, len(m.queue.Entries))
-	for _, e := range m.queue.Entries {
-		queueSet[e.Hash] = struct{}{}
+	msg := RadioBatchEnqueuedMsg{
+		RequestID:   m.radio.requestID,
+		WasEmpty:    len(m.queue.Entries) == 0,
+		fingerprint: m.djFingerprint(in.dataRev, in.queueRev, now),
 	}
-
-	wasEmpty := len(m.queue.Entries) == 0
-	allTracks := snapshotTracks(m.library.Index.Tracks())
-	trackTags := snapshotTrackTags(m.trackTags)
-	favoriteHashes := snapshotStringSet(m.favoriteHashes)
-	dismissedHashes := snapshotStringSet(m.dismissedHashes)
-	be := m.batchEnqueuer
-	recReader := m.recReader
-	requestID := m.radio.requestID
-
+	alloc := m.dj.allocation
+	reader := m.recReader
 	return func() tea.Msg {
-		// Two-pass scoring: first pass with metadata only to narrow candidates,
-		// then load behavioral data for the top 3*batchSize pool before the
-		// final score.
-		//
-		// "now" is read here rather than captured with the inputs above, so the
-		// time-of-day bonus follows the clock through a session left running
-		// for hours instead of pinning itself to the hour radio was enabled in.
-		now := time.Now()
-		var hydrate []string
-		if recReader != nil {
-			initial := radio.ScoreAll(radio.ScoreInput{
-				Seed:            seed,
-				AllTracks:       allTracks,
-				TrackTags:       trackTags,
-				FavoriteHashes:  favoriteHashes,
-				RecentHashes:    recentSet,
-				QueueHashes:     queueSet,
-				DismissedHashes: dismissedHashes,
-			})
-			topN := min(3*radioBatchSize, len(initial))
-			hydrate = make([]string, topN)
-			for i := 0; i < topN; i++ {
-				hydrate[i] = initial[i].Track.Hash
-			}
-		}
-		// The seed only gates co-occurrence, which is the one seed-relative
-		// query. Completion rates and the hour affinity describe the listener,
-		// not the seed, and are now loaded for a synthetic or absent seed too.
-		signals := djLoadSignals(recReader, hydrate, seed.Hash, now)
-		if signals.Degraded() {
-			for _, f := range signals.Failures() {
-				slog.Warn("radio: behavioral signal unavailable", "signal", f.Signal, "err", f.Err)
-			}
-		}
-
-		scored := radio.ScoreAll(radio.ScoreInput{
-			Seed:            seed,
-			AllTracks:       allTracks,
-			TrackTags:       trackTags,
-			FavoriteHashes:  favoriteHashes,
-			RecentHashes:    recentSet,
-			QueueHashes:     queueSet,
-			DismissedHashes: dismissedHashes,
-			CompletionRates: signals.completionRates,
-			CoOccurrences:   signals.coOccurrences,
-			TimeGenreBonus:  signals.timeGenreBonus,
-		})
-		picked := radio.PickBatch(scored, radioBatchSize, 0.4)
-		if len(picked) == 0 {
-			return RadioBatchEnqueuedMsg{RequestID: requestID}
-		}
-		var ids []int64
-		var err error
-		pendingActivation := false
-		if pending, ok := be.(pendingRadioBatchEnqueuer); ok {
-			ids, err = pending.AppendRadioTracksPending(picked)
-			pendingActivation = err == nil
-		} else {
-			ids, err = be.AppendTracks(picked, "Radio")
-		}
-		if err != nil {
-			return RadioBatchEnqueuedMsg{RequestID: requestID, Err: err}
-		}
-		entries := newQueueEntries(picked, ids, "Radio")
-		return RadioBatchEnqueuedMsg{
-			Entries:           entries,
-			QueueIDs:          ids,
-			WasEmpty:          wasEmpty,
-			RequestID:         requestID,
-			PendingActivation: pendingActivation,
-		}
+		return djPlanAndPrepare(msg, in, req, alloc, reader, persist, now)
 	}
+}
+
+// djPlanAndPrepare runs one live planning attempt off the update loop: plan the
+// batch, then write it as rows nothing can see until acceptance publishes them.
+//
+// The two failure shapes are kept apart because they need different answers.
+// Missing eligibility data means no verdict about what the filters admit is
+// available, and no amount of retrying changes that until the tag cache is
+// rebuilt — which advances the data revision and unparks the refill on its own.
+// A failed write is transient and worth a bounded retry against the very same
+// inputs.
+func djPlanAndPrepare(msg RadioBatchEnqueuedMsg, in djInputs, req radio.PlanRequest,
+	alloc radio.Allocation, reader recommendationReader, persist djPersistence, now time.Time,
+) RadioBatchEnqueuedMsg {
+	result, signals, err := djPlanBatch(in, req, alloc, reader, now)
+	msg.plan = result
+	msg.signals = signals
+	if err != nil {
+		msg.Err = err
+		return msg
+	}
+	for _, f := range signals.Failures() {
+		slog.Warn("radio: behavioral signal unavailable", "signal", f.Signal, "err", f.Err)
+	}
+	if !result.CanContinue() {
+		return msg
+	}
+	prepared, err := persist.prepare(result.Tracks)
+	if err != nil {
+		msg.Err = err
+		msg.transient = true
+		return msg
+	}
+	msg.prep = prepared.prep
+	msg.QueueIDs = prepared.ids
+	msg.PendingActivation = prepared.needsActivation
+	msg.Entries = newDJQueueEntries(result.Tracks, prepared.ids, persist.recordsProvenance())
+	return msg
 }
 
 // radioNoteRecent records hash as just-heard in the recent-history ring,
@@ -335,60 +281,146 @@ func buildTimeGenreBonus(affinities []db.HourGenreAffinity, hour int) map[string
 // low-water-mark check.
 func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, tea.Cmd) {
 	// A disable, clear, replacement, or newer enqueue supersedes this result
-	// regardless of what the queue looks like now. AppendTracks commits before
-	// the message is delivered, so retire those exact rows before discarding the
-	// in-memory result. Do not clear enqueuePending: it may belong to the newer
-	// request whose identity caused this mismatch.
+	// regardless of what the queue looks like now. The rows were committed
+	// before the message was delivered, so retire those exact rows before
+	// discarding the in-memory result. Do not clear enqueuePending: it may
+	// belong to the newer request whose identity caused this mismatch.
 	if msg.RequestID != m.radio.requestID {
-		m = m.discardRadioBatch(msg.QueueIDs)
-		return m, nil
+		return m.discardRadioResult(msg), nil
 	}
 	m.radio.enqueuePending = false
 
+	now := time.Now()
 	if msg.Err != nil {
-		slog.Warn("radio enqueue failed", "err", msg.Err)
-		return m, nil
+		return m.recordRadioFailure(msg, now), nil
 	}
 	if len(msg.Entries) == 0 {
-		return m, nil
+		return m.recordRadioNoBatch(msg), nil
 	}
-	// Discard the batch if radio was toggled off or the queue was cleared
-	// while the enqueue goroutine was in flight. The DB rows were already
-	// appended by the goroutine but appending them to the empty/disabled
-	// queue would resurrect playback the user just cancelled.
+	// A cancelled result and a stale one are both discarded, but they are asked
+	// for in opposite ways. Cancellation is the user saying stop, so it ends
+	// there; staleness is the answer arriving too late to a question still worth
+	// asking, so it is asked again.
+	if m.radioResultCancelled(msg) {
+		return m.discardRadioResult(msg), nil
+	}
+	if !m.radioInputsCurrent(msg, now) {
+		return m.discardRadioResult(msg).retryRadioAfterStale()
+	}
+	if err := m.djPersister().accept(msg.prep, msg.QueueIDs, m.radioCommittedAllocation(msg)); err != nil {
+		slog.Warn("radio batch publication failed", "err", err)
+		m = m.discardRadioResult(msg)
+		msg.Err, msg.transient = err, true
+		return m.recordRadioFailure(msg, now), nil
+	}
+	return m.applyRadioBatch(msg, now)
+}
+
+// radioResultCancelled reports whether the user has withdrawn the request this
+// result answers. Relaunching after either of these would undo a gesture, so
+// they are kept apart from the staleness check that does relaunch.
+func (m Model) radioResultCancelled(msg RadioBatchEnqueuedMsg) bool {
+	// Radio was toggled off while the goroutine was in flight; publishing now
+	// would resurrect the mode the user just cancelled.
 	if !m.radio.enabled {
-		m = m.discardRadioBatch(msg.QueueIDs)
-		return m, nil
+		return true
 	}
 	// Queue-cleared-in-flight guard: when the radio batch was launched the
 	// queue had remaining tracks (low-water-mark trigger), so msg.WasEmpty is
-	// false. If the queue is empty by the time the batch arrives the user
-	// might have cleared it; silently appending the batch would then
-	// resurrect a queue the user just emptied. Distinguish natural
-	// exhaustion (queueExhausted=true, set by handlePlaybackEndedMsg) from a
-	// user-initiated clear (queueExhausted reset by resetPlaybackState).
-	// Only the former should auto-resume by appending the in-flight batch.
-	if !msg.WasEmpty && len(m.queue.Entries) == 0 && !m.playback.queueExhausted {
-		m = m.discardRadioBatch(msg.QueueIDs)
-		return m, nil
-	}
-	if msg.PendingActivation {
-		pending, ok := m.batchEnqueuer.(pendingRadioBatchEnqueuer)
-		if !ok {
-			slog.Warn("radio pending batch activation unavailable")
-			m = m.discardRadioBatch(msg.QueueIDs)
-			return m, nil
-		}
-		if err := pending.ActivateRadioTracks(msg.QueueIDs); err != nil {
-			slog.Warn("radio pending batch activation failed", "err", err)
-			m = m.discardRadioBatch(msg.QueueIDs)
-			return m, nil
-		}
-	}
+	// false. If the queue is empty by the time the batch arrives the user might
+	// have cleared it; silently appending the batch would then resurrect a queue
+	// the user just emptied. Distinguish natural exhaustion (queueExhausted=true,
+	// set by handlePlaybackEndedMsg) from a user-initiated clear (queueExhausted
+	// reset by resetPlaybackState). Only the former should auto-resume by
+	// appending the in-flight batch.
+	return !msg.WasEmpty && len(m.queue.Entries) == 0 && !m.playback.queueExhausted
+}
 
-	// Update recent-hashes ring buffer.
+// radioInputsCurrent reports whether the inputs a batch was computed from are
+// still the inputs in force, so publishing it means what it meant when it was
+// planned.
+//
+// Options, data, and seed must all still match. Applied settings that changed
+// mean the filters and the discovery target changed; a moved seed means the
+// batch is about something else; a moved data revision means the classification
+// or the eligibility it was selected by may already be wrong.
+func (m Model) radioInputsCurrent(msg RadioBatchEnqueuedMsg, now time.Time) bool {
+	cur := m.djLiveFingerprint(now)
+	if msg.fingerprint.dataRev != cur.dataRev ||
+		djHourChanged(msg.fingerprint.capturedAt, now) ||
+		!msg.fingerprint.settings.Equal(cur.settings) {
+		return false
+	}
+	if !m.radioSeedCurrent(msg.fingerprint.seedHash, cur.seedHash) {
+		return false
+	}
+	return m.radioQueueAdmissible(msg, msg.fingerprint.queueRev)
+}
+
+// radioSeedCurrent reports whether a batch is still about the seed in force.
+//
+// A pinned seed is the whole of what an anchored session is, so nothing but a
+// deliberate reseed can move it and any move is a change of subject. A seed that
+// follows playback is the opposite: it is meant to drift, and a batch planned
+// from the row that was playing when the refill launched is exactly what
+// following means. Refusing that would leave the DJ unable to refill whenever the
+// queue advances while planning runs — which, at the low-water mark, is most of
+// the time. Deliberate seed changes are not left to this check either way: the
+// lifecycle transitions supersede in-flight work outright, so what reaches here
+// on a following seed is only ordinary drift.
+func (m Model) radioSeedCurrent(planned, current string) bool {
+	return planned == current || !m.radioSeedPinned()
+}
+
+// radioSeedPinned reports whether the seed can only move deliberately. Only an
+// anchored session pins it; a following session re-anchors on every confirmed
+// track change, and a Model with Radio on and no session behind it seeds from
+// the playing track, which is the same drift by another route.
+func (m Model) radioSeedPinned() bool {
+	return m.dj.active && m.dj.settings.Anchor == radio.AnchorSeed
+}
+
+// radioQueueAdmissible validates the queue half of the fingerprint.
+//
+// An unchanged queue revision is the fast answer: nothing the plan was told to
+// avoid has moved. A changed one is deliberately NOT a rejection, because the
+// commonest way for it to change is the queue draining — which is exactly the
+// exhaustion this batch was launched to refill, so rejecting there would stall
+// continuous playback at the one moment it matters. What decides is the
+// direction of the change: rows leaving the protected set cannot invalidate a
+// selection that already avoided them, while rows that entered it can, so the
+// fallback asks whether any selection now collides with a row that is playing or
+// still ahead.
+func (m Model) radioQueueAdmissible(msg RadioBatchEnqueuedMsg, capturedRev uint64) bool {
+	protected := m.djProtectedHashes()
+	if capturedRev == djQueueRevisionOf(protected) {
+		return true
+	}
+	for _, e := range msg.Entries {
+		if _, clash := protected[e.Hash]; clash {
+			return false
+		}
+	}
+	return true
+}
+
+// applyRadioBatch adopts a published batch: only here do the recent-selection
+// ring and the discovery allocation advance, because only here is the batch
+// something the user will actually hear.
+func (m Model) applyRadioBatch(msg RadioBatchEnqueuedMsg, now time.Time) (Model, tea.Cmd) {
 	for _, e := range msg.Entries {
 		m = m.radioNoteRecent(e.Hash)
+	}
+	m = m.adoptRadioAllocation(msg)
+	m.djPlan.block = djPlanBlock{}
+	m.djPlan.staleRetries = 0
+	m.djPlan.status = djPlanStatus{
+		outcome:   msg.plan.Outcome,
+		shortages: msg.plan.Shortages,
+		reasons:   msg.plan.Reasons,
+		degraded:  msg.signals.Failures(),
+		accepted:  len(msg.Entries),
+		at:        now,
 	}
 
 	batchStartIdx := len(m.queue.Entries)
@@ -407,10 +439,121 @@ func (m Model) handleRadioBatchEnqueuedMsg(msg RadioBatchEnqueuedMsg) (Model, te
 		m, _ = m.resumeExtendedQueue(batchStartIdx)
 	} else if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		entry := msg.Entries[0]
-		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, "Radio")
+		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, djQueueSource)
 	}
 
 	return m, nil
+}
+
+// radioCommittedAllocation returns the discovery carry the accept transaction
+// should write, or nil when it should write none.
+//
+// The carry belongs to a session: it is the remainder of a rounded discovery
+// split, accumulated against one discovery target. Committing it with no session
+// running would leave it on the stopped session row for the next start to
+// inherit, biasing a first batch for a reason the user cannot see.
+func (m Model) radioCommittedAllocation(msg RadioBatchEnqueuedMsg) *radio.Allocation {
+	if !m.dj.active || !msg.plan.CanContinue() {
+		return nil
+	}
+	alloc := msg.plan.NextAllocation
+	return &alloc
+}
+
+// adoptRadioAllocation records the discovery rounding carry an accepted batch
+// earned. A DJ writer already committed it inside the accept transaction, so
+// re-issuing the write there would rewrite the whole session row — filters
+// included — for a column that is already correct.
+func (m Model) adoptRadioAllocation(msg RadioBatchEnqueuedMsg) Model {
+	if !msg.plan.CanContinue() {
+		return m
+	}
+	if msg.prep.Kind != "" {
+		return m.djNoteAllocation(msg.plan.NextAllocation)
+	}
+	return m.djAdoptAllocation(msg.plan.NextAllocation)
+}
+
+// recordRadioNoBatch files a live result that selected nothing.
+//
+// Nothing was prepared, so there is nothing to retire; what matters is that the
+// refill parks on these exact inputs. "No candidates pauses additions with an
+// explanation" is a product decision, and a decision to stop is only honoured if
+// the guard refuses to ask the same question again a second later.
+func (m Model) recordRadioNoBatch(msg RadioBatchEnqueuedMsg) Model {
+	m.djPlan.status = djPlanStatus{
+		outcome:   msg.plan.Outcome,
+		shortages: msg.plan.Shortages,
+		reasons:   msg.plan.Reasons,
+		degraded:  msg.signals.Failures(),
+		at:        msg.fingerprint.capturedAt,
+	}
+	m.djPlan.block = djPlanBlock{
+		active:  true,
+		at:      msg.fingerprint,
+		reasons: msg.plan.Reasons,
+	}
+	m.djPlan.staleRetries = 0
+	return m
+}
+
+// recordRadioFailure files a live result that failed outright.
+//
+// A transient failure — a refused write — may be re-attempted against unchanged
+// inputs, but only djMaxTransientRetries times: a database that refuses three
+// identical writes is not going to accept the fourth, and the one-second tick
+// would otherwise turn it into a write loop. Anything else parks until an input
+// moves.
+func (m Model) recordRadioFailure(msg RadioBatchEnqueuedMsg, now time.Time) Model {
+	slog.Warn("radio enqueue failed", "err", msg.Err, "transient", msg.transient)
+	m.djPlan.status = djPlanStatus{
+		outcome:  msg.plan.Outcome,
+		degraded: msg.signals.Failures(),
+		err:      msg.Err,
+		at:       now,
+	}
+	b := m.djPlan.block
+	if b.active && b.retriable && msg.transient && b.at.sameInputs(msg.fingerprint) {
+		b.attempts++
+		b.err = msg.Err
+		m.djPlan.block = b
+		return m
+	}
+	m.djPlan.block = djPlanBlock{
+		active:    true,
+		at:        msg.fingerprint,
+		err:       msg.Err,
+		retriable: msg.transient,
+		attempts:  1,
+	}
+	return m
+}
+
+// retryRadioAfterStale relaunches a refill whose result was refused because its
+// inputs moved under it.
+//
+// Without this the DJ can go silent exactly when it is needed: the natural
+// triggers are a confirmed track change and a queue-end, so a batch refused at
+// the moment the queue ran dry would leave nothing scheduled to wake the refill
+// again. The relaunch is bounded, because inputs that keep moving under every
+// attempt must end as a stalled refill rather than as a planning loop.
+func (m Model) retryRadioAfterStale() (Model, tea.Cmd) {
+	if m.djPlan.staleRetries >= djMaxTransientRetries {
+		return m, nil
+	}
+	m.djPlan.staleRetries++
+	return m.startRadioEnqueueCmd()
+}
+
+// discardRadioResult reconciles durable state for a result that will not be
+// represented in the TUI queue, using whichever writer created the rows: a DJ
+// preparation is rejected as a unit, while the pre-DJ paths are reconciled by a
+// compensating soft delete of the exact row IDs.
+func (m Model) discardRadioResult(msg RadioBatchEnqueuedMsg) Model {
+	if msg.prep.Kind != "" {
+		return m.rejectDJPreparation(msg.prep)
+	}
+	return m.discardRadioBatch(msg.QueueIDs)
 }
 
 // discardRadioBatch reconciles durable state for a result that will not be

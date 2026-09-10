@@ -62,7 +62,12 @@ func (m Model) djDataRevision() uint64 { return m.djData.dataRev }
 // snapshot afterwards. The fields are unexported so even a caller inside this
 // package has to go through PlanInput rather than reach in and edit one.
 type djInputs struct {
-	dataRev    uint64
+	dataRev uint64
+	// queueRev reduces the protected-hash set to one comparable token. It is
+	// tracked apart from dataRev because the two move for unrelated reasons and
+	// at wildly different rates: dataRev follows library and metadata writes,
+	// while queueRev follows playback and every queue mutation.
+	queueRev   uint64
 	capturedAt time.Time
 	tracks     []library.Track
 	trackTags  map[string]map[int64]struct{}
@@ -79,6 +84,9 @@ type djInputs struct {
 
 // DataRev returns the data revision this snapshot was taken at.
 func (in djInputs) DataRev() uint64 { return in.dataRev }
+
+// QueueRev returns the queue revision this snapshot was taken at.
+func (in djInputs) QueueRev() uint64 { return in.queueRev }
 
 // CapturedAt returns the instant the snapshot was taken.
 func (in djInputs) CapturedAt() time.Time { return in.capturedAt }
@@ -103,6 +111,7 @@ func (m Model) captureDJInputs(now time.Time) djInputs {
 		dismissed:  snapshotStringSet(m.dismissedHashes),
 		catalogErr: m.tagCacheErr,
 	}
+	in.queueRev = djQueueRevisionOf(in.protected)
 	if m.tagCacheErr == nil {
 		in.catalog = m.djTagCatalog()
 	}
@@ -170,14 +179,21 @@ func (m Model) protectQueueIndex(protected map[string]struct{}, idx int) {
 
 // StaleAt reports whether this snapshot may still be planned from.
 //
-// Two things retire it. A revision that no longer matches means a writer
-// changed the data it copied. A change of local hour means the inputs no writer
-// announces have moved: the time-of-day affinity bonus is keyed by the hour,
-// and the rolling 90-day discovery cutoff has slid with it. Without the second
-// check a Muse left running overnight would keep scoring and classifying
-// against the hour it was started in.
-func (in djInputs) StaleAt(now time.Time, rev uint64) bool {
-	return rev != in.dataRev || djHourChanged(in.capturedAt, now)
+// Three things retire it. A data revision that no longer matches means a writer
+// changed the library, metadata, favorites, dismissals, or tags it copied. A
+// queue revision that no longer matches means the rows a batch must not select
+// again are no longer the rows it avoided. A change of local hour means the
+// inputs no writer announces have moved: the time-of-day affinity bonus is keyed
+// by the hour, and the rolling 90-day discovery cutoff has slid with it. Without
+// the last check a Muse left running overnight would keep scoring and
+// classifying against the hour it was started in.
+//
+// This is the strict predicate, for deciding whether a snapshot may be planned
+// FROM. Deciding whether a finished plan may still be accepted is a different
+// and deliberately more lenient question — see radioQueueAdmissible, which
+// tolerates the queue draining because that is the refill's whole purpose.
+func (in djInputs) StaleAt(now time.Time, dataRev, queueRev uint64) bool {
+	return dataRev != in.dataRev || queueRev != in.queueRev || djHourChanged(in.capturedAt, now)
 }
 
 // djHourChanged reports whether two instants fall in different local hours.

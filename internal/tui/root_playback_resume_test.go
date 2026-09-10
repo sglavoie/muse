@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
@@ -133,8 +134,9 @@ func TestRadioBatchResumesIntoAddition(t *testing.T) {
 		Entries: []queue.Entry{
 			{ID: 70, Hash: "radio-a", Path: "/r.flac", Artist: "R", Title: "Radio A", SourcePlaylist: "Radio"},
 		},
-		QueueIDs: []int64{70},
-		WasEmpty: false,
+		QueueIDs:    []int64{70},
+		WasEmpty:    false,
+		fingerprint: m.djLiveFingerprint(time.Now()),
 	})
 
 	assertResumedIntoAddition(t, m, p, 4)
@@ -542,9 +544,10 @@ func TestRadioResumeFailureDoesNotLoop(t *testing.T) {
 	m.radio.enqueuePending = true
 
 	m, cmd := m.handleRadioBatchEnqueuedMsg(RadioBatchEnqueuedMsg{
-		Entries:  []queue.Entry{{ID: 70, Hash: "radio-a", Path: "/r.flac", SourcePlaylist: "Radio"}},
-		QueueIDs: []int64{70},
-		WasEmpty: false,
+		Entries:     []queue.Entry{{ID: 70, Hash: "radio-a", Path: "/r.flac", SourcePlaylist: "Radio"}},
+		QueueIDs:    []int64{70},
+		WasEmpty:    false,
+		fingerprint: m.djLiveFingerprint(time.Now()),
 	})
 
 	if cmd != nil {

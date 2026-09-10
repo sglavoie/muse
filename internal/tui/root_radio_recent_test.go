@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
@@ -82,9 +83,10 @@ func TestRadioBatchAppendsToSeededRing(t *testing.T) {
 	m = applyOptions(m, WithRadioRecentHashes([]string{"seeded"}))
 
 	m, _ = m.handleRadioBatchEnqueuedMsg(RadioBatchEnqueuedMsg{
-		Entries:  []queue.Entry{{ID: 1, Hash: "h1", Path: "/a1.flac"}},
-		QueueIDs: []int64{1},
-		WasEmpty: true,
+		Entries:     []queue.Entry{{ID: 1, Hash: "h1", Path: "/a1.flac"}},
+		QueueIDs:    []int64{1},
+		WasEmpty:    true,
+		fingerprint: m.djLiveFingerprint(time.Now()),
 	})
 
 	set := m.radioRecentSet()

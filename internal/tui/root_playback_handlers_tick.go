@@ -96,7 +96,11 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// invalidation site would miss it.
 	insightsCmd := m.insightsActiveRefreshCmd()
 	m, radioCleanupCmd := m.startRadioBatchCleanupCmd()
-	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd)
+	// Hidden rows a discarded batch left behind are retired on the same tick as
+	// the Radio cleanup FIFO: both exist because a database refusal must not be
+	// allowed to leave durable state disagreeing with what the TUI shows.
+	m, djRejectCmd := m.startDJRejectRetryCmd()
+	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd, djRejectCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

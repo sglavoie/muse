@@ -229,7 +229,7 @@ func TestDJInvalidationWalk(t *testing.T) {
 			if m.djDataRevision() == before.DataRev() {
 				t.Fatalf("%s left the Auto-DJ data revision at %d", tc.name, before.DataRev())
 			}
-			if !before.StaleAt(djFixedNow, m.djDataRevision()) {
+			if !before.StaleAt(djFixedNow, m.djDataRevision(), m.djQueueRevision()) {
 				t.Errorf("%s left a snapshot taken beforehand usable", tc.name)
 			}
 		})
@@ -575,20 +575,23 @@ func TestDJInputsStaleAt(t *testing.T) {
 	m := newDJModel()
 	in := m.captureDJInputs(djFixedNow)
 
-	if in.StaleAt(djFixedNow, m.djDataRevision()) {
+	if in.StaleAt(djFixedNow, m.djDataRevision(), m.djQueueRevision()) {
 		t.Fatal("a snapshot was stale at the instant it was taken")
 	}
-	if in.StaleAt(djFixedNow.Add(20*time.Minute), m.djDataRevision()) {
+	if in.StaleAt(djFixedNow.Add(20*time.Minute), m.djDataRevision(), m.djQueueRevision()) {
 		t.Error("a snapshot retired within the same hour")
 	}
-	if !in.StaleAt(djFixedNow.Add(time.Hour), m.djDataRevision()) {
+	if !in.StaleAt(djFixedNow.Add(time.Hour), m.djDataRevision(), m.djQueueRevision()) {
 		t.Error("a snapshot survived the hour rolling over")
 	}
-	if !in.StaleAt(djFixedNow.AddDate(0, 0, 1), m.djDataRevision()) {
+	if !in.StaleAt(djFixedNow.AddDate(0, 0, 1), m.djDataRevision(), m.djQueueRevision()) {
 		t.Error("a snapshot survived a full day, so the discovery cutoff slid unnoticed")
 	}
-	if !in.StaleAt(djFixedNow, m.djDataRevision()+1) {
+	if !in.StaleAt(djFixedNow, m.djDataRevision()+1, m.djQueueRevision()) {
 		t.Error("a snapshot survived a data revision it no longer matches")
+	}
+	if !in.StaleAt(djFixedNow, m.djDataRevision(), m.djQueueRevision()+1) {
+		t.Error("a snapshot survived a queue revision it no longer matches")
 	}
 }
 

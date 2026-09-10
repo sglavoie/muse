@@ -343,11 +343,18 @@ type Model struct {
 	radio    radioState     // auto-DJ / radio mode state
 	djData   djDataState    // revision of the data Auto-DJ planning reads
 	dj       djSessionState // persisted Auto-DJ session: settings, seed, allocation
+	djPlan   djPlanState    // asynchronous planning: preview identity, block, status
 
 	// djWriter persists Auto-DJ session transitions. May be nil; set via
 	// WithDJWriter. Every write goes through the transitions in
 	// root_dj_session.go so the stored row always describes the running session.
 	djWriter djSessionWriter
+
+	// djQueue prepares, publishes, and retires Auto-DJ queue batches. May be
+	// nil; set via WithDJQueueWriter. When present it is preferred over the
+	// pre-DJ pending-radio path because it records provenance and commits the
+	// discovery carry in the same transaction that publishes the rows.
+	djQueue djQueueWriter
 
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
 	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.

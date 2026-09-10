@@ -205,6 +205,19 @@ type pendingRadioBatchEnqueuer interface {
 	ActivateRadioTracks(ids []int64) error
 }
 
+// djQueueWriter is the provenance-recording successor to
+// pendingRadioBatchEnqueuer, implemented by db.Writer. It is preferred over that
+// interface wherever both are available, for two reasons a refresh depends on:
+// the published rows carry DJ ownership and the planner's reasons, and the
+// discovery carry the batch advanced is committed in the same transaction that
+// makes the rows visible, so an accepted batch and the allocation it earned can
+// never disagree after a crash.
+type djQueueWriter interface {
+	PrepareDJBatch(entries []db.DJQueueEntry) (db.DJPreparation, error)
+	AcceptDJBatch(prep db.DJPreparation, commit db.DJCommit) (db.DJAcceptance, error)
+	RejectDJBatch(prep db.DJPreparation) error
+}
+
 // playlistShuffler persists a full playlist track reorder (e.g. Fisher-Yates
 // shuffle). Root checks for it via type assertion on the playlistDeleter field.
 // When nil, the in-memory shuffle is still applied but not written to the database.

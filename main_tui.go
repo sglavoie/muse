@@ -397,6 +397,7 @@ func buildModel(
 		tui.WithQueueDequeuer(result.Writer),
 		tui.WithSessionWriter(result.Writer),
 		tui.WithDJWriter(result.Writer),
+		tui.WithDJQueueWriter(result.Writer),
 		tui.WithPlaylistTrackReader(result.DB),
 		tui.WithPlaylistWriter(adapter),
 		tui.WithPlaylistRenamer(adapter),

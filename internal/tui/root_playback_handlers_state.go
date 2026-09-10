@@ -65,9 +65,8 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 
 	// Radio mode: enqueue a new batch if enabled and guards pass.
 	if !wasStopAfter {
-		if cmd := m.radioMaybeEnqueueCmd(); cmd != nil {
-			m.radio.enqueuePending = true
-			m = m.idleAfterQueueEnd(true)
+		if next, cmd := m.startRadioEnqueueCmd(); cmd != nil {
+			m = next.idleAfterQueueEnd(true)
 			if !resumeFailed {
 				player.PlayQueueFinishedSound()
 			}

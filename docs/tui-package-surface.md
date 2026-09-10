@@ -137,7 +137,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/settings` | 31 | 2 | 27 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 48 | 0 | 46 | 2 | `tui` |
-| `tui/queue` | 76 | 14 | 61 | 1 | `tui`, `internal/app` |
+| `tui/queue` | 76 | 16 | 59 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
@@ -253,7 +253,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**889 exported identifiers across 14 packages**: 151 reached from two or more packages, 683 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
+**889 exported identifiers across 14 packages**: 153 reached from two or more packages, 681 from exactly one, 55 from none (19 `api`, 3 `iface`, 33 `json`). 70 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -770,8 +770,8 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `Entry` | type | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.Album` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.Artist` | field | `internal/app`, `internal/tui` | multi |
-| `tui/queue` | `Entry.DJOwned` | field | `internal/app` | app |
-| `tui/queue` | `Entry.DJReasons` | field | `internal/app` | app |
+| `tui/queue` | `Entry.DJOwned` | field | `internal/app`, `internal/tui` | multi |
+| `tui/queue` | `Entry.DJReasons` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.DiscNumber` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.Display` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.DurationMs` | field | `internal/app`, `internal/tui` | multi |

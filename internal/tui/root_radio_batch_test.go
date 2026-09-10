@@ -517,8 +517,9 @@ func TestRadioBatchAppliedWhenQueueWasEmptyAtEnqueueStart(t *testing.T) {
 		Entries: []queue.Entry{
 			{ID: 60, Hash: "hq", Path: "/q.flac", Artist: "Q", Title: "T"},
 		},
-		QueueIDs: []int64{60},
-		WasEmpty: true, // queue truly was empty when enqueue fired
+		QueueIDs:    []int64{60},
+		WasEmpty:    true, // queue truly was empty when enqueue fired
+		fingerprint: m.djLiveFingerprint(time.Now()),
 	}
 	nm, _ := m.handleRadioBatchEnqueuedMsg(msg)
 
@@ -556,8 +557,9 @@ func TestRadioBatchAppliedOnNaturalExhaustion(t *testing.T) {
 		Entries: []queue.Entry{
 			{ID: 70, Hash: "hx", Path: "/x.flac", Artist: "X", Title: "T"},
 		},
-		QueueIDs: []int64{70},
-		WasEmpty: false, // captured at low-water-mark before the last track ended
+		QueueIDs:    []int64{70},
+		WasEmpty:    false, // captured at low-water-mark before the last track ended
+		fingerprint: m.djLiveFingerprint(time.Now()),
 	}
 	nm, _ := m.handleRadioBatchEnqueuedMsg(msg)
 

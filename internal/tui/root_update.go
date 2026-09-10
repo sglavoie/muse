@@ -393,6 +393,12 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case radioBatchCleanupMsg:
 		m = m.handleRadioBatchCleanupMsg(msg)
 
+	case djPreviewPlannedMsg:
+		m = m.handleDJPreviewPlannedMsg(msg)
+
+	case djRejectRetryMsg:
+		m = m.handleDJRejectRetryMsg(msg)
+
 	case mixCountsLoadedMsg:
 		m = m.handleMixCountsLoadedMsg(msg)
 
