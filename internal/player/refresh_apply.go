@@ -39,6 +39,15 @@ var (
 	// queue it publishes — a slot named twice, a successor that is not a new
 	// row, a replaced row still present.
 	ErrRefreshPlanInvalid = errors.New("player: refresh plan is invalid")
+
+	// ErrRefreshTransitionPending is the staleness a caller can simply wait out:
+	// an end-file has been read and the question of what plays next has not
+	// resolved, so no plan can be checked against a timeline that is still
+	// moving. It is an ErrRefreshStale, because a plan captured before the
+	// transition describes the row that just finished; the distinction is that
+	// recapturing immediately would only hit the same window, while recapturing
+	// after the transition settles succeeds.
+	ErrRefreshTransitionPending = fmt.Errorf("%w: a playback transition has not resolved yet", ErrRefreshStale)
 )
 
 // RowReplacement hands one upcoming slot over to a new queue row.
@@ -81,10 +90,23 @@ type RefreshResult struct {
 	// -1 when nothing was current.
 	CurrentIndex int
 
-	// PrefetchInvalidated reports that the gapless successor was dropped and a
-	// fresh one scheduled, because the refresh may have changed which row comes
-	// next.
+	// PrefetchInvalidated reports that the refresh may have changed which row
+	// comes next, so a fresh prefetch was scheduled. It says nothing about
+	// whether mpv's playlist was touched: a successor the refresh did not name
+	// is rebound rather than dropped, and the reschedule then resolves the same
+	// row and sends nothing.
 	PrefetchInvalidated bool
+
+	// PrefetchDropped reports that the gapless successor mpv was holding had
+	// been made obsolete by the refresh and was removed from its playlist. The
+	// row that is playing is never affected.
+	PrefetchDropped bool
+
+	// PrefetchDeferred reports that an obsolete successor could not be taken
+	// back — mpv had already started it, or the command did not reach mpv — so
+	// the tracking was retained for a later attempt. The refreshed queue is
+	// still authoritative; only mpv's playlist is temporarily behind it.
+	PrefetchDeferred bool
 }
 
 // ApplyQueueRefresh swaps the upcoming slots the plan names for their successors
@@ -98,10 +120,16 @@ type RefreshResult struct {
 // cycle is never reanchored or re-permuted, so a refresh is invisible to every
 // row it did not name.
 //
-// It runs inside the playlist transaction lock, so no replacement can be in
-// flight while the plan is checked and published, and it drops the gapless
-// prefetch when anything changed — the successor mpv is holding may be a row the
-// refresh has just retired.
+// It takes the playlist transaction lock before the state lock, the one order
+// every playlist mutation uses, so no replacement can be in flight while the plan
+// is checked and published — and it never calls back into the caller while
+// holding either, because a callback that reached for the queue would deadlock
+// against the lock it is already inside.
+//
+// mpv's playlist is reconciled after the publication, and only where the refresh
+// actually landed. The current track is never reloaded, sought, or interrupted:
+// a gapless successor the plan left alone is rebound to its new queue position,
+// and only one the refresh retired or handed over is taken out of mpv's playlist.
 //
 // Returns ErrRefreshStale, ErrRefreshProtected, or ErrRefreshPlanInvalid; in
 // every case the queue and the traversal are left exactly as they were.
@@ -116,10 +144,15 @@ func (m *Manager) ApplyQueueRefresh(refresh QueueRefresh) (RefreshResult, error)
 		return RefreshResult{}, err
 	}
 	res := m.publishRefreshLocked(refresh, plan)
+	obsolete := m.rebindPrefetchLocked(refresh.Snapshot.guard.queue, plan)
 	m.mu.Unlock()
 
-	if res.PrefetchInvalidated {
-		m.removePrefetchLocked()
+	if obsolete {
+		if m.removePrefetchLocked() {
+			res.PrefetchDropped = true
+		} else {
+			res.PrefetchDeferred = true
+		}
 	}
 	m.playlistMu.Unlock()
 
@@ -127,6 +160,53 @@ func (m *Manager) ApplyQueueRefresh(refresh QueueRefresh) (RefreshResult, error)
 		safego.Go("player.prefetchNext", m.prefetchNext)
 	}
 	return res, nil
+}
+
+// rebindPrefetchLocked re-resolves the tracked gapless successor against the
+// queue that was just published, and reports whether it has become obsolete.
+//
+// The tracking is positional, and a refresh moves rows: retiring an earlier slot
+// shifts everything behind it, so a successor left untouched by the plan would
+// end up naming a different queue entry. Restamping it is most of the work here.
+//
+// Dropping the prefetch unconditionally instead would be simpler and is what the
+// first cut did, but it is a round trip mpv absorbs while a track is playing — a
+// playlist-remove and a fresh append for a successor that did not change — and
+// each one is a chance to take the wrong slot away. Rebinding makes the common
+// refresh, the one that swaps rows further down the queue, cost mpv nothing:
+// prefetchNextLocked resolves the same index, path, and identity and returns
+// having sent no command at all.
+//
+// Obsolete means the plan handed the tracked slot over or retired it, or the row
+// it named is no longer in the queue under the same file. Only then does the
+// caller reach for mpv's playlist, and only at position 1 — position 0, the row
+// coming out of the speakers, is never addressed on either path.
+//
+// The caller must hold m.mu.
+func (m *Manager) rebindPrefetchLocked(prev []RowIdentity, plan refreshPlan) bool {
+	p := m.prefetchSnapshotLocked()
+	if p.index < 0 {
+		return false
+	}
+	// A sequential prefetch carries no identity of its own, so it is named by
+	// the row that stood at its index in the queue the plan was built against —
+	// which validation has just established is the queue that was live.
+	id := p.identity
+	if id == "" {
+		if p.index >= len(prev) {
+			return true
+		}
+		id = string(prev[p.index])
+	}
+	if _, replaced := plan.sub[id]; replaced {
+		return true
+	}
+	idx := identityIndex(m.queue, id)
+	if idx < 0 || m.queue[idx].Path != p.path {
+		return true
+	}
+	m.prefetchedIndex = idx
+	return false
 }
 
 // refreshPlan is the validated form of a QueueRefresh: the substitution to apply
@@ -196,7 +276,7 @@ func (m *Manager) validateRefreshLocked(r QueueRefresh) (refreshPlan, error) {
 // The caller must hold m.mu.
 func (m *Manager) checkRefreshTransitionLocked() error {
 	if m.liveness == livenessEnding || m.pendingEOFSettlement {
-		return fmt.Errorf("%w: a playback transition has not resolved yet", ErrRefreshStale)
+		return ErrRefreshTransitionPending
 	}
 	return nil
 }
