@@ -3,6 +3,9 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
+
+	"github.com/sglavoie/muse/internal/radio"
 )
 
 // QueueRow holds a single queue entry joined with its track metadata.
@@ -21,6 +24,17 @@ type QueueRow struct {
 	SourcePlaylist string
 	TrackNumber    int
 	DiscNumber     int
+	// DJOwned reports that the DJ chose this entry and may replace it on a
+	// refresh. It is read from the stored provenance flag, never inferred from
+	// SourcePlaylist: that field is a display label, so a playlist the user
+	// named "Radio" and every row written before migration 024 read as false
+	// and stay protected.
+	DJOwned bool
+	// DJReasons is the planner's explanation for a DJ selection, empty for
+	// manual entries. A stored value this build cannot parse reads as empty and
+	// is logged; the row itself is still returned, because losing a queue entry
+	// is far worse than losing its explanation.
+	DJReasons radio.Reasons
 }
 
 // SessionRow holds the persisted session state from the single session row.
@@ -45,7 +59,8 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	rows, err := d.Query(`
 		SELECT q.id, t.hash, t.path, t.artist, t.title, t.album,
 		       CASE WHEN q.missing != 0 OR t.missing != 0 THEN 1 ELSE 0 END,
-		       t.duration_ms, q.position, q.source_playlist, t.track_number, t.disc_number
+		       t.duration_ms, q.position, q.source_playlist, t.track_number, t.disc_number,
+		       q.dj_owned, q.dj_reasons
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash
 		WHERE q.deleted_at IS NULL
@@ -60,10 +75,18 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 	for rows.Next() {
 		var row QueueRow
 		var missing int
-		if err := rows.Scan(&row.ID, &row.Hash, &row.Path, &row.Artist, &row.Title, &row.Album, &missing, &row.DurationMs, &row.Position, &row.SourcePlaylist, &row.TrackNumber, &row.DiscNumber); err != nil {
+		var djOwned int
+		var djReasons string
+		if err := rows.Scan(&row.ID, &row.Hash, &row.Path, &row.Artist, &row.Title, &row.Album, &missing, &row.DurationMs, &row.Position, &row.SourcePlaylist, &row.TrackNumber, &row.DiscNumber, &djOwned, &djReasons); err != nil {
 			return nil, fmt.Errorf("db: read queue row: %w", err)
 		}
 		row.Missing = missing != 0
+		row.DJOwned = djOwned != 0
+		if reasons, err := decodeQueueReasons(djReasons); err != nil {
+			slog.Warn("db: read queue: unreadable selection reasons", "queue_id", row.ID, "err", err)
+		} else {
+			row.DJReasons = reasons
+		}
 		result = append(result, row)
 	}
 	return result, rows.Err()

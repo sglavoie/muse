@@ -36,31 +36,10 @@ var _ DJWriter = (*Writer)(nil)
 // verbatim: an id that no longer resolves stays put so the DJ can report it
 // instead of silently dropping the filter it belongs to.
 func (w *Writer) WriteDJSession(session DJSession) error {
-	if err := session.Settings.Validate(); err != nil {
-		return fmt.Errorf("db: write dj session: %w", err)
-	}
-	if session.Active && session.Seed.IsZero() {
-		return fmt.Errorf("db: write dj session: %w", radio.ErrMissingSeed)
-	}
-	// Seed references obey the same positivity rule Settings.Validate enforces
-	// on filter references, so every stored id is one a tag could actually
-	// carry. A zero or negative id would round-trip into the scorer's seed and
-	// silently match nothing.
-	for _, id := range session.Seed.TagIDs {
-		if id <= 0 {
-			return fmt.Errorf("db: write dj session: seed: %w: %d", radio.ErrInvalidTagID, id)
-		}
-	}
-
-	genres, err := encodeDJGenres(session.Seed.Genres)
+	write, err := validateDJSessionWrite(session)
 	if err != nil {
-		return fmt.Errorf("db: write dj session: encode seed genres: %w", err)
+		return err
 	}
-
-	// Validate ran first, so Normalized cannot drop a tag reference here: the
-	// only ids it discards are non-positive ones, which Validate rejects. A
-	// reference to a deleted tag has a positive id and survives.
-	settings := session.Settings.Normalized()
 
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
@@ -69,14 +48,60 @@ func (w *Writer) WriteDJSession(session DJSession) error {
 		}
 		defer rollback(tx)
 
-		if err := updateDJSessionRow(tx, session, settings, genres); err != nil {
-			return err
-		}
-		if err := replaceDJFilters(tx, djScopeSession, djSessionOwnerID, settings, session.Seed.TagIDs); err != nil {
+		if err := write.apply(tx); err != nil {
 			return err
 		}
 		return tx.Commit()
 	})
+}
+
+// djSessionWrite is a validated, normalized session snapshot ready to be
+// applied inside any transaction. Splitting validation from application lets
+// AcceptDJBatch commit a snapshot alongside the queue rows it belongs to
+// without duplicating the rules, and lets both callers refuse invalid settings
+// before a transaction opens.
+type djSessionWrite struct {
+	session  DJSession
+	settings radio.Settings
+	genres   string
+}
+
+// validateDJSessionWrite runs every rule WriteDJSession enforces and returns
+// the prepared write.
+func validateDJSessionWrite(session DJSession) (djSessionWrite, error) {
+	if err := session.Settings.Validate(); err != nil {
+		return djSessionWrite{}, fmt.Errorf("db: write dj session: %w", err)
+	}
+	if session.Active && session.Seed.IsZero() {
+		return djSessionWrite{}, fmt.Errorf("db: write dj session: %w", radio.ErrMissingSeed)
+	}
+	// Seed references obey the same positivity rule Settings.Validate enforces
+	// on filter references, so every stored id is one a tag could actually
+	// carry. A zero or negative id would round-trip into the scorer's seed and
+	// silently match nothing.
+	for _, id := range session.Seed.TagIDs {
+		if id <= 0 {
+			return djSessionWrite{}, fmt.Errorf("db: write dj session: seed: %w: %d", radio.ErrInvalidTagID, id)
+		}
+	}
+
+	genres, err := encodeDJGenres(session.Seed.Genres)
+	if err != nil {
+		return djSessionWrite{}, fmt.Errorf("db: write dj session: encode seed genres: %w", err)
+	}
+
+	// Validate ran first, so Normalized cannot drop a tag reference here: the
+	// only ids it discards are non-positive ones, which Validate rejects. A
+	// reference to a deleted tag has a positive id and survives.
+	return djSessionWrite{session: session, settings: session.Settings.Normalized(), genres: genres}, nil
+}
+
+// apply writes the prepared snapshot and its filter rows inside tx.
+func (write djSessionWrite) apply(tx *sql.Tx) error {
+	if err := updateDJSessionRow(tx, write.session, write.settings, write.genres); err != nil {
+		return err
+	}
+	return replaceDJFilters(tx, djScopeSession, djSessionOwnerID, write.settings, write.session.Seed.TagIDs)
 }
 
 // updateDJSessionRow writes the singleton dj_session columns.
@@ -113,12 +138,54 @@ func updateDJSessionRow(tx *sql.Tx, session DJSession, settings radio.Settings, 
 // would race a concurrent settings edit.
 func (w *Writer) WriteDJAllocation(allocation radio.Allocation) error {
 	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`UPDATE dj_session SET carry_units = ?, updated_at = ? WHERE id = 1`,
-			allocation.Normalized().CarryUnits, time.Now().Unix(),
-		)
-		return err
+		return writeDJAllocation(db, allocation)
 	})
+}
+
+// djExecer is the subset of *sql.DB and *sql.Tx the allocation write needs, so
+// the same statement serves the standalone hot path and the accept transaction.
+type djExecer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+// writeDJAllocation updates only the discovery rounding carry.
+func writeDJAllocation(execer djExecer, allocation radio.Allocation) error {
+	_, err := execer.Exec(
+		`UPDATE dj_session SET carry_units = ?, updated_at = ? WHERE id = 1`,
+		allocation.Normalized().CarryUnits, time.Now().Unix(),
+	)
+	return err
+}
+
+// djCommitWrite is the validated DJ state an accepted batch commits. Exactly
+// one of its fields is set, or neither when the batch changes no DJ state.
+type djCommitWrite struct {
+	session    *djSessionWrite
+	allocation *radio.Allocation
+}
+
+// prepareDJCommit validates a DJCommit before the accept transaction opens.
+func prepareDJCommit(commit DJCommit) (djCommitWrite, error) {
+	if commit.Session != nil {
+		write, err := validateDJSessionWrite(*commit.Session)
+		if err != nil {
+			return djCommitWrite{}, err
+		}
+		return djCommitWrite{session: &write}, nil
+	}
+	return djCommitWrite{allocation: commit.Allocation}, nil
+}
+
+// apply writes the prepared DJ state inside tx.
+func (c djCommitWrite) apply(tx *sql.Tx) error {
+	switch {
+	case c.session != nil:
+		return c.session.apply(tx)
+	case c.allocation != nil:
+		return writeDJAllocation(tx, *c.allocation)
+	default:
+		return nil
+	}
 }
 
 // StopDJSession ends the active session: the seed and the carried allocation

@@ -13,6 +13,25 @@ func djTables() []string {
 	return []string{"dj_recipes", "dj_session", "dj_tag_refs", "dj_filter_values"}
 }
 
+// migrateDownTo rolls migrations back one at a time until the schema is at
+// target. Rolling back through every later migration is the point: a Down
+// section that leaves the schema unable to take a second Up shows up here.
+func migrateDownTo(t *testing.T, d *db.DB, target int64) {
+	t.Helper()
+	for {
+		version, err := db.MigrationVersion(d.DB)
+		if err != nil {
+			t.Fatalf("MigrationVersion: %v", err)
+		}
+		if version <= target {
+			return
+		}
+		if err := db.MigrateDown(d.DB); err != nil {
+			t.Fatalf("MigrateDown from version %d: %v", version, err)
+		}
+	}
+}
+
 func tableExists(t *testing.T, d *db.DB, table string) bool {
 	t.Helper()
 	return countRows(t, d,
@@ -82,9 +101,9 @@ func TestMigrateDown_RemovesDJTablesAndPreservesTransport(t *testing.T) {
 	makeRecipe(t, w, "Late Night", settings)
 	writeDJSession(t, w, db.DJSession{Active: true, Settings: settings, Seed: djTestSeed(rock)})
 
-	if err := db.MigrateDown(d.DB); err != nil {
-		t.Fatalf("MigrateDown: %v", err)
-	}
+	// Roll back every migration at or above the DJ one. Later migrations must
+	// step back cleanly too, otherwise this loop cannot reach the DJ tables.
+	migrateDownTo(t, d, djMigrationVersion-1)
 
 	version, err := db.MigrationVersion(d.DB)
 	if err != nil {
