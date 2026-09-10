@@ -1,10 +1,7 @@
 package radio
 
 import (
-	cryptorand "crypto/rand"
 	"math"
-	"math/big"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -190,79 +187,29 @@ func hasHash(hashes map[string]struct{}, hash string) bool {
 // candidates using weighted random selection without replacement.
 // maxArtistFraction (e.g. 0.4) caps the proportion of tracks from any single artist.
 // If fewer than n candidates are available, all eligible tracks are returned.
+//
+// It draws from crypto/rand. PickBatchWith takes an injected RandSource, and
+// the planner uses a single picker across both candidate pools so the artist
+// cap applies to the whole batch.
 func PickBatch(scored []TrackScore, n int, maxArtistFraction float64) []library.Track {
-	if n <= 0 || len(scored) == 0 {
-		return nil
-	}
+	return PickBatchWith(scored, n, maxArtistFraction, CryptoRand())
+}
 
-	poolSize := len(scored)
-	if n <= len(scored)/3 {
-		poolSize = 3 * n
-	}
-	pool := make([]TrackScore, poolSize)
-	copy(pool, scored[:poolSize])
-	nextIdx := poolSize
-
-	artistCount := make(map[string]int)
-	pickedTrackKeys := make(map[string]struct{})
+// PickBatchWith is PickBatch with an injected randomness source.
+func PickBatchWith(scored []TrackScore, n int, maxArtistFraction float64, rand RandSource) []library.Track {
 	resultCap := n
 	if resultCap > len(scored) {
 		resultCap = len(scored)
 	}
-	maxPerArtist := maxTracksPerArtist(resultCap, maxArtistFraction)
-	result := make([]library.Track, 0, resultCap)
-
-	for len(result) < n {
-		eligible, weights, totalWeight, anyPositive := collectEligible(pool, artistCount, pickedTrackKeys, maxPerArtist)
-		for len(eligible) == 0 && nextIdx < len(scored) {
-			pool = append(pool, scored[nextIdx])
-			nextIdx++
-			eligible, weights, totalWeight, anyPositive = collectEligible(pool, artistCount, pickedTrackKeys, maxPerArtist)
-		}
-		if len(eligible) == 0 {
-			break
-		}
-
-		// Deterministic fallback: when no eligible candidate has a positive
-		// score, every weight is the 0.1 floor and the weighted-random draw
-		// is uniform — defeating the purpose of scoring. Pick the first
-		// eligible (highest-scored due to ScoreAll's descending sort).
-		var pickedIdx int
-		if !anyPositive || totalWeight <= 0 || math.IsNaN(totalWeight) || math.IsInf(totalWeight, 0) {
-			pickedIdx = eligible[0]
-		} else {
-			maxWeight := new(big.Int).SetUint64(1 << 53)
-			randomWeight, err := cryptorand.Int(cryptorand.Reader, maxWeight)
-			if err != nil {
-				pickedIdx = eligible[0]
-			} else {
-				r := (float64(randomWeight.Uint64()) / float64(1<<53)) * totalWeight
-				pickedIdx = eligible[len(eligible)-1] // fallback to last eligible
-				cumulative := 0.0
-				for j, i := range eligible {
-					cumulative += weights[j]
-					if r < cumulative {
-						pickedIdx = i
-						break
-					}
-				}
-			}
-		}
-
-		picked := pool[pickedIdx]
-		result = append(result, picked.Track)
-		if key := normalizedArtistKey(picked.Track.Artist); key != "" {
-			artistCount[key]++
-		}
-		if key := trackSelectionKey(picked.Track); key != "" {
-			pickedTrackKeys[key] = struct{}{}
-		}
-
-		// Remove picked from pool.
-		pool = append(pool[:pickedIdx], pool[pickedIdx+1:]...)
+	picked := newPicker(resultCap, maxArtistFraction, rand).pick(scored, n)
+	if len(picked) == 0 {
+		return nil
 	}
-
-	return result
+	tracks := make([]library.Track, 0, len(picked))
+	for _, ts := range picked {
+		tracks = append(tracks, ts.Track)
+	}
+	return tracks
 }
 
 func normalizedGenreSet(genres []string) map[string]struct{} {
@@ -314,70 +261,4 @@ func normalizedGenreKey(genre string) string {
 
 func validCompletionRate(rate float64) bool {
 	return !math.IsNaN(rate) && !math.IsInf(rate, 0) && rate >= 0 && rate <= 1
-}
-
-func maxTracksPerArtist(n int, maxArtistFraction float64) int {
-	if math.IsNaN(maxArtistFraction) || math.IsInf(maxArtistFraction, 0) || maxArtistFraction <= 0 {
-		return 1
-	}
-	if maxArtistFraction >= 1 {
-		return n
-	}
-
-	maxPerArtist := int(math.Ceil(float64(n) * maxArtistFraction))
-	if maxPerArtist < 1 {
-		return 1
-	}
-	return maxPerArtist
-}
-
-func collectEligible(pool []TrackScore, artistCount map[string]int, pickedTrackKeys map[string]struct{}, maxPerArtist int) ([]int, []float64, float64, bool) {
-	eligible := make([]int, 0, len(pool))
-	weights := make([]float64, 0, len(pool))
-	totalWeight := 0.0
-	anyPositive := false
-	for i, ts := range pool {
-		if key := trackSelectionKey(ts.Track); key != "" {
-			if _, picked := pickedTrackKeys[key]; picked {
-				continue
-			}
-		}
-		artistKey := normalizedArtistKey(ts.Track.Artist)
-		if artistKey != "" && artistCount[artistKey] >= maxPerArtist {
-			continue
-		}
-		// Sanitize NaN/Inf scores so they can never poison the cumulative
-		// weighted-random draw: NaN propagates through math.Max and addition,
-		// making totalWeight NaN and every `r < cumulative` comparison false
-		// — which silently degrades to "always pick the last eligible". Inf
-		// scores would similarly make the cumulative comparison degenerate
-		// (every weight after the Inf entry becomes unreachable). Treating
-		// both as the 0.1 floor keeps the rest of the pool live.
-		score := ts.Score
-		if math.IsNaN(score) || math.IsInf(score, 0) {
-			score = 0
-		}
-		weight := math.Max(score, 0.1)
-		eligible = append(eligible, i)
-		weights = append(weights, weight)
-		totalWeight += weight
-		if score > 0 {
-			anyPositive = true
-		}
-	}
-	return eligible, weights, totalWeight, anyPositive
-}
-
-func normalizedArtistKey(artist string) string {
-	return strings.ToLower(strings.TrimSpace(artist))
-}
-
-func trackSelectionKey(track library.Track) string {
-	if track.Hash != "" {
-		return "hash:" + track.Hash
-	}
-	if path := strings.TrimSpace(track.Path); path != "" {
-		return "path:" + filepath.Clean(path)
-	}
-	return ""
 }

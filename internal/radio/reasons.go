@@ -29,11 +29,24 @@ const (
 	ReasonDiscoveryStale ReasonCode = "discovery_stale"
 	ReasonFamiliar       ReasonCode = "familiar"
 
+	// ReasonAlreadyQueued marks a candidate removed because it is the track
+	// playing now or one still upcoming in the queue. Queue rows that have
+	// already been played are not rejected: continuous radio must be able to
+	// come back to them.
+	ReasonAlreadyQueued ReasonCode = "already_queued"
+
 	// Plan-level outcomes.
 	ReasonUnresolvedTag    ReasonCode = "unresolved_tag"
 	ReasonInvalidSettings  ReasonCode = "invalid_settings"
 	ReasonNoCandidates     ReasonCode = "no_candidates"
 	ReasonDiscoveryRelaxed ReasonCode = "discovery_relaxed"
+	// ReasonFamiliarRelaxed marks a batch whose familiar quota could not be
+	// filled. The freed slots went to discovery tracks, or stayed empty when
+	// the whole batch came up short.
+	ReasonFamiliarRelaxed ReasonCode = "familiar_relaxed"
+	// ReasonBatchShort marks a batch that could not be filled to its
+	// requested size from the eligible candidates.
+	ReasonBatchShort ReasonCode = "batch_short"
 )
 
 // Reason is a structured explanation. Value carries the filter value or tag id

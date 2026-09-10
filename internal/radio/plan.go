@@ -180,6 +180,15 @@ type PlanResult struct {
 	// Reasons explains a relaxed, empty, or blocked outcome. Empty for
 	// PlanOutcomeOK.
 	Reasons Reasons
+	// Shortages lists the quotas the eligible candidates could not fill.
+	Shortages Shortages
+	// Rejections tallies why candidates were removed before selection, so an
+	// empty or relaxed plan can say what stood in the way.
+	Rejections Rejections
+	// NextAllocation is the rounding state to adopt *if* this plan is
+	// accepted. A preview or a rejected batch must discard it: only accepted
+	// work consumes allocation.
+	NextAllocation Allocation
 }
 
 // DiscoveryCount returns how many planned tracks are discovery selections.
