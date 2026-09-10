@@ -399,6 +399,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case djRejectRetryMsg:
 		m = m.handleDJRejectRetryMsg(msg)
 
+	case djRefreshDoneMsg:
+		return m.handleDJRefreshDoneMsg(msg)
+
 	case mixCountsLoadedMsg:
 		m = m.handleMixCountsLoadedMsg(msg)
 

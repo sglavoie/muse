@@ -345,6 +345,10 @@ type Model struct {
 	dj       djSessionState // persisted Auto-DJ session: settings, seed, allocation
 	djPlan   djPlanState    // asynchronous planning: preview identity, block, status
 
+	// djRefresh tracks the immediate queue refresh an Apply launches: its
+	// identity, its withdrawal flag, and what the last one did.
+	djRefresh djRefreshState
+
 	// djWriter persists Auto-DJ session transitions. May be nil; set via
 	// WithDJWriter. Every write goes through the transitions in
 	// root_dj_session.go so the stored row always describes the running session.

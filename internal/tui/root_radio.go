@@ -142,6 +142,13 @@ func (m Model) supersedeRadioBatch() Model {
 	// state applies to the new one.
 	m.djPlan.block = djPlanBlock{}
 	m.djPlan.staleRetries = 0
+	// The immediate refresh is DJ work against the same boundary, so it is
+	// withdrawn here too. This is the single point every gesture that must not
+	// be undone by a delayed result already goes through: the radio toggle, a
+	// queue clear, and every session transition including a newly applied
+	// settings snapshot.
+	m = m.supersedeDJRefresh()
+	m.djRefresh.retries = 0
 	return m
 }
 

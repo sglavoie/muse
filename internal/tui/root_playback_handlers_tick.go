@@ -2,6 +2,7 @@ package tui
 
 import (
 	"math"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
@@ -100,7 +101,12 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// the Radio cleanup FIFO: both exist because a database refusal must not be
 	// allowed to leave durable state disagreeing with what the TUI shows.
 	m, djRejectCmd := m.startDJRejectRetryCmd()
-	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd, djRejectCmd)
+	// Backstop for a refresh deferred while playback was between tracks. The
+	// settlement it is really waiting for is the confirmed track change, but a
+	// transition that resolves without one — a stop, a failed load — would
+	// otherwise strand the user's applied settings outside the queue.
+	m, djRefreshCmd := m.djResumeDeferredRefresh(time.Now())
+	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd, djRejectCmd, djRefreshCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

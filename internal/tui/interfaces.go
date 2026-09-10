@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
@@ -216,6 +218,30 @@ type djQueueWriter interface {
 	PrepareDJBatch(entries []db.DJQueueEntry) (db.DJPreparation, error)
 	AcceptDJBatch(prep db.DJPreparation, commit db.DJCommit) (db.DJAcceptance, error)
 	RejectDJBatch(prep db.DJPreparation) error
+}
+
+// djReplacementWriter is the optional half of djQueueWriter an immediate queue
+// refresh needs: a preparation that retires the DJ-owned rows it displaces in
+// the same transaction that publishes their successors. Root checks for it via
+// type assertion on the djQueue field, so a Model built with a writer that only
+// appends keeps working — Apply then reaches the queue through the ordinary
+// low-water-mark refill instead of refreshing it in place.
+type djReplacementWriter interface {
+	djQueueWriter
+	PrepareDJReplacement(entries []db.DJQueueEntry, replacing []int64) (db.DJPreparation, error)
+}
+
+// queueRefreshCommitter is the optional player interface that runs a refresh
+// through the guarded four-stage sequence: settle, capture, the caller's durable
+// commit, publication, and mpv reconciliation. Root checks for it via type
+// assertion on the player field, so the lightweight test players that implement
+// only playPauser leave Apply on the refill path rather than the refresh path.
+//
+// It blocks — on a settle wait, a database transaction, and mpv IPC — so every
+// call is made from a tea.Cmd goroutine behind the play-request gate, never on
+// the Bubble Tea update path.
+type queueRefreshCommitter interface {
+	CommitQueueRefresh(ctx context.Context, rc player.RefreshCommit) (player.RefreshCommitResult, error)
 }
 
 // playlistShuffler persists a full playlist track reorder (e.g. Fisher-Yates

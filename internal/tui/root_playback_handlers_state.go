@@ -343,14 +343,24 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// guard above has already passed, so this is the player's confirmation of
 	// the row it is actually on rather than a start-file a newer selection
 	// superseded. An Anchor session keeps the context it was captured with.
+	// A confirmed track change is the settlement a deferred refresh was waiting
+	// for, so it is carried across the reseed below rather than dropped by it.
+	// Re-anchoring supersedes DJ work in flight because that work was planned
+	// about the previous subject; a deferred refresh is the opposite — the
+	// user's applied settings still on their way to the queue, which the
+	// relaunch replans against whatever the seed has just become.
+	resumeRefresh := m.djRefresh.deferred
 	m = m.djNoteTrackChanged(msg.Hash, time.Now())
 	var radioCmd tea.Cmd
 	m, radioCmd = m.startRadioEnqueueCmd()
+	var djRefreshCmd tea.Cmd
+	m.djRefresh.deferred = m.djRefresh.deferred || resumeRefresh
+	m, djRefreshCmd = m.djResumeDeferredRefresh(time.Now())
 
 	// Pulse the now-playing row briefly so the user notices the transition.
 	m.pulseUntil = time.Now().Add(pulseDuration)
 
-	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd(),
+	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd(), djRefreshCmd,
 		m.trackNotifyCmd(msg, prevHash))
 }
 
