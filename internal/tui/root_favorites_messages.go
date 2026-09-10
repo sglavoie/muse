@@ -63,6 +63,9 @@ func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	switch msg.typ {
 	case "track":
 		updateFavoriteCache(&m.favoriteHashes, m.favoriteReader, "track", msg)
+		// Favorited tracks carry a scoring bonus, so the set is an Auto-DJ
+		// input. Artist and album favorites are not read by the planner.
+		m.djInvalidate()
 	case "artist":
 		updateFavoriteCache(&m.favoriteArtists, m.favoriteReader, "artist", msg)
 	case "album":

@@ -276,6 +276,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// values this edit changed. The index was rewritten before the write was
 		// even attempted, so a failed write leaves them just as stale.
 		m.insightsInvalidate()
+		// Auto-DJ filters on artist and genre, so the same rewrite changes which
+		// tracks are eligible and why.
+		m.djInvalidate()
 
 	case overlay.GoToDismissedMsg:
 		m.overlay.goTo = nil

@@ -253,11 +253,17 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 func (m Model) handleTagsRefreshed(msg tagsRefreshedMsg) Model {
 	if msg.err != nil {
 		slog.Warn("tags refresh failed", "err", msg.err)
+		// The cache still holds whatever the last successful load produced, but
+		// nothing now vouches for it matching the database, so Auto-DJ must
+		// stop treating tag references as resolvable. rebuildTagCache clears
+		// this again on the next load that works.
+		m.tagCacheErr = msg.err
 		return m
 	}
 	m = m.rebuildTagCache(msg.tags)
 	if msg.trackTags != nil {
 		m.trackTags = msg.trackTags
+		m.djInvalidate()
 	}
 	return m
 }

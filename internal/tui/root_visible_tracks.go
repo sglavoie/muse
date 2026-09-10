@@ -197,7 +197,7 @@ func (m Model) tagsVisibleTracks() ([]library.Track, string, bool) {
 				continue
 			}
 		}
-		tracks = append(tracks, trackFromPlaylistRow(r))
+		tracks = append(tracks, m.hydrateTrack(trackFromPlaylistRow(r)))
 	}
 	return tracks, "Tags ▸ " + m.tagsView.SelectedTag.Name, true
 }
@@ -215,7 +215,7 @@ func (m Model) playlistsVisibleTracks() ([]library.Track, string, bool) {
 				continue
 			}
 		}
-		tracks = append(tracks, trackFromPlaylistRow(r))
+		tracks = append(tracks, m.hydrateTrack(trackFromPlaylistRow(r)))
 	}
 	name := "Playlist"
 	if m.playlists.ListCursor >= 0 && m.playlists.ListCursor < len(m.playlists.Playlists) {
@@ -238,7 +238,7 @@ func (m Model) queueVisibleTracks() ([]library.Track, string, bool) {
 		if anySelected && !e.Selected {
 			continue
 		}
-		tracks = append(tracks, library.Track{
+		tracks = append(tracks, m.hydrateTrack(library.Track{
 			Path:        e.Path,
 			Hash:        e.Hash,
 			Artist:      e.Artist,
@@ -247,9 +247,30 @@ func (m Model) queueVisibleTracks() ([]library.Track, string, bool) {
 			Duration:    float64(e.DurationMs) / 1000,
 			TrackNumber: e.TrackNumber,
 			DiscNumber:  e.DiscNumber,
-		})
+		}))
 	}
 	return tracks, "Queue", true
+}
+
+// hydrateTrack replaces a view's own adapted row with the library index entry
+// for the same content hash.
+//
+// Queue entries and db.PlaylistTrackRow carry no Genre, PlayCount, or
+// LastPlayedAt column at all, so a row adapted straight from either reads as a
+// genre-less track that has never been played. Export merely lost a column to
+// that; a caller that starts Auto-DJ from a selection would have every one of
+// those rows fail a genre inclusion and classify as pure discovery. The row
+// itself remains the fallback for a hash the index no longer holds, which is
+// what keeps a missing file exportable.
+func (m Model) hydrateTrack(row library.Track) library.Track {
+	if row.Hash == "" {
+		return row
+	}
+	live, ok := m.library.Index.FindByHash(row.Hash)
+	if !ok {
+		return row
+	}
+	return live
 }
 
 // selectedByIndex narrows rows to the display indices in selected, which is how
@@ -268,8 +289,8 @@ func selectedByIndex(rows []library.Track, selected map[int]struct{}) []library.
 }
 
 // trackFromPlaylistRow adapts the row type Playlists and Tags hold. The result
-// carries no Genre because db.PlaylistTrackRow has no such column; export
-// hydrates each row through the library index to fill it in.
+// carries no Genre because db.PlaylistTrackRow has no such column; callers pass
+// it through Model.hydrateTrack to recover the full track.
 func trackFromPlaylistRow(r db.PlaylistTrackRow) library.Track {
 	return library.Track{
 		Path:        r.Path,

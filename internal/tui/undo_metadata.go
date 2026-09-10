@@ -46,6 +46,9 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.refreshDerivedViews()
 	m.insightsInvalidate()
+	// The index was rewritten back to the original artist/genre values, which
+	// is the same kind of change to Auto-DJ filtering that the edit was.
+	m.djInvalidate()
 	if mw != nil || dw != nil {
 		originals := a.originals
 		q := m.metadataWrites

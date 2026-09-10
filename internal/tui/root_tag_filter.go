@@ -124,6 +124,7 @@ func (m Model) handleRemoveAllTagsFromTrack(msg removeAllTagsFromTrackMsg) (Mode
 
 	// Optimistic update.
 	m.trackTags[hash] = nil
+	m.djInvalidate()
 
 	// Update activeTagFilter display if the track is now removed from filter.
 	if m.activeTagFilter != nil {

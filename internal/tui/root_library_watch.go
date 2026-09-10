@@ -22,6 +22,9 @@ func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
 	m = m.reconcileTrackCaches(msg.tracks)
 	m = m.watchRecomputeLibrary()
 	m = m.refreshBrowseDerivedViews()
+	// Deletes and upserts both change the candidate set Auto-DJ plans from, so
+	// one bump after the whole batch covers this fan-out.
+	m.djInvalidate()
 	if m.watchCh != nil {
 		return m, waitForWatchBatch(m.watchCh)
 	}

@@ -289,6 +289,13 @@ type Model struct {
 	tagNames  map[int64]string              // id → name (quick display lookup)
 	tagColors map[int64]string              // id → color hex
 
+	// tagCacheErr is non-nil when the tag list could not be read, so tags is
+	// empty for lack of an answer rather than for lack of tags. Display can
+	// live with the difference; Auto-DJ cannot, because a filter that
+	// references a tag has no verdict without the catalog. Cleared by the next
+	// successful load.
+	tagCacheErr error
+
 	// activeTagFilter, when non-nil, restricts track-displaying views to only
 	// show tracks that carry the given tag ID. Set via ctrl+t; cleared by
 	// pressing ctrl+t again or esc in the tag filter picker.
@@ -334,6 +341,7 @@ type Model struct {
 
 	playback playbackInfo // current playback state, repeat, shuffle, volume, position
 	radio    radioState   // auto-DJ / radio mode state
+	djData   djDataState  // revision of the data Auto-DJ planning reads
 
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
 	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.

@@ -189,11 +189,15 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 
 	return func() tea.Msg {
 		// Two-pass scoring: first pass with metadata only to narrow candidates,
-		// then load behavioral data for top 3*batchSize pool before final score.
-		completionRates := map[string]float64{}
-		coOccurrences := map[string]int{}
-		timeGenreBonus := map[string]float64{}
-		if recReader != nil && seed.Hash != "" {
+		// then load behavioral data for the top 3*batchSize pool before the
+		// final score.
+		//
+		// "now" is read here rather than captured with the inputs above, so the
+		// time-of-day bonus follows the clock through a session left running
+		// for hours instead of pinning itself to the hour radio was enabled in.
+		now := time.Now()
+		var hydrate []string
+		if recReader != nil {
 			initial := radio.ScoreAll(radio.ScoreInput{
 				Seed:            seed,
 				AllTracks:       allTracks,
@@ -204,20 +208,18 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 				DismissedHashes: dismissedHashes,
 			})
 			topN := min(3*radioBatchSize, len(initial))
-			topHashes := make([]string, topN)
+			hydrate = make([]string, topN)
 			for i := 0; i < topN; i++ {
-				topHashes[i] = initial[i].Track.Hash
+				hydrate[i] = initial[i].Track.Hash
 			}
-			if rates, err := recReader.ReadCompletionRates(topHashes); err == nil && rates != nil {
-				completionRates = rates
-			}
-			if coOccs, err := recReader.ReadSessionCoOccurrences(seed.Hash, 100); err == nil {
-				for _, c := range coOccs {
-					coOccurrences[c.Hash] = c.Count
-				}
-			}
-			if affinities, err := recReader.ReadHourGenreAffinities(); err == nil {
-				timeGenreBonus = buildTimeGenreBonus(affinities, time.Now().Hour())
+		}
+		// The seed only gates co-occurrence, which is the one seed-relative
+		// query. Completion rates and the hour affinity describe the listener,
+		// not the seed, and are now loaded for a synthetic or absent seed too.
+		signals := djLoadSignals(recReader, hydrate, seed.Hash, now)
+		if signals.Degraded() {
+			for _, f := range signals.Failures() {
+				slog.Warn("radio: behavioral signal unavailable", "signal", f.Signal, "err", f.Err)
 			}
 		}
 
@@ -229,9 +231,9 @@ func (m Model) radioEnqueueCmd() tea.Cmd {
 			RecentHashes:    recentSet,
 			QueueHashes:     queueSet,
 			DismissedHashes: dismissedHashes,
-			CompletionRates: completionRates,
-			CoOccurrences:   coOccurrences,
-			TimeGenreBonus:  timeGenreBonus,
+			CompletionRates: signals.completionRates,
+			CoOccurrences:   signals.coOccurrences,
+			TimeGenreBonus:  signals.timeGenreBonus,
 		})
 		picked := radio.PickBatch(scored, radioBatchSize, 0.4)
 		if len(picked) == 0 {

@@ -432,6 +432,13 @@ func (m Model) handlePlayRecordedMsg(msg playback.PlayRecordedMsg) Model {
 		return m
 	}
 
+	// Only a counted listen moves the Auto-DJ's inputs: PlayCount and
+	// LastPlayedAt decide discovery classification, and the completion-rate and
+	// co-occurrence signals read the same counted-only history. A skip changes
+	// neither, which is why this sits below the guard rather than beside the
+	// Insights bump above it.
+	m.djInvalidate()
+
 	// Only update when History mode is active and has been loaded.
 	if m.library.Mode != libtui.LibraryModeHistory || len(m.library.SourceTracks) == 0 {
 		return m

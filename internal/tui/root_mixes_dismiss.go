@@ -65,6 +65,9 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 		m.dismissedHashes = make(map[string]struct{})
 	}
 	m.dismissedHashes[msg.hash] = struct{}{}
+	// A dismissal is a heavy scoring penalty in the planner, so the set is an
+	// Auto-DJ input as much as a mix filter.
+	m.djInvalidate()
 
 	for id, tracks := range m.mixes.CachedMixes {
 		m.mixes.CachedMixes[id] = removeTrackByHash(tracks, msg.hash)
@@ -109,6 +112,7 @@ func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
 // handleMixUndismissedMsg removes the hash from in-memory dismissedHashes.
 func (m Model) handleMixUndismissedMsg(msg mixUndismissedMsg) Model {
 	delete(m.dismissedHashes, msg.hash)
+	m.djInvalidate()
 	m.statusBar.Notify("Undismissed — will reappear on next mix load")
 	return m
 }

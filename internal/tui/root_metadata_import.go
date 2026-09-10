@@ -301,6 +301,9 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 // the undo slot's own message already names the count and offers `u`.
 func (m Model) handleMetadataImportAppliedMsg(msg metadataImportAppliedMsg) Model {
 	m.insightsInvalidate()
+	// Artist and genre are filter fields, so an import can move tracks in and
+	// out of the Auto-DJ candidate set.
+	m.djInvalidate()
 	lost := msg.failed + msg.superseded
 	if lost == 0 {
 		return m

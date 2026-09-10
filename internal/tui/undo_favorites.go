@@ -37,6 +37,7 @@ func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 			m.favoriteHashes = make(map[string]struct{})
 		}
 		m.favoriteHashes[a.value] = struct{}{}
+		m.djInvalidate()
 	}
 	if a.typ == "artist" && a.value != "" {
 		if m.favoriteArtists == nil {
@@ -116,6 +117,7 @@ func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
 	}
 	if a.typ == "track" && a.value != "" {
 		delete(m.favoriteHashes, a.value)
+		m.djInvalidate()
 	}
 	if a.typ == "artist" && a.value != "" {
 		delete(m.favoriteArtists, a.value)
@@ -182,6 +184,7 @@ func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		for _, v := range a.values {
 			delete(m.favoriteHashes, v)
 		}
+		m.djInvalidate()
 	}
 	if a.typ == "artist" {
 		for _, v := range a.values {
@@ -268,6 +271,7 @@ func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
 		for _, v := range a.values {
 			m.favoriteHashes[v] = struct{}{}
 		}
+		m.djInvalidate()
 	}
 	if a.typ == "artist" {
 		if m.favoriteArtists == nil {

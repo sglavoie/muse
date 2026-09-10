@@ -66,6 +66,9 @@ func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.refreshDerivedViews()
 	m.insightsInvalidate()
+	// Same reason as the import itself: reverted artist and genre values change
+	// which tracks the Auto-DJ filters admit.
+	m.djInvalidate()
 	if mw != nil || pw != nil {
 		originals := a.originals
 		q := m.metadataWrites

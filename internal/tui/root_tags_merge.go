@@ -72,6 +72,9 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 			m.trackTags[hash] = tagIDs
 		}
 	}
+	// The remap changes which tracks a tag filter selects, and it lands here
+	// even when the tag list re-read below fails.
+	m.djInvalidate()
 
 	// If the active cross-view tag filter pointed at the merged-away tag,
 	// repoint it at the destination so the filter survives the merge and the

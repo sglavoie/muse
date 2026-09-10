@@ -104,6 +104,10 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 		m.library = m.library.RebuildFilterCache()
 	}
 	m = m.refreshBrowseDerivedViews()
+	// The batch changed the candidate set itself: new tracks, replaced content
+	// at a path, and healed metadata all move what Auto-DJ may select and how
+	// its filters classify it.
+	m.djInvalidate()
 	if m.scanCh != nil {
 		return m, waitForNextBatch(m.scanCh)
 	}
@@ -146,6 +150,10 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	// A scan moves the coverage denominator even when it was canceled partway:
 	// every batch it did deliver is already in the index and the database.
 	m.insightsInvalidate()
+	// Deletion reconciliation runs above, after the last batch was already
+	// applied, so this is the bump that covers the tracks a rescan removed from
+	// the candidate set.
+	m.djInvalidate()
 	return m, cmd
 }
 

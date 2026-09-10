@@ -200,6 +200,9 @@ func (m Model) applyTagToggle(tagID int64, hashes []string, add bool) Model {
 			delete(m.trackTags[h], tagID)
 		}
 	}
+	// A tag filter selects on exactly this map, so a toggle can move a track in
+	// or out of the candidate set.
+	m.djInvalidate()
 	return m
 }
 
@@ -214,14 +217,21 @@ func (m Model) hasTag(id int64) bool {
 }
 
 // rebuildTagCache replaces the in-memory tag list and lookup maps.
+//
+// Every tag create, rename, delete, undelete, merge, and refresh funnels
+// through here, which makes it the one place Auto-DJ has to learn that the tag
+// catalog moved: a filter referencing a tag that just disappeared must start
+// reporting as unresolved rather than keep planning against a stale answer.
 func (m Model) rebuildTagCache(tags []db.TagRow) Model {
 	m.tags = tags
+	m.tagCacheErr = nil
 	m.tagNames = make(map[int64]string, len(tags))
 	m.tagColors = make(map[int64]string, len(tags))
 	for _, t := range tags {
 		m.tagNames[t.ID] = t.Name
 		m.tagColors[t.ID] = t.Color
 	}
+	m.djInvalidate()
 	return m
 }
 
