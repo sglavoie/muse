@@ -190,7 +190,8 @@ func (m Model) radioNoteDeliberateStop() Model {
 }
 
 // radioNoteStartRequested pairs the user's gesture with the shared player
-// request ID. A newer gesture replaces both halves of an older confirmation.
+// request ID. A newer start gesture replaces both halves of an older confirmation;
+// unrelated controls may advance requestSeq without replacing this intent.
 func (m Model) radioNoteStartRequested(request uint64) Model {
 	m.radio.start = radioStartIntent{request: request}
 	return m
@@ -200,7 +201,7 @@ func (m Model) radioNoteStartRequested(request uint64) Model {
 // a selection result can still pass playRequestSeq after a newer transport
 // command; it must not authorize or withdraw that transport's start intent.
 func (m Model) radioNoteStartResult(request uint64, err error) Model {
-	if request == 0 || request != m.radio.start.request || request != m.playback.requestSeq {
+	if request == 0 || request != m.radio.start.request {
 		return m
 	}
 	if err != nil {
@@ -215,7 +216,7 @@ func (m Model) radioNoteStartResult(request uint64, err error) Model {
 // result, including when it is just a reconnect echo of the loaded occurrence.
 // The result must still succeed before that report can lift the suspension.
 func (m Model) radioConfirmStartedTrack() Model {
-	if m.radio.start.request == 0 || m.radio.start.request != m.playback.requestSeq {
+	if m.radio.start.request == 0 {
 		return m
 	}
 	m.radio.start.trackSeen = true

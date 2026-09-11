@@ -65,15 +65,25 @@ func (m *Model) playbackControlCmd(
 }
 
 func (m Model) handlePlaybackControlResultMsg(msg playbackControlResultMsg) (Model, tea.Cmd) {
-	if msg.request != m.playback.requestSeq || !msg.ran {
+	if !msg.ran {
 		return m, nil
+	}
+	// Start confirmation belongs to the recorded start intent even when a
+	// later pause or refresh owns the ordinary control-result side effects.
+	wasStopped := m.radio.stoppedByUser
+	if msg.control != playbackControlPause {
+		m = m.radioNoteStartResult(msg.request, msg.err)
+	}
+	var refill tea.Cmd
+	if wasStopped && !m.radio.stoppedByUser {
+		m, refill = m.startRadioEnqueueCmd()
+	}
+	if msg.request != m.playback.requestSeq {
+		return m, refill
 	}
 	if msg.err != nil {
 		if m.playback.state == msg.after {
 			m.playback.state = msg.before
-		}
-		if msg.control != playbackControlPause {
-			m = m.radioNoteStartResult(msg.request, msg.err)
 		}
 		label := playbackControlLabel(msg.control)
 		slog.Warn(label+" failed", "err", msg.err)
@@ -83,12 +93,7 @@ func (m Model) handlePlaybackControlResultMsg(msg playbackControlResultMsg) (Mod
 	if msg.control == playbackControlPause {
 		return m, m.sessionPositionCmd()
 	}
-	wasStopped := m.radio.stoppedByUser
-	m = m.radioNoteStartResult(msg.request, nil)
-	if wasStopped && !m.radio.stoppedByUser {
-		return m.startRadioEnqueueCmd()
-	}
-	return m, nil
+	return m, refill
 }
 
 func playbackControlLabel(control playbackControl) string {
