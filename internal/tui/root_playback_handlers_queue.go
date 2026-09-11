@@ -118,12 +118,6 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	// A refused load will never produce a start-file, so nothing else would ever
 	// lower the barrier. Drop it here whether or not the reset below runs.
 	m.playback.lowerSelectionBarrier()
-	// A transport dispatched after this selection owns the newer intent even
-	// though playRequestSeq still names the selection. Resetting playback here
-	// would issue Stop and supersede that transport's request and result.
-	if msg.Request != m.playback.requestSeq {
-		return m
-	}
 	// Discard the error if the user already moved on to a different track or
 	// cleared the queue between dispatch and arrival. Resetting unconditionally
 	// would clobber the now-correct playback state with a stale failure. A
@@ -133,7 +127,15 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	if m.playback.currentHash != msg.Hash || m.playback.currentIndex != msg.Index {
 		return m
 	}
-	m = m.resetPlaybackState()
+	if msg.Request == m.playback.requestSeq {
+		m = m.resetPlaybackState()
+	} else {
+		// The selected row never started, but a later control still owns the
+		// player. Clear the optimistic display and report the refusal without
+		// issuing a Stop that would supersede that control and its result.
+		m = m.endCurrentListen()
+		m = m.clearPlaybackDisplay()
+	}
 	m.statusBar.Notify(playResultFailureText(msg))
 	player.PlaySound(player.SoundError)
 	return m

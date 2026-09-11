@@ -109,10 +109,22 @@ func (m Model) resetPlaybackState() Model {
 	} else {
 		m.supersedePlayRequests()
 	}
-	m.playback.state = playback.StateIdle
-	m = m.resetPlaybackProgress()
+	m = m.clearPlaybackDisplay()
 	m.playback.stopAfterCurrent = false
 	m.playback.queueExhausted = false
+	m.missingTrackCount = 0
+	if sat, ok := m.player.(stopAfterToggler); ok {
+		sat.SetStopAfterCurrent(false)
+	}
+	return m
+}
+
+// clearPlaybackDisplay retires the current row without calling the player or
+// superseding requests. A refused selection uses this when a newer control
+// still owns playback and must be allowed to finish.
+func (m Model) clearPlaybackDisplay() Model {
+	m.playback.state = playback.StateIdle
+	m = m.resetPlaybackProgress()
 	m.statusBar.Artist = ""
 	m.statusBar.Title = ""
 	m.statusBar.PlaylistSource = ""
@@ -125,10 +137,6 @@ func (m Model) resetPlaybackState() Model {
 	// it up would refuse every track change from here on.
 	m.playback.pendingSelection = false
 	m.playback.lowerSelectionBarrier()
-	m.missingTrackCount = 0
-	if sat, ok := m.player.(stopAfterToggler); ok {
-		sat.SetStopAfterCurrent(false)
-	}
 	return m
 }
 
