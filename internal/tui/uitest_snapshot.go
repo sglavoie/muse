@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/autodj"
 	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
@@ -112,10 +113,21 @@ func (m Model) ActiveOverlayName() string {
 	case m.overlay.favoriteTargetPicker != nil:
 		return "favorite_target_picker"
 	case m.overlay.autoDJ != nil:
-		return "autodj_tune"
+		return autoDJOverlayName(*m.overlay.autoDJ)
 	default:
 		return ""
 	}
+}
+
+// autoDJOverlayName distinguishes the two pages of the Auto-DJ overlay, because
+// they differ in kind and not only in content: one edits a draft and one is
+// read-only, and a harness asserting that a gesture changed nothing needs to be
+// able to say which page it was on.
+func autoDJOverlayName(p autodj.TunePanel) string {
+	if p.PreviewActive() {
+		return "autodj_preview"
+	}
+	return "autodj_tune"
 }
 
 func (m Model) fillLibrarySnapshot(snap *UITestSnapshot) {

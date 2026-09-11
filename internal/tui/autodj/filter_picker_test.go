@@ -190,7 +190,7 @@ func TestPickerRenderShowsSearchSelectionAndSwatch(t *testing.T) {
 	p := focus(t, newTestPanel(true), rowIncludeTags)
 	p, _ = press(t, p, "enter")
 
-	out := p.Render(80, 24, styles.NewStyles(true), nil)
+	out := p.Render(80, 24, styles.NewStyles(true), nil, Preview{})
 	if !strings.Contains(plain(out), "Include tags") {
 		t.Fatalf("picker render has no title:\n%s", out)
 	}
@@ -221,7 +221,7 @@ func TestPickerFitsTheMinimumTerminal(t *testing.T) {
 	for range len(p.picker.options) - 1 {
 		p, _ = press(t, p, "down")
 	}
-	assertFitsBox(t, p.Render(minWidth, minOverlayHeight, styles.NewStyles(true), nil), minWidth, minOverlayHeight)
+	assertFitsBox(t, p.Render(minWidth, minOverlayHeight, styles.NewStyles(true), nil, Preview{}), minWidth, minOverlayHeight)
 
 	start, end := p.picker.rowWindow(minOverlayHeight)
 	if p.picker.cursor < start || p.picker.cursor >= end {

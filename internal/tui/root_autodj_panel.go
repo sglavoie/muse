@@ -92,6 +92,9 @@ func (m Model) handleAutoDJPanelKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 	case autodj.ActionCommit:
 		m, cmd := m.commitAutoDJDraft(time.Now())
 		return m, cmd, true
+	case autodj.ActionPreview:
+		m, cmd := m.ensureAutoDJPreview(updated.Draft(), time.Now())
+		return m, cmd, true
 	}
 	return m, nil, true
 }
@@ -102,9 +105,13 @@ func (m Model) handleAutoDJPanelKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 // has durable work behind it, and clearing the token here would only mean the
 // acknowledgement has nowhere to land — which it already does, because the panel
 // it belonged to is gone.
+//
+// The held draft plan is dropped, though. It was computed for a draft that no
+// longer exists, and a reply still in flight for it has no reader; superseding
+// here is what keeps a late answer from landing on the next panel the user opens.
 func (m Model) closeAutoDJPanel() Model {
 	m.overlay.autoDJ = nil
-	return m
+	return m.djSupersedePreview()
 }
 
 // commitAutoDJDraft applies the panel's draft, starting a session when none is
@@ -121,6 +128,13 @@ func (m Model) commitAutoDJDraft(now time.Time) (Model, tea.Cmd) {
 		return m, nil
 	}
 	draft := m.overlay.autoDJ.Draft()
+
+	// The draft plan is retired by the commit that acts on it. Whatever the
+	// refill enqueues is planned fresh against the settings just adopted, so
+	// leaving the old proposal on the page would keep offering to add tracks
+	// that may already be in the queue. What replaces it is better evidence
+	// anyway: the committed rows, carrying the reasons stored with them.
+	m = m.djSupersedePreview()
 
 	// The token is minted after the gesture, not before it. Applying supersedes
 	// whatever refresh was already in flight, and that withdrawal answers the

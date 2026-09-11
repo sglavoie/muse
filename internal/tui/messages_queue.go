@@ -71,6 +71,9 @@ type djPreviewPlannedMsg struct {
 	signals   djSignals
 	err       error
 	at        time.Time
+	// fingerprint names the inputs this draft was planned from, so a held
+	// result can be reused while they hold rather than recomputed per gesture.
+	fingerprint djPlanFingerprint
 }
 
 // radioBatchCleanupMsg reports one compensating delete attempt for a stale

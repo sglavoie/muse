@@ -20,12 +20,55 @@ func (p TunePanel) HandleKey(msg tea.KeyPressMsg) (TunePanel, Action) {
 	switch key {
 	case "esc":
 		return p, ActionCancel
-	case "enter":
-		return p.activateRow()
+	case "tab":
+		return p.switchTab(1)
+	case "shift+tab":
+		return p.switchTab(-1)
 	case "ctrl+s":
 		return p.requestCommit()
 	}
+	if p.tab == tabPreview {
+		return p.handlePreviewKey(key)
+	}
+	if key == "enter" {
+		return p.activateRow()
+	}
 	return p.handleEditKey(key), actionNone
+}
+
+// maxPreviewOffset bounds the stored scroll position. The render clamps to the
+// real line count, but the offset itself must not be able to run away while a
+// key repeats on a page that has already reached its end.
+const maxPreviewOffset = 512
+
+// switchTab moves to the neighbouring page.
+//
+// Arriving on Preview asks the root for a draft plan. It is a request and not a
+// command: the root reuses a plan that is still valid for these settings and
+// these inputs, and computes a new one only when something moved. Either way the
+// answer is read-only, so switching tabs cannot change what is playing or what
+// is queued.
+func (p TunePanel) switchTab(delta int) (TunePanel, Action) {
+	p.tab = panelTab((int(p.tab) + int(tabCount) + delta) % int(tabCount))
+	p.previewOffset = 0
+	if p.tab == tabPreview {
+		return p, ActionPreview
+	}
+	return p, actionNone
+}
+
+// handlePreviewKey scrolls the read-only page or asks for a fresh draft.
+func (p TunePanel) handlePreviewKey(key string) (TunePanel, Action) {
+	switch key {
+	case "up", "k":
+		p.previewOffset = max(p.previewOffset-1, 0)
+	case "down", "j":
+		p.previewOffset = min(p.previewOffset+1, maxPreviewOffset)
+	case "r":
+		p.previewOffset = 0
+		return p, ActionPreview
+	}
+	return p, actionNone
 }
 
 // handleEditKey applies the keys that only ever move the focus or change the

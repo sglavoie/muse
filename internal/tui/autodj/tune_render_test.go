@@ -42,7 +42,7 @@ func assertFitsBox(t *testing.T, out string, width, height int) {
 }
 
 func TestRenderShowsEveryRowOnARoomyTerminal(t *testing.T) {
-	out := newTestPanel(true).Render(100, 40, styles.NewStyles(true), nil)
+	out := newTestPanel(true).Render(100, 40, styles.NewStyles(true), nil, Preview{})
 
 	for r := row(0); r < rowCommit; r++ {
 		if label := rowLabels[r]; label != "" && !strings.Contains(plain(out), label) {
@@ -65,7 +65,7 @@ func TestRenderAtTheMinimumTerminalKeepsTheCursorVisible(t *testing.T) {
 	// Walk the whole list at the smallest supported size. Every stop must be
 	// drawn, and the box must stay inside the overlay area.
 	for range int(rowCount) {
-		out := p.Render(minWidth, minOverlayHeight, s, nil)
+		out := p.Render(minWidth, minOverlayHeight, s, nil, Preview{})
 		assertFitsBox(t, out, minWidth, minOverlayHeight)
 
 		start, end := p.rowWindow(rowLinesFor(t, p, minOverlayHeight, nil))
@@ -87,7 +87,7 @@ func rowLinesFor(t *testing.T, p TunePanel, termHeight int, status []StatusLine)
 }
 
 func TestRenderAtTheMinimumTerminalOffersScrolling(t *testing.T) {
-	out := newTestPanel(true).Render(minWidth, minOverlayHeight, styles.NewStyles(true), nil)
+	out := newTestPanel(true).Render(minWidth, minOverlayHeight, styles.NewStyles(true), nil, Preview{})
 	if !strings.Contains(plain(out), "j/k scrolls") {
 		t.Fatalf("a scrolled panel does not say so:\n%s", out)
 	}
@@ -106,7 +106,7 @@ func TestRenderDropsTheStatusBlockBeforeTheRows(t *testing.T) {
 	if rows < minRowLines {
 		t.Fatalf("row budget = %d, want at least %d", rows, minRowLines)
 	}
-	assertFitsBox(t, p.Render(minWidth, 9, styles.NewStyles(true), status), minWidth, 9)
+	assertFitsBox(t, p.Render(minWidth, 9, styles.NewStyles(true), status, Preview{}), minWidth, 9)
 }
 
 func TestRenderCapsTheStatusBlock(t *testing.T) {
@@ -161,7 +161,7 @@ func TestStatusReportsACommitInProgress(t *testing.T) {
 }
 
 func TestRenderNarrowsWithTheTerminal(t *testing.T) {
-	out := newTestPanel(true).Render(40, minOverlayHeight, styles.NewStyles(true), nil)
+	out := newTestPanel(true).Render(40, minOverlayHeight, styles.NewStyles(true), nil, Preview{})
 	assertFitsBox(t, out, 40, minOverlayHeight)
 }
 

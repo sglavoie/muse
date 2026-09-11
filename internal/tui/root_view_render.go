@@ -173,7 +173,8 @@ func (m Model) renderOverlayBody() (string, bool) {
 	case m.overlay.favoriteTargetPicker != nil:
 		return m.overlay.favoriteTargetPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.autoDJ != nil:
-		return m.overlay.autoDJ.Render(m.termWidth, overlayHeight, *m.styles, m.autoDJPanelStatus()), true
+		return m.overlay.autoDJ.Render(m.termWidth, overlayHeight, *m.styles,
+			m.autoDJPanelStatus(), m.autoDJPanelPreview()), true
 	default:
 		return "", false
 	}

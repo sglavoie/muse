@@ -14,6 +14,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/radio"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
@@ -219,11 +220,24 @@ func richMixTracks() []library.Track {
 	}
 }
 
+// richQueueEntries mixes both provenances on purpose. The first two rows are the
+// user's own; the third is DJ-owned and carries the explanation persisted with
+// it at selection time, which is what the Preview tab reads back rather than
+// re-deriving. Without one such row the fixtures could only ever exercise the
+// "no stored evidence" wording.
 func richQueueEntries() []queue.Entry {
 	return []queue.Entry{
 		{ID: 1, Hash: "rh1", Path: "/music/alice/alpha/a1.flac", Display: "Alice – Track A1", Artist: "Alice", Title: "Track A1", Album: "Alpha", DurationMs: 183000, Position: 100},
 		{ID: 2, Hash: "rh4", Path: "/music/bob/gamma/g1.flac", Display: "Bob – Track G1", Artist: "Bob", Title: "Track G1", Album: "Gamma", DurationMs: 120000, Position: 200},
-		{ID: 3, Hash: "rh6", Path: "/music/charlie/delta/d1.flac", Display: "Charlie – Track D1", Artist: "Charlie", Title: "Track D1", Album: "Delta", DurationMs: 3661000, Position: 300},
+		{
+			ID: 3, Hash: "rh6", Path: "/music/charlie/delta/d1.flac", Display: "Charlie – Track D1",
+			Artist: "Charlie", Title: "Track D1", Album: "Delta", DurationMs: 3661000, Position: 300,
+			DJOwned: true,
+			DJReasons: radio.Reasons{
+				{Code: radio.ReasonDiscoveryNever},
+				{Code: radio.ReasonIncludeGenre, Value: "Jazz"},
+			},
+		},
 	}
 }
 

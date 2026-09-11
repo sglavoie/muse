@@ -142,7 +142,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
-| `tui/autodj` | 37 | 0 | 35 | 2 | `tui` |
+| `tui/autodj` | 71 | 0 | 68 | 3 | `tui` |
 | `tui/uitest` | 72 | 0 | 35 | 37 | `main` |
 
 ## Why single-consumer packages stay exported
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**927 exported identifiers across 15 packages**: 153 reached from two or more packages, 717 from exactly one, 57 from none (21 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**961 exported identifiers across 15 packages**: 153 reached from two or more packages, 750 from exactly one, 58 from none (22 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -1082,6 +1082,7 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `Action` | type | — | api |
 | `tui/autodj` | `ActionCancel` | const | `internal/tui` | root |
 | `tui/autodj` | `ActionCommit` | const | `internal/tui` | root |
+| `tui/autodj` | `ActionPreview` | const | `internal/tui` | root |
 | `tui/autodj` | `Applied` | type | `internal/tui` | root |
 | `tui/autodj` | `Applied.Active` | field | `internal/tui` | root |
 | `tui/autodj` | `Applied.Err` | field | `internal/tui` | root |
@@ -1091,11 +1092,43 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `Catalog.Artists` | field | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Genres` | field | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Tags` | field | `internal/tui` | root |
+| `tui/autodj` | `EvidenceGap` | type | `internal/tui` | root |
+| `tui/autodj` | `EvidenceGap.Detail` | field | `internal/tui` | root |
+| `tui/autodj` | `EvidenceGap.Signal` | field | `internal/tui` | root |
 | `tui/autodj` | `New` | func | `internal/tui` | root |
 | `tui/autodj` | `Options` | type | `internal/tui` | root |
 | `tui/autodj` | `Options.Active` | field | `internal/tui` | root |
 | `tui/autodj` | `Options.Applied` | field | `internal/tui` | root |
 | `tui/autodj` | `Options.Catalog` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview` | type | `internal/tui` | root |
+| `tui/autodj` | `Preview.Ahead` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.AheadMore` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.DiscoveryTarget` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Err` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Gaps` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Outcome` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Reasons` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Rejections` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Replanning` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Settings` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Shortages` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Stale` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Status` | field | `internal/tui` | root |
+| `tui/autodj` | `Preview.Tracks` | field | `internal/tui` | root |
+| `tui/autodj` | `PreviewFailed` | const | `internal/tui` | root |
+| `tui/autodj` | `PreviewIdle` | const | `internal/tui` | root |
+| `tui/autodj` | `PreviewPlanning` | const | `internal/tui` | root |
+| `tui/autodj` | `PreviewReady` | const | `internal/tui` | root |
+| `tui/autodj` | `PreviewStatus` | type | — | api |
+| `tui/autodj` | `PreviewTrack` | type | `internal/tui` | root |
+| `tui/autodj` | `PreviewTrack.Discovery` | field | `internal/tui` | root |
+| `tui/autodj` | `PreviewTrack.Label` | field | `internal/tui` | root |
+| `tui/autodj` | `PreviewTrack.Reasons` | field | `internal/tui` | root |
+| `tui/autodj` | `QueuedTrack` | type | `internal/tui` | root |
+| `tui/autodj` | `QueuedTrack.DJ` | field | `internal/tui` | root |
+| `tui/autodj` | `QueuedTrack.Label` | field | `internal/tui` | root |
+| `tui/autodj` | `QueuedTrack.Playing` | field | `internal/tui` | root |
+| `tui/autodj` | `QueuedTrack.Reasons` | field | `internal/tui` | root |
 | `tui/autodj` | `StatusLine` | type | `internal/tui` | root |
 | `tui/autodj` | `StatusLine.Text` | field | `internal/tui` | root |
 | `tui/autodj` | `StatusLine.Tone` | field | `internal/tui` | root |
@@ -1113,6 +1146,7 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `TunePanel.Draft` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Err` | method | `internal/tui†` | root (tests only) |
 | `tui/autodj` | `TunePanel.HandleKey` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.PreviewActive` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Render` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Submit` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Unresolved` | method | `internal/tui†` | root (tests only) |

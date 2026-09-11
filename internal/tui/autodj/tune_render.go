@@ -48,9 +48,11 @@ const (
 	// labelWidth is the left column. "Include artists" is the longest label.
 	labelWidth = 16
 
-	// minInnerWidth keeps the box readable; the 60-column minimum terminal
-	// leaves 56 usable columns, so this never forces a horizontal overflow.
-	minInnerWidth = 48
+	// maxInnerWidth caps the box on a wide terminal. The Preview page's
+	// explanations are the widest thing the overlay draws, and they read badly
+	// stretched across a full-screen terminal; narrower terminals get whatever
+	// they have.
+	maxInnerWidth = 76
 
 	// chromeLines is the top border, the title, its separator, the bottom
 	// border, and the hint line — everything a box costs before any content.
@@ -68,16 +70,25 @@ const (
 
 // Render produces the centered overlay body. An open picker takes the whole
 // overlay: it is modal, so showing the rows behind it would invite editing them.
-func (p TunePanel) Render(termWidth, termHeight int, s styles.Styles, status []StatusLine) string {
+//
+// Both the status block and the preview are passed in at render time rather than
+// held by the panel. They describe the running session, not the draft, and a
+// copy taken when the panel opened would be stale by the time it mattered.
+func (p TunePanel) Render(
+	termWidth, termHeight int, s styles.Styles, status []StatusLine, preview Preview,
+) string {
 	if p.picker != nil {
 		return centerBox(p.picker.buildBoxLines(termWidth, termHeight, s), termWidth, termHeight)
+	}
+	if p.tab == tabPreview {
+		return centerBox(p.buildPreviewLines(termWidth, termHeight, s, preview), termWidth, termHeight)
 	}
 	return centerBox(p.buildBoxLines(termWidth, termHeight, s, status), termWidth, termHeight)
 }
 
 // innerWidth returns the box's content width for the given terminal width.
 func innerWidth(termWidth int) int {
-	width := minInnerWidth
+	width := maxInnerWidth
 	if maxInner := termWidth - 4; termWidth > 0 && width > maxInner {
 		width = maxInner
 	}
@@ -87,7 +98,8 @@ func innerWidth(termWidth int) int {
 func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, status []StatusLine) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-2, 0)
-	lines := boxHeader(" Tune Auto-DJ ", inner, s)
+	title, titleWidth := tabBarTitle(tabTune, s)
+	lines := boxHeaderRendered(title, titleWidth, inner)
 
 	rowLines, statusLines := p.splitBudget(termHeight, p.statusLines(status))
 	start, end := p.rowWindow(rowLines)
@@ -187,7 +199,7 @@ func (p TunePanel) hint(scrolled bool) string {
 	if scrolled {
 		scroll = "j/k scrolls · "
 	}
-	return scroll + "h/l adjust · enter edit · x clear · ctrl+s " + verb + " · esc cancel"
+	return scroll + "h/l adjust · enter edit · x clear · tab preview · ctrl+s " + verb + " · esc cancel"
 }
 
 func toneStyle(tone Tone, s styles.Styles) lipgloss.Style {
@@ -202,11 +214,18 @@ func toneStyle(tone Tone, s styles.Styles) lipgloss.Style {
 
 // boxHeader returns the top border, the title, and the separator under it.
 func boxHeader(title string, inner int, s styles.Styles) []string {
-	pad := max(0, inner-ansi.StringWidth(title))
+	return boxHeaderRendered(s.Heading.Render(title), ansi.StringWidth(title), inner)
+}
+
+// boxHeaderRendered is boxHeader for a title that is already styled. The plain
+// width is supplied because a rendered title carries escape sequences the
+// centering arithmetic must not count.
+func boxHeaderRendered(title string, titleWidth, inner int) []string {
+	pad := max(0, inner-titleWidth)
 	left := pad / 2
 	return []string{
 		boxCornerTL + strings.Repeat(boxBorderH, inner) + boxCornerTR,
-		boxBorderV + strings.Repeat(" ", left) + s.Heading.Render(title) +
+		boxBorderV + strings.Repeat(" ", left) + title +
 			strings.Repeat(" ", pad-left) + boxBorderV,
 		boxCrossL + strings.Repeat(boxBorderH, inner) + boxCrossR,
 	}

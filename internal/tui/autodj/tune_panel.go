@@ -53,6 +53,11 @@ const (
 	ActionCommit
 	// ActionCancel asks for the panel to close, discarding the draft.
 	ActionCancel
+	// ActionPreview asks for a draft plan of the current settings. It is a
+	// request for a *read*: the root answers it by reusing a plan that is still
+	// valid or by computing a new one, and nothing it does may reach the queue,
+	// the playback history, or the discovery allocation.
+	ActionPreview
 )
 
 // Applied is the outcome the root model reports for one commit.
@@ -80,6 +85,14 @@ type TunePanel struct {
 	active bool
 
 	cursor int
+
+	// tab is the page showing. Preview is read-only, so the tab is the only
+	// state the panel keeps for it besides how far it has been scrolled.
+	tab panelTab
+	// previewOffset is the first wrapped line of the Preview page to draw. It is
+	// clamped at render time rather than here, because how many lines a plan
+	// occupies depends on the width it is wrapped to.
+	previewOffset int
 
 	// picker is the modal sub-state that owns every key while a filter field is
 	// being edited.
@@ -123,6 +136,11 @@ func (p TunePanel) Err() error { return p.err }
 
 // Cursor returns the focused row index.
 func (p TunePanel) Cursor() int { return p.cursor }
+
+// PreviewActive reports whether the read-only page is showing. The pages
+// themselves are the panel's own business; what the root model needs to know is
+// only whether a draft plan is being read right now.
+func (p TunePanel) PreviewActive() bool { return p.tab == tabPreview }
 
 // CommitLabel is the verb the primary action offers: a running session is
 // re-tuned, a stopped one is started.
