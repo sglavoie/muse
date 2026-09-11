@@ -13,12 +13,17 @@ import (
 
 // radioState holds all mutable radio-mode fields for the root Model.
 type radioState struct {
-	enabled         bool
-	seedHash        string
-	syntheticSeed   *radio.SeedTrack // non-nil = use directly instead of hash lookup
-	enqueuePending  bool
-	requestID       uint64
-	recentHashes    []string // ring buffer, cap RadioRecentCap
+	enabled        bool
+	seedHash       string
+	syntheticSeed  *radio.SeedTrack // non-nil = use directly instead of hash lookup
+	enqueuePending bool
+	requestID      uint64
+	recentHashes   []string // ring buffer, cap RadioRecentCap
+	// stoppedByUser records that playback ended because the user asked it to —
+	// an explicit Stop, or a stop-after-current that ran to completion — rather
+	// than because the queue ran out. It suspends automatic refills until the
+	// user deliberately starts something again; see radioNoteDeliberateStop.
+	stoppedByUser   bool
 	cleanupBatches  [][]int64
 	cleanupInFlight bool
 }
@@ -86,12 +91,17 @@ func (m Model) radioRemainingCount() int {
 // radioCanEnqueue reports whether a refill may be launched.
 //
 // Guards: radio enabled, saved DJ state not refused, no pending enqueue,
-// stopAfterCurrent not set, repeatMode != RepeatAll, library non-empty,
-// remaining <= low-water-mark, and the planner not parked on inputs that have
-// not moved since it last came back with nothing. That last guard is what keeps
-// an empty candidate set, an unresolved tag reference, or a failing writer from
-// turning the low-water-mark check into a loop that re-asks the same question
-// forever.
+// playback not deliberately stopped, stopAfterCurrent not set, repeatMode !=
+// RepeatAll, library non-empty, remaining <= low-water-mark, and the planner not
+// parked on inputs that have not moved since it last came back with nothing.
+// That last guard is what keeps an empty candidate set, an unresolved tag
+// reference, or a failing writer from turning the low-water-mark check into a
+// loop that re-asks the same question forever.
+//
+// The deliberate-stop guard covers the window the stopAfterCurrent flag cannot:
+// once a stop-after-current has run to completion the flag is already back to
+// false, and an explicit Stop never sets it at all, so both would otherwise
+// leave an exhausted-looking queue that every later wakeup is free to refill.
 //
 // The refused-state guard is the one that has nothing to do with the queue.
 // Radio mode is restored from its own column, so a launch that could not read
@@ -107,6 +117,9 @@ func (m Model) radioCanEnqueue() bool {
 		return false
 	}
 	if m.radio.enqueuePending {
+		return false
+	}
+	if m.radio.stoppedByUser {
 		return false
 	}
 	if m.playback.stopAfterCurrent {
@@ -137,12 +150,49 @@ func (m Model) startRadioEnqueueCmd() (Model, tea.Cmd) {
 	return m, m.radioEnqueueCmd()
 }
 
+// radioNoteDeliberateStop retires automatic refill work at a deliberate stop
+// boundary: an explicit Stop, or a stop-after-current the player ran out.
+//
+// Both are the user ending playback, and neither leaves an event behind that
+// would ask the refill again — which is precisely why the park has to be retired
+// here rather than left for some later guard to notice. A park records inputs
+// the planner came back empty-handed from, or a write the database refused; the
+// tick wakeup exists to re-ask exactly those once the writer recovers or an
+// eligible track appears. After a deliberate stop that recovery is no longer
+// something the user asked for, so the park is dropped and the suspension below
+// keeps a fresh one from being launched in its place.
+//
+// The suspension is lifted by radioResumeAfterStop, from the two gestures that
+// mean the user wants audio again: a confirmed track change, and any deliberate
+// session boundary that passes through supersedeRadioBatch.
+func (m Model) radioNoteDeliberateStop() Model {
+	m.radio.stoppedByUser = true
+	m.djPlan.block = djPlanBlock{}
+	m.djPlan.staleRetries = 0
+	return m
+}
+
+// radioResumeAfterStop lifts the refill suspension a deliberate stop put in
+// place. It says nothing about what the refill may plan — the ordinary gate
+// still decides that — only that the user has asked for playback again.
+func (m Model) radioResumeAfterStop() Model {
+	m.radio.stoppedByUser = false
+	return m
+}
+
 // supersedeRadioBatch invalidates every result created from the current Radio
 // state. The generation advances even when no batch is pending so all queue
 // replacement boundaries have an unambiguous identity.
 func (m Model) supersedeRadioBatch() Model {
 	m.radio.requestID++
 	m.radio.enqueuePending = false
+	// Every caller is a deliberate boundary — the radio toggle, a queue clear, a
+	// start, a stop, a reseed, an applied settings snapshot — so a suspension
+	// earned by an earlier stop does not apply to what comes after it. Turning
+	// the DJ on is the gesture this matters for: it is the one entry point that
+	// launches a refill in the same frame, and a suspension surviving into it
+	// would make the start key enable Radio and then play nothing.
+	m = m.radioResumeAfterStop()
 	// A replacement boundary is a deliberate change of what the DJ is refilling
 	// into, so neither the park nor the stale-retry budget earned under the old
 	// state applies to the new one.
@@ -336,6 +386,15 @@ func (m Model) radioResultCancelled(msg RadioBatchEnqueuedMsg) bool {
 	// Radio was toggled off while the goroutine was in flight; publishing now
 	// would resurrect the mode the user just cancelled.
 	if !m.radio.enabled {
+		return true
+	}
+	// Playback was deliberately stopped while the goroutine was in flight. The
+	// batch was admitted by a low-water-mark check the stop has since answered,
+	// so publishing it would grow the queue after the user ended playback — and
+	// would hand the tick a fresh reason to keep going. Retiring it here is what
+	// makes the stop boundary cover work that was already running, not just work
+	// the gate can still refuse to launch.
+	if m.radio.stoppedByUser {
 		return true
 	}
 	// Saved DJ state was refused, so the settings this result was planned
@@ -581,10 +640,13 @@ func (m Model) retryRadioAfterStale() (Model, tea.Cmd) {
 // It is deliberately narrow, and the narrowness is the whole safety argument.
 // Only a parked refill is woken, and a park is recorded by nothing but a live
 // attempt that the guards already admitted and that came back with nothing;
-// every deliberate withdrawal — a disable, a queue clear, a stop, a reseed, an
-// applied settings change — clears it through supersedeRadioBatch. So a queue
-// the user emptied stays empty, a stop-after-current still stops, and a paused
-// startup that never launched a refill does not acquire one from the tick.
+// every deliberate withdrawal retires it first — a disable, a queue clear, a
+// reseed or an applied settings change through supersedeRadioBatch, and an
+// explicit Stop or a completed stop-after-current through
+// radioNoteDeliberateStop, which also suspends the gate so a park cannot simply
+// be earned again. So a queue the user emptied stays empty, a stop stays
+// stopped, and a paused startup that never launched a refill does not acquire
+// one from the tick.
 //
 // What bounds it is the ordinary gate: radioCanEnqueue re-checks every guard and
 // ends at djLiveAllowed, which re-attempts unchanged inputs only after a

@@ -19,6 +19,14 @@ import (
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	wasStopAfter := m.playback.stopAfterCurrent
 	m.playback.stopAfterCurrent = false
+	// A stop-after-current that ran to completion is the user ending playback, not
+	// the queue running dry, so the refill is retired here. The flag is already
+	// back to false by the time any later guard could read it, and every
+	// !wasStopAfter branch below is skipped, so nothing else on this path would
+	// tell a parked refill that its wakeup is no longer wanted.
+	if wasStopAfter {
+		m = m.radioNoteDeliberateStop()
+	}
 	// Nothing lowers awaitingSelectionStart here: the traversal cannot have
 	// exhausted before the reader dispatched the start-file of the row it played
 	// out, and that report already retired the barrier.
@@ -339,6 +347,12 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
+	// The player is on a row again, which is the one report that proves the user
+	// asked for audio after a deliberate stop: nothing starts a track by itself.
+	// Lifting the suspension here rather than at the keypress keeps it tied to
+	// playback that actually began, so a refused load leaves the DJ as quiet as
+	// the stop left it.
+	m = m.radioResumeAfterStop()
 	// The DJ seed moves only under Follow, and only here: every stale-event
 	// guard above has already passed, so this is the player's confirmation of
 	// the row it is actually on rather than a start-file a newer selection

@@ -224,6 +224,11 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				// stop can beat that event out of mpv, and leaving the barrier up
 				// for a report that will never come would refuse the next one.
 				m.playback.lowerSelectionBarrier()
+				// An explicit stop never sets stopAfterCurrent, so the refill gate
+				// would read an idle player with a short queue as ordinary
+				// exhaustion. Retiring the refill here is what keeps the next tick
+				// from restarting audio the user just ended.
+				m = m.radioNoteDeliberateStop()
 				if m.playback.stopAfterCurrent {
 					m.playback.stopAfterCurrent = false
 					if sat, ok := m.player.(stopAfterToggler); ok {
