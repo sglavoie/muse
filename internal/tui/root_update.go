@@ -174,7 +174,11 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handlePlayQueueIndexMsg(msg)
 
 	case playback.PlayFromIndexResultMsg:
+		wasStopped := m.radio.stoppedByUser
 		m = m.handlePlayFromIndexResultMsg(msg)
+		if wasStopped && !m.radio.stoppedByUser {
+			return m.startRadioEnqueueCmd()
+		}
 
 	case playbackControlResultMsg:
 		return m.handlePlaybackControlResultMsg(msg)

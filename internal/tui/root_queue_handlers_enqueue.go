@@ -180,11 +180,6 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	// nothing left to erase. A replay ends the listen too: the track is starting
 	// again from zero, so what was heard up to now is a finished listen.
 	m = m.endCurrentListen()
-	// Selecting a row is the user asking for audio, whether it starts a new one or
-	// restarts this one. The Auto-DJ refill needs that asking recorded before the
-	// player answers, because the answer — a start-file naming the row — is the
-	// same shape as a report nobody asked for; see radioNoteStartRequested.
-	m = m.radioNoteStartRequested()
 	// Optimistic UI update: show the track as playing immediately. The
 	// player will either confirm via TrackChangedMsg or we'll reset
 	// state from the result handler if the call fails.
@@ -211,6 +206,7 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	req := gate.dispatch(m.playback.requestSeq)
 	m.playback.requestSeq = req
 	m.playback.playRequestSeq = req
+	m = m.radioNoteStartRequested(req)
 	p := m.player
 	idx := msg.Index
 	result := func(err error) tea.Msg {

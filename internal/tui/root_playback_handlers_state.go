@@ -347,15 +347,9 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
-	// A report that the player is on a row confirms a start; it does not make one.
-	// mpv re-announces the current file every time the event reader reconnects,
-	// paused or not, and a start-file emitted before a Stop can be delivered after
-	// it — neither has a user behind it, and Stop leaves the row loaded rather
-	// than flushing it, so both look exactly like an ordinary arrival here. So the
-	// suspension is lifted only where a start the user asked for meets its
-	// confirmation: the request is armed at the gesture and consumed here, which
-	// keeps a refused load as quiet as the stop left it without letting an
-	// unsolicited report speak for a user who pressed nothing.
+	// A report may arrive before the command result, or merely re-announce a
+	// loaded row on reconnect. Record it, but require the current start request
+	// to succeed before lifting a deliberate-stop refill suspension.
 	m = m.radioConfirmStartedTrack()
 	// The DJ seed moves only under Follow, and only here: every stale-event
 	// guard above has already passed, so this is the player's confirmation of

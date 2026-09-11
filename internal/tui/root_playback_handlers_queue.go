@@ -88,9 +88,8 @@ func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMs
 
 // handlePlayFromIndexResultMsg surfaces the outcome of an asynchronous
 // handlePlayQueueIndexMsg playback call — PlayFromIndex or ReplayCurrent alike.
-// Success produces no visible effect here because the player's start-file event
-// will dispatch a TrackChangedMsg that updates the status bar; this handler
-// exists to recover from failures without blocking the Update goroutine.
+// The start-file updates the status bar, while this result settles whether the
+// requested start may lift a deliberate-stop DJ suspension.
 func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg) Model {
 	// Discard everything a newer request has superseded. Two requests aimed at
 	// the same queue occurrence — holding Enter on one row, or replaying it and
@@ -106,6 +105,7 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	// runs for a failure too: the reset below is itself a resolution. Enter on
 	// the row is a genuine replay again from here.
 	m.playback.pendingSelection = false
+	m = m.radioNoteStartResult(msg.Request, msg.Err)
 	if msg.Err == nil {
 		// The track-event barrier is deliberately left standing. A successful
 		// load says mpv accepted the selected row, not that it has finished
@@ -118,11 +118,12 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	// A refused load will never produce a start-file, so nothing else would ever
 	// lower the barrier. Drop it here whether or not the reset below runs.
 	m.playback.lowerSelectionBarrier()
-	// For the same reason the selection's start request is withdrawn: the row the
-	// user asked for is not playing, so the Auto-DJ refill stays as suspended as a
-	// deliberate stop left it, and the next report — a reconnect echo, say — finds
-	// no request of its own to answer.
-	m = m.radioNoteStartRefused()
+	// A transport dispatched after this selection owns the newer intent even
+	// though playRequestSeq still names the selection. Resetting playback here
+	// would issue Stop and supersede that transport's request and result.
+	if msg.Request != m.playback.requestSeq {
+		return m
+	}
 	// Discard the error if the user already moved on to a different track or
 	// cleared the queue between dispatch and arrival. Resetting unconditionally
 	// would clobber the now-correct playback state with a stale failure. A

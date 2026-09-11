@@ -24,17 +24,19 @@ type radioState struct {
 	// than because the queue ran out. It suspends automatic refills until the
 	// user deliberately starts something again; see radioNoteDeliberateStop.
 	stoppedByUser bool
-	// startRequested records that the user has asked for audio again and that the
-	// player has not answered yet. It is what tells a start apart from a report
-	// about the row the player is already holding: mpv re-announces the current
-	// file whenever the event reader reconnects, and a start-file emitted before a
-	// Stop can still be delivered after it. Neither is anybody asking for
-	// anything, and a track change is nobody's gesture on its own, so only a
-	// report arriving against an armed request lifts the suspension above; see
-	// radioNoteStartRequested.
-	startRequested  bool
+	// A track report and a successful command result must both answer the
+	// current request before it can lift a deliberate-stop suspension.
+	start           radioStartIntent
 	cleanupBatches  [][]int64
 	cleanupInFlight bool
+}
+
+// Reports do not carry command IDs. Remember a report received while this
+// request is current, but never let it authorize refills before the call succeeds.
+type radioStartIntent struct {
+	request   uint64
+	succeeded bool
+	trackSeen bool
 }
 
 const (
@@ -179,41 +181,47 @@ func (m Model) radioNoteDeliberateStop() Model {
 	// A start dispatched before the stop is not a start the user still wants: the
 	// stop is the newer gesture, so it withdraws the request as well as the
 	// playback, and the report that request may still produce lifts nothing.
-	m.radio.startRequested = false
+	m.radio.start = radioStartIntent{}
 	m.djPlan.block = djPlanBlock{}
 	m.djPlan.staleRetries = 0
 	return m
 }
 
-// radioNoteStartRequested records that the user has asked the player to start
-// something: a queue selection, an autoplay-triggering enqueue, or a transport
-// key that moves onto a row.
-//
-// It is only an intent. What lifts the suspension is the player confirming it,
-// because the alternative — treating the confirmation alone as the gesture —
-// cannot tell a start from mpv re-announcing the file it was already holding.
-// Arming here and consuming the arm in radioConfirmStartedTrack keeps the two
-// halves of one start together, so an unsolicited report finds nothing to
-// consume and a refused start leaves the DJ as quiet as the stop left it.
-func (m Model) radioNoteStartRequested() Model {
-	m.radio.startRequested = true
+// radioNoteStartRequested pairs the user's gesture with the shared player
+// request ID. A newer gesture replaces both halves of an older confirmation.
+func (m Model) radioNoteStartRequested(request uint64) Model {
+	m.radio.start = radioStartIntent{request: request}
 	return m
 }
 
-// radioNoteStartRefused withdraws a start request the player turned down. No
-// start-file will follow it, so leaving the request armed would hand the
-// suspension to whatever report happened to arrive next.
-func (m Model) radioNoteStartRefused() Model {
-	m.radio.startRequested = false
-	return m
+// radioNoteStartResult records only the current request's outcome. In particular,
+// a selection result can still pass playRequestSeq after a newer transport
+// command; it must not authorize or withdraw that transport's start intent.
+func (m Model) radioNoteStartResult(request uint64, err error) Model {
+	if request == 0 || request != m.radio.start.request || request != m.playback.requestSeq {
+		return m
+	}
+	if err != nil {
+		m.radio.start = radioStartIntent{}
+		return m
+	}
+	m.radio.start.succeeded = true
+	return m.radioConfirmStart()
 }
 
-// radioConfirmStartedTrack answers a confirmed track change with the suspension
-// the user's own start earned, and with nothing at all when no start is
-// outstanding. A report the user did not ask for describes where the player
-// already was; it is not permission to begin adding tracks again.
+// radioConfirmStartedTrack remembers an accepted report. It may precede the
+// result, including when it is just a reconnect echo of the loaded occurrence.
+// The result must still succeed before that report can lift the suspension.
 func (m Model) radioConfirmStartedTrack() Model {
-	if !m.radio.startRequested {
+	if m.radio.start.request == 0 || m.radio.start.request != m.playback.requestSeq {
+		return m
+	}
+	m.radio.start.trackSeen = true
+	return m.radioConfirmStart()
+}
+
+func (m Model) radioConfirmStart() Model {
+	if !m.radio.start.succeeded || !m.radio.start.trackSeen {
 		return m
 	}
 	return m.radioResumeAfterStop()
@@ -226,7 +234,7 @@ func (m Model) radioConfirmStartedTrack() Model {
 // answered, so a later report must arm its own.
 func (m Model) radioResumeAfterStop() Model {
 	m.radio.stoppedByUser = false
-	m.radio.startRequested = false
+	m.radio.start = radioStartIntent{}
 	return m
 }
 
