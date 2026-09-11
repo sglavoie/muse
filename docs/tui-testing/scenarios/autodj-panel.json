@@ -1,0 +1,27 @@
+{
+  "name": "autodj-panel",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"key": "ctrl+a"},
+    {"assert": {"overlay": "autodj_tune"}, "label": "tune-opens"},
+    {"assert": {"contains": "Discovery"}},
+    {"assert": {"no_layout_issues": true}, "label": "tune-fits"},
+    {"key": "tab"},
+    {"wait": "2s"},
+    {"assert": {"overlay": "autodj_preview"}, "label": "preview-opens"},
+    {"assert": {"contains": "Draft batch"}},
+    {"assert": {"no_layout_issues": true}, "label": "preview-fits"},
+    {"resize": "60x15"},
+    {"assert": {"no_layout_issues": true}, "label": "preview-fits-minimum"},
+    {"resize": "100x30"},
+    {"key": "tab"},
+    {"assert": {"overlay": "autodj_recipes"}, "label": "recipes-opens"},
+    {"assert": {"contains": "Recipes store settings only"}},
+    {"assert": {"no_layout_issues": true}, "label": "recipes-fits"},
+    {"resize": "60x15"},
+    {"assert": {"no_layout_issues": true}, "label": "recipes-fits-minimum"},
+    {"key": "esc"},
+    {"assert": {"view": "Library"}, "label": "esc-closes-the-panel"}
+  ]
+}

@@ -23,6 +23,7 @@ var gatedScenarios = []string{
 	"layout-regressions-empty.json",
 	"narrow-long-text.json",
 	"metadata-editor-narrow.json",
+	"autodj-panel.json",
 }
 
 // ungatedScenarios are aggressive supported-size stress examples kept for manual bug

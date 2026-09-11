@@ -191,6 +191,27 @@ var helpSectionsTable = []HelpSection{
 			{"left / right", "Cycle field or operator"},
 		},
 	},
+	{
+		// The panel handles its own keys rather than going through the
+		// keybinding registry, so this section is the only place they are
+		// written down outside the panel's own footer hint — which is
+		// truncated on a narrow terminal.
+		Title:   "Auto-DJ panel overlay (ctrl+a)",
+		Context: keys.ContextModals,
+		entries: []helpEntry{
+			{"tab / shift+tab", "Page between Tune, Preview, and Recipes"},
+			{"ctrl+s", "Start the session, or apply the draft to the running one"},
+			{"esc", "Close without changing anything"},
+			{"j / k / down / up", "Move the cursor, or scroll Preview"},
+			{"h / l / left / right", "Adjust the focused row (preset, discovery, anchor)"},
+			{"enter", "Edit the focused filter, or press the Start/Apply button"},
+			{"x", "Clear the focused filter"},
+			{"r", "Replan the Preview draft, or drop filter values naming a deleted tag"},
+			{"enter / s / u / n / d", "Recipes: load / save as / update / rename / delete"},
+			{"tab (filter picker)", "Toggle the highlighted value in or out"},
+			{"ctrl+u", "Clear the filter search, or the recipe name being typed"},
+		},
+	},
 	// Section order below mirrors the tab-bar order:
 	// Library → Playlists → Queue → Browse → Favorites → Tags → Mixes.
 	// Library and Playlists appear above; the rest follow here.

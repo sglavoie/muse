@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A steerable Auto-DJ. Radio mode is now a session you can tune while it plays,
+  through a panel on `ctrl+a`:
+  - **Tune** — a preset (Familiar 20%, Balanced 40%, Explore 80%, Custom for
+    anything in between), the discovery target in ten-point steps, an anchor
+    mode (`Anchor` keeps scoring against the track the session started from,
+    `Follow` re-anchors on every track change), and include/exclude filters on
+    tags, genres, and artists. Applying to a running session rebuilds the queue
+    ahead of the track you are listening to without interrupting it.
+  - **Preview** — the batch the current draft would add, the reason each track
+    was picked, what was ruled out, and any shortage ("only 1 of 3 familiar
+    tracks were available; discovery tracks filled the rest"). Read-only:
+    looking at a draft changes nothing that is playing or queued.
+  - **Recipes** — named settings, saved and reloaded from the database. A recipe
+    stores settings only, never a queue or a seed: saving one changes nothing
+    that is playing, and loading one edits the draft, which you then start. A
+    recipe whose filters name a tag that has since been deleted is reported as
+    unusable rather than silently widened.
+- Auto-DJ rows are now marked as the DJ's own in the database. A re-tune
+  replaces only the rows the DJ added: tracks you queued yourself are left
+  alone, and so is the one playing. A session also survives a restart — muse
+  restores the settings, the seed, and the discovery balance, and keeps filling
+  from where it left off. Ownership is recorded when a row is written and is
+  never inferred from its source label, so queue rows left over from an earlier
+  version's radio mode are treated as manual entries after the upgrade: a
+  re-tune plays around them instead of discarding them.
+- `Start Auto-DJ from selection…` in the command palette, seeding a session from
+  whatever the active view has selected, alongside the existing `A` starts from
+  a mix or an Insights row.
 - Eight more audio formats in the library scanner: `.ac3`, `.au`, `.caf`,
   `.dts`, `.m4r`, `.mp4`, `.snd`, and `.w64`. Note that `.mp4` files are indexed
   and played as audio only; exclude them with `excluded_paths` if your music
@@ -37,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Radio refills are planned off the update loop. Picking the next batch used to
+  score the library inline, which froze the interface on a large collection for
+  as long as it took — including the keypress that turns radio off. Planning now
+  runs as a background command whose result is checked against the state it was
+  planned from and discarded if anything moved, so a refill can no longer publish
+  a stale batch or delay a gesture.
 - ExifTool is no longer a hard startup requirement; it is the recommended
   backend because it scans a batch in one process (about 2.4x faster than
   ffprobe on a real library), but either tool is sufficient. Startup fails

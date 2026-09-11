@@ -44,6 +44,28 @@ scenario cannot accidentally trigger a real side effect.
 | `playback` | An active playback session: current track, queue, repeat/shuffle/volume/status metadata. |
 | `health`   | A deliberately dirty library — colliding genre spellings, a placeholder genre, blank fields, unverified durations, one artist spelled two ways — so Insights' Data Health panel has one of every finding. Its metadata writer is in-memory, so the genre merge is safe to exercise. |
 
+### Auto-DJ in the fixtures
+
+Every fixture wires an in-memory recipe store seeded with `Late Night` and
+`Morning Focus`, so the Auto-DJ panel's Recipes tab renders with rows in it.
+Recipes hold settings only — saving one changes nothing that is playing and
+loading one only edits the draft — which is why a fixture store is safe here.
+
+`rich` also marks one queue row as Auto-DJ-owned and carries its selection
+reasons, which is what the Preview tab's "plays before this batch" list reads.
+
+`ctrl+a` opens the panel; `tab` / `shift+tab` page between its Tune, Preview,
+and Recipes tabs, reported as the overlays `autodj_tune`, `autodj_preview`, and
+`autodj_recipes`. The Preview tab plans in the background, so drive it with a
+`wait` action before asserting on its contents.
+
+`ctrl+s` does start a session in the fixture model — the commit button changes
+from `Start` to `Apply` once it is running — but no fixture wires a DJ writer or
+a session writer, so nothing is persisted, no row ownership is recorded, and
+anything a batch does land in goes to the in-memory queue store. The panel is
+exercised here for layout, navigation, and drafting; ownership, persistence, and
+restart behavior are covered by the Go tests in `internal/tui` and `internal/db`.
+
 ## CLI
 
 ```
@@ -149,7 +171,7 @@ An `assert` object sets exactly one expectation:
 | `contains` | The plain screen contains the substring. |
 | `not_contains` | The plain screen omits the substring. |
 | `view` | The active **primary** view matches (case-insensitive): `Library`, `Playlists`, `Queue`, `Browse`, `Favorites`, `Tags`, `Mixes`. |
-| `overlay` | The active overlay matches (case-insensitive), e.g. `help`, `command_palette`, `queue_summary`, `debug`, `now_playing`. There is no "no overlay" assertion; assert a `view` instead. |
+| `overlay` | The active overlay matches (case-insensitive), e.g. `help`, `command_palette`, `queue_summary`, `debug`, `now_playing`, `autodj_tune`, `autodj_preview`, `autodj_recipes`. There is no "no overlay" assertion; assert a `view` instead. |
 | `status_contains` | The status line contains the substring. |
 | `no_layout_issues` | The observation reports zero layout issues. Must be `true`. |
 
@@ -199,10 +221,11 @@ Each observation is normalized JSON:
 | `insights-panels.json` | `rich` | Walks every Insights panel and its time window at 100×30. |
 | `insights-drilldown.json` | `rich` | Drills Insights rows to tracks and sessions and back out again. |
 | `insights-narrow.json` | `rich` | Guards Insights panel layout at the minimum supported size. |
+| `autodj-panel.json` | `rich` | Walks the Auto-DJ panel's Tune, Preview, and Recipes tabs at 100×30 and again at the minimum supported size, then closes it with `esc`. |
 | `insights-data-health.json` | `health` | Every Data Health finding, drilling one to its tracks, bulk-editing it, and merging a genre collision until the Rhythm banner clears. |
 
-The baseline, primary-view, overlay, command-palette, layout-regression, and
-narrow/long-text scenarios are stable and gated in `go test`.
+The baseline, primary-view, overlay, command-palette, layout-regression,
+narrow/long-text, and Auto-DJ panel scenarios are stable and gated in `go test`.
 `resize-stress.json` is kept for manual bug discovery across a wider range of
 supported terminal sizes. The Insights scenarios take timed waits for the
 background snapshot load, so they are run from the command line rather than

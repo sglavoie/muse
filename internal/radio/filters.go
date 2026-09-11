@@ -200,21 +200,21 @@ func CompileFilters(include, exclude FilterSet) CompiledFilters {
 // inclusions. Missing metadata never satisfies an inclusion: a track with no
 // genres cannot match a genre inclusion.
 func (c CompiledFilters) Match(facts TrackFacts) FilterVerdict {
-	for _, field := range c.exclude.fields(facts) {
-		if !field.populated {
+	for _, field := range filterFields {
+		if !c.exclude.populated(field.kind) {
 			continue
 		}
-		if value, ok := field.match(); ok {
+		if value, ok := c.exclude.match(field.kind, facts); ok {
 			return FilterVerdict{Blocked: Reason{Code: field.excludeCode, Value: value}}
 		}
 	}
 
 	var matched Reasons
-	for _, field := range c.include.fields(facts) {
-		if !field.populated {
+	for _, field := range filterFields {
+		if !c.include.populated(field.kind) {
 			continue
 		}
-		value, ok := field.match()
+		value, ok := c.include.match(field.kind, facts)
 		if !ok {
 			return FilterVerdict{Blocked: Reason{Code: field.missingCode, Detail: field.detail}}
 		}
@@ -288,55 +288,97 @@ func (idx valueIndex) match(trackValues []string, key func(string) string) (stri
 		return "", false
 	}
 	for _, value := range trackValues {
-		k := key(value)
-		if k == "" {
-			continue
-		}
-		if filterValue, ok := idx[k]; ok {
+		if filterValue, ok := idx.matchOne(value, key); ok {
 			return filterValue, true
 		}
 	}
 	return "", false
 }
 
-// filterField binds one picker field to the way it is matched and reported.
+// matchOne is match for a field that holds a single track value, which spares
+// the planner a one-element slice per candidate.
+func (idx valueIndex) matchOne(trackValue string, key func(string) string) (string, bool) {
+	if len(idx) == 0 {
+		return "", false
+	}
+	k := key(trackValue)
+	if k == "" {
+		return "", false
+	}
+	filterValue, ok := idx[k]
+	return filterValue, ok
+}
+
+// filterKind names one of the three picker fields.
+type filterKind int
+
+const (
+	filterKindTag filterKind = iota
+	filterKindGenre
+	filterKindArtist
+)
+
+// filterField binds one picker field to the reasons it reports.
 type filterField struct {
-	populated   bool
-	match       func() (string, bool)
+	kind        filterKind
 	includeCode ReasonCode
 	excludeCode ReasonCode
 	missingCode ReasonCode
 	detail      string
 }
 
-// fields describes the three picker fields of a compiled set.
-func (c compiledSet) fields(facts TrackFacts) []filterField {
-	return []filterField{
-		{
-			populated:   len(c.tagIDs) > 0,
-			match:       func() (string, bool) { return matchTagIDs(c.tagIDs, facts.TagIDs) },
-			includeCode: ReasonIncludeTag,
-			excludeCode: ReasonExcludeTag,
-			missingCode: ReasonMissingTag,
-			detail:      "no tag in the inclusion list",
-		},
-		{
-			populated:   len(c.genres) > 0,
-			match:       func() (string, bool) { return c.genres.match(facts.Genres, normalizedGenreKey) },
-			includeCode: ReasonIncludeGenre,
-			excludeCode: ReasonExcludeGenre,
-			missingCode: ReasonMissingGenre,
-			detail:      "no genre in the inclusion list",
-		},
-		{
-			populated:   len(c.artists) > 0,
-			match:       func() (string, bool) { return c.artists.match([]string{facts.Artist}, artistFilterKey) },
-			includeCode: ReasonIncludeArtist,
-			excludeCode: ReasonExcludeArtist,
-			missingCode: ReasonMissingArtist,
-			detail:      "artist not in the inclusion list",
-		},
+// filterFields is the order the three picker fields are evaluated in, for both
+// sides. It is package-level data rather than something Match builds: matching
+// runs once per candidate per batch, and describing the fields with per-call
+// closures was the planner's largest allocation source in BenchmarkPartition.
+var filterFields = [...]filterField{
+	{
+		kind:        filterKindTag,
+		includeCode: ReasonIncludeTag,
+		excludeCode: ReasonExcludeTag,
+		missingCode: ReasonMissingTag,
+		detail:      "no tag in the inclusion list",
+	},
+	{
+		kind:        filterKindGenre,
+		includeCode: ReasonIncludeGenre,
+		excludeCode: ReasonExcludeGenre,
+		missingCode: ReasonMissingGenre,
+		detail:      "no genre in the inclusion list",
+	},
+	{
+		kind:        filterKindArtist,
+		includeCode: ReasonIncludeArtist,
+		excludeCode: ReasonExcludeArtist,
+		missingCode: ReasonMissingArtist,
+		detail:      "artist not in the inclusion list",
+	},
+}
+
+// populated reports whether this side filters on the given field at all.
+func (c compiledSet) populated(kind filterKind) bool {
+	switch kind {
+	case filterKindTag:
+		return len(c.tagIDs) > 0
+	case filterKindGenre:
+		return len(c.genres) > 0
+	case filterKindArtist:
+		return len(c.artists) > 0
 	}
+	return false
+}
+
+// match reports the filter value of the given field that the facts satisfy.
+func (c compiledSet) match(kind filterKind, facts TrackFacts) (string, bool) {
+	switch kind {
+	case filterKindTag:
+		return matchTagIDs(c.tagIDs, facts.TagIDs)
+	case filterKindGenre:
+		return c.genres.match(facts.Genres, normalizedGenreKey)
+	case filterKindArtist:
+		return c.artists.matchOne(facts.Artist, artistFilterKey)
+	}
+	return "", false
 }
 
 // matchTagIDs reports the first filter tag id the track carries. The filter

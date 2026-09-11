@@ -6,8 +6,8 @@ of your files built from [ExifTool](https://exiftool.org) or ffprobe metadata,
 and renders everything through a
 [Bubble Tea](https://github.com/charmbracelet/bubbletea)
 TUI: seven primary views, a command palette, an in-app metadata editor, a
-listening-insights dashboard, and a radio mode that keeps picking the next
-track for you. It is keyboard-driven throughout — press `?` at any time for the
+listening-insights dashboard, and a steerable Auto-DJ that keeps picking the
+next track for you. It is keyboard-driven throughout — press `?` at any time for the
 full keybinding reference.
 
 > **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
@@ -44,7 +44,32 @@ full keybinding reference.
 
 - **Radio mode / Auto-DJ** (`A`) — muse keeps the queue fed by scoring
   candidate tracks against what you have been listening to, avoiding recent
-  history. It can be seeded from a mix or from an Insights row.
+  history. It can be seeded from a mix, from an Insights row, or from whatever
+  you have selected (`:` → _Start Auto-DJ from selection_).
+- **Steerable Auto-DJ** (`ctrl+a`) — a panel for steering the session while it
+  plays, in three tabs:
+  - **Tune** — a preset (Familiar 20%, Balanced 40%, Explore 80%, or Custom for
+    anything you tune in between), the discovery percentage itself in ten-point
+    steps, an anchor mode (`Anchor` keeps scoring against the track you started
+    from, `Follow` re-anchors on every track change), and
+    include/exclude filters on tags, genres, and artists. `ctrl+s` starts the
+    session, or applies the draft to a session already running — the queue is
+    then rebuilt in place, ahead of the track you are listening to, without
+    interrupting it.
+  - **Preview** — the batch the current draft would add, with the reason each
+    track was picked, what was ruled out, and any shortage (say, "only 1 of 3
+    familiar tracks were available; discovery tracks filled the rest"). It is
+    read-only: looking at a draft never changes what is playing or queued.
+  - **Recipes** — named settings you can save, update, rename, and delete.
+    A recipe stores settings only, not a queue or a seed: saving one changes
+    nothing that is playing, and loading one edits the draft, which you then
+    start. Settings the panel can no longer resolve — a filter naming a tag you
+    have since deleted — are shown as unusable rather than silently widened.
+
+  The DJ only ever touches rows it added. Tracks you queued yourself are left
+  alone by a re-tune, and so is the one playing. Radio mode and the tuned
+  settings survive a restart: muse restores the session, its seed, and its
+  discovery balance, and keeps filling from where it left off.
 - **Gapless playback** via mpv prefetch (`gapless_audio`).
 - **10-band equalizer** with built-in presets (Flat, Bass Boost, Treble Boost,
   Rock, Jazz, Classical, Pop) and user-defined custom presets, plus stereo
@@ -315,6 +340,7 @@ just enough to get moving.
 | `x` / `X` / `v` | Toggle bulk selection / clear selection / visual line mode |
 | `r` / `z` | Cycle repeat mode / toggle shuffle |
 | `A` | Toggle radio mode (Auto-DJ) |
+| `ctrl+a` | Tune Auto-DJ — presets, discovery, filters, plus its Preview and Recipes tabs |
 | `F` | Favorite the focused track, album, or artist |
 | `t` / `ctrl+t` | Manage tags / filter views by tag |
 | `M` / `i` | Edit metadata / show track info |
@@ -361,6 +387,17 @@ ffprobe, chosen at startup);
 `internal/recommendation`, and `internal/insights` own the scoring behind radio
 mode, Mixes, and the Insights dashboard.
 
+The Auto-DJ is split the same way. `internal/radio` is pure domain code:
+settings and their presets, filters, the candidate partition, and the batch
+plan, none of which know about a database or a terminal. `internal/db` owns the
+transactions — a batch is written as hidden rows, then published together with
+the state it advanced, so a crash can never leave a session and its queue
+disagreeing, and every DJ-added row is marked as such. `internal/tui/autodj`
+renders the panel and owns its keys but holds no dependencies beyond styling;
+`internal/tui` does the planning off the update loop, publishes the result, and
+rebuilds the queue through `internal/player` without interrupting the track
+playing.
+
 ## Development
 
 muse uses [`just`](https://github.com/casey/just) as its task runner:
@@ -393,6 +430,17 @@ up.
 muse has a bespoke snapshot harness for testing the real Bubble Tea model
 without a terminal — see [`docs/tui-testing/README.md`](docs/tui-testing/README.md)
 for the fixtures, scenario format, and CLI.
+
+Two suites sit outside `just test`, which runs only hermetic tests:
+
+```sh
+# Tests that need a real binary on PATH: mpv (playback continuity and gapless
+# advance) and ExifTool. They skip themselves when the binary is absent.
+go test -tags integration -race ./internal/player/ ./internal/library/
+
+# Planner scale benchmarks at 1k / 10k / 100k tracks, with allocations.
+go test -run '^$' -bench . -benchmem ./internal/radio
+```
 
 ## License
 

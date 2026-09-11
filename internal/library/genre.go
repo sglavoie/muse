@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+// genreDelimiters folds the alternate delimiters onto ";" for uniform splitting.
+// It is built once because a Replacer is immutable and safe for concurrent use,
+// and because SplitGenres runs per track: the DJ planner calls it for every
+// candidate on every batch, where building the replacer was the second-largest
+// allocation source in BenchmarkPartition.
+var genreDelimiters = strings.NewReplacer("/", ";", ",", ";")
+
 // SplitGenres splits a raw genre string into individual genre names.
 // It splits on ";", "/", and "," as delimiters, trims whitespace from each
 // part, deduplicates, and returns a sorted slice of unique non-empty genres.
@@ -14,8 +21,7 @@ func SplitGenres(raw string) []string {
 		return nil
 	}
 
-	// Replace all delimiters with ";" for uniform splitting.
-	s := strings.NewReplacer("/", ";", ",", ";").Replace(raw)
+	s := genreDelimiters.Replace(raw)
 	parts := strings.Split(s, ";")
 
 	seen := make(map[string]struct{}, len(parts))
