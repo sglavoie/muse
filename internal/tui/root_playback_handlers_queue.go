@@ -118,6 +118,11 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 	// A refused load will never produce a start-file, so nothing else would ever
 	// lower the barrier. Drop it here whether or not the reset below runs.
 	m.playback.lowerSelectionBarrier()
+	// For the same reason the selection's start request is withdrawn: the row the
+	// user asked for is not playing, so the Auto-DJ refill stays as suspended as a
+	// deliberate stop left it, and the next report — a reconnect echo, say — finds
+	// no request of its own to answer.
+	m = m.radioNoteStartRefused()
 	// Discard the error if the user already moved on to a different track or
 	// cleared the queue between dispatch and arrival. Resetting unconditionally
 	// would clobber the now-correct playback state with a stale failure. A

@@ -42,6 +42,12 @@ func (m *Model) playbackControlCmd(
 	before playback.State,
 	after playback.State,
 ) tea.Cmd {
+	// Play, Next, and Previous all ask the player to put a row on; Pause asks for
+	// the opposite. Recording the request here rather than at each key case keeps
+	// it beside the result handler that withdraws it when the call is refused.
+	if control != playbackControlPause {
+		*m = m.radioNoteStartRequested()
+	}
 	gate := m.playback.requests
 	req := gate.dispatchControl(m.playback.requestSeq)
 	m.playback.requestSeq = req
@@ -65,6 +71,13 @@ func (m Model) handlePlaybackControlResultMsg(msg playbackControlResultMsg) (Mod
 	if msg.err != nil {
 		if m.playback.state == msg.after {
 			m.playback.state = msg.before
+		}
+		// No row went on, so the request this result answers is not the start that
+		// lifts a deliberate stop's refill suspension. The identity guard above has
+		// already discarded superseded results, so the request withdrawn here is
+		// the one the failure belongs to.
+		if msg.control != playbackControlPause {
+			m = m.radioNoteStartRefused()
 		}
 		label := playbackControlLabel(msg.control)
 		slog.Warn(label+" failed", "err", msg.err)

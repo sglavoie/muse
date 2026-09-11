@@ -23,7 +23,16 @@ type radioState struct {
 	// an explicit Stop, or a stop-after-current that ran to completion — rather
 	// than because the queue ran out. It suspends automatic refills until the
 	// user deliberately starts something again; see radioNoteDeliberateStop.
-	stoppedByUser   bool
+	stoppedByUser bool
+	// startRequested records that the user has asked for audio again and that the
+	// player has not answered yet. It is what tells a start apart from a report
+	// about the row the player is already holding: mpv re-announces the current
+	// file whenever the event reader reconnects, and a start-file emitted before a
+	// Stop can still be delivered after it. Neither is anybody asking for
+	// anything, and a track change is nobody's gesture on its own, so only a
+	// report arriving against an armed request lifts the suspension above; see
+	// radioNoteStartRequested.
+	startRequested  bool
 	cleanupBatches  [][]int64
 	cleanupInFlight bool
 }
@@ -162,21 +171,62 @@ func (m Model) startRadioEnqueueCmd() (Model, tea.Cmd) {
 // something the user asked for, so the park is dropped and the suspension below
 // keeps a fresh one from being launched in its place.
 //
-// The suspension is lifted by radioResumeAfterStop, from the two gestures that
-// mean the user wants audio again: a confirmed track change, and any deliberate
-// session boundary that passes through supersedeRadioBatch.
+// The suspension is lifted by radioResumeAfterStop, from the gestures that mean
+// the user wants audio again: a start they asked for and the player took, and
+// any deliberate session boundary that passes through supersedeRadioBatch.
 func (m Model) radioNoteDeliberateStop() Model {
 	m.radio.stoppedByUser = true
+	// A start dispatched before the stop is not a start the user still wants: the
+	// stop is the newer gesture, so it withdraws the request as well as the
+	// playback, and the report that request may still produce lifts nothing.
+	m.radio.startRequested = false
 	m.djPlan.block = djPlanBlock{}
 	m.djPlan.staleRetries = 0
 	return m
 }
 
+// radioNoteStartRequested records that the user has asked the player to start
+// something: a queue selection, an autoplay-triggering enqueue, or a transport
+// key that moves onto a row.
+//
+// It is only an intent. What lifts the suspension is the player confirming it,
+// because the alternative — treating the confirmation alone as the gesture —
+// cannot tell a start from mpv re-announcing the file it was already holding.
+// Arming here and consuming the arm in radioConfirmStartedTrack keeps the two
+// halves of one start together, so an unsolicited report finds nothing to
+// consume and a refused start leaves the DJ as quiet as the stop left it.
+func (m Model) radioNoteStartRequested() Model {
+	m.radio.startRequested = true
+	return m
+}
+
+// radioNoteStartRefused withdraws a start request the player turned down. No
+// start-file will follow it, so leaving the request armed would hand the
+// suspension to whatever report happened to arrive next.
+func (m Model) radioNoteStartRefused() Model {
+	m.radio.startRequested = false
+	return m
+}
+
+// radioConfirmStartedTrack answers a confirmed track change with the suspension
+// the user's own start earned, and with nothing at all when no start is
+// outstanding. A report the user did not ask for describes where the player
+// already was; it is not permission to begin adding tracks again.
+func (m Model) radioConfirmStartedTrack() Model {
+	if !m.radio.startRequested {
+		return m
+	}
+	return m.radioResumeAfterStop()
+}
+
 // radioResumeAfterStop lifts the refill suspension a deliberate stop put in
 // place. It says nothing about what the refill may plan — the ordinary gate
-// still decides that — only that the user has asked for playback again.
+// still decides that — only that the user has asked for playback again and got
+// it. The outstanding request is consumed with the suspension: it has been
+// answered, so a later report must arm its own.
 func (m Model) radioResumeAfterStop() Model {
 	m.radio.stoppedByUser = false
+	m.radio.startRequested = false
 	return m
 }
 

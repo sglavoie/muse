@@ -86,6 +86,23 @@ func (m Model) resumeExtendedQueue(fallbackIndex int) (Model, bool) {
 	return m, true
 }
 
+// resumeExtendedQueueByRequest continues the traversal for a gesture the user
+// made — an enqueue or a paste onto a queue that had run out or been stopped.
+//
+// The resume is the same one the automatic paths make; what differs is that
+// somebody asked for it. So a successful one is a deliberate start, and it lifts
+// the refill suspension a stop put in place — synchronously, because the call
+// has already answered and there is nothing left to confirm. The automatic
+// callers keep using resumeExtendedQueue directly: a queue end continuing into
+// rows that arrived late is not the user asking for anything.
+func (m Model) resumeExtendedQueueByRequest(fallbackIndex int) Model {
+	m, resumed := m.resumeExtendedQueue(fallbackIndex)
+	if resumed {
+		m = m.radioResumeAfterStop()
+	}
+	return m
+}
+
 // resumeExtendedQueueIndex performs the resume itself and returns the queue
 // index that started playing. The PlayFromIndex fallback can only report the
 // index it was handed: a player without the extension has no traversal to ask.

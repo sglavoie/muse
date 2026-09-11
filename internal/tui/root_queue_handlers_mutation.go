@@ -245,8 +245,7 @@ func (m Model) resumeExhaustedPlayback(insertPos int) Model {
 	if !m.playback.queueExhausted || m.playback.state != playback.StateIdle {
 		return m
 	}
-	m, _ = m.resumeExtendedQueue(insertPos)
-	return m
+	return m.resumeExtendedQueueByRequest(insertPos)
 }
 
 // removeCutOriginals removes the original cut entries from the queue,

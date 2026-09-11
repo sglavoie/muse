@@ -347,12 +347,16 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash
-	// The player is on a row again, which is the one report that proves the user
-	// asked for audio after a deliberate stop: nothing starts a track by itself.
-	// Lifting the suspension here rather than at the keypress keeps it tied to
-	// playback that actually began, so a refused load leaves the DJ as quiet as
-	// the stop left it.
-	m = m.radioResumeAfterStop()
+	// A report that the player is on a row confirms a start; it does not make one.
+	// mpv re-announces the current file every time the event reader reconnects,
+	// paused or not, and a start-file emitted before a Stop can be delivered after
+	// it — neither has a user behind it, and Stop leaves the row loaded rather
+	// than flushing it, so both look exactly like an ordinary arrival here. So the
+	// suspension is lifted only where a start the user asked for meets its
+	// confirmation: the request is armed at the gesture and consumed here, which
+	// keeps a refused load as quiet as the stop left it without letting an
+	// unsolicited report speak for a user who pressed nothing.
+	m = m.radioConfirmStartedTrack()
 	// The DJ seed moves only under Follow, and only here: every stale-event
 	// guard above has already passed, so this is the player's confirmation of
 	// the row it is actually on rather than a start-file a newer selection

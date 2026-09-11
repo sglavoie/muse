@@ -65,7 +65,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.WasEmpty && m.playback.state == playback.StateIdle {
 		m = m.tryAutoPlay(msg.Track.Hash, msg.Track.Artist, msg.Track.Title, msg.SourcePlaylist)
 	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle {
-		m, _ = m.resumeExtendedQueue(enqueueIdx)
+		m = m.resumeExtendedQueueByRequest(enqueueIdx)
 	}
 	return m
 }
@@ -94,7 +94,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		entry := msg.Entries[0]
 		m = m.tryAutoPlay(entry.Hash, entry.Artist, entry.Title, msg.PlaylistName)
 	} else if m.playback.queueExhausted && m.playback.state == playback.StateIdle {
-		m, _ = m.resumeExtendedQueue(batchStartIdx)
+		m = m.resumeExtendedQueueByRequest(batchStartIdx)
 	}
 	m.setUndoSlot(undoBatchEnqueueAction{
 		ids:          msg.QueueIDs,
@@ -123,6 +123,13 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 		player.PlaySound(player.SoundError)
 		return m
 	}
+	// The enqueue behind this autoplay is a user gesture and the player has taken
+	// the row, so the request and its confirmation are both already in hand: a
+	// synchronous call answers itself. Lift the suspension here rather than arming
+	// for a report, so a player that never gets round to announcing the row does
+	// not leave the DJ suspended over audio that is already playing. A refused
+	// call returned above with the suspension intact.
+	m = m.radioResumeAfterStop()
 	m.playback.state = playback.StatePlaying
 	m.playback.currentHash = hash
 	m.playback.currentIndex = 0
@@ -173,6 +180,11 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	// nothing left to erase. A replay ends the listen too: the track is starting
 	// again from zero, so what was heard up to now is a finished listen.
 	m = m.endCurrentListen()
+	// Selecting a row is the user asking for audio, whether it starts a new one or
+	// restarts this one. The Auto-DJ refill needs that asking recorded before the
+	// player answers, because the answer — a start-file naming the row — is the
+	// same shape as a report nobody asked for; see radioNoteStartRequested.
+	m = m.radioNoteStartRequested()
 	// Optimistic UI update: show the track as playing immediately. The
 	// player will either confirm via TrackChangedMsg or we'll reset
 	// state from the result handler if the call fails.

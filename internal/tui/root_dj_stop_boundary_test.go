@@ -33,8 +33,28 @@ func djStopBoundaryModel(writer *stubDJQueueWriter) (Model, *stubStopAfterPlayer
 }
 
 // djStopBoundaryTrackChange reports the player arriving on the last queued row.
+//
+// It is used for two opposite things on purpose. Behind a selection it is the
+// start-file a successful load produces; on its own it is the report mpv makes
+// about the row it is already holding — a reconnect echo, or a start-file
+// emitted before a Stop and delivered after it. The message is identical either
+// way, which is why nothing may read a user's intent out of it.
 func djStopBoundaryTrackChange() playback.TrackChangedMsg {
 	return playback.TrackChangedMsg{Artist: "Alice", Title: "F2", Hash: "f2", Index: 1, QueueID: 2}
+}
+
+// djStopBoundarySelect presses Enter on a queue row the way the queue view does
+// and follows the whole gesture through: the player's result, then the
+// start-file it answers a successful load with. Resumption is asserted against
+// this rather than against a bare track change, because a bare track change is
+// exactly what an unsolicited report looks like.
+func djStopBoundarySelect(m Model, idx int) Model {
+	entry := m.queue.Entries[idx]
+	m = djWakeDrive(m, playback.PlayQueueIndexMsg{Index: idx}, 4)
+	return djWakeDrive(m, playback.TrackChangedMsg{
+		Artist: entry.Artist, Title: entry.Title, Hash: entry.Hash,
+		Index: idx, QueueID: entry.ID,
+	}, 4)
 }
 
 // TestAutoDJParkedRefillStaysStoppedAfterStopAfterCurrent covers a refill parked
@@ -97,9 +117,11 @@ func TestAutoDJParkedRefillStaysStoppedAfterStopAfterCurrent(t *testing.T) {
 		t.Errorf("playback state is %v after the ticks, want it left idle", m.playback.state)
 	}
 
-	// Deliberate resumption: the user plays something, the player reports the
-	// row it started, and continuous radio is continuous again.
-	m = djWakeDrive(m, djStopBoundaryTrackChange(), 4)
+	// Deliberate resumption: the user selects a row, the player takes it and
+	// reports the file it started, and continuous radio is continuous again. The
+	// selection is the half that matters — the report by itself is the same
+	// message an idle reconnect makes, so it proves nothing on its own.
+	m = djStopBoundarySelect(m, 1)
 
 	if len(writer.accepted) != 1 {
 		t.Fatalf("published %d batches after playback resumed, want 1: "+
