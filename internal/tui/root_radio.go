@@ -230,26 +230,26 @@ func (m Model) radioResumeAfterStop() Model {
 	return m
 }
 
-// supersedeRadioBatch invalidates every result created from the current Radio
-// state. The generation advances even when no batch is pending so all queue
-// replacement boundaries have an unambiguous identity.
+// supersedeRadioBatch invalidates DJ work at a deliberate session or queue
+// boundary and lifts any earlier stop suspension. Automatic Follow reseeding
+// uses invalidateRadioBatch instead: a new seed is not a request for playback.
 func (m Model) supersedeRadioBatch() Model {
+	return m.radioResumeAfterStop().invalidateRadioBatch()
+}
+
+// invalidateRadioBatch retires every result created from the current Radio
+// state without changing playback intent. The generation advances even when
+// no batch is pending so each replacement has an unambiguous identity.
+func (m Model) invalidateRadioBatch() Model {
 	m.radio.requestID++
 	m.radio.enqueuePending = false
-	// Every caller is a deliberate boundary — the radio toggle, a queue clear, a
-	// start, a stop, a reseed, an applied settings snapshot — so a suspension
-	// earned by an earlier stop does not apply to what comes after it. Turning
-	// the DJ on is the gesture this matters for: it is the one entry point that
-	// launches a refill in the same frame, and a suspension surviving into it
-	// would make the start key enable Radio and then play nothing.
-	m = m.radioResumeAfterStop()
-	// A replacement boundary is a deliberate change of what the DJ is refilling
-	// into, so neither the park nor the stale-retry budget earned under the old
-	// state applies to the new one.
+	// Neither the park nor the stale-retry budget earned under the old planning
+	// inputs applies to the new ones, whether the change was automatic or asked
+	// for by the user.
 	m.djPlan.block = djPlanBlock{}
 	m.djPlan.staleRetries = 0
 	// The immediate refresh is DJ work against the same boundary, so it is
-	// withdrawn here too. This is the single point every gesture that must not
+	// withdrawn here too. This is the single point every transition that must not
 	// be undone by a delayed result already goes through: the radio toggle, a
 	// queue clear, and every session transition including a newly applied
 	// settings snapshot.
@@ -690,9 +690,9 @@ func (m Model) retryRadioAfterStale() (Model, tea.Cmd) {
 // It is deliberately narrow, and the narrowness is the whole safety argument.
 // Only a parked refill is woken, and a park is recorded by nothing but a live
 // attempt that the guards already admitted and that came back with nothing;
-// every deliberate withdrawal retires it first — a disable, a queue clear, a
-// reseed or an applied settings change through supersedeRadioBatch, and an
-// explicit Stop or a completed stop-after-current through
+// every planning replacement retires it through invalidateRadioBatch, including
+// an automatic Follow reseed. An explicit Stop or a completed stop-after-current
+// retires it through
 // radioNoteDeliberateStop, which also suspends the gate so a park cannot simply
 // be earned again. So a queue the user emptied stays empty, a stop stays
 // stopped, and a paused startup that never launched a refill does not acquire

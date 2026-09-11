@@ -317,13 +317,15 @@ func (m Model) djResume() (Model, bool) {
 
 // djReseed replaces the seed of a running session, leaving the allocation
 // alone: the session continues, so its rounding carry continues with it.
+// Follow can reseed from an unsolicited player report after a deliberate stop;
+// invalidating the old seed's work must preserve that playback suspension.
 func (m Model) djReseed(seed radio.SeedSnapshot) Model {
 	if !m.dj.active || seed.IsZero() || seed.TrackHash == m.dj.seed.TrackHash {
 		return m
 	}
 	m.dj.seed = seed
 	m.dj.restored = false
-	return m.supersedeRadioBatch().djPersist()
+	return m.invalidateRadioBatch().djPersist()
 }
 
 // djApplySettings adopts a new settings snapshot.
