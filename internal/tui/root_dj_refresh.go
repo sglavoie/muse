@@ -59,7 +59,67 @@ var (
 	// a clear, or a newer Apply from being undone by work already in flight:
 	// nothing is committed, so there is nothing to reconcile afterwards.
 	errDJRefreshCancelled = errors.New("tui: auto-dj refresh was superseded before its commit")
+
+	// errDJRefreshInputsChanged reports a refresh withdrawn because the data its
+	// selections were judged eligible by moved while it was in flight.
+	//
+	// It is deliberately not errDJRefreshCancelled. A cancellation is the user's
+	// newer decision and the answer to it is to stop; this is the same decision
+	// asked of a library that has since changed, so the answer is to ask again
+	// from a fresh snapshot. Keeping the two apart is what stops a tag edit from
+	// reading as a disable, and a disable from being replanned around.
+	errDJRefreshInputsChanged = errors.New("tui: auto-dj refresh inputs changed before its commit")
 )
+
+// djRefreshWithdrawal is the shared half of one refresh in flight: flags the
+// update loop raises and the refresh goroutine reads.
+//
+// Two of them rather than one, because the two withdrawals mean opposite things.
+// A supersession is a newer gesture — a disable, a clear, a reseed, a second
+// Apply — and the answer is to stop. An invalidation is the eligibility data the
+// plan was computed from having moved, and the answer is to plan again against
+// the library as it now is.
+//
+// They are atomics rather than Model fields because they are written on the
+// update loop and read on the refresh goroutine. That is also the whole of what
+// the goroutine may consult: the snapshot it carries is immutable, and no live
+// Model map is ever reachable from here.
+type djRefreshWithdrawal struct {
+	superseded  atomic.Bool
+	invalidated atomic.Bool
+}
+
+// supersede calls the refresh off for a newer gesture.
+func (w *djRefreshWithdrawal) supersede() {
+	if w != nil {
+		w.superseded.Store(true)
+	}
+}
+
+// invalidate calls the refresh off because the library it planned against
+// changed. Nil-safe on purpose: every Auto-DJ invalidation funnels through
+// djInvalidate, and almost all of them happen with no refresh in flight.
+func (w *djRefreshWithdrawal) invalidate() {
+	if w != nil {
+		w.invalidated.Store(true)
+	}
+}
+
+// reason returns the error the stage reading it must decline with, or nil to
+// carry on. Supersession outranks invalidation: a superseded refresh is filed as
+// late whatever it says, so replanning it would be work for a question nobody is
+// asking any more.
+func (w *djRefreshWithdrawal) reason() error {
+	switch {
+	case w == nil:
+		return nil
+	case w.superseded.Load():
+		return errDJRefreshCancelled
+	case w.invalidated.Load():
+		return errDJRefreshInputsChanged
+	}
+	return nil
+}
 
 // djRefreshState tracks the single immediate refresh a Model may have in
 // flight.
@@ -75,9 +135,10 @@ type djRefreshState struct {
 	// pending reports that a refresh is in flight.
 	pending bool
 
-	// cancel is the in-flight refresh's withdrawal flag, read by its commit
-	// step on the refresh goroutine. It is nil when nothing is in flight.
-	cancel *atomic.Bool
+	// withdraw holds the in-flight refresh's withdrawal flags, read by its
+	// preparation and commit steps on the refresh goroutine. It is nil when
+	// nothing is in flight.
+	withdraw *djRefreshWithdrawal
 
 	// deferred reports a refresh that found no settled playback window and is
 	// waiting to be asked again — by the EOF settlement that resolves the
@@ -154,11 +215,9 @@ func (m Model) supersedeDJRefresh() Model {
 	if m.djRefresh.pending {
 		m = m.withdrawAutoDJPanelWait()
 	}
-	if m.djRefresh.cancel != nil {
-		m.djRefresh.cancel.Store(true)
-	}
+	m.djRefresh.withdraw.supersede()
 	m.djRefresh.id++
-	m.djRefresh.cancel = nil
+	m.djRefresh.withdraw = nil
 	m.djRefresh.pending = false
 	m.djRefresh.deferred = false
 	return m
@@ -193,8 +252,8 @@ func (m Model) djStartRefreshCmd(now time.Time) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	cancel := &atomic.Bool{}
-	m.djRefresh.cancel = cancel
+	withdraw := &djRefreshWithdrawal{}
+	m.djRefresh.withdraw = withdraw
 	m.djRefresh.pending = true
 	run := &djRefreshRun{
 		committed: -1,
@@ -207,7 +266,7 @@ func (m Model) djStartRefreshCmd(now time.Time) (Model, tea.Cmd) {
 			reader:   m.recReader,
 			writer:   writer,
 			rows:     m.djRefreshRows(),
-			cancel:   cancel,
+			withdraw: withdraw,
 			now:      now,
 		},
 	}
@@ -253,7 +312,7 @@ type djRefreshRequest struct {
 	reader   recommendationReader
 	writer   djReplacementWriter
 	rows     map[int64]queue.Entry
-	cancel   *atomic.Bool
+	withdraw *djRefreshWithdrawal
 	now      time.Time
 }
 
@@ -324,9 +383,14 @@ func (r *djRefreshRun) exec(
 // the snapshot itself — the surviving rows in the order the snapshot saw them,
 // then the successors at the tail, which is where the accept transaction places
 // them in the durable queue.
+//
+// The withdrawal check leads because this stage can run several times: the
+// player retries a preparation whose timeline moved, and every retry would
+// otherwise re-plan from the same retired snapshot. Refusing here also means an
+// invalidated attempt writes no hidden rows at all.
 func (r *djRefreshRun) prepare(snap player.RefreshSnapshot) (player.QueueRefresh, error) {
-	if r.req.cancel != nil && r.req.cancel.Load() {
-		return player.QueueRefresh{}, errDJRefreshCancelled
+	if err := r.req.withdraw.reason(); err != nil {
+		return player.QueueRefresh{}, err
 	}
 	slots := r.req.refreshSlots(snap)
 	if len(slots) == 0 {
@@ -390,13 +454,17 @@ func (r *djRefreshRun) prepare(snap player.RefreshSnapshot) (player.QueueRefresh
 
 // commit publishes the newest attempt, or declines to.
 //
-// The withdrawal check is the last moment a disable, a clear, or a newer Apply
-// can still call the refresh off for free. Past it the transaction is the point
-// of no return, and the late-acknowledgement path in the handler is what
-// reconciles a result that got here a moment too early.
+// The withdrawal check is the last moment a disable, a clear, a newer Apply, or
+// a library change can still call the refresh off for free. Past it the
+// transaction is the point of no return, and the late-acknowledgement path in
+// the handler is what reconciles a result that got here a moment too early.
+// That boundary is also what separates the two outcomes a caller must tell
+// apart: declining here leaves nothing committed and every prepared row still
+// hidden, whereas an invalidation that lands after the transaction cannot
+// un-commit it and is answered by the ordinary refill's freshness check instead.
 func (r *djRefreshRun) commit(player.QueueRefresh) error {
-	if r.req.cancel != nil && r.req.cancel.Load() {
-		return errDJRefreshCancelled
+	if err := r.req.withdraw.reason(); err != nil {
+		return err
 	}
 	idx := len(r.attempts) - 1
 	if idx < 0 {
@@ -565,9 +633,16 @@ func (m Model) handleDJRefreshDoneMsg(msg djRefreshDoneMsg) (Model, tea.Cmd) {
 	}
 
 	m.djRefresh.pending = false
-	m.djRefresh.cancel = nil
+	m.djRefresh.withdraw = nil
 	if !msg.valid {
 		m, cmd := m.recordDJRefreshFailure(msg, time.Now())
+		// A failure that relaunched is not an answer yet. Acknowledging it here
+		// would release the Tune panel's wait on a refresh still in flight and
+		// let a second Apply race it; the relaunched refresh answers instead,
+		// and the retry budget is what guarantees one eventually does.
+		if m.djRefresh.pending {
+			return m, cmd
+		}
 		return m.ackAutoDJRefresh(msg.err), cmd
 	}
 	m = m.adoptDJRefreshRows(msg.committed)
@@ -722,14 +797,32 @@ func (m Model) adoptDJRefreshState(msg djRefreshDoneMsg, now time.Time) Model {
 // recordDJRefreshFailure files a refresh that committed nothing.
 //
 // Nothing durable happened, so the applied settings are unaffected either way;
-// what differs is whether asking again is worth anything. A timeline that moved
-// under the attempt is worth waiting out, an empty queue of DJ rows is not a
-// failure at all, and everything else is recorded and left alone until the user
-// or the refill moves the state on.
+// what differs is whether asking again is worth anything. Data that moved under
+// the attempt is worth asking again immediately, a timeline that moved is worth
+// waiting out, an empty queue of DJ rows is not a failure at all, and everything
+// else is recorded and left alone until the user or the refill moves the state
+// on.
 func (m Model) recordDJRefreshFailure(msg djRefreshDoneMsg, now time.Time) (Model, tea.Cmd) {
 	switch {
 	case msg.cancelled, errors.Is(msg.err, errDJRefreshCancelled):
 		return m, nil
+	case errors.Is(msg.err, errDJRefreshInputsChanged):
+		// The library moved while the attempt was in flight, so its selections
+		// were judged against data that no longer describes the collection. The
+		// answer is the same question asked again, and asking it from here is
+		// what makes the new snapshot fresh: djStartRefreshCmd captures on the
+		// update loop, after every invalidation that caused this has landed.
+		//
+		// The retry budget is the bound. Without it a scan bumping the revision
+		// on every file it touches would keep a refresh relaunching itself for
+		// as long as the scan runs.
+		m.djRefresh.status = djRefreshStatus{err: msg.err, at: now}
+		if m.djRefresh.retries >= djRefreshMaxRetries {
+			slog.Warn("dj refresh: giving up after repeated input changes", "err", msg.err)
+			return m, nil
+		}
+		m.djRefresh.retries++
+		return m.djStartRefreshCmd(now)
 	case errors.Is(msg.err, errDJRefreshNoSlots):
 		// The queue holds nothing the DJ owns — a hand-built queue, or one
 		// whose DJ rows have all been played. The settings are applied and the

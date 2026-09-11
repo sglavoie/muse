@@ -49,6 +49,10 @@ type refreshPlayerStub struct {
 	// beforePrepare runs on the refresh goroutine before each capture, so a
 	// test can move the queue underneath the attempt it is about to make.
 	beforePrepare func(attempt int, p *refreshPlayerStub)
+	// beforeCommit runs after a preparation has been accepted and before the
+	// durable transaction, which is the one window in which a plan already
+	// written as hidden rows has still committed nothing.
+	beforeCommit func(attempt int, p *refreshPlayerStub)
 
 	prepares  int
 	commits   int
@@ -172,6 +176,9 @@ func (p *refreshPlayerStub) CommitQueueRefresh(
 			// real sequence rechecks for before it commits anything.
 			last = player.ErrRefreshStale
 			continue
+		}
+		if p.beforeCommit != nil {
+			p.beforeCommit(attempt, p)
 		}
 		if err := rc.Commit(plan); err != nil {
 			return res, &player.RefreshCommitError{Stage: player.RefreshStageCommit, Err: err}

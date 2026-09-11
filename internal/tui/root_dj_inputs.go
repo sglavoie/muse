@@ -42,10 +42,20 @@ type djDataState struct {
 // revision is what lets the acceptance path recognize and refuse it instead of
 // committing a batch whose classification or filtering is already wrong.
 //
+// The revision alone only serves the paths that re-check it before accepting,
+// which the refill does and the Apply refresh cannot: the refresh captured its
+// snapshot once and is already off the update loop, past every re-check. Raising
+// its withdrawal flag is how the same change reaches it, and the flag is an
+// atomic precisely so this can be done from here without the refresh reading any
+// of the maps the revision describes.
+//
 // Pointer receiver for the same reason insightsInvalidate has one: most callers
 // are handlers holding a value copy of the Model, and the bump has to land on
 // the copy they return.
-func (m *Model) djInvalidate() { m.djData.dataRev++ }
+func (m *Model) djInvalidate() {
+	m.djData.dataRev++
+	m.djRefresh.withdraw.invalidate()
+}
 
 // djDataRevision returns the revision a captured snapshot must still match to
 // be accepted.
