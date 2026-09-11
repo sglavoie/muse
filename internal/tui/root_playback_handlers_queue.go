@@ -131,14 +131,45 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 		m = m.resetPlaybackState()
 	} else {
 		// The selected row never started, but a later control still owns the
-		// player. Clear the optimistic display and report the refusal without
-		// issuing a Stop that would supersede that control and its result.
+		// player. Describe the row it actually holds without issuing a Stop
+		// that would supersede that control and its result.
 		m = m.endCurrentListen()
-		m = m.clearPlaybackDisplay()
+		m = m.restorePlaybackDisplayFromPlayer()
 	}
 	m.statusBar.Notify(playResultFailureText(msg))
 	player.PlaySound(player.SoundError)
 	return m
+}
+
+// restorePlaybackDisplayFromPlayer replaces a refused optimistic selection with
+// the player's current row. Read at result delivery rather than restoring the
+// pre-selection row: a newer Next/Previous may already have moved the player.
+// Keep the transport state, including a newer optimistic pause and its rollback
+// on failure. This is a display reconciliation, not a start-file: it must not
+// confirm a DJ start intent or launch refills on behalf of the refused selection.
+func (m Model) restorePlaybackDisplayFromPlayer() Model {
+	reader, ok := m.player.(queueTraversalReader)
+	if !ok {
+		return m.clearPlaybackDisplay()
+	}
+	traversal := reader.QueueTraversal()
+	pos := traversal.CurrentPosition
+	if pos < 0 || pos >= len(traversal.Order) {
+		return m.clearPlaybackDisplay()
+	}
+	idx := traversal.Order[pos]
+	if idx < 0 || idx >= len(m.queue.Entries) {
+		return m.clearPlaybackDisplay()
+	}
+	entry := m.queue.Entries[idx]
+	m = m.resetPlaybackProgress()
+	m.playback.currentIndex = idx
+	m.playback.currentHash = entry.Hash
+	m.statusBar.Artist = entry.Artist
+	m.statusBar.Title = entry.Title
+	m.statusBar.Album = entry.Album
+	m.statusBar.PlaylistSource = queueSourceName(entry.SourcePlaylist)
+	return m.armPendingListen(entry.Hash, entry.Artist)
 }
 
 // playResultFailureText names the operation that failed, so a refused replay

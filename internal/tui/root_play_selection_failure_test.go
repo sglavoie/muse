@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -9,6 +10,66 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
+
+func TestStaleSelectionFailureKeepsPlayerAndModelInSync(t *testing.T) {
+	// Results and property events have independent delivery order. Also cover
+	// a refusal delivered before the newer pause command has even executed.
+	for _, order := range [][]string{
+		{"refusal", "pause", "event"}, {"refusal", "event", "pause"},
+		{"pause", "refusal", "event"}, {"pause", "event", "refusal"},
+		{"event", "refusal", "pause"}, {"event", "pause", "refusal"},
+	} {
+		for _, shuffle := range []bool{false, true} {
+			t.Run(fmt.Sprintf("shuffle=%v/%s", shuffle, strings.Join(order, "/")), func(t *testing.T) {
+				traversal := []int{0, 1, 2, 3, 4}
+				if shuffle {
+					traversal = []int{3, 1, 4, 0, 2}
+				}
+				m, p := stoppableReplayModel(traversal, 2)
+				p.shuffled = shuffle
+				loaded := traversal[2]
+				entry := m.queue.Entries[loaded]
+				p.playFromIndexErrs = []error{errStubPlay}
+				next, selection := m.Update(playback.PlayQueueIndexMsg{Index: 1})
+				m = next.(Model)
+				next, pause := m.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+				m = next.(Model)
+				request := m.playback.requestSeq
+				refusal := selection().(playback.PlayFromIndexResultMsg)
+				if !errors.Is(refusal.Err, errStubPlay) {
+					t.Fatalf("selection result = %+v, want player refusal", refusal)
+				}
+				var pauseResult tea.Msg
+				for _, delivery := range order {
+					if delivery != "refusal" && pauseResult == nil {
+						pauseResult = pause()
+					}
+					switch delivery {
+					case "refusal":
+						m = djWakeDrive(m, refusal, 4)
+					case "pause":
+						m = djWakeDrive(m, pauseResult, 4)
+					case "event":
+						m = djWakeDrive(m, playback.PauseChangedMsg{Paused: p.paused}, 4)
+					}
+				}
+				if !p.paused || m.playback.state != playback.StatePaused || m.playback.currentIndex != loaded || m.playback.currentHash != entry.Hash || m.statusBar.Title != entry.Title {
+					t.Fatalf("paused player holds row %d; model index=%d hash=%q state=%v title=%q", loaded, m.playback.currentIndex, m.playback.currentHash, m.playback.state, m.statusBar.Title)
+				}
+				if m.playback.requestSeq != request || p.stopCalls != 0 {
+					t.Fatal("refusal stopped or superseded the newer pause")
+				}
+				if got := m.statusBar.TopNotification().Msg; !strings.Contains(got, "Play failed: "+errStubPlay.Error()) {
+					t.Fatalf("failure notification = %q", got)
+				}
+				m = djWakeDrive(m, tea.KeyPressMsg{Code: tea.KeySpace}, 4)
+				if p.paused || p.order[p.pos] != loaded || m.playback.state != playback.StatePlaying || !slices.Equal(p.calls, []string{"PlayFromIndex", "Pause", "Play"}) || !slices.Equal(p.playFromIndexCalls, []int{1}) {
+					t.Fatalf("Space did not resume held row %d: calls=%v selections=%v row=%d paused=%v state=%v", loaded, p.calls, p.playFromIndexCalls, p.order[p.pos], p.paused, m.playback.state)
+				}
+			})
+		}
+	}
+}
 
 func TestPlaySelectionFailureAfterControlDispatchNotifies(t *testing.T) {
 	for _, tc := range []struct {
@@ -73,8 +134,10 @@ func TestPlaySelectionFailureAfterControlDispatchNotifies(t *testing.T) {
 				if got := m.statusBar.TopNotification().Msg; !strings.Contains(got, "Play failed: "+errStubPlay.Error()) {
 					t.Errorf("notification = %q, want selection failure", got)
 				}
-				if m.playback.state != playback.StateIdle || m.playback.currentIndex != -1 || m.playback.currentHash != "" || m.statusBar.Title != "" {
-					t.Error("refused selection's optimistic playback display was not cleared")
+				current := p.order[p.pos]
+				entry := m.queue.Entries[current]
+				if m.playback.currentIndex != current || m.playback.currentHash != entry.Hash || m.statusBar.Title != entry.Title {
+					t.Error("refused selection's optimistic playback display was not reconciled to the player")
 				}
 				if m.playback.pendingSelection || m.playback.awaitingSelectionStart {
 					t.Error("refused selection is still awaiting confirmation")

@@ -120,8 +120,8 @@ func (m Model) resetPlaybackState() Model {
 }
 
 // clearPlaybackDisplay retires the current row without calling the player or
-// superseding requests. A refused selection uses this when a newer control
-// still owns playback and must be allowed to finish.
+// superseding requests. A refused selection falls back to this when the player
+// cannot identify a current row and a newer control must be allowed to finish.
 func (m Model) clearPlaybackDisplay() Model {
 	m.playback.state = playback.StateIdle
 	m = m.resetPlaybackProgress()
