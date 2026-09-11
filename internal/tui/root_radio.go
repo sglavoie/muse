@@ -24,8 +24,9 @@ type radioState struct {
 	// than because the queue ran out. It suspends automatic refills until the
 	// user deliberately starts something again; see radioNoteDeliberateStop.
 	stoppedByUser bool
-	// A track report and a successful command result must both answer the
-	// current request before it can lift a deliberate-stop suspension.
+	// A successful command result must answer the current request before it
+	// can lift a deliberate-stop suspension. Track starts also need a report;
+	// unpausing the loaded file completes with the command itself.
 	start           radioStartIntent
 	cleanupBatches  [][]int64
 	cleanupInFlight bool
@@ -37,6 +38,7 @@ type radioStartIntent struct {
 	request   uint64
 	succeeded bool
 	trackSeen bool
+	unpause   bool
 }
 
 const (
@@ -221,7 +223,7 @@ func (m Model) radioConfirmStartedTrack() Model {
 }
 
 func (m Model) radioConfirmStart() Model {
-	if !m.radio.start.succeeded || !m.radio.start.trackSeen {
+	if !m.radio.start.succeeded || (!m.radio.start.unpause && !m.radio.start.trackSeen) {
 		return m
 	}
 	return m.radioResumeAfterStop()

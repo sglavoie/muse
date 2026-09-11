@@ -47,6 +47,9 @@ func (m *Model) playbackControlCmd(
 	m.playback.requestSeq = req
 	if control != playbackControlPause {
 		*m = m.radioNoteStartRequested(req)
+		// Play only clears mpv's pause property: its successful result is
+		// sufficient confirmation, and no new start-file is expected.
+		m.radio.start.unpause = control == playbackControlPlay
 	}
 	return func() tea.Msg {
 		err, ran := gate.run(req, call)
