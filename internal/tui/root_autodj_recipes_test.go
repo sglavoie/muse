@@ -115,8 +115,8 @@ func recipeModel(t *testing.T, store *stubRecipeStore) Model {
 	return m
 }
 
-// recipePage renders the open overlay with its styling stripped.
-func recipePage(t *testing.T, m Model) string {
+// djOverlayText renders the open Auto-DJ overlay with its styling stripped.
+func djOverlayText(t *testing.T, m Model) string {
 	t.Helper()
 	m.termWidth, m.termHeight = 100, 40
 	body, ok := m.renderOverlayBody()
@@ -310,7 +310,7 @@ func TestRenamingThroughTheTabKeepsTheStoredSettings(t *testing.T) {
 	if _, still := store.find("Late Night"); still {
 		t.Fatal("the old name survives, so the rename duplicated rather than moved")
 	}
-	if out := recipePage(t, m); !strings.Contains(out, "Renamed “Very Late”") {
+	if out := djOverlayText(t, m); !strings.Contains(out, "Renamed “Very Late”") {
 		t.Fatalf("the page does not report the rename:\n%s", out)
 	}
 }
@@ -334,7 +334,7 @@ func TestUpdatingThroughTheTabWritesTheDraft(t *testing.T) {
 		t.Fatalf("stored %+v, want the draft %+v", updated.Settings, draft)
 	}
 	// An update keeps the name it overwrote, so the page names the same recipe.
-	if out := recipePage(t, m); !strings.Contains(out, "Updated “Late Night”") {
+	if out := djOverlayText(t, m); !strings.Contains(out, "Updated “Late Night”") {
 		t.Fatalf("the page does not report the update:\n%s", out)
 	}
 }
@@ -356,7 +356,7 @@ func TestDeletingThroughTheTabRemovesTheRow(t *testing.T) {
 	}
 	// The page says what happened and moves the cursor onto the survivor, so a
 	// second d cannot land on a row that is already gone.
-	out := recipePage(t, m)
+	out := djOverlayText(t, m)
 	if !strings.Contains(out, "Deleted “Late Night”") {
 		t.Fatalf("the page does not confirm the delete:\n%s", out)
 	}
@@ -389,7 +389,7 @@ func TestAnUnreadableStoreOpensTheTabWithTheFailure(t *testing.T) {
 	}
 	m, _ = m.openAutoDJTunePanel()
 	m, _ = djPress(t, m, "tab", "tab")
-	out := recipePage(t, m)
+	out := djOverlayText(t, m)
 	if !strings.Contains(out, "Saved recipes could not be read") {
 		t.Fatalf("the page does not report the failure:\n%s", out)
 	}

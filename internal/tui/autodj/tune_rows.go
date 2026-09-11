@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/radio"
 )
 
@@ -146,9 +147,14 @@ func (p TunePanel) fieldLabels(fr filterRow) []string {
 	return labels
 }
 
-// tagNames indexes the catalog by tag id.
+// tagNames indexes every tag the panel can put a name to. It reads the whole
+// census rather than the picker's list, so a tag holding no playable tracks is
+// still shown by name in a filter that references it.
 func (p TunePanel) tagNames() map[int64]string {
-	names := make(map[int64]string, len(p.catalog.Tags))
+	names := make(map[int64]string, len(p.catalog.KnownTags)+len(p.catalog.Tags))
+	for _, t := range p.catalog.KnownTags {
+		names[t.ID] = t.Name
+	}
 	for _, t := range p.catalog.Tags {
 		names[t.ID] = t.Name
 	}
@@ -160,17 +166,45 @@ func (p TunePanel) tagNames() map[int64]string {
 func (p TunePanel) fieldOptions(f filterField) []pickerOption {
 	switch f {
 	case fieldTags:
-		opts := make([]pickerOption, len(p.catalog.Tags))
-		for i, t := range p.catalog.Tags {
-			opts[i] = pickerOption{key: strconv.FormatInt(t.ID, 10), label: t.Name, color: t.Color}
-		}
-		return opts
+		return p.tagOptions()
 	case fieldGenres:
 		return stringOptions(p.catalog.Genres)
 	case fieldArtists:
 		return stringOptions(p.catalog.Artists)
 	}
 	return nil
+}
+
+// tagOptions builds the tag picker's rows: the catalog's suggestion list, then
+// any existing tag the draft already references that the list leaves out.
+//
+// The suggestion list is filtered by track count upstream, which is right for
+// choosing a new filter and wrong for one already chosen. A row the picker never
+// draws is a row the user cannot toggle off, so an exclusion of a tag that went
+// empty would become permanent — and unlike a deleted reference, it has no
+// repair gesture behind it, because it is not broken.
+func (p TunePanel) tagOptions() []pickerOption {
+	opts := make([]pickerOption, 0, len(p.catalog.Tags))
+	offered := make(map[int64]struct{}, len(p.catalog.Tags))
+	for _, t := range p.catalog.Tags {
+		opts = append(opts, tagOption(t))
+		offered[t.ID] = struct{}{}
+	}
+	referenced := p.draftTagIDs()
+	for _, t := range p.catalog.KnownTags {
+		if _, drawn := offered[t.ID]; drawn {
+			continue
+		}
+		if _, wanted := referenced[t.ID]; !wanted {
+			continue
+		}
+		opts = append(opts, tagOption(t))
+	}
+	return opts
+}
+
+func tagOption(t db.TagRow) pickerOption {
+	return pickerOption{key: strconv.FormatInt(t.ID, 10), label: t.Name, color: t.Color}
 }
 
 func stringOptions(values []string) []pickerOption {

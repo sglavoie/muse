@@ -27,9 +27,18 @@ import (
 // a snapshot taken when the panel opens: the pickers are a modal gesture, so a
 // library rescan landing mid-edit must not renumber the rows under the cursor.
 type Catalog struct {
-	Tags    []db.TagRow
-	Genres  []string
-	Artists []string
+	// Tags is the tag list the picker offers, filtered upstream to the tags that
+	// currently hold playable tracks. It is a suggestion list, not a census.
+	Tags []db.TagRow
+	// KnownTags is every tag that exists, empty ones included. It is what decides
+	// whether a filter's tag reference resolves, which Tags cannot answer: a tag
+	// holds no tracks when its files are temporarily missing, or when it is being
+	// kept for tracks yet to arrive, and neither is evidence that the tag was
+	// deleted. A nil KnownTags falls back to Tags, for callers with no separate
+	// census to give.
+	KnownTags []db.TagRow
+	Genres    []string
+	Artists   []string
 }
 
 // Options is everything the panel needs to open.
@@ -238,6 +247,7 @@ func (p TunePanel) RemapTag(src, dest int64) TunePanel {
 	p.applied = p.applied.RemapTag(src, dest)
 	p.draft = p.draft.RemapTag(src, dest)
 	p.catalog.Tags = remapCatalogTags(p.catalog.Tags, src, dest)
+	p.catalog.KnownTags = remapCatalogTags(p.catalog.KnownTags, src, dest)
 	if len(p.recipes) > 0 {
 		recipes := append([]Recipe(nil), p.recipes...)
 		for i := range recipes {
@@ -271,8 +281,8 @@ func remapCatalogTags(tags []db.TagRow, src, dest int64) []db.TagRow {
 	return kept
 }
 
-// Unresolved returns the tag ids the draft references that the catalog does not
-// hold, in ascending order.
+// Unresolved returns the tag ids the draft references that no existing tag
+// answers to, in ascending order.
 //
 // These are blocking rather than repairable behind the user's back: dropping a
 // stale id from an exclusion would widen what the DJ may play, and dropping one
@@ -282,13 +292,32 @@ func (p TunePanel) Unresolved() []int64 {
 	return unresolvedTagIDs(p.knownTagIDs(), p.draft)
 }
 
-// knownTagIDs is the catalog as a membership set.
+// knownTagIDs is the set of tag ids that exist, which is deliberately not the
+// list the pickers offer. Resolving against the picker's list would make a tag
+// with no playable tracks indistinguishable from one that was deleted, and the
+// repair offered for the second would strip a filter that is still valid.
 func (p TunePanel) knownTagIDs() map[int64]struct{} {
-	known := make(map[int64]struct{}, len(p.catalog.Tags))
-	for _, t := range p.catalog.Tags {
+	rows := p.catalog.KnownTags
+	if rows == nil {
+		rows = p.catalog.Tags
+	}
+	known := make(map[int64]struct{}, len(rows))
+	for _, t := range rows {
 		known[t.ID] = struct{}{}
 	}
 	return known
+}
+
+// draftTagIDs is every tag the draft references, in either direction.
+func (p TunePanel) draftTagIDs() map[int64]struct{} {
+	ids := make(map[int64]struct{},
+		len(p.draft.Include.TagIDs)+len(p.draft.Exclude.TagIDs))
+	for _, list := range [][]int64{p.draft.Include.TagIDs, p.draft.Exclude.TagIDs} {
+		for _, id := range list {
+			ids[id] = struct{}{}
+		}
+	}
+	return ids
 }
 
 // unresolvedTagIDs returns the tag ids s references that known does not hold.

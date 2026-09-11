@@ -142,7 +142,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
-| `tui/autodj` | 99 | 0 | 95 | 4 | `tui` |
+| `tui/autodj` | 100 | 0 | 96 | 4 | `tui` |
 | `tui/uitest` | 72 | 0 | 35 | 37 | `main` |
 
 ## Why single-consumer packages stay exported
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**989 exported identifiers across 15 packages**: 153 reached from two or more packages, 777 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**990 exported identifiers across 15 packages**: 153 reached from two or more packages, 778 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -1092,6 +1092,7 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `Catalog` | type | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Artists` | field | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Genres` | field | `internal/tui` | root |
+| `tui/autodj` | `Catalog.KnownTags` | field | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Tags` | field | `internal/tui` | root |
 | `tui/autodj` | `ErrRecipeNameTaken` | var | `internal/tui` | root |
 | `tui/autodj` | `EvidenceGap` | type | `internal/tui` | root |

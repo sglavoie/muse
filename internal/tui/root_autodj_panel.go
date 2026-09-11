@@ -60,6 +60,13 @@ func (m Model) openAutoDJTunePanel() (Model, tea.Cmd) {
 // not built them yet, the same fallback the Browse actions use: the panel is
 // reachable from every view, so it cannot depend on the user having visited the
 // one that happens to cache these lists.
+//
+// Tags are carried twice on purpose. The pickers offer the tags that currently
+// hold playable tracks, which is what makes the list worth reading, but whether a
+// tag *exists* is answered by the whole cache — the same list djTagCatalog hands
+// the planner. A tag whose files are missing right now, or one kept for tracks
+// yet to arrive, holds no tracks and has not been deleted, and only the second
+// fact may retire a filter that references it.
 func (m Model) autoDJCatalog() autodj.Catalog {
 	artists := m.browse.Artists.Artists
 	genres := m.browse.Genres.Genres
@@ -73,9 +80,10 @@ func (m Model) autoDJCatalog() autodj.Catalog {
 		}
 	}
 	return autodj.Catalog{
-		Tags:    nonEmptyTags(m.tags, m.tagsView.TagCounts),
-		Genres:  genres,
-		Artists: artists,
+		Tags:      nonEmptyTags(m.tags, m.tagsView.TagCounts),
+		KnownTags: m.tags,
+		Genres:    genres,
+		Artists:   artists,
 	}
 }
 
