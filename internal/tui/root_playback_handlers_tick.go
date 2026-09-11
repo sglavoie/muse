@@ -112,7 +112,13 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// user's next start, stop, or Apply is waiting for a gesture that may never
 	// come.
 	m = m.djReconcilePersist()
-	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd, djRejectCmd, djRefreshCmd)
+	// A parked refill has no playback event left to wake it: the automatic
+	// triggers are a confirmed track change and a queue end, and a queue that ran
+	// dry produces neither. The tick is therefore where a recovered writer and
+	// newly eligible tracks are noticed; the guards behind djWakeParkedRefill are
+	// what keep that from becoming a retry loop.
+	m, djRefillCmd := m.djWakeParkedRefill()
+	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd, djRejectCmd, djRefreshCmd, djRefillCmd)
 }
 
 // correctStoredDuration compares the mpv-reported total with the stored library

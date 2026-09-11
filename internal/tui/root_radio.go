@@ -566,6 +566,38 @@ func (m Model) retryRadioAfterStale() (Model, tea.Cmd) {
 	return m.startRadioEnqueueCmd()
 }
 
+// djWakeParkedRefill relaunches a refill that parked, once whatever parked it
+// has stopped being a reason to stay parked.
+//
+// Every other automatic trigger is an event in the playback stream: a confirmed
+// track change or a queue end. A parked refill is precisely the state in which
+// no further such event is coming — playback is exhausted, so nothing will
+// advance and nothing will end — so without a periodic wakeup a refused write or
+// an empty filtered result silences continuous playback for good, however
+// quickly the writer recovers and however many eligible tracks arrive
+// afterwards. The one-second tick is the only message that still arrives, which
+// is what makes it the wakeup.
+//
+// It is deliberately narrow, and the narrowness is the whole safety argument.
+// Only a parked refill is woken, and a park is recorded by nothing but a live
+// attempt that the guards already admitted and that came back with nothing;
+// every deliberate withdrawal — a disable, a queue clear, a stop, a reseed, an
+// applied settings change — clears it through supersedeRadioBatch. So a queue
+// the user emptied stays empty, a stop-after-current still stops, and a paused
+// startup that never launched a refill does not acquire one from the tick.
+//
+// What bounds it is the ordinary gate: radioCanEnqueue re-checks every guard and
+// ends at djLiveAllowed, which re-attempts unchanged inputs only after a
+// transient write failure and only djMaxTransientRetries times. Anything else —
+// an empty result, an unresolved tag — waits for an input to actually move, and
+// a move is what makes the next attempt a different question rather than a loop.
+func (m Model) djWakeParkedRefill() (Model, tea.Cmd) {
+	if !m.djPlan.block.active {
+		return m, nil
+	}
+	return m.startRadioEnqueueCmd()
+}
+
 // discardRadioResult reconciles durable state for a result that will not be
 // represented in the TUI queue, using whichever writer created the rows: a DJ
 // preparation is rejected as a unit, while the pre-DJ paths are reconciled by a
