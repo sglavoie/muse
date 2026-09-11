@@ -402,15 +402,16 @@ func TestStalePlayFailureAfterReplayIsIgnored(t *testing.T) {
 }
 
 // TestReplayEndsTheListenBoundary verifies the pre-reset listen boundary is kept
-// for replays too: what the user heard before pressing Enter is a finished
-// listen, and it must be captured before the optimistic reset zeroes it.
+// for replays too: a successful replay finishes what was heard before Enter,
+// using the measurement saved before the optimistic reset zeroed it.
 func TestReplayEndsTheListenBoundary(t *testing.T) {
 	m, _ := replayModel([]int{3, 1, 4, 0, 2}, 2)
 	m = m.armPendingListen(m.queue.Entries[4].Hash, m.queue.Entries[4].Artist)
 	m.playback.listenedSecs = 120
 	m.playback.peakTotalSecs = 200
 
-	m, _ = runSelect(t, m, 2)
+	m, result := runSelect(t, m, 2)
+	m = m.handlePlayFromIndexResultMsg(result)
 
 	if len(m.playback.flushes) != 1 {
 		t.Fatalf("queued listens = %d, want the outgoing listen captured before the progress reset", len(m.playback.flushes))

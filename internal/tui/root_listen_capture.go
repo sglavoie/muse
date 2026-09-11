@@ -50,6 +50,7 @@ func (m Model) armPendingListen(hash, artist string) Model {
 // capture exactly-once across the end sites — notably the repeat-all wrap,
 // which leaves playback.currentHash pointing at the track it just finished.
 func (m Model) endCurrentListen() Model {
+	m = m.flushSelectionListen()
 	if !m.playback.pending.armed {
 		return m
 	}

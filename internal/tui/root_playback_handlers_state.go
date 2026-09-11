@@ -244,18 +244,13 @@ func (m Model) startsSelectedOccurrence(msg playback.TrackChangedMsg) bool {
 // handleTrackChangedMsg updates the status bar and playback state when the
 // player advances to a new track.
 func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.Cmd) {
-	// End the previous listen above the empty-queue guard below: when the queue
-	// was cleared mid-track the listen still happened, and returning early
-	// would strand it armed.
-	m = m.endCurrentListen()
-
 	// Guard: discard stale TrackChangedMsg that arrives after the queue was
 	// cleared (e.g. mpv's gapless prefetch fired a start-file event before
 	// the clear was processed). Without this check the TUI would resurrect
 	// playback state on an empty queue, showing a playing status bar with
 	// no corresponding queue entry.
 	if len(m.queue.Entries) == 0 {
-		return m, nil
+		return m.endCurrentListen(), nil
 	}
 
 	// Guard: a selection the player has not started yet outranks a report about
@@ -276,16 +271,16 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// the barrier in handlePlayFromIndexResultMsg instead, since no start-file
 	// will follow it.
 	//
-	// Ending the outgoing listen above this guard is safe because nothing can be
-	// armed here: handlePlayQueueIndexMsg disarms at dispatch, and the only
-	// re-arm is at the bottom of this handler, which a pending selection has not
-	// reached.
+	// Keep the suspended outgoing measurement across rejected reports; only
+	// an accepted start proves that listen ended.
 	if m.playback.awaitingSelectionStart && !m.startsSelectedOccurrence(msg) {
 		slog.Debug("track change discarded: a newer selection has not started yet",
 			"reported", msg.Hash, "reportedQueueID", msg.QueueID,
 			"selected", m.playback.currentHash, "selectedQueueID", m.playback.awaitingSelectionID)
 		return m, nil
 	}
+
+	m = m.endCurrentListen()
 
 	// Capture the outgoing hash before the overwrite below: the notification
 	// at the end of this handler must only fire on a genuine track change.

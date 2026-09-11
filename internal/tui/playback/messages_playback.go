@@ -58,6 +58,7 @@ type PlayFromIndexResultMsg struct {
 	Hash    string
 	Err     error
 	Replay  bool
+	Ran     bool // false when the ordering gate coalesced or cancelled the call
 }
 
 // PlayerDisconnectedMsg is dispatched when the mpv process crashes or its IPC

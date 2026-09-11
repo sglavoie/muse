@@ -91,6 +91,11 @@ func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMs
 // The start-file updates the status bar, while this result settles whether the
 // requested start may lift a deliberate-stop DJ suspension.
 func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg) Model {
+	// Even an older executed selection can have restarted the outgoing row.
+	// Coalesced commands report success without running and are not boundaries.
+	if msg.Err == nil && msg.Ran && msg.Request >= m.playback.selectionListen.request {
+		m = m.flushSelectionListen()
+	}
 	// Discard everything a newer request has superseded. Two requests aimed at
 	// the same queue occurrence — holding Enter on one row, or replaying it and
 	// then selecting it again — produce results the row identity below cannot
@@ -133,7 +138,6 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 		// The selected row never started, but a later control still owns the
 		// player. Describe the row it actually holds without issuing a Stop
 		// that would supersede that control and its result.
-		m = m.endCurrentListen()
 		m = m.restorePlaybackDisplayFromPlayer()
 	}
 	m.statusBar.Notify(playResultFailureText(msg))
@@ -150,16 +154,16 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 func (m Model) restorePlaybackDisplayFromPlayer() Model {
 	reader, ok := m.player.(queueTraversalReader)
 	if !ok {
-		return m.clearPlaybackDisplay()
+		return m.endCurrentListen().clearPlaybackDisplay()
 	}
 	traversal := reader.QueueTraversal()
 	pos := traversal.CurrentPosition
 	if pos < 0 || pos >= len(traversal.Order) {
-		return m.clearPlaybackDisplay()
+		return m.endCurrentListen().clearPlaybackDisplay()
 	}
 	idx := traversal.Order[pos]
 	if idx < 0 || idx >= len(m.queue.Entries) {
-		return m.clearPlaybackDisplay()
+		return m.endCurrentListen().clearPlaybackDisplay()
 	}
 	entry := m.queue.Entries[idx]
 	m = m.resetPlaybackProgress()
@@ -169,7 +173,7 @@ func (m Model) restorePlaybackDisplayFromPlayer() Model {
 	m.statusBar.Title = entry.Title
 	m.statusBar.Album = entry.Album
 	m.statusBar.PlaylistSource = queueSourceName(entry.SourcePlaylist)
-	return m.armPendingListen(entry.Hash, entry.Artist)
+	return m.reconcileSelectionListen(idx, entry)
 }
 
 // playResultFailureText names the operation that failed, so a refused replay

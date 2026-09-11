@@ -120,8 +120,9 @@ type playbackInfo struct {
 	// which is the only case that falls back to the hash.
 	awaitingSelectionID int64
 
-	pending pendingListen   // in-flight listen capture; see root_listen_capture.go
-	flushes []pendingListen // listens awaiting persistence, drained once per Update
+	selectionListen selectionListen // outgoing measurement awaiting a selection outcome
+	pending         pendingListen   // in-flight listen capture; see root_listen_capture.go
+	flushes         []pendingListen // listens awaiting persistence, drained once per Update
 }
 
 // Model is the root Bubble Tea v2 model. It manages view switching between

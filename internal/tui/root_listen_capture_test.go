@@ -170,8 +170,8 @@ func TestDequeueCurrentRecordsListenOnce(t *testing.T) {
 
 // TestPlayQueueIndexRecordsPreviousListenBeforeReset covers the manual
 // queue-selection transition: handlePlayQueueIndexMsg optimistically resets the
-// progress fields, so the listen has to be ended above that reset or its
-// measurement is zeroed before the TrackChangedMsg that follows can consume it.
+// progress fields, so the measurement must be saved above that reset and
+// committed only when the selection is confirmed.
 func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayer{}))
@@ -181,6 +181,14 @@ func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 	}
 
 	next, cmd := m.Update(playback.PlayQueueIndexMsg{Index: 1})
+	m = next.(Model)
+	drainCmd(cmd)
+
+	if len(hr.calls) != 0 {
+		t.Fatalf("unconfirmed selection persisted a listen: %+v", hr.calls)
+	}
+	// Confirmation commits the measurement saved before the optimistic reset.
+	next, cmd = m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
 	m = next.(Model)
 	drainCmd(cmd)
 
@@ -198,12 +206,6 @@ func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 		t.Error("a 200s listen of a 300s track must be counted")
 	}
 
-	// The player confirms the jump; the previous listen must not be recorded
-	// again, and the incoming track must not be recorded at all.
-	next, cmd = m.Update(playback.TrackChangedMsg{Hash: "h2", Index: 1, Artist: "Beta", Title: "Two"})
-	m = next.(Model)
-	drainCmd(cmd)
-
 	counts := listensByHash(hr.calls)
 	if counts["h1"] != 1 {
 		t.Fatalf("expected the confirming TrackChangedMsg to record nothing more for h1, got %d (%+v)", counts["h1"], hr.calls)
@@ -218,7 +220,7 @@ func TestPlayQueueIndexRecordsPreviousListenBeforeReset(t *testing.T) {
 
 // TestPlayQueueIndexFailureKeepsPreviousListenOnce verifies that a
 // PlayFromIndex that fails after the optimistic update neither erases the
-// already-flushed previous listen nor produces a second copy of it.
+// saved previous listen nor produces a second copy of it.
 func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 	hr := &stubHistoryRecorder{}
 	m := armedModel(t, hr, WithPlayer(&stubPlayer{playFromIndexErr: errStubPlay}))
@@ -232,7 +234,7 @@ func TestPlayQueueIndexFailureKeepsPreviousListenOnce(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("PlayQueueIndexMsg must return an async Cmd")
 	}
-	// The batch carries both the flush and the PlayFromIndex call; drive it and
+	// Execute the PlayFromIndex call; drive it and
 	// route the failure result back through Update the way the runtime would.
 	drainCmd(cmd)
 	next, cmd = m.Update(playback.PlayFromIndexResultMsg{

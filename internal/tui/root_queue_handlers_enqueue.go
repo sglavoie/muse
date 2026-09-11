@@ -169,17 +169,9 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	// below overwrites currentIndex and currentHash with the selected row, after
 	// which every selection would look like a replay.
 	replayer, replay := m.selectionReplayer(msg.Index, entry.Hash)
-	// Selecting a row is a listen boundary, and it is one the later
-	// TrackChangedMsg cannot capture: the optimistic reset below zeroes
-	// listenedSecs and peakTotalSecs, so by the time that message arrives the
-	// still-armed listen would measure 0s and be dropped at the capture floor.
-	// End it here, above the reset, so it is queued with its real measurement.
-	// The reset must stay after this call for the same reason. endCurrentListen
-	// disarms, so the TrackChangedMsg that follows a successful call is a no-op
-	// on the previous track and the failure handler's resetPlaybackState has
-	// nothing left to erase. A replay ends the listen too: the track is starting
-	// again from zero, so what was heard up to now is a finished listen.
-	m = m.endCurrentListen()
+	// Snapshot before the optimistic reset, but wait for a confirmed boundary
+	// to persist: a refused selection can leave this same listen playing.
+	m = m.suspendListenForSelection()
 	// Optimistic UI update: show the track as playing immediately. The
 	// player will either confirm via TrackChangedMsg or we'll reset
 	// state from the result handler if the call fails.
@@ -206,10 +198,13 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	req := gate.dispatch(m.playback.requestSeq)
 	m.playback.requestSeq = req
 	m.playback.playRequestSeq = req
+	if m.playback.selectionListen.listen.armed && m.playback.selectionListen.request == 0 {
+		m.playback.selectionListen.request = req
+	}
 	m = m.radioNoteStartRequested(req)
 	p := m.player
 	idx := msg.Index
-	result := func(err error) tea.Msg {
+	result := func(err error, ran bool) tea.Msg {
 		return playback.PlayFromIndexResultMsg{
 			Request: req,
 			Index:   idx,
@@ -217,14 +212,15 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 			Hash:    entry.Hash,
 			Err:     err,
 			Replay:  replay,
+			Ran:     ran,
 		}
 	}
 	if replay {
 		// ReplayCurrent leaves the player on the entry it is already holding, so
 		// the current row stays confirmed and a follow-up Enter can replay again.
 		return m, func() tea.Msg {
-			err, _ := gate.run(req, replayer.ReplayCurrent)
-			return result(err)
+			err, ran := gate.run(req, replayer.ReplayCurrent)
+			return result(err, ran)
 		}
 	}
 	// A new selection moves the player's current entry, and nothing has
@@ -234,8 +230,8 @@ func (m Model) handlePlayQueueIndexMsg(msg playback.PlayQueueIndexMsg) (Model, t
 	m.playback.pendingSelection = true
 	m.playback.raiseSelectionBarrier(entry.ID)
 	return m, func() tea.Msg {
-		err, _ := gate.run(req, func() error { return p.PlayFromIndex(idx) })
-		return result(err)
+		err, ran := gate.run(req, func() error { return p.PlayFromIndex(idx) })
+		return result(err, ran)
 	}
 }
 
