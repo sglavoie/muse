@@ -176,7 +176,12 @@ func (m Model) supersedeDJRefresh() Model {
 // the guarded commit, or a writer that cannot prepare a replacement.
 func (m Model) djStartRefreshCmd(now time.Time) (Model, tea.Cmd) {
 	m = m.supersedeDJRefresh()
-	if !m.radio.enabled || !m.dj.active {
+	// Refused saved state is checked alongside the two ordinary preconditions
+	// rather than left to them. A refresh only follows an Apply today, and an
+	// Apply clears the refusal on its way through — but a refresh is a durable
+	// replacement of the queue's upcoming rows, so the one route that must never
+	// run against stand-in settings states that for itself.
+	if !m.radio.enabled || !m.dj.active || m.djRestoreBlocked() {
 		return m, nil
 	}
 	committer, ok := m.player.(queueRefreshCommitter)

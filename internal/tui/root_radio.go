@@ -85,14 +85,25 @@ func (m Model) radioRemainingCount() int {
 
 // radioCanEnqueue reports whether a refill may be launched.
 //
-// Guards: radio enabled, no pending enqueue, stopAfterCurrent not set,
-// repeatMode != RepeatAll, library non-empty, remaining <= low-water-mark, and
-// the planner not parked on inputs that have not moved since it last came back
-// with nothing. That last guard is what keeps an empty candidate set, an
-// unresolved tag reference, or a failing writer from turning the low-water-mark
-// check into a loop that re-asks the same question forever.
+// Guards: radio enabled, saved DJ state not refused, no pending enqueue,
+// stopAfterCurrent not set, repeatMode != RepeatAll, library non-empty,
+// remaining <= low-water-mark, and the planner not parked on inputs that have
+// not moved since it last came back with nothing. That last guard is what keeps
+// an empty candidate set, an unresolved tag reference, or a failing writer from
+// turning the low-water-mark check into a loop that re-asks the same question
+// forever.
+//
+// The refused-state guard is the one that has nothing to do with the queue.
+// Radio mode is restored from its own column, so a launch that could not read
+// the DJ row comes up with the refill armed and stock settings behind it; the
+// first low-water-mark check would then add tracks the saved filters excluded.
+// Radio stays on and the user keeps their queue — only the automatic additions
+// wait for settings they actually chose.
 func (m Model) radioCanEnqueue() bool {
 	if !m.radio.enabled {
+		return false
+	}
+	if m.djRestoreBlocked() {
 		return false
 	}
 	if m.radio.enqueuePending {
@@ -325,6 +336,14 @@ func (m Model) radioResultCancelled(msg RadioBatchEnqueuedMsg) bool {
 	// Radio was toggled off while the goroutine was in flight; publishing now
 	// would resurrect the mode the user just cancelled.
 	if !m.radio.enabled {
+		return true
+	}
+	// Saved DJ state was refused, so the settings this result was planned
+	// against are the stock stand-ins rather than the user's. The gate above
+	// already declines to launch such work; answering for it here too is what
+	// makes the refusal hold for a result that reached the update loop by any
+	// other route, and it retires the hidden rows rather than stranding them.
+	if m.djRestoreBlocked() {
 		return true
 	}
 	// Queue-cleared-in-flight guard: when the radio batch was launched the

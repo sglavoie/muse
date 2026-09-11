@@ -42,6 +42,11 @@ type djJourney struct {
 	m      Model
 	player *refreshPlayerStub
 	tracks []library.Track
+	// restoreErr is the DJ state error the next build restores with, the way
+	// app.ApplyRestoredSession hands ReadDJSession's error to the Model. It
+	// stays nil for this journey, whose launches all read cleanly; the
+	// refused-restore tests set it before rebuilding.
+	restoreErr error
 }
 
 // djJourneyTracks is a library with both pools populated and three genres, so a
@@ -146,7 +151,7 @@ func (j *djJourney) build(entries []queue.Entry, session db.DJSession, radioMode
 		WithTagReader(j.d),
 		WithPlayer(p),
 		WithRadioMode(radioMode),
-		WithDJSession(session, nil),
+		WithDJSession(session, j.restoreErr),
 	)
 	j.m.playback.currentIndex = 0
 	j.m.playback.currentHash = entries[0].Hash
@@ -156,6 +161,17 @@ func (j *djJourney) build(entries []queue.Entry, session db.DJSession, radioMode
 // relaunch closes the launch and rebuilds the Model from what is on disk, which
 // is exactly what restarting Muse does.
 func (j *djJourney) relaunch() {
+	j.t.Helper()
+	if err := j.relaunchRestoring(); err != nil {
+		j.t.Fatalf("read the restored DJ session: %v", err)
+	}
+}
+
+// relaunchRestoring is relaunch for launches that expect to meet saved DJ state
+// this build refuses: it restores the refusal instead of failing on it, exactly
+// as app.ApplyRestoredSession does, and returns it so the caller can assert on
+// it. Everything else about the launch is unchanged.
+func (j *djJourney) relaunchRestoring() error {
 	j.t.Helper()
 	j.close()
 	j.open()
@@ -170,10 +186,7 @@ func (j *djJourney) relaunch() {
 			SourcePlaylist: row.SourcePlaylist, DJOwned: row.DJOwned, DJReasons: row.DJReasons,
 		})
 	}
-	session, err := j.d.ReadDJSession()
-	if err != nil {
-		j.t.Fatalf("read the restored DJ session: %v", err)
-	}
+	session, restoreErr := j.d.ReadDJSession()
 	// Radio mode lives on the session row, not the DJ row, and a relaunch that
 	// dropped it would restore a session the refill guard refuses to serve.
 	row, err := j.d.ReadSession()
@@ -183,7 +196,9 @@ func (j *djJourney) relaunch() {
 	if row == nil {
 		j.t.Fatal("the restored launch found no session row")
 	}
+	j.restoreErr = restoreErr
 	j.build(entries, session, row.RadioMode)
+	return restoreErr
 }
 
 // deliver runs a command the runtime would have run and delivers its message.

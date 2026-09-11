@@ -283,6 +283,13 @@ func (m Model) autoDJPanelStatus() []autodj.StatusLine {
 			Text: "Saved settings could not be read: " + err.Error(),
 			Tone: autodj.ToneError,
 		})
+		// The settings on screen are stand-ins, so additions are paused until
+		// the user commits something they chose. Saying so is the difference
+		// between a DJ that looks broken and one that is waiting.
+		lines = append(lines, autodj.StatusLine{
+			Text: "Additions are paused until you apply settings.",
+			Tone: autodj.ToneWarn,
+		})
 	}
 	if line, ok := m.djRefreshStatusLine(); ok {
 		lines = append(lines, line)

@@ -36,6 +36,11 @@ type djSessionState struct {
 	// restoreErr records persisted state this build refused to use. It is kept
 	// rather than repaired: stock defaults in place of unreadable filters would
 	// silently turn a restrictive session into an unrestricted one.
+	//
+	// It also bars every automatic route into the queue while it is set — see
+	// djRestoreBlocked — because keeping the settings honest in the Tune tab is
+	// worth nothing if the refill goes on adding tracks against the defaults
+	// that stood in for them.
 	restoreErr error
 
 	// restored reports that the current seed came off disk rather than from a
@@ -71,6 +76,34 @@ func (m Model) DJAllocation() radio.Allocation { return m.dj.allocation }
 // DJRestoreErr returns the persisted state this build refused, or nil.
 func (m Model) DJRestoreErr() error { return m.dj.restoreErr }
 
+// djRestoreBlocked reports whether refused persisted state bars automatic work.
+//
+// The settings standing in for state that could not be read are stock defaults:
+// unfiltered, Balanced, anchored. They are what the Tune tab has to open on —
+// there is nothing else to show — but they are emphatically not what the user
+// asked for, and the saved row they replaced may have excluded most of the
+// library. So every route that adds tracks without being asked is refused while
+// this holds: planning, the hidden preparation it writes, the acceptance that
+// publishes it, and the immediate refresh. What is not refused is anything the
+// user drives — manual playback, the queue they build by hand, and the
+// deliberate start or Apply that establishes settings and clears this.
+func (m Model) djRestoreBlocked() bool { return m.dj.restoreErr != nil }
+
+// djSessionUnset reports a restored session that describes nothing at all.
+//
+// "Nothing was saved" and "what was saved could not be read" look similar and
+// mean opposite things. A first launch, a database the DJ migration has only
+// just seeded, and a startup that restored no session hand back the zero value
+// with no error; there are no filters to lose there, so the DJ comes up on stock
+// defaults and the refill runs. Only state that exists and cannot be used is
+// refused. Storage never returns unreadable rows with a nil error, so the
+// Validate below stays reachable for a caller that built a session by hand.
+func djSessionUnset(session db.DJSession) bool {
+	s := session.Settings
+	return !session.Active && session.Seed.IsZero() && s.Anchor == "" &&
+		s.DiscoveryPercent == 0 && s.Include.IsEmpty() && s.Exclude.IsEmpty()
+}
+
 // djSnapshot renders the current lifecycle state as the row storage holds.
 func (m Model) djSnapshot() db.DJSession {
 	return db.DJSession{
@@ -95,6 +128,10 @@ func (m Model) djSnapshot() db.DJSession {
 func (m Model) djRestore(session db.DJSession, restoreErr error) Model {
 	if restoreErr != nil {
 		m.dj = djSessionState{settings: defaultDJSettings(), restoreErr: restoreErr}
+		return m
+	}
+	if djSessionUnset(session) {
+		m.dj = djSessionState{settings: defaultDJSettings()}
 		return m
 	}
 	settings := session.Settings
@@ -128,6 +165,12 @@ func (m Model) djStart(seed radio.SeedSnapshot) Model {
 	m.dj.seed = seed
 	m.dj.allocation = radio.Allocation{}
 	m.dj.restored = false
+	// A deliberate start is the user establishing what the DJ runs on, which is
+	// what lifts the refusal a failed restore put in place: the settings in force
+	// are the ones this transition is about to persist over the row that could
+	// not be read. Leaving it up here would make the start gesture a key that
+	// enables Radio and then never plays anything.
+	m.dj.restoreErr = nil
 	// A refill already in flight was planned about the previous subject, so it
 	// is disowned here rather than left for the acceptance check: under Follow
 	// anchoring a moved seed is ordinary drift, and only the request identity
