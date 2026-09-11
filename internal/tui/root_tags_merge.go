@@ -79,6 +79,14 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 	// that no longer exists — until the next whole-session write puts it back on
 	// disk.
 	m = m.djNoteTagMerged(msg.src.ID, msg.dest.ID)
+	// The session row is only half of what the DJ stores. Every saved recipe
+	// keeps its own filter references, and a Save-as, Rename, or Update
+	// submitted between the merge transaction and this message rewrote one of
+	// them from a snapshot frozen before the merge — putting the merged-away id
+	// back on disk under a recipe nothing here would write again. Re-pointing
+	// the stored references once more closes that window, whichever write
+	// happened to land in it.
+	m = m.djRepairMergedTagRefs(msg.src.ID, msg.dest.ID)
 	if m.overlay.autoDJ != nil {
 		// The panel can be open across a merge: the confirmation is answered
 		// asynchronously, so the user may have opened it in between. Its draft,

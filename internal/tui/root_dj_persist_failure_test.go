@@ -38,8 +38,15 @@ type djRefusingWriter struct {
 	// either kind is refused.
 	fails int
 
+	// refFails is how many further merged-tag reference repairs the database
+	// refuses. It is counted apart from fails so a test can refuse the repair
+	// while the ordinary session writes around it keep landing, which is the
+	// shape the merge-ordering failure actually has.
+	refFails int
+
 	writes int
 	stops  int
+	remaps int
 }
 
 func (w *djRefusingWriter) WriteDJSession(session db.DJSession) error {
@@ -58,6 +65,15 @@ func (w *djRefusingWriter) StopDJSession() error {
 		return errDJSessionRefused
 	}
 	return w.j.w.StopDJSession()
+}
+
+func (w *djRefusingWriter) RemapDJTagRefs(sourceID, destID int64) error {
+	w.remaps++
+	if w.refFails > 0 {
+		w.refFails--
+		return errDJSessionRefused
+	}
+	return w.j.w.RemapDJTagRefs(sourceID, destID)
 }
 
 // newRefusingJourney is a journey whose DJ session writes go through a writer

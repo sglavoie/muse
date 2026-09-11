@@ -112,6 +112,10 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// user's next start, stop, or Apply is waiting for a gesture that may never
 	// come.
 	m = m.djReconcilePersist()
+	// A refused reference repair is the same divergence one step further out: the
+	// merge landed, but some stored filter may still name the tag it merged away,
+	// and only a restart would show it.
+	m = m.djReconcileTagRefs()
 	// A parked refill has no playback event left to wake it: the automatic
 	// triggers are a confirmed track change and a queue end, and a queue that ran
 	// dry produces neither. The tick is therefore where a recovered writer and

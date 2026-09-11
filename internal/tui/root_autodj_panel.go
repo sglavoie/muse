@@ -310,6 +310,9 @@ func (m Model) autoDJPanelStatus() []autodj.StatusLine {
 	if line, ok := m.djUnsavedStatusLine(); ok {
 		lines = append(lines, line)
 	}
+	if line, ok := m.djStaleTagRefsStatusLine(); ok {
+		lines = append(lines, line)
+	}
 	if line, ok := m.djRefreshStatusLine(); ok {
 		lines = append(lines, line)
 	}
@@ -339,6 +342,28 @@ func (m Model) djUnsavedStatusLine() (autodj.StatusLine, bool) {
 		tail = " A restart would restore the previously saved settings."
 	}
 	return autodj.StatusLine{Text: "Not saved: " + u.err.Error() + "." + tail, Tone: autodj.ToneError}, true
+}
+
+// djStaleTagRefsStatusLine reports a merge whose stored references the database
+// would not re-point.
+//
+// It is stated separately from the unsaved line because it is a different
+// divergence: the session in force is correct, and what is behind is the filter
+// rows some recipe — or the session row a refused write left alone — still holds.
+// Saying so is what keeps a recipe that reopens on nothing from being a surprise.
+func (m Model) djStaleTagRefsStatusLine() (autodj.StatusLine, bool) {
+	s := m.dj.staleRefs
+	if !s.pending() || s.err == nil {
+		return autodj.StatusLine{}, false
+	}
+	tail := " Still retrying."
+	if s.exhausted() {
+		tail = " Saved filters may still name it until they are saved again."
+	}
+	return autodj.StatusLine{
+		Text: "Merged tag not applied to saved filters: " + s.err.Error() + "." + tail,
+		Tone: autodj.ToneError,
+	}, true
 }
 
 // djRefreshStatusLine summarizes what the last immediate refresh did.

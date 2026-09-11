@@ -267,6 +267,42 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 	})
 }
 
+// RemapDJTagRefs re-points every DJ filter and captured seed reference from
+// sourceID to destID in a transaction of its own.
+//
+// MergeTags already did this for the rows that existed when it committed. This
+// is the same repair for rows written *afterwards*, because the merge is
+// answered off the update loop: a whole-session write or a recipe save landing
+// between the commit and the completion message rebuilds its own dj_tag_refs
+// rows from a caller that has not heard about the merge yet, and stores the
+// merged-away id again. The caller runs this once the completion lands, over
+// whatever those rows have become.
+//
+// It is idempotent and it is safe to run when nothing raced: a source id no row
+// mentions is two statements that match nothing. It is also the only honest
+// direction of repair, because after the merge the source tag is soft-deleted —
+// every reference to it, whenever it was written, names a tag that is gone.
+func (w *Writer) RemapDJTagRefs(sourceID, destID int64) error {
+	if sourceID == destID {
+		return fmt.Errorf("db: remap dj tag refs: source and destination must differ (got %d)", sourceID)
+	}
+	if sourceID <= 0 || destID <= 0 {
+		return fmt.Errorf("db: remap dj tag refs: invalid tag ids (%d -> %d)", sourceID, destID)
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+
+		if err := remapDJTagRefs(tx, sourceID, destID); err != nil {
+			return err
+		}
+		return tx.Commit()
+	})
+}
+
 // remapDJTagRefs re-points every DJ settings filter and captured seed reference
 // from sourceID to destID. It runs inside the MergeTags transaction so a merge
 // can never leave half the references behind.

@@ -67,7 +67,40 @@ type djSessionState struct {
 	// is kept, so this is the record that the running session and the saved one
 	// disagree — reconciled by djReconcilePersist and reported until they agree.
 	unsaved djUnsavedWrite
+
+	// staleRefs is a merge whose durable reference repair the database refused.
+	// The merge itself succeeded, so this is not an unsaved session: it is the
+	// record that some stored filter — the session's, a recipe's — may still name
+	// the merged-away tag, reconciled by djReconcileTagRefs.
+	staleRefs djStaleTagRefs
 }
+
+// djTagMerge is one merge's source and destination tag, kept for a repair that
+// has not landed yet.
+type djTagMerge struct{ src, dest int64 }
+
+// djStaleTagRefs is the durable reference repair one or more merges are still
+// owed.
+//
+// The merges are held in the order they happened and replayed in that order: a
+// destination tag can be merged away in turn, and re-pointing the older merge
+// after the newer one would move its references onto a tag that is itself gone.
+type djStaleTagRefs struct {
+	// merges is the repairs still outstanding, oldest first.
+	merges []djTagMerge
+	// err is the refusal, kept for the surfaces that report it.
+	err error
+	// attempts counts the automatic retries spent against djPersistMaxRetries.
+	// A later merge starts a fresh budget, for the same reason a deliberate
+	// gesture does.
+	attempts int
+}
+
+// pending reports whether some stored filter may still name a merged-away tag.
+func (s djStaleTagRefs) pending() bool { return len(s.merges) > 0 }
+
+// exhausted reports that the bounded reconciliation gave up.
+func (s djStaleTagRefs) exhausted() bool { return s.attempts >= djPersistMaxRetries }
 
 // djUnsavedWrite is a lifecycle transition the database would not take.
 //
@@ -102,6 +135,11 @@ func (u djUnsavedWrite) exhausted() bool { return u.attempts >= djPersistMaxRetr
 type djSessionWriter interface {
 	WriteDJSession(session db.DJSession) error
 	StopDJSession() error
+	// RemapDJTagRefs re-points the stored filter and seed references a merged
+	// tag left behind. It is here rather than on the recipe writer because it
+	// rewrites every DJ-owned reference at once — the session's and every
+	// recipe's — which is exactly what a merge means.
+	RemapDJTagRefs(sourceID, destID int64) error
 }
 
 // defaultDJSettings is the settings a Model starts with before anything is
@@ -400,6 +438,91 @@ func (m Model) djNoteTagMerged(srcID, destID int64) Model {
 		return m
 	}
 	return m.djPersist()
+}
+
+// djRepairMergedTagRefs re-points every stored DJ reference the merge moved,
+// once more, after the completion has landed.
+//
+// The merge transaction already did this, and for the session row djNoteTagMerged
+// above is enough: it rewrites that one row from the state now in force. What
+// neither covers is the *recipe* rows. The confirmation is answered off the
+// update loop, so MergeTags commits strictly before the message that lands here,
+// and a Save-as, a Rename, or an Update submitted in that gap hands storage a
+// settings snapshot frozen when its prompt opened — before the merge. Storage
+// rewrites a recipe's whole filter set from that snapshot, and replaceDJFilters
+// stores a positive id whether or not a tag still carries it, so the durable
+// remap is replaced by the merged-away reference and nothing notices: the write
+// succeeded, the panel is told so, and the recipe reopens on a filter that
+// resolves to nothing.
+//
+// Repairing rather than refusing is deliberate. The user's gesture is their own
+// and lands whole — the typed name, the recipe it named, the unrelated filters —
+// and only the reference the merge has already decided about is moved, which is
+// what the merge means. It is also what covers every other write that could land
+// in that gap, including ones added later, because it re-points the rows as they
+// now are instead of guarding one route into them.
+func (m Model) djRepairMergedTagRefs(srcID, destID int64) Model {
+	if srcID == destID || srcID <= 0 || destID <= 0 {
+		return m
+	}
+	s := m.dj.staleRefs
+	// A newer merge queues behind any repair still owed, so the replay stays in
+	// the order the merges happened, and it is owed the same fresh budget a
+	// deliberate gesture gets.
+	s.merges = append(append([]djTagMerge(nil), s.merges...), djTagMerge{src: srcID, dest: destID})
+	s.attempts, s.err = 0, nil
+	m.dj.staleRefs = s
+	return m.djFlushTagRefRepairs(false)
+}
+
+// djFlushTagRefRepairs replays the outstanding repairs, oldest first, and stops
+// at the first refusal so the order is never broken.
+//
+// retry marks the automatic path. A refusal there is reported only once the
+// bounded budget runs out, because the tick is not a gesture the user made and a
+// transient lock would otherwise raise a notice every second.
+func (m Model) djFlushTagRefRepairs(retry bool) Model {
+	s := m.dj.staleRefs
+	if !s.pending() {
+		return m
+	}
+	if m.djWriter == nil {
+		// No writer means no stored references to repair: this build keeps none.
+		m.dj.staleRefs = djStaleTagRefs{}
+		return m
+	}
+	for len(s.merges) > 0 {
+		merge := s.merges[0]
+		if err := m.djWriter.RemapDJTagRefs(merge.src, merge.dest); err != nil {
+			s.err, s.attempts = err, s.attempts+1
+			m.dj.staleRefs = s
+			slog.Warn("dj session: repair merged tag refs", "err", err, "attempt", s.attempts)
+			if !retry || s.exhausted() {
+				m.statusBar.Notify("Auto-DJ filters still name the merged tag: " + err.Error())
+			}
+			return m
+		}
+		s.merges = s.merges[1:]
+	}
+	m.dj.staleRefs = djStaleTagRefs{}
+	if retry {
+		m.statusBar.NotifyInfo("Auto-DJ filters updated for the merged tag")
+	}
+	return m
+}
+
+// djReconcileTagRefs re-attempts a refused reference repair on the tick.
+//
+// It is the bounded path the refusal is kept for, and it runs here for the same
+// reason djReconcilePersist does: the divergence is invisible until a restart,
+// and waiting for the user's next merge is waiting for a gesture that may never
+// come.
+func (m Model) djReconcileTagRefs() Model {
+	s := m.dj.staleRefs
+	if !s.pending() || s.exhausted() {
+		return m
+	}
+	return m.djFlushTagRefRepairs(true)
 }
 
 // djPersist writes the whole snapshot. The in-memory state is kept on failure —

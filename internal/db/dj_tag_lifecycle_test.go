@@ -134,6 +134,89 @@ func TestTagMerge_CollapsesDuplicateDJReference(t *testing.T) {
 	}
 }
 
+// TestRemapDJTagRefs_RepairsReferencesWrittenAfterAMerge covers the standalone
+// repair. A DJ write can land after the merge transaction commits and carry a
+// snapshot frozen before it, putting the merged-away id back on disk under an
+// owner the merge already visited. Replaying the remap has to fix exactly that
+// and nothing else: the pair collapses onto the kept tag once, unrelated
+// references stay put, and a replay over already-correct rows is a no-op.
+func TestRemapDJTagRefs_RepairsReferencesWrittenAfterAMerge(t *testing.T) {
+	d, w := openTagDB(t)
+	source := makeTag(t, w, "shoegaze")
+	dest := makeTag(t, w, "shoe gaze")
+	unrelated := makeTag(t, w, "live")
+
+	if err := w.MergeTags(source, dest); err != nil {
+		t.Fatalf("MergeTags: %v", err)
+	}
+
+	// The write that lost the race: its inclusion names both sides of a merge it
+	// never heard about, and storage keeps the ids verbatim.
+	stale := radio.Settings{
+		DiscoveryPercent: 40,
+		Anchor:           radio.AnchorSeed,
+		Include:          radio.FilterSet{TagIDs: []int64{source, dest}},
+		Exclude:          radio.FilterSet{TagIDs: []int64{unrelated}},
+	}
+	recipeID := makeRecipe(t, w, "Late Night", stale)
+	writeDJSession(t, w, db.DJSession{Active: true, Settings: stale, Seed: djTestSeed(source)})
+
+	if err := w.RemapDJTagRefs(source, dest); err != nil {
+		t.Fatalf("RemapDJTagRefs: %v", err)
+	}
+
+	if n := countRows(t, d, `SELECT COUNT(*) FROM dj_tag_refs WHERE tag_id = ?`, source); n != 0 {
+		t.Errorf("references to the merged-away tag = %d after the repair, want 0", n)
+	}
+	recipe := readRecipe(t, d, recipeID)
+	if want := []int64{dest}; !reflect.DeepEqual(recipe.Recipe.Settings.Include.TagIDs, want) {
+		t.Errorf("recipe include tag ids = %v, want %v (collapsed onto the kept tag)",
+			recipe.Recipe.Settings.Include.TagIDs, want)
+	}
+	if want := []int64{unrelated}; !reflect.DeepEqual(recipe.Recipe.Settings.Exclude.TagIDs, want) {
+		t.Errorf("recipe exclude tag ids = %v, want %v (untouched)", recipe.Recipe.Settings.Exclude.TagIDs, want)
+	}
+	if err := recipe.Recipe.Settings.ResolveTags(tagCatalog(t, d)); err != nil {
+		t.Errorf("recipe unresolved after the repair: %v", err)
+	}
+	session := readDJSession(t, d)
+	if want := []int64{dest}; !reflect.DeepEqual(session.Seed.TagIDs, want) {
+		t.Errorf("seed tag ids = %v, want %v", session.Seed.TagIDs, want)
+	}
+
+	// A repair may be replayed — the Model retries a refused one — so running it
+	// again over correct rows must change nothing.
+	if err := w.RemapDJTagRefs(source, dest); err != nil {
+		t.Fatalf("RemapDJTagRefs replayed: %v", err)
+	}
+	if want := []int64{dest}; !reflect.DeepEqual(readRecipe(t, d, recipeID).Recipe.Settings.Include.TagIDs, want) {
+		t.Errorf("a replayed repair changed the recipe include tag ids, want %v", want)
+	}
+}
+
+// TestRemapDJTagRefs_RejectsDegenerateIDs: the repair rewrites references in
+// place, so an argument that names one tag twice or no tag at all must be
+// refused rather than rewritten over live rows.
+func TestRemapDJTagRefs_RejectsDegenerateIDs(t *testing.T) {
+	_, w := openTagDB(t)
+	dest := makeTag(t, w, "shoe gaze")
+
+	for _, tc := range []struct {
+		name         string
+		source, dest int64
+	}{
+		{"same tag on both sides", dest, dest},
+		{"unset source", 0, dest},
+		{"unset destination", dest, 0},
+		{"negative source", -1, dest},
+	} {
+		if err := w.RemapDJTagRefs(tc.source, tc.dest); err == nil {
+			t.Errorf("RemapDJTagRefs(%d, %d) with %s succeeded, want an error",
+				tc.source, tc.dest, tc.name)
+		}
+	}
+}
+
 // TestTagMerge_FailureLeavesDJReferencesUntouched: the remap shares the merge
 // transaction, so a rejected merge must roll the whole thing back.
 func TestTagMerge_FailureLeavesDJReferencesUntouched(t *testing.T) {

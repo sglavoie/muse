@@ -15,9 +15,12 @@ import (
 type djStubWriter struct {
 	writes []db.DJSession
 	stops  int
+	// remaps records the merged-tag repairs asked of storage, in order.
+	remaps []djTagMerge
 
 	writeErr error
 	stopErr  error
+	remapErr error
 }
 
 func (w *djStubWriter) WriteDJSession(session db.DJSession) error {
@@ -28,6 +31,11 @@ func (w *djStubWriter) WriteDJSession(session db.DJSession) error {
 func (w *djStubWriter) StopDJSession() error {
 	w.stops++
 	return w.stopErr
+}
+
+func (w *djStubWriter) RemapDJTagRefs(sourceID, destID int64) error {
+	w.remaps = append(w.remaps, djTagMerge{src: sourceID, dest: destID})
+	return w.remapErr
 }
 
 func (w *djStubWriter) last(t *testing.T) db.DJSession {
