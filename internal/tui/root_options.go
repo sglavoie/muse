@@ -298,18 +298,25 @@ func WithSmartPlaylistWriter(w smartPlaylistWriter) Option {
 }
 
 // WithTagReader sets the reader for loading tag data and eagerly populates the
-// in-memory tag cache on startup.
+// in-memory catalog and per-track assignments on startup.
 func WithTagReader(r tagReader) Option {
 	return func(m *Model) {
 		m.tagReader = r
+		trackTags, err := r.ReadTrackTagIDs()
+		m.trackTagCacheErr = err
+		if err != nil {
+			slog.Warn("startup: read track tag ids", "err", err)
+		} else {
+			m.trackTags = trackTags
+		}
 		tags, err := r.ReadTags()
+		m.tagCacheErr = err
 		if err != nil {
 			slog.Warn("startup: read tags", "err", err)
 			// Recorded rather than only logged: an empty tag cache that came
 			// from a failed read must not be mistaken for a library with no
 			// tags, or an Auto-DJ tag filter would silently resolve against
 			// nothing. See Model.tagCacheErr.
-			m.tagCacheErr = err
 			return
 		}
 		m.tags = tags

@@ -424,6 +424,7 @@ type userEditedReader interface {
 // in-memory tag cache on startup and to refresh it after any mutation.
 type tagReader interface {
 	ReadTags() ([]db.TagRow, error)
+	ReadTrackTagIDs() (map[string]map[int64]struct{}, error)
 	ReadTagsForTrack(hash string) ([]db.TagRow, error)
 	ReadTrackHashesByTag(tagID int64) ([]string, error)
 	ReadTracksByTag(tagID int64) ([]db.PlaylistTrackRow, error)

@@ -58,6 +58,39 @@ func (d *DB) ReadTagsForTrack(hash string) ([]TagRow, error) {
 	return scanTagRows(rows, "db: read tag row for track")
 }
 
+// ReadTrackTagIDs returns all active tag assignments, including those on
+// missing tracks so they remain available if a scan rediscovers the file.
+// The returned map is non-nil even when there are no assignments.
+func (d *DB) ReadTrackTagIDs() (map[string]map[int64]struct{}, error) {
+	rows, err := d.Query(`
+		SELECT tt.track_hash, tt.tag_id
+		FROM track_tags tt
+		JOIN tags tg ON tt.tag_id = tg.id
+		WHERE tg.deleted_at IS NULL
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: read track tag ids: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]map[int64]struct{})
+	for rows.Next() {
+		var hash string
+		var id int64
+		if err := rows.Scan(&hash, &id); err != nil {
+			return nil, fmt.Errorf("db: read track tag id row: %w", err)
+		}
+		if result[hash] == nil {
+			result[hash] = make(map[int64]struct{})
+		}
+		result[hash][id] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("db: read track tag ids: %w", err)
+	}
+	return result, nil
+}
+
 // ReadTrackHashesByTag returns all track hashes that carry the given tag ID.
 // Returns an empty slice when none exist.
 func (d *DB) ReadTrackHashesByTag(tagID int64) ([]string, error) {

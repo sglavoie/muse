@@ -136,6 +136,16 @@ type uitestTags struct {
 
 // tagReader surface.
 func (t *uitestTags) ReadTags() ([]db.TagRow, error) { return t.tags, nil }
+func (t *uitestTags) ReadTrackTagIDs() (map[string]map[int64]struct{}, error) {
+	result := make(map[string]map[int64]struct{})
+	for hash, tags := range t.trackTags {
+		result[hash] = make(map[int64]struct{}, len(tags))
+		for _, tag := range tags {
+			result[hash][tag.ID] = struct{}{}
+		}
+	}
+	return result, nil
+}
 func (t *uitestTags) ReadTagsForTrack(hash string) ([]db.TagRow, error) {
 	return t.trackTags[hash], nil
 }

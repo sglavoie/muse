@@ -14,6 +14,16 @@ type stubTagReader struct {
 func (s *stubTagReader) ReadTags() ([]db.TagRow, error) {
 	return s.tags, nil
 }
+func (s *stubTagReader) ReadTrackTagIDs() (map[string]map[int64]struct{}, error) {
+	result := make(map[string]map[int64]struct{})
+	for hash, tags := range s.trackTags {
+		result[hash] = make(map[int64]struct{}, len(tags))
+		for _, tag := range tags {
+			result[hash][tag.ID] = struct{}{}
+		}
+	}
+	return result, nil
+}
 func (s *stubTagReader) ReadTagsForTrack(hash string) ([]db.TagRow, error) {
 	return s.trackTags[hash], nil
 }

@@ -298,6 +298,11 @@ type Model struct {
 	// successful load.
 	tagCacheErr error
 
+	// Assignment-load failures must survive catalog-only rebuilds: knowing
+	// which tags exist does not establish which tracks carry them. Cleared
+	// only when the per-track cache is successfully loaded in full.
+	trackTagCacheErr error
+
 	// activeTagFilter, when non-nil, restricts track-displaying views to only
 	// show tracks that carry the given tag ID. Set via ctrl+t; cleared by
 	// pressing ctrl+t again or esc in the tag filter picker.

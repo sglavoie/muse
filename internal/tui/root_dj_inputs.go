@@ -19,8 +19,8 @@ import (
 // radio.Pools.HydrationTargets takes this per group for that reason.
 const djHydrationPerGroup = 3 * radioBatchSize
 
-// errDJTagCatalogUnavailable reports that the tag catalog could not be read, so
-// no verdict about tag-filtered eligibility is available.
+// errDJTagCatalogUnavailable reports that the tag catalog or its track
+// assignments could not be read, so tag-filtered eligibility is unknown.
 var errDJTagCatalogUnavailable = errors.New("tui: dj tag catalog unavailable")
 
 // djDataState is the Model's freshness bookkeeping for Auto-DJ inputs.
@@ -119,10 +119,10 @@ func (m Model) captureDJInputs(now time.Time) djInputs {
 		recent:     m.radioRecentSet(),
 		protected:  m.djProtectedHashes(),
 		dismissed:  snapshotStringSet(m.dismissedHashes),
-		catalogErr: m.tagCacheErr,
+		catalogErr: errors.Join(m.tagCacheErr, m.trackTagCacheErr),
 	}
 	in.queueRev = djQueueRevisionOf(in.protected)
-	if m.tagCacheErr == nil {
+	if in.catalogErr == nil {
 		in.catalog = m.djTagCatalog()
 	}
 	return in
@@ -214,7 +214,7 @@ func djHourChanged(a, b time.Time) bool {
 }
 
 // eligibilityErr reports data without which the plan cannot be evaluated at
-// all. The settings decide whether the missing catalog matters.
+// all. The settings decide whether missing tag data matters.
 //
 // A failure here must never degrade into a plan. With no catalog the planner
 // skips its unresolved-tag check, and a tag deleted between runs then silently

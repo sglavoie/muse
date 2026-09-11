@@ -263,6 +263,7 @@ func (m Model) handleTagsRefreshed(msg tagsRefreshedMsg) Model {
 	m = m.rebuildTagCache(msg.tags)
 	if msg.trackTags != nil {
 		m.trackTags = msg.trackTags
+		m.trackTagCacheErr = nil
 		m.djInvalidate()
 	}
 	return m
