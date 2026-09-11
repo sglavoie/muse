@@ -200,6 +200,14 @@ func (m Model) ackAutoDJPanel(token uint64, err error) Model {
 	if m.autoDJPanel.token != token {
 		return m
 	}
+	// A commit whose session write the database refused is not a durable Apply,
+	// whatever the refresh managed afterwards: the draft is in force for this run
+	// and the row on disk still describes the previous settings. Reporting it
+	// leaves the panel's applied baseline where it was, so the draft stays dirty
+	// and the Apply stays offered — which is exactly the state the user is in.
+	if err == nil {
+		err = m.djUnsavedErr()
+	}
 	m.autoDJPanel.token = 0
 	if m.overlay.autoDJ == nil {
 		return m
@@ -291,6 +299,9 @@ func (m Model) autoDJPanelStatus() []autodj.StatusLine {
 			Tone: autodj.ToneWarn,
 		})
 	}
+	if line, ok := m.djUnsavedStatusLine(); ok {
+		lines = append(lines, line)
+	}
 	if line, ok := m.djRefreshStatusLine(); ok {
 		lines = append(lines, line)
 	}
@@ -301,6 +312,25 @@ func (m Model) autoDJPanelStatus() []autodj.StatusLine {
 		})
 	}
 	return lines
+}
+
+// djUnsavedStatusLine reports a session the database would not take.
+//
+// It is a standing condition rather than the outcome of one commit, so it is
+// stated here as well as on the acknowledgement: a user who applied, was told,
+// and reopened the panel later would otherwise see settings that look saved.
+// Which of the two sentences it ends with is the difference between a
+// reconciliation still running and one that gave up.
+func (m Model) djUnsavedStatusLine() (autodj.StatusLine, bool) {
+	u := m.dj.unsaved
+	if !u.pending() {
+		return autodj.StatusLine{}, false
+	}
+	tail := " Still retrying."
+	if u.exhausted() {
+		tail = " A restart would restore the previously saved settings."
+	}
+	return autodj.StatusLine{Text: "Not saved: " + u.err.Error() + "." + tail, Tone: autodj.ToneError}, true
 }
 
 // djRefreshStatusLine summarizes what the last immediate refresh did.

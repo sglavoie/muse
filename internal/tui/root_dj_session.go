@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -8,6 +10,17 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
 )
+
+// djPersistMaxRetries bounds the automatic reconciliation of a lifecycle write
+// the database refused. Three attempts on the one-second tick covers the
+// transient lock the retry exists for; past that the row is genuinely
+// unwritable, and asking again every second for the rest of the run would only
+// bury the notice that says so.
+const djPersistMaxRetries = 3
+
+// errDJUnsaved heads every report of a session the database would not take. It
+// is worded for the Tune panel, which renders the error verbatim.
+var errDJUnsaved = errors.New("applied for now, not saved")
 
 // djSessionState is the Model's view of the persisted Auto-DJ session.
 //
@@ -48,7 +61,40 @@ type djSessionState struct {
 	// session that was running") apart from a fresh start ("capture a new
 	// seed"), and it is cleared by the first deliberate transition.
 	restored bool
+
+	// unsaved is a lifecycle write the database refused. The transition itself
+	// is kept, so this is the record that the running session and the saved one
+	// disagree — reconciled by djReconcilePersist and reported until they agree.
+	unsaved djUnsavedWrite
 }
+
+// djUnsavedWrite is a lifecycle transition the database would not take.
+//
+// The Model keeps such a transition rather than rolling it back, because
+// refusing it would leave the user looking at a DJ that ignored their keypress.
+// What it must not do is pretend the transition is durable: the row on disk
+// still describes the previous session, and a restart would restore it. This is
+// what remembers that until a later write reconciles it.
+type djUnsavedWrite struct {
+	// err is the refusal, kept for the surfaces that report it.
+	err error
+
+	// attempts counts the automatic retries already spent against
+	// djPersistMaxRetries. A deliberate gesture starts a fresh budget, because a
+	// user who applies again is owed as many tries as the first time.
+	attempts int
+
+	// snapshot reports that the whole row is stale, which a stop cannot
+	// reconcile on its own: StopDJSession clears the seed and the carry and
+	// leaves the settings columns exactly as they were.
+	snapshot bool
+}
+
+// pending reports whether the saved session is behind the running one.
+func (u djUnsavedWrite) pending() bool { return u.err != nil }
+
+// exhausted reports that the bounded reconciliation gave up.
+func (u djUnsavedWrite) exhausted() bool { return u.attempts >= djPersistMaxRetries }
 
 // djSessionWriter persists Auto-DJ session transitions. Implemented by
 // *db.Writer; nil in tests and in any build without a database.
@@ -329,26 +375,99 @@ func (m Model) djNoteTagMerged(srcID, destID int64) Model {
 	return m
 }
 
-// djPersist writes the whole snapshot. Failures are logged and the in-memory
-// state is kept: refusing the transition would leave the user looking at a DJ
-// that ignored their keypress, and the next successful write reconciles it.
+// djPersist writes the whole snapshot. The in-memory state is kept on failure —
+// refusing the transition would leave the user looking at a DJ that ignored
+// their keypress — but the refusal is recorded rather than only logged, because
+// the settings in force and the settings on disk have just diverged and nothing
+// else would notice until the next launch restored the old ones.
 func (m Model) djPersist() Model {
 	if m.djWriter == nil {
 		return m
 	}
 	if err := m.djWriter.WriteDJSession(m.djSnapshot()); err != nil {
 		slog.Warn("dj session: write", "err", err)
+		return m.noteDJWriteRefused(err, true)
 	}
-	return m
+	return m.noteDJWriteLanded()
 }
 
 // djPersistStop clears the active flag and the stored seed in one statement.
+//
+// A stop that lands does not reconcile a snapshot write that did not: it leaves
+// the settings columns alone, so a stale settings row stays stale and stays
+// outstanding for the reconciliation to rewrite whole.
 func (m Model) djPersistStop() Model {
 	if m.djWriter == nil {
 		return m
 	}
 	if err := m.djWriter.StopDJSession(); err != nil {
 		slog.Warn("dj session: stop", "err", err)
+		return m.noteDJWriteRefused(err, m.dj.unsaved.snapshot)
 	}
+	if m.dj.unsaved.snapshot {
+		return m
+	}
+	return m.noteDJWriteLanded()
+}
+
+// noteDJWriteRefused records a refused lifecycle write and says so.
+//
+// The status bar is where a start, a stop, or a reseed reports: those gestures
+// have no panel open to answer to, and a DJ whose session silently stopped being
+// saved is exactly the failure the user finds out about after a restart.
+func (m Model) noteDJWriteRefused(err error, snapshot bool) Model {
+	m.dj.unsaved = djUnsavedWrite{err: err, snapshot: snapshot}
+	m.statusBar.Notify("Auto-DJ not saved: " + err.Error())
 	return m
+}
+
+// noteDJWriteLanded clears an outstanding refusal after a write that succeeded.
+func (m Model) noteDJWriteLanded() Model {
+	if !m.dj.unsaved.pending() {
+		return m
+	}
+	m.dj.unsaved = djUnsavedWrite{}
+	m.statusBar.NotifyInfo("Auto-DJ session saved")
+	return m
+}
+
+// djUnsavedErr reports state this Model holds and the database does not, or nil.
+//
+// This is what stops an Apply from being acknowledged as a durable one. The
+// wording is the panel's, which renders the error verbatim.
+func (m Model) djUnsavedErr() error {
+	if !m.dj.unsaved.pending() {
+		return nil
+	}
+	return fmt.Errorf("%w: %w", errDJUnsaved, m.dj.unsaved.err)
+}
+
+// djReconcilePersist re-attempts a refused lifecycle write.
+//
+// This is the recoverable path the refusal is kept for, and it runs on the tick
+// rather than on the user's next lifecycle gesture: that gesture may never come,
+// and until it does the divergence is invisible — the session plays on the
+// settings the user chose and only a restart reveals that the row never took
+// them.
+//
+// The whole row is rewritten from the state actually in force, which reconciles
+// a refused stop as well: a stopped snapshot clears the same seed and carry
+// columns StopDJSession would have, and rewrites the settings a stop leaves
+// behind.
+func (m Model) djReconcilePersist() Model {
+	u := m.dj.unsaved
+	if !u.pending() || u.exhausted() || m.djWriter == nil {
+		return m
+	}
+	if err := m.djWriter.WriteDJSession(m.djSnapshot()); err != nil {
+		u.err, u.attempts = err, u.attempts+1
+		u.snapshot = true
+		m.dj.unsaved = u
+		slog.Warn("dj session: reconcile", "err", err, "attempt", u.attempts)
+		if u.exhausted() {
+			m.statusBar.Notify("Auto-DJ session could not be saved: " + err.Error())
+		}
+		return m
+	}
+	return m.noteDJWriteLanded()
 }

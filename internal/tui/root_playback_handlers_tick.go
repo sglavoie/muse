@@ -106,6 +106,12 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	// transition that resolves without one — a stop, a failed load — would
 	// otherwise strand the user's applied settings outside the queue.
 	m, djRefreshCmd := m.djResumeDeferredRefresh(time.Now())
+	// A lifecycle write the database refused leaves the running session and the
+	// saved one describing different things, and nothing but a restart would
+	// reveal it. The tick is where that is reconciled, because waiting for the
+	// user's next start, stop, or Apply is waiting for a gesture that may never
+	// come.
+	m = m.djReconcilePersist()
 	return m, tea.Batch(tickCmd(), previewDurationCmd, previewDismissCmd, mainDurationCmd, fadeCmd, insightsCmd, radioCleanupCmd, djRejectCmd, djRefreshCmd)
 }
 

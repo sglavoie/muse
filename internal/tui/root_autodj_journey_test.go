@@ -47,6 +47,11 @@ type djJourney struct {
 	// stays nil for this journey, whose launches all read cleanly; the
 	// refused-restore tests set it before rebuilding.
 	restoreErr error
+	// djWriter is the session writer every launch is built with when it is set,
+	// so a test can put a failure in front of the real writer and keep it there
+	// across a relaunch. Nil means the real writer, which is what a journey that
+	// is not exercising write failures wants.
+	djWriter djSessionWriter
 }
 
 // djJourneyTracks is a library with both pools populated and three genres, so a
@@ -137,12 +142,16 @@ func (j *djJourney) build(entries []queue.Entry, session db.DJSession, radioMode
 		p.tracks = append(p.tracks, queueTrackFromEntry(e))
 	}
 	j.player = p
+	sessions := djSessionWriter(j.w)
+	if j.djWriter != nil {
+		sessions = j.djWriter
+	}
 	j.m = New(context.Background(),
 		WithLibraryTracks(j.tracks),
 		WithQueueEntries(entries),
 		WithBatchEnqueuer(j.w),
 		WithQueueDequeuer(j.w),
-		WithDJWriter(j.w),
+		WithDJWriter(sessions),
 		WithDJQueueWriter(j.w),
 		WithDJRecipeReader(j.d),
 		WithDJRecipeWriter(j.w),
