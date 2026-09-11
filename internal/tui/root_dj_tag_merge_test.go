@@ -142,25 +142,7 @@ func (j *djJourney) merge(src, dest int64) {
 // later whole-session write rewrites from the Model.
 func (j *djJourney) sessionTagRefs(role string) []int64 {
 	j.t.Helper()
-	rows, err := j.d.Query(
-		`SELECT tag_id FROM dj_tag_refs
-		 WHERE scope = 'session' AND owner_id = 1 AND role = ? ORDER BY tag_id`, role)
-	if err != nil {
-		j.t.Fatalf("read %s tag refs: %v", role, err)
-	}
-	defer rows.Close()
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			j.t.Fatalf("scan %s tag ref: %v", role, err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		j.t.Fatalf("read %s tag refs: %v", role, err)
-	}
-	return ids
+	return j.djTagRefs("session", 1, role)
 }
 
 // refill runs one live refill through the real planner and publishes its result.

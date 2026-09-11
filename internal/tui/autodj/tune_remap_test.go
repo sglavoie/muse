@@ -129,6 +129,102 @@ func TestRemapTagFollowsAnOpenTagPickerIntoTheDraft(t *testing.T) {
 	}
 }
 
+func TestRemapTagMovesAnOpenSavePromptsSnapshot(t *testing.T) {
+	p := newTestPanel(true)
+	p.tab = tabRecipes
+	p, _ = press(t, p, "s")
+	p = djTypeInto(t, p, "Late")
+	if p.prompt == nil {
+		t.Fatal("s did not open the name box")
+	}
+
+	p = p.RemapTag(1, 2)
+
+	if got := p.prompt.settings.Include.TagIDs; !slices.Equal(got, []int64{2}) {
+		t.Errorf("the pending save would store %v, want the kept tag [2]", got)
+	}
+	// A merge is about a tag. What the user is in the middle of doing is theirs.
+	if p.prompt.value != "Late" || p.prompt.op != RecipeSave {
+		t.Errorf("the remap disturbed the prompt: %+v", *p.prompt)
+	}
+
+	p, action := press(t, p, "enter")
+	if action != ActionRecipe {
+		t.Fatalf("submitting the prompt asked for %v, want a recipe write", action)
+	}
+	if got := p.PendingRecipe().Settings.Include.TagIDs; !slices.Equal(got, []int64{2}) {
+		t.Errorf("the emitted request carries %v, want [2]", got)
+	}
+}
+
+func TestRemapTagMovesAnOpenRenamePromptsSnapshot(t *testing.T) {
+	saved := testSettings()
+	saved.Include = radio.FilterSet{TagIDs: []int64{1, 2}}
+	saved.Exclude = radio.FilterSet{TagIDs: []int64{3}}
+	p := New(Options{
+		Applied: testSettings(),
+		Catalog: testCatalog(),
+		Active:  true,
+		Recipes: []Recipe{{ID: 7, Name: "late night", Settings: saved}},
+	})
+	p.tab = tabRecipes
+	p, _ = press(t, p, "n")
+	if p.prompt == nil || p.prompt.op != RecipeRename {
+		t.Fatal("n did not open the rename box")
+	}
+
+	p = p.RemapTag(1, 2)
+
+	// A rename rewrites the recipe's whole stored row from this snapshot, which
+	// is how a gesture about a name puts a merged-away id back on disk.
+	if got := p.prompt.settings.Include.TagIDs; !slices.Equal(got, []int64{2}) {
+		t.Errorf("the pending rename would store %v, want the kept tag once [2]", got)
+	}
+	if got := p.prompt.settings.Exclude.TagIDs; !slices.Equal(got, []int64{3}) {
+		t.Errorf("the pending rename rewrote the unrelated exclusion to %v, want [3]", got)
+	}
+	if p.prompt.id != 7 {
+		t.Errorf("the remap re-pointed the rename at recipe %d", p.prompt.id)
+	}
+}
+
+func TestRemapTagMovesTheRequestARefusalWouldRetry(t *testing.T) {
+	p := newTestPanel(true)
+	p.tab = tabRecipes
+	p, _ = press(t, p, "s")
+	p = djTypeInto(t, p, "Late")
+	p, _ = press(t, p, "enter")
+	if p.PendingRecipe().Op != RecipeSave {
+		t.Fatal("the prompt emitted no save request")
+	}
+
+	// The merge lands while the write is outstanding. Storage then refuses the
+	// name, and the refusal reopens the box from the request — which is a second
+	// copy of the same settings.
+	p = p.RemapTag(1, 2)
+	p = p.AckRecipe(RecipeOutcome{Op: RecipeSave, Name: "Late", Err: ErrRecipeNameTaken})
+
+	if p.prompt == nil {
+		t.Fatal("the refusal did not reopen the name box")
+	}
+	if got := p.prompt.settings.Include.TagIDs; !slices.Equal(got, []int64{2}) {
+		t.Errorf("the reopened prompt would retry with %v, want the kept tag [2]", got)
+	}
+}
+
+// djTypeInto types a name into the open prompt one key at a time.
+func djTypeInto(t *testing.T, p TunePanel, name string) TunePanel {
+	t.Helper()
+	for _, r := range name {
+		key := string(r)
+		if r == ' ' {
+			key = "space"
+		}
+		p, _ = press(t, p, key)
+	}
+	return p
+}
+
 func TestRemapTagLeavesAnUnrelatedPanelAlone(t *testing.T) {
 	p := newTestPanel(true)
 

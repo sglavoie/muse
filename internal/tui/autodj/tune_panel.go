@@ -259,6 +259,24 @@ func (p TunePanel) RemapTag(src, dest int64) TunePanel {
 		remapped := p.picker.remapTag(src, dest, p.fieldOptions(fieldTags))
 		p.picker = &remapped
 	}
+	// An open name box is the fourth snapshot, and the least visible one: it
+	// froze its settings when the prompt opened, which may have been before the
+	// merge landed. Submitting it hands those settings to storage verbatim, so a
+	// rename typed across a merge would rewrite the recipe's whole row with the
+	// id the merge transaction had just replaced. The typed name, the operation,
+	// and the recipe being renamed are all left exactly as they are: the merge
+	// changes which tag the settings name, not what the user is doing.
+	if p.prompt != nil {
+		prompt := *p.prompt
+		prompt.settings = prompt.settings.RemapTag(src, dest)
+		p.prompt = &prompt
+	}
+	// The request handed out with the last ActionRecipe is the same snapshot once
+	// more: a refusal rebuilds the prompt from it, so a stale copy here would come
+	// back through the retry the user is invited to make.
+	if p.request.Op != recipeNone {
+		p.request.Settings = p.request.Settings.RemapTag(src, dest)
+	}
 	return p
 }
 
