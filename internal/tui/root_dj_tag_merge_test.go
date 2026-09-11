@@ -120,9 +120,22 @@ func (j *djJourney) startFiltered(s radio.Settings) {
 // MergeTags the command performs, and the message the runtime delivers back.
 func (j *djJourney) merge(src, dest int64) {
 	j.t.Helper()
+	j.deliverMerge(j.mergeCommit(src, dest))
+}
+
+// mergeCommit runs the durable half of the gesture — the MergeTags the
+// confirmation launches — and hands the completion back undelivered.
+//
+// The runtime runs that command off the update loop, so the merge transaction is
+// committed, tag rows and dj_tag_refs and all, before the Model hears a word
+// about it. Holding the message is how a test occupies that window and drives
+// real work through it.
+func (j *djJourney) mergeCommit(src, dest int64) tagMergedMsg {
+	j.t.Helper()
 	m, cmd := j.m.handleTagMergePicked(tagtui.TagMergePickedMsg{
 		Src: j.tagRow(src), Dest: j.tagRow(dest),
 	})
+	j.m = m
 	if cmd == nil {
 		j.t.Fatal("the merge gesture produced no command")
 	}
@@ -133,8 +146,14 @@ func (j *djJourney) merge(src, dest int64) {
 	if msg.err != nil {
 		j.t.Fatalf("MergeTags(%d, %d): %v", src, dest, msg.err)
 	}
-	next, _ := m.handleTagMerged(msg)
-	j.m = next
+	return msg
+}
+
+// deliverMerge feeds the completion through the update loop, which is the hop
+// the runtime performs once the command returns.
+func (j *djJourney) deliverMerge(msg tagMergedMsg) {
+	j.t.Helper()
+	j.m = djDeliver(j.m, msg)
 }
 
 // sessionTagRefs reads the durable tag references the active session holds in

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -354,15 +355,36 @@ func (m Model) djNoteTrackChanged(hash string, now time.Time) Model {
 	return m.djReseed(radio.CaptureSeed(track, m.trackTags[hash], radio.FixedClock(now)))
 }
 
-// djNoteTagMerged re-points the live session's tag references after a merge.
+// djNoteTagMerged re-points the live session's tag references after a merge,
+// and writes them back.
 //
-// The merge already remapped the durable rows inside its own transaction
-// (db.remapDJTagRefs), so nothing is written here. What this fixes is the other
-// half: the Model is the source every later whole-session write reads from, so a
-// session left holding the merged-away id would blank out the durable remap the
-// next time anything persisted — a Follow reseed, an Apply, a late refresh
-// reasserting the row — and would meanwhile plan against a tag the catalog no
-// longer offers, parking the refill as unresolved.
+// The merge remapped the durable rows inside its own transaction
+// (db.remapDJTagRefs), and the Model is the second copy of the same references —
+// the one every later whole-session write is rebuilt from. A session left
+// holding the merged-away id would plan against a tag the catalog no longer
+// offers, parking the refill as unresolved, so the live remap above is the first
+// half of the repair.
+//
+// The write is the other half, and it is needed because the merge transaction
+// commits off the update loop, strictly ahead of the message that lands here.
+// Anything that persists the whole row in that window — a Follow reseed, an
+// Apply, the tick reconciling an outstanding refusal — rebuilds dj_tag_refs from
+// a Model that still names the source tag, and replaceDJFilters takes a positive
+// id whether or not a tag still carries it. The durable remap is then gone, with
+// nothing left to notice: the live state here is correct, so no unsaved marker is
+// raised, and the row stays stale until some unrelated later write happens to fix
+// it — or until a restart restores an unresolved filter.
+//
+// What is written is the state now in force, not anything captured earlier, so a
+// settings, seed, or allocation change made in that same window is preserved
+// rather than rolled back. A refusal takes the ordinary path: recorded, reported,
+// and re-attempted by djReconcilePersist under its bounded budget, which rewrites
+// this remapped snapshot.
+//
+// A merge that moved no reference this session holds writes nothing. The durable
+// rows can only have gone stale if this Model was the one handing the source id
+// back, so a session that never named it has nothing to reconcile — which covers
+// a refused restore too, whose stock defaults hold no tag references at all.
 //
 // Nothing is superseded from here either. The merge moves the data revision
 // through djInvalidate and it moves the applied settings, and either one retires
@@ -370,9 +392,14 @@ func (m Model) djNoteTrackChanged(hash string, now time.Time) Model {
 // supersede would cancel instead, and a tag edit is not the user asking the DJ
 // to stop.
 func (m Model) djNoteTagMerged(srcID, destID int64) Model {
-	m.dj.settings = m.dj.settings.RemapTag(srcID, destID)
-	m.dj.seed = m.dj.seed.RemapTag(srcID, destID)
-	return m
+	settings := m.dj.settings.RemapTag(srcID, destID)
+	seed := m.dj.seed.RemapTag(srcID, destID)
+	moved := !settings.Equal(m.dj.settings) || !slices.Equal(seed.TagIDs, m.dj.seed.TagIDs)
+	m.dj.settings, m.dj.seed = settings, seed
+	if !moved {
+		return m
+	}
+	return m.djPersist()
 }
 
 // djPersist writes the whole snapshot. The in-memory state is kept on failure —
