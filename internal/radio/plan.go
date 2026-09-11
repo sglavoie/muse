@@ -53,6 +53,19 @@ func (s SeedSnapshot) IsZero() bool {
 	return strings.TrimSpace(s.TrackHash) == ""
 }
 
+// RemapTag re-points the captured seed's tag references from src to dest.
+//
+// The seed is frozen metadata, but a tag id is a reference rather than a value:
+// leaving the merged-away id here would score every later batch against a tag
+// nothing carries, so an anchored session would slowly drift away from the
+// context it was captured in.
+func (s SeedSnapshot) RemapTag(src, dest int64) SeedSnapshot {
+	if ids, changed := remapTagIDs(s.TagIDs, src, dest); changed {
+		s.TagIDs = ids
+	}
+	return s
+}
+
 // SeedTrack projects the snapshot onto the scorer's seed type.
 func (s SeedSnapshot) SeedTrack() SeedTrack {
 	var tagIDs map[int64]struct{}

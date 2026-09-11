@@ -217,6 +217,60 @@ func (p TunePanel) Ack(res Applied) TunePanel {
 	return p
 }
 
+// RemapTag re-points every tag reference the panel holds from src to dest.
+//
+// A merge can land while the overlay is open, because the confirmation is
+// answered asynchronously and the user is free to open the panel in between.
+// Everything here is a snapshot taken before that happened, and every one of
+// them has a write path behind it: committing the draft persists its filters,
+// renaming or updating a recipe rewrites the whole stored row, and confirming an
+// open tag picker puts its selection back into the draft. Any of those would
+// reinstate the merged-away id and undo the durable remap, so the whole panel
+// moves at once.
+//
+// The catalog loses the source row because the merge soft-deleted that tag:
+// leaving it selectable would let the user re-add a reference to something that
+// no longer exists.
+func (p TunePanel) RemapTag(src, dest int64) TunePanel {
+	if src == dest || src <= 0 || dest <= 0 {
+		return p
+	}
+	p.applied = p.applied.RemapTag(src, dest)
+	p.draft = p.draft.RemapTag(src, dest)
+	p.catalog.Tags = remapCatalogTags(p.catalog.Tags, src, dest)
+	if len(p.recipes) > 0 {
+		recipes := append([]Recipe(nil), p.recipes...)
+		for i := range recipes {
+			recipes[i].Settings = recipes[i].Settings.RemapTag(src, dest)
+		}
+		p.recipes = recipes
+	}
+	if p.picker != nil && p.picker.field == fieldTags {
+		remapped := p.picker.remapTag(src, dest, p.fieldOptions(fieldTags))
+		p.picker = &remapped
+	}
+	return p
+}
+
+// remapCatalogTags drops the merged-away tag from the picker's choices, keeping
+// the destination exactly once. Both rows come from the same list, so the
+// destination is already present whenever the source was.
+func remapCatalogTags(tags []db.TagRow, src, dest int64) []db.TagRow {
+	kept := make([]db.TagRow, 0, len(tags))
+	dropped := false
+	for _, t := range tags {
+		if t.ID == src {
+			dropped = true
+			continue
+		}
+		kept = append(kept, t)
+	}
+	if !dropped {
+		return tags
+	}
+	return kept
+}
+
 // Unresolved returns the tag ids the draft references that the catalog does not
 // hold, in ascending order.
 //

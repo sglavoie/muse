@@ -2,6 +2,7 @@ package autodj
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -165,6 +166,28 @@ func (fp filterPicker) selection() []string {
 	}
 	sort.Strings(orphans)
 	return append(keys, orphans...)
+}
+
+// remapTag re-points the picker at a merged tag: the rows it offers become
+// options, and a chosen source key becomes the destination.
+//
+// The query and the cursor are re-evaluated against the new rows rather than
+// preserved verbatim, because the list is one row shorter and a cursor left
+// where it was would land on a neighbour.
+func (fp filterPicker) remapTag(src, dest int64, options []pickerOption) filterPicker {
+	srcKey, destKey := strconv.FormatInt(src, 10), strconv.FormatInt(dest, 10)
+	fp.options = options
+	if _, on := fp.chosen[srcKey]; on {
+		chosen := make(map[string]struct{}, len(fp.chosen))
+		for k := range fp.chosen {
+			if k == srcKey {
+				k = destKey
+			}
+			chosen[k] = struct{}{}
+		}
+		fp.chosen = chosen
+	}
+	return fp.refilter()
 }
 
 // title is the picker's heading, naming both the field and its polarity.

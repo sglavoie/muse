@@ -149,6 +149,7 @@ func (j *djJourney) build(entries []queue.Entry, session db.DJSession, radioMode
 		WithSessionWriter(j.w),
 		WithRecommendationReader(j.d),
 		WithTagReader(j.d),
+		WithTagWriter(j.w),
 		WithPlayer(p),
 		WithRadioMode(radioMode),
 		WithDJSession(session, j.restoreErr),

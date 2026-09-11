@@ -70,6 +70,53 @@ func (f FilterSet) Equal(other FilterSet) bool {
 		equalFolded(left.Artists, right.Artists, artistFilterKey)
 }
 
+// RemapTag re-points every reference to src at dest.
+//
+// It exists because merging two tags is not a deletion: the references that
+// named the source have to follow it, or a filter the user built survives the
+// merge as an unresolved id that pauses the DJ. A set already naming dest
+// collapses to one entry rather than carrying it twice, and the result is
+// normalized so a remapped set is indistinguishable from one the user picked in
+// that shape.
+//
+// The receiver is never mutated: a live plan may be reading the same backing
+// array off the update loop.
+func (f FilterSet) RemapTag(src, dest int64) FilterSet {
+	ids, changed := remapTagIDs(f.TagIDs, src, dest)
+	if !changed {
+		return f
+	}
+	f.TagIDs = ids
+	return f
+}
+
+// remapTagIDs substitutes dest for src in ids, reporting whether src was
+// present at all. A no-op returns the original slice so an unaffected caller
+// keeps its identity and allocates nothing.
+func remapTagIDs(ids []int64, src, dest int64) ([]int64, bool) {
+	if src == dest || src <= 0 || dest <= 0 {
+		return ids, false
+	}
+	found := false
+	for _, id := range ids {
+		if id == src {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ids, false
+	}
+	swapped := make([]int64, len(ids))
+	for i, id := range ids {
+		if id == src {
+			id = dest
+		}
+		swapped[i] = id
+	}
+	return normalizedTagIDs(swapped), true
+}
+
 // TagIDSet returns the set's tag ids as a lookup set, dropping non-positive
 // ids. Returns nil when no usable id is present.
 func (f FilterSet) TagIDSet() TagIDSet {

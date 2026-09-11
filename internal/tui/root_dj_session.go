@@ -308,6 +308,27 @@ func (m Model) djNoteTrackChanged(hash string, now time.Time) Model {
 	return m.djReseed(radio.CaptureSeed(track, m.trackTags[hash], radio.FixedClock(now)))
 }
 
+// djNoteTagMerged re-points the live session's tag references after a merge.
+//
+// The merge already remapped the durable rows inside its own transaction
+// (db.remapDJTagRefs), so nothing is written here. What this fixes is the other
+// half: the Model is the source every later whole-session write reads from, so a
+// session left holding the merged-away id would blank out the durable remap the
+// next time anything persisted — a Follow reseed, an Apply, a late refresh
+// reasserting the row — and would meanwhile plan against a tag the catalog no
+// longer offers, parking the refill as unresolved.
+//
+// Nothing is superseded from here either. The merge moves the data revision
+// through djInvalidate and it moves the applied settings, and either one retires
+// a batch in flight through the ordinary acceptance check, which relaunches. A
+// supersede would cancel instead, and a tag edit is not the user asking the DJ
+// to stop.
+func (m Model) djNoteTagMerged(srcID, destID int64) Model {
+	m.dj.settings = m.dj.settings.RemapTag(srcID, destID)
+	m.dj.seed = m.dj.seed.RemapTag(srcID, destID)
+	return m
+}
+
 // djPersist writes the whole snapshot. Failures are logged and the in-memory
 // state is kept: refusing the transition would leave the user looking at a DJ
 // that ignored their keypress, and the next successful write reconciles it.

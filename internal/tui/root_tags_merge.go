@@ -72,6 +72,21 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 			m.trackTags[hash] = tagIDs
 		}
 	}
+	// The Auto-DJ stores its filters and its captured seed as tag ids, and the
+	// merge has just soft-deleted one of them. Storage remapped its own rows
+	// inside the merge transaction; these are the live copies of the same
+	// references, and they have to follow or the session goes on naming a tag
+	// that no longer exists — until the next whole-session write puts it back on
+	// disk.
+	m = m.djNoteTagMerged(msg.src.ID, msg.dest.ID)
+	if m.overlay.autoDJ != nil {
+		// The panel can be open across a merge: the confirmation is answered
+		// asynchronously, so the user may have opened it in between. Its draft,
+		// its baseline, and the recipe rows it lists are all snapshots with a
+		// write path behind them.
+		remapped := m.overlay.autoDJ.RemapTag(msg.src.ID, msg.dest.ID)
+		m.overlay.autoDJ = &remapped
+	}
 	// The remap changes which tracks a tag filter selects, and it lands here
 	// even when the tag list re-read below fails.
 	m.djInvalidate()

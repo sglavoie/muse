@@ -252,6 +252,16 @@ func (s Settings) ResolveTags(catalog TagCatalog) error {
 	return resolveTagIDs(catalog, s.Include.TagIDs, s.Exclude.TagIDs)
 }
 
+// RemapTag re-points both filter sets from src to dest, which is what a tag
+// merge means for settings that reference the tag being merged away. The intent
+// of each side is preserved: an inclusion stays an inclusion and an exclusion
+// stays an exclusion, now naming the tag the merge kept.
+func (s Settings) RemapTag(src, dest int64) Settings {
+	s.Include = s.Include.RemapTag(src, dest)
+	s.Exclude = s.Exclude.RemapTag(src, dest)
+	return s
+}
+
 // Match evaluates facts against the include/exclude filters. Use Compile
 // instead when evaluating more than a handful of candidates.
 func (s Settings) Match(facts TrackFacts) FilterVerdict {
