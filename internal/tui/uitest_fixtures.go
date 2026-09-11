@@ -66,6 +66,7 @@ func BuildFixture(name string) (Model, error) {
 func baseFixtureOptions() []Option {
 	queueStore := &uitestQueueStore{}
 	dismissals := &uitestDismissals{hashes: map[string]struct{}{}}
+	recipes := newUITestRecipes("Late Night", "Morning Focus")
 	return []Option{
 		WithPlayer(uitestPlayer{}),
 		WithQueueWriter(queueStore),
@@ -74,6 +75,10 @@ func baseFixtureOptions() []Option {
 		WithBatchEnqueuer(queueStore),
 		WithDismissalReader(dismissals),
 		WithDismissalWriter(dismissals),
+		// Recipes are settings-only, so a fixture store is safe: nothing it can
+		// be asked to do reaches the session, the queue, or the player.
+		WithDJRecipeReader(recipes),
+		WithDJRecipeWriter(recipes),
 		// A reader with no tracks so the empty fixture exercises the Insights
 		// empty state rather than the "no reader wired" fallback. Fixtures with
 		// a library override this with a track-backed reader.

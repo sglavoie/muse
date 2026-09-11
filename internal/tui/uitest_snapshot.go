@@ -119,13 +119,16 @@ func (m Model) ActiveOverlayName() string {
 	}
 }
 
-// autoDJOverlayName distinguishes the two pages of the Auto-DJ overlay, because
-// they differ in kind and not only in content: one edits a draft and one is
-// read-only, and a harness asserting that a gesture changed nothing needs to be
-// able to say which page it was on.
+// autoDJOverlayName distinguishes the pages of the Auto-DJ overlay, because they
+// differ in kind and not only in content: one edits a draft, one is read-only,
+// and one reads and writes stored settings. A harness asserting that a gesture
+// changed nothing needs to be able to say which page it was on.
 func autoDJOverlayName(p autodj.TunePanel) string {
-	if p.PreviewActive() {
+	switch {
+	case p.PreviewActive():
 		return "autodj_preview"
+	case p.RecipesActive():
+		return "autodj_recipes"
 	}
 	return "autodj_tune"
 }

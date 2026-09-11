@@ -320,8 +320,13 @@ func TestAutoDJPreviewTabIsItsOwnOverlaySnapshot(t *testing.T) {
 	}
 
 	m, _ = djPress(t, m, "tab")
+	if got := m.Snapshot().Overlay; got != "autodj_recipes" {
+		t.Fatalf("overlay snapshot = %q, want autodj_recipes after leaving the page", got)
+	}
+
+	m, _ = djPress(t, m, "tab")
 	if got := m.Snapshot().Overlay; got != "autodj_tune" {
-		t.Fatalf("overlay snapshot = %q, want autodj_tune after leaving the page", got)
+		t.Fatalf("overlay snapshot = %q, want autodj_tune after the tab bar wraps", got)
 	}
 }
 

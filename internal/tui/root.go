@@ -367,6 +367,13 @@ type Model struct {
 	// discovery carry in the same transaction that publishes the rows.
 	djQueue djQueueWriter
 
+	// djRecipes lists the saved recipes and djRecipeWriter performs the Recipes
+	// tab's durable changes. Both may be nil; set via WithDJRecipeReader and
+	// WithDJRecipeWriter. Neither can reach the session or the queue, which is
+	// what keeps saving and loading a recipe free of playback effects.
+	djRecipes      djRecipeReader
+	djRecipeWriter djRecipeWriter
+
 	// runtimeDir is the XDG_RUNTIME_DIR-based directory for ephemeral sockets
 	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.
 	runtimeDir string

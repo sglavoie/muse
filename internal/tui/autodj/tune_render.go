@@ -80,8 +80,14 @@ func (p TunePanel) Render(
 	if p.picker != nil {
 		return centerBox(p.picker.buildBoxLines(termWidth, termHeight, s), termWidth, termHeight)
 	}
-	if p.tab == tabPreview {
+	if p.prompt != nil {
+		return centerBox(p.buildPromptLines(termWidth, s), termWidth, termHeight)
+	}
+	switch p.tab {
+	case tabPreview:
 		return centerBox(p.buildPreviewLines(termWidth, termHeight, s, preview), termWidth, termHeight)
+	case tabRecipes:
+		return centerBox(p.buildRecipesLines(termWidth, termHeight, s), termWidth, termHeight)
 	}
 	return centerBox(p.buildBoxLines(termWidth, termHeight, s, status), termWidth, termHeight)
 }

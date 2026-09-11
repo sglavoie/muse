@@ -7,8 +7,11 @@ package tui
 // these fakes so a Model can be constructed and driven entirely in-memory.
 
 import (
+	"strings"
+
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/radio"
 )
 
 // uitestPlayer is a no-op playPauser used by fixtures so that playback-related
@@ -201,6 +204,71 @@ func (r *uitestRecs) ReadAllMixProgress() (map[db.MixID]db.MixProgress, error) {
 type uitestCache struct{ tracks []library.Track }
 
 func (c *uitestCache) ReadCachedMix(int, int) ([]library.Track, error) { return c.tracks, nil }
+
+// uitestRecipes is an in-memory djRecipeReader + djRecipeWriter. It exists so
+// the Tune panel's Recipes tab renders a list in the harness rather than the
+// "no library database" refusal, and so save, rename, and delete are drivable
+// from a scenario. It enforces the one rule the tab delegates to storage —
+// names are unique, case-insensitively — because a fixture that accepted a
+// duplicate would hide the refusal the tab is supposed to show.
+type uitestRecipes struct {
+	rows   []db.DJRecipe
+	nextID int64
+}
+
+func newUITestRecipes(names ...string) *uitestRecipes {
+	store := &uitestRecipes{nextID: 1}
+	for _, name := range names {
+		_, _ = store.CreateRecipe(radio.Recipe{Name: name, Settings: radio.DefaultSettings()})
+	}
+	return store
+}
+
+func (r *uitestRecipes) ReadRecipes() ([]db.DJRecipe, error) {
+	return append([]db.DJRecipe(nil), r.rows...), nil
+}
+
+func (r *uitestRecipes) nameTaken(name string, skipID int64) bool {
+	for _, row := range r.rows {
+		if row.Recipe.ID != skipID && strings.EqualFold(row.Recipe.Name, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *uitestRecipes) CreateRecipe(recipe radio.Recipe) (int64, error) {
+	if r.nameTaken(recipe.Name, 0) {
+		return 0, db.ErrRecipeNameTaken
+	}
+	recipe.ID = r.nextID
+	r.nextID++
+	r.rows = append(r.rows, db.DJRecipe{Recipe: recipe})
+	return recipe.ID, nil
+}
+
+func (r *uitestRecipes) UpdateRecipe(recipe radio.Recipe) error {
+	if r.nameTaken(recipe.Name, recipe.ID) {
+		return db.ErrRecipeNameTaken
+	}
+	for i, row := range r.rows {
+		if row.Recipe.ID == recipe.ID {
+			r.rows[i] = db.DJRecipe{Recipe: recipe}
+			return nil
+		}
+	}
+	return db.ErrRecipeNotFound
+}
+
+func (r *uitestRecipes) DeleteRecipeSoft(id int64) error {
+	for i, row := range r.rows {
+		if row.Recipe.ID == id {
+			r.rows = append(r.rows[:i], r.rows[i+1:]...)
+			return nil
+		}
+	}
+	return db.ErrRecipeNotFound
+}
 
 // uitestDismissals is an in-memory dismissalReader + dismissalWriter.
 type uitestDismissals struct{ hashes map[string]struct{} }

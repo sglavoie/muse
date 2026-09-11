@@ -2,14 +2,12 @@ package tui
 
 import (
 	"fmt"
-	"log/slog"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/library"
 	instui "github.com/sglavoie/muse/internal/tui/insights"
-	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 // insightsAntiRutCount is how many unheard tracks the anti-rut shortcut pulls.
@@ -205,22 +203,9 @@ func (m Model) handleInsightsRadioSeed() (Model, tea.Cmd) {
 		tm, cmd, _ := m.radioToggle()
 		return tm.(Model), cmd
 	}
-	seed := buildMixSeed(tracks, m.trackTags)
-	m.radio.syntheticSeed = &seed
-	m.radio.enabled = true
-	m.radio.seedHash = ""
 	// The drilldown is the explicitly targeted collection here, so it outranks
 	// the focused row; a bulk selection inside it still wins.
-	m, _ = m.djStartFromTracks(label, tracks, time.Now())
-	if m.sessionWriter != nil {
-		if err := m.sessionWriter.WriteRadioMode(true); err != nil {
-			slog.Warn("session: write radio mode", "err", err)
-		}
-	}
-	m.statusBar.PushMsg("Radio: seeded from "+label, time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
-	var cmd tea.Cmd
-	m, cmd = m.startRadioEnqueueCmd()
-	return m, cmd
+	return m.djStartFromCollection(label, tracks, time.Now())
 }
 
 // handleInsightsJumpBrowse opens the focused row's artist in Browse, so a bar

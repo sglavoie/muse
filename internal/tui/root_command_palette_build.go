@@ -134,6 +134,25 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Enabled: trackFocused,
 	})
 
+	// Hand-written for the same reason the metadata commands are: the palette is
+	// the only trigger. Every global key an Auto-DJ start could plausibly take is
+	// already bound — `A` toggles radio and `ctrl+a` opens the Tune panel — and a
+	// catalog entry must resolve to a bound key, so this one lives here.
+	//
+	// Enabled is the guarantee that matters. With nothing selected and nothing
+	// focused the command is dimmed rather than quietly seeding from the whole
+	// visible list, which is what the export commands do and what a start must
+	// not: "from selection" has to mean the selection or nothing.
+	cmds = append(cmds, palette.PaletteCommand{
+		ID:       "autodj.start.selection",
+		Name:     "Start Auto-DJ from selection…",
+		Category: "mode",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return autoDJStartSelectionMsg{} }
+		},
+		Enabled: m.djCanStartFromSelection,
+	})
+
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "ui.toggle.footer_hints",
 		Name:     "Toggle footer hints",

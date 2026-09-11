@@ -31,6 +31,8 @@ const (
 	tabTune panelTab = iota
 	// tabPreview is the read-only draft batch.
 	tabPreview
+	// tabRecipes is the stored settings snapshots.
+	tabRecipes
 	tabCount
 )
 
@@ -38,6 +40,7 @@ const (
 var tabLabels = [tabCount]string{
 	tabTune:    "Tune",
 	tabPreview: "Preview",
+	tabRecipes: "Recipes",
 }
 
 // PreviewStatus reports what the Preview tab currently holds.

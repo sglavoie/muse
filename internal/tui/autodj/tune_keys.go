@@ -17,6 +17,13 @@ func (p TunePanel) HandleKey(msg tea.KeyPressMsg) (TunePanel, Action) {
 	if p.picker != nil {
 		return p.handlePickerKey(key), actionNone
 	}
+	// The name box is checked before the panel-wide keys, not after. It is a
+	// text field: esc must close it rather than the overlay, tab must not page
+	// away from a half-typed name, and ctrl+s must not commit the draft from
+	// under a gesture the user has not finished making.
+	if p.prompt != nil {
+		return p.handlePromptKey(key)
+	}
 	switch key {
 	case "esc":
 		return p, ActionCancel
@@ -27,8 +34,11 @@ func (p TunePanel) HandleKey(msg tea.KeyPressMsg) (TunePanel, Action) {
 	case "ctrl+s":
 		return p.requestCommit()
 	}
-	if p.tab == tabPreview {
+	switch p.tab {
+	case tabPreview:
 		return p.handlePreviewKey(key)
+	case tabRecipes:
+		return p.handleRecipesKey(key)
 	}
 	if key == "enter" {
 		return p.activateRow()

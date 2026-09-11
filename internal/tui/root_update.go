@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
@@ -469,6 +470,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case configToggleMsg:
 		return m.handleConfigToggleMsg(msg)
+
+	case autoDJStartSelectionMsg:
+		return m.djStartFromSelection(time.Now())
 
 	case randomAlbumMsg:
 		return m.handleRandomAlbumMsg()

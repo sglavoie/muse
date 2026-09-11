@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
+	"github.com/sglavoie/muse/internal/radio"
 )
 
 // playPauser is the subset of the player interface used by the root model for
@@ -218,6 +219,25 @@ type djQueueWriter interface {
 	PrepareDJBatch(entries []db.DJQueueEntry) (db.DJPreparation, error)
 	AcceptDJBatch(prep db.DJPreparation, commit db.DJCommit) (db.DJAcceptance, error)
 	RejectDJBatch(prep db.DJPreparation) error
+}
+
+// djRecipeReader lists the saved Auto-DJ recipes. Implemented by *db.DB; nil in
+// tests and in any build without a database, where the Recipes tab reports that
+// recipes are unavailable rather than showing an empty list.
+type djRecipeReader interface {
+	ReadRecipes() ([]db.DJRecipe, error)
+}
+
+// djRecipeWriter performs the durable half of the Recipes tab. Implemented by
+// *db.Writer.
+//
+// It is deliberately the narrowest set of statements the tab needs, and none of
+// them touches the session row: a recipe is a stored settings snapshot, so no
+// gesture on that tab can change what is playing.
+type djRecipeWriter interface {
+	CreateRecipe(recipe radio.Recipe) (int64, error)
+	UpdateRecipe(recipe radio.Recipe) error
+	DeleteRecipeSoft(id int64) error
 }
 
 // djReplacementWriter is the optional half of djQueueWriter an immediate queue

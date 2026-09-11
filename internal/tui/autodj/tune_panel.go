@@ -41,6 +41,12 @@ type Options struct {
 	// Active reports whether a DJ session is running, which is what decides
 	// whether the commit is an Apply or a Start.
 	Active bool
+	// Recipes is the stored settings snapshots the Recipes tab lists.
+	Recipes []Recipe
+	// RecipesErr is why the stored recipes could not be read at all. The tab
+	// says so rather than showing an empty list, which would read as "you have
+	// saved none" and invite the user to save over storage that still works.
+	RecipesErr error
 }
 
 // Action is what a key press asks the root model to do.
@@ -58,6 +64,10 @@ const (
 	// valid or by computing a new one, and nothing it does may reach the queue,
 	// the playback history, or the discovery allocation.
 	ActionPreview
+	// ActionRecipe asks for the durable recipe change in PendingRecipe. It is
+	// the only recipe gesture the root model hears about: loading a recipe edits
+	// the draft and writes nothing, so the panel performs it itself.
+	ActionRecipe
 )
 
 // Applied is the outcome the root model reports for one commit.
@@ -98,6 +108,19 @@ type TunePanel struct {
 	// being edited.
 	picker *filterPicker
 
+	// recipes is the stored snapshot list, refreshed by every AckRecipe so the
+	// page always shows what storage now holds rather than what it held when the
+	// overlay opened.
+	recipes      []Recipe
+	recipeCursor int
+	// recipeNote is the one-line answer to the last recipe gesture: what was
+	// saved, what was loaded, or why something was refused.
+	recipeNote StatusLine
+	// prompt is the modal name box, open only while a name is being typed.
+	prompt *namePrompt
+	// request is the recipe action handed out with the last ActionRecipe.
+	request RecipeRequest
+
 	// token is the commit in flight, or 0 when idle. It is supplied by the root
 	// model rather than counted here: a panel closed and reopened would restart
 	// its own counter and mistake an older answer for its own.
@@ -110,12 +133,20 @@ type TunePanel struct {
 // New opens a Tune panel on a private copy of the applied settings.
 func New(opts Options) TunePanel {
 	applied := cloneSettings(opts.Applied)
-	return TunePanel{
+	p := TunePanel{
 		applied: applied,
 		draft:   cloneSettings(applied),
 		catalog: opts.Catalog,
 		active:  opts.Active,
+		recipes: append([]Recipe(nil), opts.Recipes...),
 	}
+	if opts.RecipesErr != nil {
+		p.recipeNote = StatusLine{
+			Text: "Saved recipes could not be read: " + opts.RecipesErr.Error(),
+			Tone: ToneError,
+		}
+	}
+	return p
 }
 
 // Draft returns a copy of the edited settings. The copy is deep so a caller
@@ -194,13 +225,25 @@ func (p TunePanel) Ack(res Applied) TunePanel {
 // from an inclusion would widen it further still. The panel names them and
 // offers the repair; it never performs it unasked.
 func (p TunePanel) Unresolved() []int64 {
+	return unresolvedTagIDs(p.knownTagIDs(), p.draft)
+}
+
+// knownTagIDs is the catalog as a membership set.
+func (p TunePanel) knownTagIDs() map[int64]struct{} {
 	known := make(map[int64]struct{}, len(p.catalog.Tags))
 	for _, t := range p.catalog.Tags {
 		known[t.ID] = struct{}{}
 	}
+	return known
+}
+
+// unresolvedTagIDs returns the tag ids s references that known does not hold.
+// It is separate from Unresolved so the Recipes tab can ask the same question
+// of a stored snapshot it has not loaded, and warn before the user loads it.
+func unresolvedTagIDs(known map[int64]struct{}, s radio.Settings) []int64 {
 	seen := make(map[int64]struct{})
 	var missing []int64
-	for _, ids := range [][]int64{p.draft.Include.TagIDs, p.draft.Exclude.TagIDs} {
+	for _, ids := range [][]int64{s.Include.TagIDs, s.Exclude.TagIDs} {
 		for _, id := range ids {
 			if _, ok := known[id]; ok {
 				continue

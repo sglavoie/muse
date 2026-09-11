@@ -42,10 +42,13 @@ type autoDJPanelState struct {
 
 // openAutoDJTunePanel opens the Tune panel on the applied settings.
 func (m Model) openAutoDJTunePanel() (Model, tea.Cmd) {
+	recipes, recipesErr := m.autoDJRecipes()
 	panel := autodj.New(autodj.Options{
-		Applied: m.dj.settings,
-		Catalog: m.autoDJCatalog(),
-		Active:  m.dj.active,
+		Applied:    m.dj.settings,
+		Catalog:    m.autoDJCatalog(),
+		Active:     m.dj.active,
+		Recipes:    recipes,
+		RecipesErr: recipesErr,
 	})
 	m.overlay.autoDJ = &panel
 	return m, nil
@@ -95,6 +98,14 @@ func (m Model) handleAutoDJPanelKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 	case autodj.ActionPreview:
 		m, cmd := m.ensureAutoDJPreview(updated.Draft(), time.Now())
 		return m, cmd, true
+	case autodj.ActionRecipe:
+		// Answered on the spot rather than through a message. The write is a
+		// single local statement, and the panel is holding a name box open
+		// against its outcome — routing it through the update loop would leave
+		// the refusal one frame behind the gesture that earned it.
+		acked := updated.AckRecipe(m.performAutoDJRecipe(updated.PendingRecipe()))
+		m.overlay.autoDJ = &acked
+		return m, nil, true
 	}
 	return m, nil, true
 }

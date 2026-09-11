@@ -377,6 +377,19 @@ func WithDJQueueWriter(w djQueueWriter) Option {
 	return func(m *Model) { m.djQueue = w }
 }
 
+// WithDJRecipeReader sets the reader that lists saved Auto-DJ recipes.
+func WithDJRecipeReader(r djRecipeReader) Option {
+	return func(m *Model) { m.djRecipes = r }
+}
+
+// WithDJRecipeWriter sets the writer that saves, updates, renames, and deletes
+// Auto-DJ recipes. It is kept separate from WithDJWriter because recipes are
+// stored settings and sessions are running state: nothing on the Recipes tab may
+// write the session row.
+func WithDJRecipeWriter(w djRecipeWriter) Option {
+	return func(m *Model) { m.djRecipeWriter = w }
+}
+
 // WithRadioRecentHashes seeds the radio recent-history ring buffer, e.g. from
 // play history at startup so avoidance of just-heard tracks survives a
 // restart. Input is oldest-first; entries beyond RadioRecentCap are dropped

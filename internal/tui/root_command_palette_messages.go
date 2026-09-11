@@ -36,6 +36,14 @@ const (
 // configToggleMsg requests that an audio setting be toggled in the config.
 type configToggleMsg struct{ field configToggleField }
 
+// autoDJStartSelectionMsg starts an Auto-DJ session seeded from the active
+// view's bulk selection, or from the row under the cursor when there is none.
+//
+// It is routed through the update loop like every other palette command so the
+// start happens against the model the command was chosen on rather than the one
+// the palette was opened over.
+type autoDJStartSelectionMsg struct{}
+
 // randomAlbumMsg switches to Albums view and positions the cursor on a
 // randomly chosen album.
 type randomAlbumMsg struct{}

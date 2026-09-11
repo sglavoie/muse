@@ -110,7 +110,7 @@ func previewHint(scrolled bool, commit string) string {
 	if scrolled {
 		scroll = "j/k scrolls · "
 	}
-	return scroll + "tab tune · r replan · ctrl+s " + strings.ToLower(commit) + " · esc cancel"
+	return scroll + "tab recipes · r replan · ctrl+s " + strings.ToLower(commit) + " · esc cancel"
 }
 
 // tabBarTitle renders the overlay title with the active tab marked, and reports

@@ -142,7 +142,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
-| `tui/autodj` | 71 | 0 | 68 | 3 | `tui` |
+| `tui/autodj` | 98 | 0 | 94 | 4 | `tui` |
 | `tui/uitest` | 72 | 0 | 35 | 37 | `main` |
 
 ## Why single-consumer packages stay exported
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**961 exported identifiers across 15 packages**: 153 reached from two or more packages, 750 from exactly one, 58 from none (22 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**988 exported identifiers across 15 packages**: 153 reached from two or more packages, 776 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -1083,6 +1083,7 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `ActionCancel` | const | `internal/tui` | root |
 | `tui/autodj` | `ActionCommit` | const | `internal/tui` | root |
 | `tui/autodj` | `ActionPreview` | const | `internal/tui` | root |
+| `tui/autodj` | `ActionRecipe` | const | `internal/tui` | root |
 | `tui/autodj` | `Applied` | type | `internal/tui` | root |
 | `tui/autodj` | `Applied.Active` | field | `internal/tui` | root |
 | `tui/autodj` | `Applied.Err` | field | `internal/tui` | root |
@@ -1092,6 +1093,7 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `Catalog.Artists` | field | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Genres` | field | `internal/tui` | root |
 | `tui/autodj` | `Catalog.Tags` | field | `internal/tui` | root |
+| `tui/autodj` | `ErrRecipeNameTaken` | var | `internal/tui` | root |
 | `tui/autodj` | `EvidenceGap` | type | `internal/tui` | root |
 | `tui/autodj` | `EvidenceGap.Detail` | field | `internal/tui` | root |
 | `tui/autodj` | `EvidenceGap.Signal` | field | `internal/tui` | root |
@@ -1100,6 +1102,8 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `Options.Active` | field | `internal/tui` | root |
 | `tui/autodj` | `Options.Applied` | field | `internal/tui` | root |
 | `tui/autodj` | `Options.Catalog` | field | `internal/tui` | root |
+| `tui/autodj` | `Options.Recipes` | field | `internal/tui` | root |
+| `tui/autodj` | `Options.RecipesErr` | field | `internal/tui` | root |
 | `tui/autodj` | `Preview` | type | `internal/tui` | root |
 | `tui/autodj` | `Preview.Ahead` | field | `internal/tui` | root |
 | `tui/autodj` | `Preview.AheadMore` | field | `internal/tui` | root |
@@ -1129,6 +1133,26 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `QueuedTrack.Label` | field | `internal/tui` | root |
 | `tui/autodj` | `QueuedTrack.Playing` | field | `internal/tui` | root |
 | `tui/autodj` | `QueuedTrack.Reasons` | field | `internal/tui` | root |
+| `tui/autodj` | `Recipe` | type | `internal/tui` | root |
+| `tui/autodj` | `Recipe.ID` | field | `internal/tui` | root |
+| `tui/autodj` | `Recipe.Invalid` | field | `internal/tui` | root |
+| `tui/autodj` | `Recipe.Name` | field | `internal/tui` | root |
+| `tui/autodj` | `Recipe.Settings` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeDelete` | const | `internal/tui` | root |
+| `tui/autodj` | `RecipeOp` | type | — | api |
+| `tui/autodj` | `RecipeOutcome` | type | `internal/tui` | root |
+| `tui/autodj` | `RecipeOutcome.Err` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeOutcome.Name` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeOutcome.Op` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeOutcome.Recipes` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeRename` | const | `internal/tui` | root |
+| `tui/autodj` | `RecipeRequest` | type | `internal/tui` | root |
+| `tui/autodj` | `RecipeRequest.ID` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeRequest.Name` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeRequest.Op` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeRequest.Settings` | field | `internal/tui` | root |
+| `tui/autodj` | `RecipeSave` | const | `internal/tui` | root |
+| `tui/autodj` | `RecipeUpdate` | const | `internal/tui` | root |
 | `tui/autodj` | `StatusLine` | type | `internal/tui` | root |
 | `tui/autodj` | `StatusLine.Text` | field | `internal/tui` | root |
 | `tui/autodj` | `StatusLine.Tone` | field | `internal/tui` | root |
@@ -1138,6 +1162,7 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `ToneWarn` | const | `internal/tui` | root |
 | `tui/autodj` | `TunePanel` | type | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Ack` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.AckRecipe` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.AppliedSettings` | method | `internal/tui†` | root (tests only) |
 | `tui/autodj` | `TunePanel.Busy` | method | `internal/tui†` | root (tests only) |
 | `tui/autodj` | `TunePanel.CommitLabel` | method | `internal/tui†` | root (tests only) |
@@ -1146,7 +1171,9 @@ export must either earn a justification, be recorded in
 | `tui/autodj` | `TunePanel.Draft` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Err` | method | `internal/tui†` | root (tests only) |
 | `tui/autodj` | `TunePanel.HandleKey` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.PendingRecipe` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.PreviewActive` | method | `internal/tui` | root |
+| `tui/autodj` | `TunePanel.RecipesActive` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Render` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Submit` | method | `internal/tui` | root |
 | `tui/autodj` | `TunePanel.Unresolved` | method | `internal/tui†` | root (tests only) |
