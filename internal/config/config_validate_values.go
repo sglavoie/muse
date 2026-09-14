@@ -215,6 +215,8 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.QueueFollowNowPlaying = *raw.QueueFollowNowPlaying
 	}
 
+	validateTheme(raw, &cfg, &warnings)
+
 	rm := raw.Mixes
 	validateIntRange(rm.RediscoverMinPlays, 1, 1000, "mixes.rediscover_min_plays", defaultMixRediscoverMinPlays, &cfg.Mixes.RediscoverMinPlays, &warnings)
 	validateIntRange(rm.RediscoverAgeDays, 7, 365, "mixes.rediscover_age_days", defaultMixRediscoverAgeDays, &cfg.Mixes.RediscoverAgeDays, &warnings)

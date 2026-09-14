@@ -56,7 +56,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	if o.Tab == tabLibrary {
 		lines = o.renderLibraryTab(lines, contentWidth, s)
 	} else {
-		lines = o.renderFieldsTab(lines, contentWidth, s)
+		lines = o.renderFieldsTab(lines, contentWidth, termHeight, s)
 	}
 
 	// Bottom border.
@@ -70,6 +70,8 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		} else {
 			hint = "a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
 		}
+	case TabDisplay:
+		hint = o.displayHint()
 	case TabEqualizer:
 		hint = "s save · d delete · [/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel"
 	default:
@@ -140,16 +142,21 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s s
 	return lines
 }
 
-func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth int, s styles.Styles) []string {
+func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth, termHeight int, s styles.Styles) []string {
 	maxLabelW := 0
 	for _, f := range o.Fields[o.Tab] {
 		maxLabelW = max(maxLabelW, len(f.label))
 	}
-	for i, f := range o.Fields[o.Tab] {
+	start, end := o.visibleFieldRange(termHeight)
+	for i := start; i < end; i++ {
+		f := o.Fields[o.Tab][i]
 		lines = append(lines, o.renderFieldRow(f, i == o.cursor, maxLabelW, contentWidth, s))
 		if o.Tab == TabEqualizer && i == 1 {
 			lines = o.renderEQStateRow(lines, contentWidth, f)
 		}
+	}
+	if o.Tab == TabDisplay {
+		lines = o.renderPrimaryEditor(lines, contentWidth, s)
 	}
 	return lines
 }
@@ -172,24 +179,39 @@ func (o SettingsOverlay) renderFieldRow(f Field, focused bool, maxLabelW, conten
 // fieldSpinner renders the "< value >" control for a field, formatting the
 // value according to the field's declared unit.
 func (o SettingsOverlay) fieldSpinner(f Field) string {
-	switch {
-	case f.min == 0 && f.max == 1 && f.unit == "":
-		label := "Off"
-		if f.Value != 0 {
-			label = "On"
+	switch f.unit {
+	case "theme":
+		return fmt.Sprintf("< %s >", themeLabels[f.Value])
+	case "color":
+		if o.primaryColor == "" {
+			return "Preset default [enter]"
 		}
-		return fmt.Sprintf("< %s >", label)
-	case f.unit == "preset":
-		name := eqCustomSentinelName
-		if f.Value >= 0 && f.Value < len(o.EQPresets) {
-			name = o.EQPresets[f.Value].Name
-		}
-		return fmt.Sprintf("< %s >", name)
-	case f.unit == "tenth":
+		return o.primaryColor + " [enter]"
+	case "preset":
+		return o.presetSpinner(f.Value)
+	case "tenth":
 		return fmt.Sprintf("< %.1fx >", float64(f.Value)/10.0)
-	default:
-		return fmt.Sprintf("< %d%s >", f.Value, f.unit)
+	case "":
+		if f.min == 0 && f.max == 1 {
+			return boolSpinner(f.Value != 0)
+		}
 	}
+	return fmt.Sprintf("< %d%s >", f.Value, f.unit)
+}
+
+func boolSpinner(enabled bool) string {
+	if enabled {
+		return "< On >"
+	}
+	return "< Off >"
+}
+
+func (o SettingsOverlay) presetSpinner(index int) string {
+	name := eqCustomSentinelName
+	if index >= 0 && index < len(o.EQPresets) {
+		name = o.EQPresets[index].Name
+	}
+	return fmt.Sprintf("< %s >", name)
 }
 
 func (o SettingsOverlay) renderEQStateRow(lines []string, contentWidth int, presetField Field) []string {

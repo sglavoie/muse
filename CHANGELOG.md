@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **Toggle theme** command in the command palette switches Dark and Light,
+  saving the choice while preserving the custom primary color.
+
+- Selectable Light and Dark themes in Display settings, with automatic terminal
+  detection, a customizable primary color, live preview, and saved preferences.
+  Both palettes now paint the full app canvas, improve text contrast, and derive
+  focus and selection highlights from the primary color.
+
 - A steerable Auto-DJ. Radio mode is now a session you can tune while it plays,
   through a panel on `ctrl+a`:
   - **Tune** — a preset (Familiar 20%, Balanced 40%, Explore 80%, Custom for
@@ -83,6 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The macOS notification group identifier is now `muse.now-playing`.
 
 ### Fixed
+
+- Theme canvas colors now survive nested text-style resets in settings and
+  primary views, preventing dark terminal backgrounds from leaking into Light.
 
 - A music directory that has been unmounted, renamed, or deleted no longer
   causes every track under it to be marked missing. The scan skips the

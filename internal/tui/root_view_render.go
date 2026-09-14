@@ -16,7 +16,7 @@ import (
 // View renders the active panel and a status bar, returning a tea.View.
 func (m Model) View() tea.View {
 	if m.terminalTooSmall() {
-		v := tea.NewView(m.renderTerminalTooSmall())
+		v := tea.NewView(m.styles.RenderScreen(m.renderTerminalTooSmall(), m.termWidth, m.termHeight))
 		v.AltScreen = true
 		return v
 	}
@@ -54,7 +54,7 @@ func (m Model) View() tea.View {
 		content = body + "\n" + footerHint + "\n" + statusBar
 	}
 
-	v := tea.NewView(content)
+	v := tea.NewView(m.styles.RenderScreen(content, m.termWidth, m.termHeight))
 	v.AltScreen = true
 	return v
 }

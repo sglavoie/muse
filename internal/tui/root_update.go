@@ -16,7 +16,6 @@ import (
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
-	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -43,8 +42,8 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleWindowSizeMsg(msg)
 
 	case tea.BackgroundColorMsg:
-		s := styles.NewStyles(msg.IsDark())
-		m.styles = &s
+		m.terminalHasDark = msg.IsDark()
+		m = m.applyTheme()
 
 	case library.ScanProgressMsg:
 		m = m.handleScanProgressMsg(msg)
@@ -486,6 +485,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case jumpToNowPlayingMsg:
 		return m.handleJumpToNowPlayingMsg()
+
+	case toggleThemeMsg:
+		return m.handleToggleThemeMsg()
 
 	case toggleFooterHintsMsg:
 		return m.handleToggleFooterHintsMsg()

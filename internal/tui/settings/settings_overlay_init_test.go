@@ -44,8 +44,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 
 	disp := o.Fields[TabDisplay]
-	if len(disp) != 3 {
-		t.Fatalf("expected 3 display fields, got %d", len(disp))
+	if len(disp) != 5 {
+		t.Fatalf("expected 5 display fields, got %d", len(disp))
 	}
 	if disp[0].Value != cfg.TransientDurationSecs {
 		t.Errorf("TransientDurationSecs: expected %d, got %d", cfg.TransientDurationSecs, disp[0].Value)

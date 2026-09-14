@@ -135,7 +135,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 96 | 29 | 66 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags` |
 | `tui/statusbar` | 50 | 1 | 48 | 1 | `tui`, `queue`, `uitest` |
-| `tui/settings` | 31 | 2 | 27 | 2 | `tui`, `uitest` |
+| `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 48 | 0 | 46 | 2 | `tui` |
 | `tui/queue` | 76 | 16 | 59 | 1 | `tui`, `internal/app` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**991 exported identifiers across 15 packages**: 153 reached from two or more packages, 779 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**994 exported identifiers across 15 packages**: 153 reached from two or more packages, 782 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -683,6 +683,7 @@ export must either earn a justification, be recorded in
 | `tui/settings` | `ActionEQSave` | const | `internal/tui` | root |
 | `tui/settings` | `ActionSave` | const | `internal/tui` | root |
 | `tui/settings` | `ActionStereoLive` | const | `internal/tui` | root |
+| `tui/settings` | `ActionThemeLive` | const | `internal/tui` | root |
 | `tui/settings` | `Field` | type | `internal/tui` | root |
 | `tui/settings` | `Field.Value` | field | `internal/tui†` | root (tests only) |
 | `tui/settings` | `NewSettingsInput` | func | `internal/tui†` | root (tests only) |
@@ -699,9 +700,11 @@ export must either earn a justification, be recorded in
 | `tui/settings` | `SettingsOverlay.HandleKey` | method | `internal/tui` | root |
 | `tui/settings` | `SettingsOverlay.LibDirInput` | field | `internal/tui` | root |
 | `tui/settings` | `SettingsOverlay.LibraryDirs` | field | `internal/tui` | root |
+| `tui/settings` | `SettingsOverlay.PrimaryInput` | field | `internal/tui` | root |
 | `tui/settings` | `SettingsOverlay.Render` | method | `internal/tui`, `tui/uitest†` | multi |
 | `tui/settings` | `SettingsOverlay.StereoWideState` | method | `internal/tui` | root |
 | `tui/settings` | `SettingsOverlay.Tab` | field | `internal/tui†` | root (tests only) |
+| `tui/settings` | `SettingsOverlay.ThemeState` | method | `internal/tui` | root |
 | `tui/settings` | `SettingsOverlay.ToConfig` | method | `internal/tui` | root |
 | `tui/settings` | `Tab` | type | — | api |
 | `tui/settings` | `TabDisplay` | const | `internal/tui†` | root (tests only) |

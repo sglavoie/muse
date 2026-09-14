@@ -30,6 +30,7 @@ func safeDirectCommandIDs() map[string]struct{} {
 		"nav.browse.albums":      {},
 		"nav.browse.genres":      {},
 		"ui.toggle.footer_hints": {},
+		"ui.toggle.theme":        {},
 		"ui.toggle.track_notify": {},
 		"queue.toggle.follow":    {},
 	}

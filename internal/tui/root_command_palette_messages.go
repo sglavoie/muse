@@ -78,3 +78,6 @@ type toggleTrackNotifyMsg struct{}
 // toggleQueueFollowMsg flips the runtime state of Queue auto-scroll
 // (follow now-playing) and persists the new value to the config.
 type toggleQueueFollowMsg struct{}
+
+// toggleThemeMsg switches between the light and dark presets.
+type toggleThemeMsg struct{}

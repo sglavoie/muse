@@ -251,8 +251,32 @@ Everything else has a working default. See [`config.example.toml`](config.exampl
 for the full annotated set of options — excluded scan paths, default volume,
 log level, mpv socket path and extra flags, seek and volume increments,
 gapless audio, EQ presets and bands, stereo widening, volume normalization,
-footer hints, track-change notifications, and the recommendation-mix
-thresholds.
+theme and primary color, footer hints, track-change notifications, and the
+recommendation-mix thresholds.
+
+Open **Settings** (`ctrl+,`) and choose **Display** (`[` from Library) to
+change the theme. Use `h`/`l` or the arrow keys on **Theme** to select **Auto**,
+**Dark**, or **Light**. Auto follows the terminal background and is the default.
+Both presets paint the full application canvas and provide contrasting text,
+row highlights, and status colors.
+
+On **Primary color**, press `Enter` to enter a `#RGB` or `#RRGGBB` color.
+Headings, active tabs, focus highlights, and progress use this color; text
+accents adjust for readable contrast. The override applies to either preset.
+Press `r` on that row, or submit an empty value, to restore the preset default
+(blue: `#8ab4ff` for Dark, `#315fbe` for Light). Changes preview immediately;
+`ctrl+s` saves and `Esc` cancels. While editing a color, `Esc` discards that
+text edit first. For a quick switch, open the command palette (`:`), search for
+**Toggle theme**, and press `Enter`. It switches between Dark and Light, saves
+the choice, and keeps your primary color. From Auto, it switches to the opposite
+of the currently displayed theme.
+
+The same options are available in `config.toml`:
+
+```toml
+theme = "light" # auto, dark, or light
+primary_color = "#7c3aed" # empty uses the preset default
+```
 
 Until `music_directories` points at something readable, muse still starts — it
 opens on an empty library with an overlay telling you which file to edit.

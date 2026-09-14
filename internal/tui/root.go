@@ -384,10 +384,10 @@ type Model struct {
 	// (e.g. preview player). Set via WithRuntimeDir before tea.NewProgram.
 	runtimeDir string
 
-	// styles holds the current lipgloss style set. Initialized to dark-safe
-	// defaults in New(); replaced on tea.BackgroundColorMsg once the terminal
-	// reports its actual background color.
-	styles *styles.Styles
+	// styles holds the active preset; terminalHasDark retains automatic detection
+	// independently of previews and explicit theme choices.
+	styles          *styles.Styles
+	terminalHasDark bool
 
 	// paletteUsage tracks command palette usage counts for MRU ranking.
 	// May be nil when persistence is disabled (e.g. headless tests).
@@ -433,6 +433,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		playback:        playbackInfo{currentIndex: -1, requests: &playRequestGate{}},
 		registry:        keys.NewRegistry(),
 		styles:          &initialStyles,
+		terminalHasDark: true,
 		insightsPending: &insightsPendingWrites{},
 		metadataWrites:  metadata.NewWriteQueue(),
 		// Stock DJ settings before anything is restored. The zero
@@ -444,6 +445,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&m)
 	}
+	m = m.applyTheme()
 	// Initialize the palette usage store from the resolved data directory.
 	// Load errors are swallowed (best-effort persistence).
 	m.paletteUsage = palette.NewUsageStore(m.dataDir)

@@ -21,6 +21,7 @@ func defaults() Config {
 		slog.Warn("failed to expand ~ in default music directory", "err", err)
 	}
 	return Config{
+		Theme:                      "auto",
 		MusicDirectories:           []string{musicDir},
 		ExcludedPaths:              nil,
 		MusicDirectory:             musicDir,

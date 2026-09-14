@@ -9,9 +9,14 @@ import (
 )
 
 // ForwardMsg routes a generic tea.Msg to whichever text input is currently
-// active (excluded-path, library-dir, or EQ-name). Returns false if no input
+// active (primary-color, excluded-path, library-dir, or EQ-name). Returns false if no input
 // is active. This enables paste and other multi-step textinput commands.
 func (o SettingsOverlay) ForwardMsg(msg tea.Msg) (SettingsOverlay, tea.Cmd, bool) {
+	if o.PrimaryInput != nil {
+		updated, cmd := o.PrimaryInput.Update(msg)
+		o.PrimaryInput = &updated
+		return o, cmd, true
+	}
 	if o.ExclPathInput != nil {
 		updated, cmd := o.ExclPathInput.Update(msg)
 		o.ExclPathInput = &updated
@@ -46,6 +51,8 @@ var settingsNavKeys = map[string]settingsKeyFunc{
 	"left":   func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(-1) },
 	"l":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(1) },
 	"right":  func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(1) },
+	"enter":  SettingsOverlay.beginPrimaryEdit,
+	"r":      SettingsOverlay.resetPrimary,
 	"a":      SettingsOverlay.beginAdd,
 	"s":      SettingsOverlay.beginSavePreset,
 	"d":      SettingsOverlay.beginDelete,
@@ -57,6 +64,9 @@ var settingsNavKeys = map[string]settingsKeyFunc{
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
 func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, Action, tea.Cmd) {
+	if o.PrimaryInput != nil {
+		return o.handlePrimaryInput(msg)
+	}
 	if modal, ok := o.modalKeyHandler(); ok {
 		return modal(msg)
 	}
@@ -342,24 +352,31 @@ func (o SettingsOverlay) adjustField(sign int) (SettingsOverlay, Action, tea.Cmd
 	if o.Tab == tabLibrary || len(o.Fields[o.Tab]) == 0 {
 		return o, actionNone, nil
 	}
+	if o.Tab == TabDisplay && o.cursor == displayPrimary {
+		return o.beginPrimaryEdit()
+	}
 	f := &o.Fields[o.Tab][o.cursor]
 	prev := f.Value
-	f.Value += sign * f.step
-	if f.Value < f.min {
-		f.Value = f.min
-	}
-	if f.Value > f.max {
-		f.Value = f.max
-	}
+	f.Value = max(f.min, min(f.max, f.Value+sign*f.step))
 	if f.Value == prev {
 		return o, actionNone, nil
 	}
 	o.dirty = true
-	if o.Tab == TabEqualizer {
-		return o, o.applyEQFieldChange(), nil
+	return o, o.fieldChangeAction(), nil
+}
+
+func (o *SettingsOverlay) fieldChangeAction() Action {
+	switch o.Tab {
+	case TabDisplay:
+		if o.cursor == displayTheme {
+			return ActionThemeLive
+		}
+	case TabEqualizer:
+		return o.applyEQFieldChange()
+	case TabPlayback:
+		if o.cursor == 6 || o.cursor == 7 {
+			return ActionStereoLive
+		}
 	}
-	if o.Tab == TabPlayback && (o.cursor == 6 || o.cursor == 7) {
-		return o, ActionStereoLive, nil
-	}
-	return o, actionNone, nil
+	return actionNone
 }

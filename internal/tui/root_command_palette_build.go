@@ -154,6 +154,15 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	})
 
 	cmds = append(cmds, palette.PaletteCommand{
+		ID:       "ui.toggle.theme",
+		Name:     "Toggle theme",
+		Category: "mode",
+		Exec: func() tea.Cmd {
+			return func() tea.Msg { return toggleThemeMsg{} }
+		},
+	})
+
+	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "ui.toggle.footer_hints",
 		Name:     "Toggle footer hints",
 		Category: "mode",

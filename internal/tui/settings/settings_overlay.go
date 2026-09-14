@@ -62,6 +62,7 @@ const (
 	ActionEQSave            // custom preset saved
 	ActionEQDelete          // custom preset deleted
 	ActionStereoLive        // live stereo wide preview on toggle/amount change
+	ActionThemeLive         // live theme preview
 )
 
 // SettingsOverlay is a centered overlay for editing runtime-tunable config values.
@@ -73,6 +74,9 @@ type SettingsOverlay struct {
 	EQNameInput  *textinput.Model // non-nil when prompting for preset name
 	EQConfirmDel bool             // true when showing delete confirmation
 	dirty        bool
+	primaryColor string
+	PrimaryInput *textinput.Model
+	primaryError string
 
 	// Library tab state.
 	libSubView     librarySubView
@@ -141,11 +145,8 @@ func NewSettingsOverlay(cfg config.Config, currentVolume int, musicDirs []string
 		{label: "16 kHz", Value: cfg.EQBands[9], defaultValue: 0, min: -12, max: 12, step: 1, unit: "dB"},
 	}
 
-	o.Fields[TabDisplay] = []Field{
-		{label: "Notification", Value: cfg.TransientDurationSecs, defaultValue: 5, min: 1, max: 30, step: 1, unit: "s"},
-		{label: "Vol feedback", Value: cfg.VolumeFeedbackDurationSecs, defaultValue: 2, min: 1, max: 10, step: 1, unit: "s"},
-		{label: "Track notify", Value: boolToInt(cfg.NotifyOnTrackChange), defaultValue: 0, min: 0, max: 1, step: 1, unit: ""},
-	}
+	o.initDisplay(cfg)
+
 	return o
 }
 
@@ -217,5 +218,6 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.TransientDurationSecs = disp[0].Value
 	cfg.VolumeFeedbackDurationSecs = disp[1].Value
 	cfg.NotifyOnTrackChange = disp[2].Value != 0
+	cfg.Theme, cfg.PrimaryColor = o.ThemeState()
 	return cfg
 }

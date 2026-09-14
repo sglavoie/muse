@@ -18,6 +18,7 @@ var gatedScenarios = []string{
 	"baseline-layout.json",
 	"all-primary-views.json",
 	"overlays.json",
+	"themes.json",
 	"command-palette-search.json",
 	"layout-regressions-rich.json",
 	"layout-regressions-empty.json",

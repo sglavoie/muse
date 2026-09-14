@@ -56,6 +56,12 @@ log_level = %q
 # stereo_wide_enabled = false
 # stereo_wide_amount = 10
 
+# Theme preset: auto (follow terminal), dark, or light.
+# theme = "auto"
+
+# Primary color override (#RGB or #RRGGBB); empty uses the preset default.
+# primary_color = ""
+
 # Show the context-aware footer hint strip above the status bar (true/false).
 # show_footer_hints = true
 
@@ -158,6 +164,8 @@ type rawMixesConfig struct {
 
 // Config holds all application configuration values.
 type Config struct {
+	Theme                      string           `toml:"theme"`
+	PrimaryColor               string           `toml:"primary_color"`
 	MusicDirectories           []string         `toml:"music_directories"`
 	ExcludedPaths              []string         `toml:"excluded_paths"`
 	MusicDirectory             string           `toml:"-"` // legacy compat; always equals MusicDirectories[0]
@@ -194,6 +202,8 @@ type LoadResult struct {
 // rawConfig mirrors Config but uses pointer types for optional numeric fields
 // so that omitted TOML keys can be distinguished from explicit zero values.
 type rawConfig struct {
+	Theme                      string              `toml:"theme"`
+	PrimaryColor               string              `toml:"primary_color"`
 	MusicDirectories           []string            `toml:"music_directories"`
 	ExcludedPaths              []string            `toml:"excluded_paths"`
 	MusicDirectory             string              `toml:"music_directory"` // legacy single-dir field

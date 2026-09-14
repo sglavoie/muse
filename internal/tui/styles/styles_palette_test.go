@@ -66,8 +66,8 @@ func TestEmptyHintUsesExplicitDimForeground(t *testing.T) {
 		hasDark bool
 		want    string
 	}{
-		{"dark", true, "#7882a4"},
-		{"light", false, "#7a7f8c"},
+		{"dark", true, "#9aa6bd"},
+		{"light", false, "#566177"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -86,8 +86,8 @@ func TestProgressEmptyUsesExplicitDimForeground(t *testing.T) {
 		hasDark bool
 		want    string
 	}{
-		{"dark", true, "#7882a4"},
-		{"light", false, "#7a7f8c"},
+		{"dark", true, "#9aa6bd"},
+		{"light", false, "#566177"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -120,26 +120,19 @@ func TestProgressEmptyUsesExplicitTrackBackground(t *testing.T) {
 	}
 }
 
-// TestStripForegroundContrastDark asserts that each of the four foregrounds
-// the state strip and footer hints rely on (TextPrimary, TextSecondary,
-// TextTertiary, Dim) clears WCAG AA (4.5:1) against the dark terminal
-// background (#16161e). This prevents silent palette regressions.
-func TestStripForegroundContrastDark(t *testing.T) {
-	bg := parseHex(t, "#16161e")
-	cases := []struct {
-		name string
-		fg   string
-	}{
-		{"TextPrimary", "#c0caf5"},
-		{"TextSecondary", "#a9b1d6"},
-		{"TextTertiary", "#8a93bd"},
-		{"Dim", "#7882a4"},
-	}
-	for _, c := range cases {
-		fg := parseHex(t, c.fg)
-		ratio := contrastRatio(fg, bg)
-		if ratio < 4.5 {
-			t.Errorf("%s (%s on #16161e): contrast %.2f:1 < 4.5:1 (WCAG AA)", c.name, c.fg, ratio)
+// Check the actual styles on every ordinary row surface in both presets.
+func TestPresetTextContrast(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		s := styles.NewStyles(dark)
+		for name, fg := range map[string]color.Color{
+			"primary": s.TextPrimary.GetForeground(), "secondary": s.TextSecondary.GetForeground(),
+			"tertiary": s.TextTertiary.GetForeground(), "dim": s.Dim.GetForeground(),
+		} {
+			for _, bg := range []color.Color{s.Background, s.ZebraBg, s.SelectionBg, s.Accent.GetBackground()} {
+				if ratio := contrastRatio(colorRGBA(t, fg), colorRGBA(t, bg)); ratio < 4.5 {
+					t.Errorf("dark=%v %s contrast %.2f < 4.5", dark, name, ratio)
+				}
+			}
 		}
 	}
 }

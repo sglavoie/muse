@@ -52,6 +52,12 @@ log_level = "info"
 # stereo_wide_enabled = false
 # stereo_wide_amount = 10
 
+# Theme preset: auto (follow terminal), dark, or light.
+# theme = "auto"
+
+# Primary color override (#RGB or #RRGGBB); empty uses the preset default.
+# primary_color = ""
+
 # Show the context-aware footer hint strip above the status bar (true/false).
 # show_footer_hints = true
 

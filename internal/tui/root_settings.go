@@ -50,6 +50,10 @@ func cloneSettingsOverlay(o settings.SettingsOverlay) settings.SettingsOverlay {
 		input := *o.EQNameInput
 		clone.EQNameInput = &input
 	}
+	if o.PrimaryInput != nil {
+		input := *o.PrimaryInput
+		clone.PrimaryInput = &input
+	}
 	return clone
 }
 
@@ -192,10 +196,13 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 			return m, cmd, true
 		}
 		m.overlay.settings = nil
+		m = m.applyTheme()
 		return m, cmd, true
 	case settings.ActionSave:
 		saved, saveCmd := m.handleSettingsSave()
 		return saved, tea.Batch(cmd, saveCmd), true
+	case settings.ActionThemeLive:
+		return m.applyTheme(), cmd, true
 	case settings.ActionEQLive:
 		prevEnabled, prevBands := previous.EQState()
 		nextEnabled, nextBands := updated.EQState()
@@ -277,6 +284,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	// otherwise the saved setting would not take effect until the next launch.
 	m.notifyOnTrackChange = cfg.NotifyOnTrackChange
 	m.overlay.settings = nil
+	m = m.applyTheme()
 
 	var saveCmd tea.Cmd
 	if m.configPath == "" {
