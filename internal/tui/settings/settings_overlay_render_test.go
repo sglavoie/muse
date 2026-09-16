@@ -65,6 +65,21 @@ func TestSettingsRenderContainsHint(t *testing.T) {
 	}
 }
 
+// TestSettingsRenderAnchorsToTop pins the vertical placement: every tab starts
+// on the first line, so switching between tabs of different heights (Library
+// has two rows, Equalizer a dozen) changes only how far down the box reaches.
+func TestSettingsRenderAnchorsToTop(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	s := styles.NewStyles(true)
+	for _, tab := range []Tab{tabLibrary, TabPlayback, TabEqualizer, TabDisplay} {
+		o.Tab = tab
+		first := ansi.Strip(strings.Split(o.Render(80, 40, s), "\n")[0])
+		if !strings.HasPrefix(strings.TrimLeft(first, " "), overlay.CornerTL) {
+			t.Errorf("tab %d: first rendered line = %q, want the top border", tab, first)
+		}
+	}
+}
+
 func TestSettingsRenderDisplayTab(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
 	o.Tab = TabDisplay

@@ -233,6 +233,57 @@ func TestCommandPaletteRenderContainsCommands(t *testing.T) {
 	}
 }
 
+// boxWidth is the display width of the palette's top border, i.e. the width of
+// the whole box.
+func boxWidth(t *testing.T, out string) int {
+	t.Helper()
+	for _, line := range strings.Split(out, "\n") {
+		plain := strings.TrimLeft(ansi.Strip(line), " ")
+		if strings.HasPrefix(plain, cpCornerTL) {
+			return ansi.StringWidth(plain)
+		}
+	}
+	t.Fatalf("no top border in render:\n%s", out)
+	return 0
+}
+
+// TestCommandPaletteRenderWidthIsStableAcrossFilters pins the width to the full
+// command list: narrowing the results to one short name must not shrink the box
+// out from under the user as they type.
+func TestCommandPaletteRenderWidthIsStableAcrossFilters(t *testing.T) {
+	s := styles.NewStyles(true)
+	cp, _ := NewCommandPalette([]PaletteCommand{
+		{Name: "A really quite long command name", Category: "library", Shortcut: "ctrl+shift+x"},
+		{Name: "Tiny"},
+	}, nil)
+	want := boxWidth(t, cp.Render(120, 24, s))
+
+	for _, query := range []string{"tiny", "zzz"} {
+		cp.Filter.Text = query
+		cp.Refilter()
+		if got := boxWidth(t, cp.Render(120, 24, s)); got != want {
+			t.Errorf("box width with filter %q = %d, want %d (unfiltered width)", query, got, want)
+		}
+	}
+}
+
+// TestCommandPaletteRenderAnchorsToTop pins the vertical placement: the box
+// starts on the first line so a shrinking result list only changes its height,
+// never its position.
+func TestCommandPaletteRenderAnchorsToTop(t *testing.T) {
+	s := styles.NewStyles(true)
+	cp, _ := NewCommandPalette(testCommands(), nil)
+
+	for _, query := range []string{"", "alpha"} {
+		cp.Filter.Text = query
+		cp.Refilter()
+		first := ansi.Strip(strings.Split(cp.Render(80, 40, s), "\n")[0])
+		if !strings.HasPrefix(strings.TrimLeft(first, " "), cpCornerTL) {
+			t.Errorf("first rendered line with filter %q = %q, want the top border", query, first)
+		}
+	}
+}
+
 func TestCommandPaletteRenderNoMatches(t *testing.T) {
 	cp, _ := NewCommandPalette(testCommands(), nil)
 	cp.Filter.Text = "zzz"

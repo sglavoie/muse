@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -206,31 +207,11 @@ const (
 	cpCrossDoubleR  = "╡"
 )
 
-// Render produces a centered overlay string for the palette.
+// Render produces a horizontally centered, top-anchored overlay string for the
+// palette. Only the height varies as the filter narrows the result list; the
+// box keeps its width and its position at the top of the screen.
 func (cp CommandPalette) Render(termWidth, termHeight int, s styles.Styles) string {
-	boxLines := cp.buildBoxLines(termWidth, termHeight, s)
-
-	boxW := ansi.StringWidth(boxLines[0])
-	boxH := len(boxLines)
-
-	leftPad := 0
-	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
-	}
-	topPad := 0
-	if termHeight > boxH {
-		topPad = (termHeight - boxH) / 2
-	}
-
-	prefix := strings.Repeat(" ", leftPad)
-	var b strings.Builder
-	for range topPad {
-		b.WriteByte('\n')
-	}
-	for _, line := range boxLines {
-		b.WriteString(prefix + line + "\n")
-	}
-	return b.String()
+	return overlay.RenderTopLines(cp.buildBoxLines(termWidth, termHeight, s), "", termWidth)
 }
 
 const (
@@ -275,11 +256,13 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	return lines
 }
 
-// boxMetrics sizes the box from the title and the filtered commands' names,
-// shortcuts and category tags, then clamps it to the terminal width.
+// boxMetrics sizes the box from the title and every command's name, shortcut
+// and category tag, then clamps it to the terminal width. The full command list
+// — not the filtered one — fixes the columns so the box keeps one width (and
+// one set of column positions) as the user types.
 func (cp CommandPalette) boxMetrics(termWidth int) cpBoxMetrics {
 	var m cpBoxMetrics
-	for _, c := range cp.Filtered {
+	for _, c := range cp.all {
 		m.maxShortcutWidth = max(m.maxShortcutWidth, ansi.StringWidth(c.Shortcut))
 		m.maxCategoryWidth = max(m.maxCategoryWidth, ansi.StringWidth(c.Category))
 	}
@@ -296,7 +279,7 @@ func (cp CommandPalette) boxMetrics(termWidth int) cpBoxMetrics {
 	// the wrap, plus 1 each side built into buildRowContent's leading and
 	// trailing spaces) so rows sit two cells away from the vertical borders.
 	inner := max(cpMinInner, ansi.StringWidth(cpModalTitle)+4)
-	for _, c := range cp.Filtered {
+	for _, c := range cp.all {
 		inner = max(inner, ansi.StringWidth(c.Name)+6+shortcutExtra+categoryExtra)
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && inner > maxInner {

@@ -73,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The command palette and Settings hold still. The palette keeps the width of
+  the full command list instead of shrinking around whatever the filter leaves,
+  and both overlays are anchored to the top of the screen rather than centered,
+  so typing a query or switching tabs changes only how far down the box reaches.
 - Radio refills are planned off the update loop. Picking the next batch used to
   score the library inline, which froze the interface on a large collection for
   as long as it took — including the keypress that turns radio off. Planning now

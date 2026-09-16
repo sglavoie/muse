@@ -11,7 +11,9 @@ import (
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
-// Render produces a vertically and horizontally centered settings box.
+// Render produces a horizontally centered, top-anchored settings box. The box
+// keeps a fixed width so switching tabs only changes its height, and it grows
+// downward from the top rather than re-centering on every tab.
 func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
 	contentWidth := boxInner - overlay.HPadding
@@ -78,7 +80,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		hint = "[/] tabs · j/k fields · h/l adjust · ctrl+s save · esc cancel"
 	}
 
-	return overlay.RenderCenteredLines(lines, hint, termWidth, termHeight)
+	return overlay.RenderTopLines(lines, hint, termWidth)
 }
 
 func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth int, s styles.Styles) []string {

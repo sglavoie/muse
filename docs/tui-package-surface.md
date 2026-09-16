@@ -74,28 +74,29 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 
 <!-- BEGIN GENERATED: package layers -->
 
-**33 packages, 135 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
+**33 packages, 136 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
 
 | Level | Packages |
 |---:|---|
 | L7 | `main` |
 | L6 | `internal/app`, `tui/uitest` |
 | L5 | `internal/tui` |
-| L4 | `tui/browse`, `tui/favorites`, `tui/metadata`, `tui/queue`, `tui/settings`, `tui/smartrules`, `tui/tags` |
+| L4 | `tui/browse`, `tui/favorites`, `tui/metadata`, `tui/palette`, `tui/queue`, `tui/settings`, `tui/smartrules`, `tui/tags` |
 | L3 | `tui/albums`, `tui/genres`, `tui/insights`, `tui/mixes`, `tui/overlay`, `tui/playlists`, `tui/statusbar` |
 | L2 | `tui/artists`, `tui/library`, `tui/playback` |
-| L1 | `tui/autodj`, `tui/chart`, `tui/keys`, `tui/palette`, `tui/sorting`, `tui/strip` |
+| L1 | `tui/autodj`, `tui/chart`, `tui/keys`, `tui/sorting`, `tui/strip` |
 | L0 | `internal/desktop`, `tui/buckets`, `tui/filter`, `tui/layout`, `tui/styles`, `tui/text` |
 
 | Package | Level | Direct imports within the graph |
 |---|---:|---|
 | `main` | L7 | `internal/app` (L6), `tui/uitest` (L6), `internal/tui` (L5), `tui/playback` (L2) |
 | `internal/app` | L6 | `internal/tui` (L5), `tui/queue` (L4), `tui/playback` (L2) |
-| `tui/uitest` | L6 | `internal/tui` (L5), `tui/palette` (L1) |
-| `internal/tui` | L5 | `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/autodj` (L1), `tui/keys` (L1), `tui/palette` (L1), `tui/sorting` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/uitest` | L6 | `internal/tui` (L5), `tui/palette` (L4) |
+| `internal/tui` | L5 | `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/palette` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/autodj` (L1), `tui/keys` (L1), `tui/sorting` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/browse` | L4 | `tui/albums` (L3), `tui/genres` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/styles` (L0) |
 | `tui/favorites` | L4 | `tui/overlay` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/metadata` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/palette` | L4 | `tui/overlay` (L3), `tui/filter` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/queue` | L4 | `tui/playlists` (L3), `tui/statusbar` (L3), `tui/playback` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/settings` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/smartrules` | L4 | `tui/overlay` (L3), `tui/styles` (L0) |
@@ -113,7 +114,6 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/autodj` | L1 | `tui/styles` (L0), `tui/text` (L0) |
 | `tui/chart` | L1 | `tui/styles` (L0) |
 | `tui/keys` | L1 | `tui/styles` (L0) |
-| `tui/palette` | L1 | `tui/filter` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/sorting` | L1 | `tui/buckets` (L0) |
 | `tui/strip` | L1 | `tui/styles` (L0) |
 | `internal/desktop` | L0 | — |
@@ -133,7 +133,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 152 | 41 | 109 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 96 | 29 | 66 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags` |
+| `tui/overlay` | 97 | 29 | 67 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 50 | 1 | 48 | 1 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**994 exported identifiers across 15 packages**: 153 reached from two or more packages, 782 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**995 exported identifiers across 15 packages**: 153 reached from two or more packages, 783 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -607,7 +607,8 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `QueueSummaryOverlay.Sources` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.TotalMs` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.Tracks` | field | `internal/tui` | root |
-| `tui/overlay` | `RenderCenteredLines` | func | `tui/settings`, `tui/tags` | multi |
+| `tui/overlay` | `RenderCenteredLines` | func | `tui/tags` | peer |
+| `tui/overlay` | `RenderTopLines` | func | `tui/palette`, `tui/settings` | multi |
 | `tui/overlay` | `Row` | type | `internal/tui`, `tui/favorites`, `tui/metadata`, `tui/smartrules` | multi |
 | `tui/overlay` | `Row.Blank` | field | `internal/tui`, `tui/metadata`, `tui/smartrules` | multi |
 | `tui/overlay` | `Row.Label` | field | `tui/smartrules` | peer |

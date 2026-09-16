@@ -161,24 +161,42 @@ func boxRowBody(r Row, maxLabelW, contentWidth int) string {
 	return text.Pad(text.Truncate(row, contentWidth), contentWidth)
 }
 
+// RenderCenteredLines places the box in the middle of the terminal, both
+// horizontally and vertically.
 func RenderCenteredLines(lines []string, hint string, termWidth, termHeight int) string {
 	if len(lines) == 0 {
 		return ""
 	}
 
-	boxW := ansi.StringWidth(lines[0])
 	boxH := len(lines)
 	if hint != "" {
 		boxH++
 	}
-
-	leftPad := 0
-	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
-	}
 	topPad := 0
 	if termHeight > boxH {
 		topPad = (termHeight - boxH) / 2
+	}
+	return renderLinesAt(lines, hint, termWidth, topPad)
+}
+
+// RenderTopLines centers the box horizontally but anchors it to the top of the
+// terminal. Overlays whose height changes with their content (the command
+// palette as its result list shrinks, Settings as tabs swap) use this so the
+// box stays put instead of drifting up and down the screen.
+func RenderTopLines(lines []string, hint string, termWidth int) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	return renderLinesAt(lines, hint, termWidth, 0)
+}
+
+// renderLinesAt writes the box lines (and optional hint) horizontally centered
+// in termWidth, preceded by topPad blank lines.
+func renderLinesAt(lines []string, hint string, termWidth, topPad int) string {
+	boxW := ansi.StringWidth(lines[0])
+	leftPad := 0
+	if termWidth > boxW {
+		leftPad = (termWidth - boxW) / 2
 	}
 
 	prefix := strings.Repeat(" ", leftPad)
