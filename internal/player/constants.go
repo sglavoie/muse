@@ -15,11 +15,10 @@ var errConnectTimeout = errors.New("player: mpv socket connection timed out")
 // socketPollTimeout must exceed defaultPingInterval — it bounds the initial
 // connection wait after mpv starts.
 const (
-	defaultPingInterval    = 200 * time.Millisecond
-	shutdownTimeout        = 3 * time.Second
-	socketPollInterval     = 50 * time.Millisecond
-	socketPollTimeout      = 10 * time.Second
-	staleSocketDialTimeout = 200 * time.Millisecond
+	defaultPingInterval = 200 * time.Millisecond
+	shutdownTimeout     = 3 * time.Second
+	socketPollInterval  = 50 * time.Millisecond
+	socketPollTimeout   = 10 * time.Second
 )
 
 // Timing constants for the preview player.

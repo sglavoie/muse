@@ -163,10 +163,6 @@ func (m *Manager) restoreStableProperties(restore restoreState) {
 	// enabled case would let a disabled setting fall back to mpv's default weak
 	// gapless mode while the manager still reports gapless off, so send yes or no
 	// to match the snapshotted boolean (mirroring SetGapless).
-	// Always re-apply the saved gapless state explicitly. Sending only for the
-	// enabled case would let a disabled setting fall back to mpv's default weak
-	// gapless mode while the manager still reports gapless off, so send yes or no
-	// to match the snapshotted boolean (mirroring SetGapless).
 	gaplessVal := "no"
 	if restore.gapless {
 		gaplessVal = "yes"

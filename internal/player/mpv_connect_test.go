@@ -7,98 +7,10 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 )
-
-func TestCleanStaleSocket_NoFile(t *testing.T) {
-	path := shortSockPath(t, "stale-nofile")
-	if err := cleanStaleSocket(path); err != nil {
-		t.Fatalf("expected nil for missing socket, got %v", err)
-	}
-}
-
-func TestCleanStaleSocket_StaleSocket(t *testing.T) {
-	path := shortSockPath(t, "stale-orphan")
-
-	// Create a listener then close it — the socket file remains.
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ln.Close()
-
-	if err := cleanStaleSocket(path); err != nil {
-		t.Fatalf("expected nil (stale socket removed), got %v", err)
-	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatal("stale socket file should have been removed")
-	}
-}
-
-func TestCleanStaleSocket_LiveSocket(t *testing.T) {
-	path := shortSockPath(t, "stale-live")
-
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		ln.Close()
-		os.Remove(path)
-	}()
-
-	// Accept connections so the dial in cleanStaleSocket succeeds.
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			conn.Close()
-		}
-	}()
-
-	if err := cleanStaleSocket(path); err == nil {
-		t.Fatal("expected error for live socket, got nil")
-	}
-}
-
-func TestCleanStaleSocket_NonSocketPathIsPreserved(t *testing.T) {
-	t.Run("regular file", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "not-a-socket")
-		if err := os.WriteFile(path, []byte("keep"), 0o644); err != nil {
-			t.Fatalf("write regular file: %v", err)
-		}
-
-		if err := cleanStaleSocket(path); err == nil {
-			t.Fatal("expected error for non-socket path, got nil")
-		}
-		if got, err := os.ReadFile(path); err != nil {
-			t.Fatalf("regular file was not preserved: %v", err)
-		} else if string(got) != "keep" {
-			t.Fatalf("regular file contents = %q, want keep", got)
-		}
-	})
-
-	t.Run("directory", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), "not-a-socket-dir")
-		if err := os.Mkdir(path, 0o755); err != nil {
-			t.Fatalf("create directory: %v", err)
-		}
-
-		if err := cleanStaleSocket(path); err == nil {
-			t.Fatal("expected error for non-socket path, got nil")
-		}
-		if info, err := os.Stat(path); err != nil {
-			t.Fatalf("directory was not preserved: %v", err)
-		} else if !info.IsDir() {
-			t.Fatalf("path is not a directory after cleanup: %s", path)
-		}
-	})
-}
 
 func TestNewManager_SocketPath(t *testing.T) {
 	want := shortSockPath(t, "mgr-sockpath")

@@ -139,7 +139,7 @@ func (m *Manager) RemoveFromQueue(index int) error {
 	m.reconcileShuffleLocked()
 	m.mu.Unlock()
 
-	// Clear the prefetch under prefetchMu so that the playlist-remove
+	// Clear the prefetch under playlistMu so that the playlist-remove
 	// cannot race with a concurrent prefetchNext appending a new entry.
 	m.clearPrefetch()
 	safego.Go("player.prefetchNext", m.prefetchNext)
