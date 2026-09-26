@@ -3,6 +3,8 @@
 package fsutil
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -14,7 +16,16 @@ import (
 // step POSIX permits a crash window in which the rename has been buffered but
 // not yet committed, leaving the old inode visible (or no entry at all) on
 // reboot.
+//
+// A symlinked path is written through to its target: the temporary file is
+// created beside the resolved file and renamed over it, so a config file
+// managed as a symlink (by stow or chezmoi, say) stays a symlink instead of
+// being replaced by a regular file.
 func WriteAtomically(path string, perm os.FileMode, write func(*os.File) error) error {
+	path, err := resolveTarget(path)
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
@@ -60,4 +71,14 @@ func WriteAtomically(path string, perm os.FileMode, write func(*os.File) error) 
 		_ = d.Close()
 	}
 	return nil
+}
+
+// resolveTarget follows symlinks in path so the write lands on the real file.
+// A path that does not exist yet is returned unchanged.
+func resolveTarget(path string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return path, nil
+	}
+	return resolved, err
 }
