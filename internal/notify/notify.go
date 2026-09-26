@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/sglavoie/muse/internal/safego"
 )
 
 // Track is the resolved notification content for a single banner.
@@ -48,10 +50,12 @@ func (t Track) SummaryLine() string {
 	return strings.Join(parts, " — ") + " (" + t.Message() + ")"
 }
 
-// Send launches the platform notification backend fire-and-forget: Start then
-// Release, never Wait, so the caller (Karabiner's shell_command, or a tea.Cmd
-// goroutine) returns immediately. Stdin/Stdout/Stderr are left nil, which
-// wires them to /dev/null.
+// Send launches the platform notification backend fire-and-forget: it Starts
+// the process and reaps it with Wait on a background goroutine, so the caller
+// (Karabiner's shell_command, or a tea.Cmd goroutine) returns immediately while
+// a long-running TUI session does not accumulate a zombie per track change.
+// The backend's exit status is not actionable and is discarded. Stdin/Stdout/
+// Stderr are left nil, which wires them to /dev/null.
 func Send(t Track) error {
 	bin, args, err := backendCommand(t)
 	if err != nil {
@@ -61,9 +65,7 @@ func Send(t Track) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start %s: %w", bin, err)
 	}
-	if err := cmd.Process.Release(); err != nil {
-		return fmt.Errorf("release %s: %w", bin, err)
-	}
+	safego.Go("notify.Send", func() { _ = cmd.Wait() })
 	return nil
 }
 
