@@ -105,6 +105,41 @@ func restoreStartupPlayer(restored *RestoredSession, restorePlayer func(path str
 		"hash", restored.CurrentHash, "queue_size", len(restored.PlayerTracks))
 }
 
+// softDeletePurger is the part of *db.Writer the startup soft-delete sweep uses.
+type softDeletePurger interface {
+	PurgeDeletedTags(before int64) error
+	PurgeDeletedPlaylists(before int64) error
+	PurgeDeletedPlaylistTracks(before int64) error
+	PurgeDeletedQueueEntries(before int64) error
+	PurgeDeletedRecipes(before int64) error
+}
+
+// purgeStaleSoftDeletes hard-deletes rows soft-deleted before the given Unix
+// timestamp. Undo windows live in memory only, so a row soft-deleted by an
+// earlier process can never be restored; left in place, a tag tombstone keeps
+// its NOCASE-unique name reserved and recipe tombstones (with their filter rows)
+// accumulate forever. Nothing reads soft-deleted rows across a restart.
+//
+// Each table is purged independently and a failure is only logged: the sweep is
+// housekeeping and must never block startup.
+func purgeStaleSoftDeletes(p softDeletePurger, before int64) {
+	purges := []struct {
+		table string
+		purge func(int64) error
+	}{
+		{"tags", p.PurgeDeletedTags},
+		{"playlist_tracks", p.PurgeDeletedPlaylistTracks},
+		{"playlists", p.PurgeDeletedPlaylists},
+		{"queue", p.PurgeDeletedQueueEntries},
+		{"dj_recipes", p.PurgeDeletedRecipes},
+	}
+	for _, s := range purges {
+		if err := s.purge(before); err != nil {
+			slog.Warn("startup: purge soft-deleted rows", "table", s.table, "err", err)
+		}
+	}
+}
+
 func removeSocketFile(path string) error {
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
