@@ -29,6 +29,19 @@ func TestRenderTagsAllZeroCountsShowsEmptyState(t *testing.T) {
 	}
 }
 
+// TestRenderTagsEmptyStateSuggestsCreate guards that the empty Tags card
+// offers a key the Tags view acts on: t tags the focused track, and the Tags
+// list has no track to tag.
+func TestRenderTagsEmptyStateSuggestsCreate(t *testing.T) {
+	out := ansi.Strip(View{Level: TagLevel, Width: 60}.Render())
+	if !strings.Contains(out, "create a tag") {
+		t.Errorf("expected a create-a-tag CTA, got:\n%s", out)
+	}
+	if strings.Contains(out, "tag a track") {
+		t.Errorf("empty Tags card must not suggest t, got:\n%s", out)
+	}
+}
+
 func TestRenderTagsFilterNoMatchesStillShowsNoMatches(t *testing.T) {
 	tags := tagRows("alpha")
 	v := View{

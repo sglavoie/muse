@@ -68,7 +68,7 @@ func (v View) renderPlaylistRows(cols Columns) []string {
 // indicator above it when a sort is active.
 func (v View) renderEmptyList() string {
 	card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No playlists yet", []styles.EmptyAction{
-		{Key: "c", Label: "new"},
+		{Key: "c", Label: "create a playlist"},
 		{Key: "?", Label: "help"},
 	})
 	if v.SortField == "" {
