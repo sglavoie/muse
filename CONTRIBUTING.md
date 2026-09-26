@@ -48,7 +48,7 @@ Everything goes through `just`; there is no hidden setup step.
 | `just fmt-check` | fails if anything needs formatting |
 | `just cover` | coverage profile, HTML report, and the total |
 | `just tidy` | `go mod tidy` |
-| `just clean` | remove build artifacts |
+| `just clean` | remove the binary and coverage reports |
 
 Before opening a pull request, run:
 

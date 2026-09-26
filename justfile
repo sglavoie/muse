@@ -67,6 +67,6 @@ hooks:
     @chmod +x .git/hooks/pre-commit
     @echo "pre-commit hook installed"
 
-# Remove build artifacts
+# Remove build artifacts and coverage reports
 clean:
-    rm -f muse
+    rm -f muse coverage.out coverage.html
