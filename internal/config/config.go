@@ -44,7 +44,11 @@ log_level = %q
 
 # Equalizer settings.
 # eq_enabled = false
+# Preset selected in the settings overlay: flat, bass_boost, treble_boost, rock,
+# jazz, classical, pop, a key from eq_custom_presets, or "custom". Playback
+# uses eq_bands; choosing a preset in the overlay copies its bands there.
 # eq_preset = "flat"
+# Band gains in dB (-12 to 12) at 31, 62, 125, 250, 500 Hz, 1, 2, 4, 8, 16 kHz.
 # eq_bands = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 #
 # [[eq_custom_presets]]
@@ -54,6 +58,7 @@ log_level = %q
 
 # Stereo widening settings.
 # stereo_wide_enabled = false
+# Width in tenths (0-40): 10 leaves the stereo image unchanged, 0 is mono.
 # stereo_wide_amount = 10
 
 # Theme preset: auto (follow terminal), dark, or light.

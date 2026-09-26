@@ -251,9 +251,10 @@ music_directories = ["/path/to/your/music"]
 Everything else has a working default. See [`config.example.toml`](config.example.toml)
 for the full annotated set of options — excluded scan paths, default volume,
 log level, mpv socket path and extra flags, seek and volume increments,
-gapless audio, EQ presets and bands, stereo widening, volume normalization,
-theme and primary color, footer hints, track-change notifications, and the
-recommendation-mix thresholds.
+status-message and volume-feedback durations, gapless audio, EQ presets and
+bands, stereo widening, volume normalization, theme and primary color, footer
+hints, track-change notifications, following the now-playing track in the
+Queue panel, and the recommendation-mix thresholds.
 
 Open **Settings** (`ctrl+,`) and choose **Display** (`[` from Library) to
 change the theme. Use `h`/`l` or the arrow keys on **Theme** to select **Auto**,
