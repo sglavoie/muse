@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strconv"
@@ -17,12 +18,7 @@ func main() {
 	// Handle global flags before a subcommand is selected. Once the first
 	// non-flag token appears, later tokens belong to that command and should
 	// be validated by the command-specific argument checks below.
-	switch detectGlobalFlag(os.Args[1:]) {
-	case globalFlagVersion:
-		fmt.Println(resolveVersion())
-		return
-	case globalFlagHelp:
-		flag.Usage()
+	if runGlobalFlag(detectGlobalFlag(os.Args[1:]), os.Stdout) {
 		return
 	}
 
@@ -78,18 +74,42 @@ func main() {
 	cancel()
 }
 
+// configureUsage points the flag package's usage hook, which runs on a usage
+// error, at stderr. An explicit --help prints the same text to stdout instead.
 func configureUsage() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: muse [command] [flags]\n\nCommands:\n")
-		for _, c := range localCommands {
-			fmt.Fprintf(os.Stderr, "  %-14s %s\n", c.Name, c.Desc)
-		}
-		for _, a := range remoteActions {
-			fmt.Fprintf(os.Stderr, "  %-14s %s\n", a.Name, a.Desc)
-		}
-		fmt.Fprintf(os.Stderr, "\nFlags:\n")
-		flag.PrintDefaults()
+	flag.Usage = func() { printUsage(os.Stderr) }
+}
+
+// printUsage writes the help text. The global flags are listed by hand because
+// they are detected by detectGlobalFlag rather than registered with the flag
+// package, so flag.PrintDefaults would print nothing.
+func printUsage(w io.Writer) {
+	var b strings.Builder
+	b.WriteString("Usage: muse [command]\n\nCommands:\n")
+	for _, c := range localCommands {
+		fmt.Fprintf(&b, "  %-14s %s\n", c.Name, c.Desc)
 	}
+	for _, a := range remoteActions {
+		fmt.Fprintf(&b, "  %-14s %s\n", a.Name, a.Desc)
+	}
+	b.WriteString("\nFlags:\n")
+	fmt.Fprintf(&b, "  %-14s %s\n", "-h, --help", "Show this help and exit")
+	fmt.Fprintf(&b, "  %-14s %s\n", "--version", "Print the version and exit")
+	_, _ = io.WriteString(w, b.String())
+}
+
+// runGlobalFlag handles --version and --help, writing to stdout, and reports
+// whether f was one of them.
+func runGlobalFlag(f globalFlag, stdout io.Writer) bool {
+	switch f {
+	case globalFlagVersion:
+		_, _ = fmt.Fprintln(stdout, resolveVersion())
+		return true
+	case globalFlagHelp:
+		printUsage(stdout)
+		return true
+	}
+	return false
 }
 
 // localCommand is a subcommand handled in-process. Deliberately kept separate
