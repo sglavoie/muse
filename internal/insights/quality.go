@@ -142,8 +142,9 @@ func computeQuality(groups []GenreGroup, counts QualityCounts) Quality {
 		q.Issues = append(q.Issues, HealthIssue{
 			Kind:  IssueGenreCollision,
 			Title: "Genre spellings collide",
-			Detail: fmt.Sprintf("%d genres are split across case or spacing variants, e.g. %s",
-				len(q.Collisions), strings.Join(q.Collisions[0].Variants, " / ")),
+			Detail: fmt.Sprintf("%d %s split across case or spacing variants, e.g. %s",
+				len(q.Collisions), plural(len(q.Collisions), "genre is", "genres are"),
+				strings.Join(q.Collisions[0].Variants, " / ")),
 			Affected: q.CollisionPlays,
 			Fixable:  true,
 		})
@@ -156,17 +157,20 @@ func computeQuality(groups []GenreGroup, counts QualityCounts) Quality {
 		q.Issues = append(q.Issues, HealthIssue{
 			Kind:  IssuePlaceholderGenre,
 			Title: "Placeholder genres",
-			Detail: fmt.Sprintf("%s: placeholder tags that still take a bar of their own on the genre chart",
-				strings.Join(names, ", ")),
+			Detail: fmt.Sprintf("%s: %s on the genre chart", strings.Join(names, ", "),
+				plural(len(names), "a placeholder tag that still takes a bar of its own",
+					"placeholder tags that still take a bar of their own")),
 			Affected: q.PlaceholderPlays,
 			Fixable:  true,
 		})
 	}
 	if counts.PlaysWithoutGenre > 0 {
 		q.Issues = append(q.Issues, HealthIssue{
-			Kind:     IssueGenreMissing,
-			Title:    "Plays with no genre",
-			Detail:   fmt.Sprintf("%d tracks carry no genre tag, so they are absent from every genre figure", counts.TracksWithoutGenre),
+			Kind:  IssueGenreMissing,
+			Title: "Plays with no genre",
+			Detail: fmt.Sprintf("%d %s", counts.TracksWithoutGenre, plural(counts.TracksWithoutGenre,
+				"track carries no genre tag, so it is absent from every genre figure",
+				"tracks carry no genre tag, so they are absent from every genre figure")),
 			Affected: counts.PlaysWithoutGenre,
 		})
 	}
@@ -185,12 +189,24 @@ func computeQuality(groups []GenreGroup, counts QualityCounts) Quality {
 	}
 	if counts.TracksMissing > 0 {
 		q.Issues = append(q.Issues, HealthIssue{
-			Kind:     IssueMissingFiles,
-			Title:    "Tracks missing from disk",
-			Detail:   fmt.Sprintf("%d tracks are indexed but not on disk and are excluded from coverage", counts.TracksMissing),
+			Kind:  IssueMissingFiles,
+			Title: "Tracks missing from disk",
+			Detail: fmt.Sprintf("%d %s", counts.TracksMissing, plural(counts.TracksMissing,
+				"track is indexed but not on disk and is excluded from coverage",
+				"tracks are indexed but not on disk and are excluded from coverage")),
 			Affected: counts.TracksMissing,
 		})
 	}
 
 	return q
+}
+
+// plural returns one when n is exactly 1 and many otherwise. Issue details
+// pass whole phrases so the verb agrees with the count ("1 track carries",
+// "2 tracks carry").
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
