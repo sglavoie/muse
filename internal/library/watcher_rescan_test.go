@@ -2,8 +2,10 @@ package library
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -65,6 +67,45 @@ func TestRescan_PopulatesModTimeAndSizeBytes(t *testing.T) {
 	}
 	if tr.SizeBytes != info.Size() {
 		t.Errorf("SizeBytes: got %d, want %d", tr.SizeBytes, info.Size())
+	}
+}
+
+// TestRescan_ChunksExtractionByBatchSize verifies that a large debounce window
+// (e.g. a folder of thousands of files dropped into the library) is extracted
+// in exiftoolBatchSize chunks, as the full scan does, rather than as a single
+// ExifTool command line racing one extract timeout.
+func TestRescan_ChunksExtractionByBatchSize(t *testing.T) {
+	root := t.TempDir()
+	const n = 2*exiftoolBatchSize + 7
+	pending := make(map[string]bool, n)
+	for i := range n {
+		p := filepath.Join(root, fmt.Sprintf("track%04d.mp3", i))
+		if err := os.WriteFile(p, []byte(fmt.Sprintf("ID3fake%d", i)), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+		pending[p] = false
+	}
+
+	ext := &fakeExtractor{}
+	out := make(chan WatchEvent, n)
+	rescan(context.Background(), pending, nil, ext, out)
+	close(out)
+
+	emitted := 0
+	for range out {
+		emitted++
+	}
+	if emitted != n {
+		t.Errorf("emitted %d tracks, want %d", emitted, n)
+	}
+
+	var sizes []int
+	for _, b := range ext.batches {
+		sizes = append(sizes, len(b))
+	}
+	want := []int{exiftoolBatchSize, exiftoolBatchSize, 7}
+	if !slices.Equal(sizes, want) {
+		t.Errorf("Extract batch sizes = %v, want %v", sizes, want)
 	}
 }
 

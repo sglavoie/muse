@@ -166,7 +166,7 @@ func argValue(args []string, flag string) (string, bool) {
 
 // TestSendIsFireAndForget points alerterPaths at a stub that records its argv
 // and then sleeps. Send must return before the sleep finishes, proving it
-// never calls Wait.
+// never blocks on Wait.
 func TestSendIsFireAndForget(t *testing.T) {
 	dir := t.TempDir()
 	argvFile := filepath.Join(dir, "argv")

@@ -12,7 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
-// TestRescanHotkeyReturnsCmd verifies that pressing R (Shift+r) with a
+// TestRescanHotkeyReturnsCmd verifies that pressing ctrl+r with a
 // configured library root returns a non-nil background cmd and does not block.
 func TestRescanHotkeyReturnsCmd(t *testing.T) {
 	root := t.TempDir()
@@ -159,10 +159,8 @@ func TestCtrlRFiresRescan(t *testing.T) {
 // previous library does not carry over.
 func TestRescanClearsSelectionAndSort(t *testing.T) {
 	// Provide a library root and extractor so the rescan action is not a no-op.
-	m := New(context.Background(),
-		WithLibraryRoots([]string{"/tmp"}),
-		WithExtractor(&library.ExifToolExtractor{}),
-	)
+	root := t.TempDir()
+	m := New(context.Background(), WithLibraryRoots([]string{root}), WithExtractor(stubExtractor{}))
 	// Seed a track, select it, and activate a sort.
 	m.library.Index.Insert(library.Track{Artist: "A", Title: "Alpha", Path: "/a", Hash: "h1"})
 	m.library = m.library.ToggleBulkSelection("h1")
@@ -181,7 +179,7 @@ func TestRescanClearsSelectionAndSort(t *testing.T) {
 
 	// Trigger rescan. We cannot actually run the full scan pipeline (needs
 	// mpv + exiftool), but we can dispatch the action and verify the model
-	// state was reset. The key mapping for rescan is "R" (Shift+r).
+	// state was reset. The key mapping for rescan is ctrl+r.
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	nm := next.(Model)
 

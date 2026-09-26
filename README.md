@@ -88,7 +88,8 @@ full keybinding reference.
   metadata backend is active (ExifTool or ffprobe).
 - **Metadata export / import** — round-trip the visible view's rows through a
   TSV file in the data directory, for bulk cleanup outside the TUI.
-- Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view.
+- Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
+  except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
 - Undo (`u`) for destructive operations.
 
 **Supported audio formats**: `.aac`, `.ac3`, `.aif`, `.aifc`, `.aiff`, `.ape`,

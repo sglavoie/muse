@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,8 +43,8 @@ type WatchEvent struct {
 // delete-plus-create: the Rename event for the old path emits a deletion
 // WatchEvent and the subsequent Create event for the new path drives the
 // rescan. Directory-level events trigger a recursive re-traversal of the
-// affected subtree via Walk. Each affected file is extracted with a per-file
-// ExifTool invocation (not batched).
+// affected subtree via Walk. The affected files are extracted in batches of up
+// to exiftoolBatchSize per ExifTool invocation, as in a full scan.
 //
 // The returned channel emits WatchEvent values and is closed when ctx is
 // cancelled. If fsnotify setup fails (e.g. fd exhaustion on macOS), Watch
@@ -227,9 +228,10 @@ func handleFsEvent(ctx context.Context, event fsnotify.Event, excludedPaths []st
 }
 
 // rescan processes all entries in pending: audio files are hashed and then
-// extracted in a single batched ExifTool invocation. Directory entries are
-// traversed recursively via Walk. On batch failure, extractWithBinaryRetry
-// subdivides the batch and falls back to filename metadata for corrupt files.
+// extracted in ExifTool batches of at most exiftoolBatchSize files. Directory
+// entries are traversed recursively via Walk. On batch failure,
+// extractWithBinaryRetry subdivides the batch and falls back to filename
+// metadata for corrupt files.
 func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string, extractor MetadataExtractor, out chan<- WatchEvent) {
 	// Build a deduplicated set of audio file paths to process.
 	files := make(map[string]struct{})
@@ -279,14 +281,20 @@ func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string
 		return
 	}
 
-	// Single batched ExifTool invocation; extractWithBinaryRetry handles
-	// subdivision and filename fallback on failure, mirroring the main scanner.
-	tracks := extractWithBinaryRetry(ctx, extractor, hashed)
-	for _, t := range tracks {
-		select {
-		case <-ctx.Done():
+	// Extract in exiftoolBatchSize chunks like ExtractBatches, so a large
+	// folder drop never becomes one command line of thousands of paths racing
+	// a single extract timeout. extractWithBinaryRetry handles subdivision and
+	// filename fallback on failure within each chunk.
+	for chunk := range slices.Chunk(hashed, exiftoolBatchSize) {
+		if ctx.Err() != nil {
 			return
-		case out <- WatchEvent{Track: t}:
+		}
+		for _, t := range extractWithBinaryRetry(ctx, extractor, chunk) {
+			select {
+			case <-ctx.Done():
+				return
+			case out <- WatchEvent{Track: t}:
+			}
 		}
 	}
 }

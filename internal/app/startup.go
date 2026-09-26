@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"time"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
@@ -134,7 +135,8 @@ type RunResult struct {
 // Run executes the startup sequence in the required order:
 //  1. Acquire PID lockfile
 //  2. Remove stale mpv socket
-//  3. Run pending DB migrations
+//  3. Run pending DB migrations, then purge rows soft-deleted by a previous
+//     process (failures are logged, never fatal)
 //  4. Restore previous session from DB (validate tracks against disk)
 //  5. Verify prerequisite binaries (mpv, ExifTool); advisory warnings are
 //     logged and returned in RunResult.PrereqWarnings for the caller to display
@@ -224,6 +226,13 @@ func Run(ctx context.Context, dirs config.Dirs, deps Deps) (*RunResult, error) {
 		lf.Release()
 		return nil, fmt.Errorf(format, args...)
 	}
+
+	// Purge rows a previous process soft-deleted: their in-memory undo windows
+	// died with it. The cutoff is one second ahead so tombstones stamped this
+	// second, including the abandoned preparations NewWriter just recovered,
+	// go too; nothing in this process has offered an undo yet.
+	slog.Info("startup: purging stale soft-deleted rows")
+	purgeStaleSoftDeletes(w, time.Now().Unix()+1)
 
 	// Step 4: Restore previous session from the database.
 	// This is a read-only DB operation (plus missing-entry writes) that runs

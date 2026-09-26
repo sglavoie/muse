@@ -44,7 +44,7 @@ func runCheck() int {
 		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		printErrors(err)
 		exitCode = 1
 	}
 
@@ -60,4 +60,21 @@ func runCheck() int {
 		fmt.Println("ok")
 	}
 	return exitCode
+}
+
+// printErrors writes err to stderr with an "error:" prefix. CheckPrereqs joins
+// independent failures (mpv and the metadata backend) with errors.Join, so each
+// joined error gets its own prefixed entry instead of the second one running on
+// from the first one's install instructions.
+func printErrors(err error) {
+	// A direct assertion, not errors.As: only a join at the top is split, so a
+	// joined error wrapped with extra context is printed whole, context intact.
+	joined, ok := err.(interface{ Unwrap() []error })
+	if !ok {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return
+	}
+	for _, e := range joined.Unwrap() {
+		fmt.Fprintf(os.Stderr, "error: %v\n", e)
+	}
 }

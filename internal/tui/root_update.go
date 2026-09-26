@@ -81,9 +81,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !msg.Available {
 			m.watchDegraded = true
 			if msg.Err != nil {
-				m.statusBar.Notify("File watcher failed to start; use manual rescan (Shift+R)")
+				m.statusBar.Notify("File watcher failed to start; use manual rescan (ctrl+r)")
 			} else {
-				m.statusBar.Notify("File watcher unavailable; use manual rescan (Shift+R)")
+				m.statusBar.Notify("File watcher unavailable; use manual rescan (ctrl+r)")
 			}
 		}
 

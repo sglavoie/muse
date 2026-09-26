@@ -192,6 +192,33 @@ func TestCheckPrereqs_MPVMissing(t *testing.T) {
 	}
 }
 
+// TestCheckPrereqs_ReportsMPVAndMetadataBackendTogether guards the one-pass
+// contract: a missing mpv must not hide a missing metadata backend, or
+// `muse check` makes the user fix, rerun and fail again.
+func TestCheckPrereqs_ReportsMPVAndMetadataBackendTogether(t *testing.T) {
+	stubNotifier(t, nil)
+	t.Setenv("PATH", t.TempDir())
+
+	_, err := CheckPrereqs(context.Background())
+	if err == nil {
+		t.Fatal("expected an error with neither mpv nor a metadata backend")
+	}
+	joined, ok := err.(interface{ Unwrap() []error })
+	if !ok {
+		t.Fatalf("error is not an errors.Join of the failed checks: %v", err)
+	}
+	parts := joined.Unwrap()
+	if len(parts) != 2 {
+		t.Fatalf("joined %d errors, want 2 (mpv, metadata backend): %v", len(parts), err)
+	}
+	if !strings.Contains(parts[0].Error(), "mpv") {
+		t.Errorf("first error should report mpv, got: %v", parts[0])
+	}
+	if !strings.Contains(parts[1].Error(), "ExifTool") || !strings.Contains(parts[1].Error(), "ffprobe") {
+		t.Errorf("second error should report the metadata backends, got: %v", parts[1])
+	}
+}
+
 func TestCheckPrereqs_ExifToolMissing(t *testing.T) {
 	// Only mpv stub present — use an isolated PATH so system exiftool is hidden.
 	dir := t.TempDir()

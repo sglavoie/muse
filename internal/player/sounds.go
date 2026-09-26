@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/safego"
 )
 
@@ -62,10 +63,22 @@ func SetSoundContext(ctx context.Context) {
 	soundMu.Unlock()
 }
 
+// soundDir returns the per-user directory the embedded sounds are written to.
+// A fixed name under the shared os.TempDir() would let another local user
+// pre-create it or plant symlinks at the file names, so it lives in the user's
+// cache directory, falling back to the per-user runtime directory when no cache
+// directory can be resolved (no $HOME or $XDG_CACHE_HOME).
+func soundDir() string {
+	if cache, err := os.UserCacheDir(); err == nil {
+		return filepath.Join(cache, "muse", "sounds")
+	}
+	return filepath.Join(config.ResolveRuntimeDir(), "sounds")
+}
+
 func ensureSoundFiles() {
 	soundOnce.Do(func() {
-		dir := filepath.Join(os.TempDir(), "muse-sounds")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		dir := soundDir()
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			slog.Debug("sounds: create dir", "err", err)
 		}
 		soundPaths = make(map[Sound]string, len(soundData))

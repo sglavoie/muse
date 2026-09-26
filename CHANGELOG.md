@@ -96,6 +96,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- On-screen hints now name keys that do what they say. The empty Library card
+  offers `ctrl+r` rescan instead of `s` (Stop) and a nonexistent import; the
+  empty Playlists card offers `c` new instead of `n` (Next) and a nonexistent
+  M3U import; the empty Favorites card says `F`, not `f`; and the file-watcher
+  warning points at `ctrl+r` rather than `Shift+R` (reset position). The Mixes
+  help no longer describes `x` as bulk selection — there it dismisses a
+  track from future mixes — and footers no longer offer `/ filter`
+  in Playlists, `enter filter-by` in Tags, or `F choose fav` in Favorites.
+
+- Desktop notifications no longer leave a zombie process behind on every track
+  change for the rest of the session.
+
+- Notification sounds are written to a private per-user cache directory instead
+  of a shared, predictable `/tmp/muse-sounds`.
+
+- Items deleted just before quitting no longer linger: startup purges rows a
+  previous run soft-deleted, so re-creating a tag with a deleted tag's name no
+  longer fails with a raw "UNIQUE constraint failed", and deleted Auto-DJ
+  recipes no longer accumulate forever.
+
+- `muse check` reports a missing mpv and a missing metadata backend in the same
+  run instead of stopping at mpv.
+
+- Dropping a large folder into the library while muse runs no longer sends
+  every file to a single ExifTool invocation; the watcher batches like a full
+  scan does.
+
+- Rescans no longer slow down with queue size: the per-track queue update now
+  uses an index on `queue.track_hash`.
+
 - Theme canvas colors now survive nested text-style resets in settings and
   primary views, preventing dark terminal backgrounds from leaking into Light.
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -100,7 +101,7 @@ func notifySendPositional(args []string) (string, string, bool) {
 
 // TestSendIsFireAndForget puts a notify-send stub on $PATH that records its
 // argv and then sleeps. Send must return before the sleep finishes, proving it
-// never calls Wait.
+// never blocks on Wait.
 func TestSendIsFireAndForget(t *testing.T) {
 	dir := t.TempDir()
 	argvFile := filepath.Join(dir, "argv")
@@ -152,6 +153,73 @@ func TestSendIsFireAndForget(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Fatalf("stub argv = %q, want %q", got, want)
 	}
+}
+
+// TestSendReapsBackend puts a notify-send stub on $PATH that exits at once,
+// then checks that the exited child does not linger as a zombie: Send must
+// Wait on the backend in the background rather than Release it, or every
+// track-change banner in a TUI session leaks a process-table entry until muse
+// exits.
+func TestSendReapsBackend(t *testing.T) {
+	dir := t.TempDir()
+	doneFile := filepath.Join(dir, "done")
+	stub := filepath.Join(dir, "notify-send")
+	script := "#!/bin/sh\n: > " + doneFile + "\n"
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+		t.Fatalf("write stub: %v", err)
+	}
+	t.Setenv("PATH", dir)
+
+	if err := Send(Track{Title: "Sunrise"}); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+
+	// Poll generously: process spawn and the background Wait are slow under
+	// -race with the whole suite running in parallel.
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(doneFile); err == nil && len(zombieChildren(t, "notify-send")) == 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("notify-send stub not reaped: zombie children %v", zombieChildren(t, "notify-send"))
+}
+
+// zombieChildren returns the PIDs of this process's children named comm that
+// have exited but not been waited on (state Z in /proc/<pid>/stat).
+func zombieChildren(t *testing.T, comm string) []string {
+	t.Helper()
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		t.Skipf("reading /proc: %v", err)
+	}
+	self := strconv.Itoa(os.Getpid())
+	var zombies []string
+	for _, e := range entries {
+		if _, err := strconv.Atoi(e.Name()); err != nil {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/proc", e.Name(), "stat"))
+		if err != nil {
+			continue // the process exited between ReadDir and ReadFile
+		}
+		// Format: "pid (comm) state ppid ...". comm may contain spaces or
+		// parentheses, so split on the last ')'.
+		stat := string(data)
+		open, closing := strings.IndexByte(stat, '('), strings.LastIndexByte(stat, ')')
+		if open < 0 || closing < open {
+			continue
+		}
+		fields := strings.Fields(stat[closing+1:])
+		if len(fields) < 2 {
+			continue
+		}
+		if stat[open+1:closing] == comm && fields[0] == "Z" && fields[1] == self {
+			zombies = append(zombies, e.Name())
+		}
+	}
+	return zombies
 }
 
 func TestSendMissingBinary(t *testing.T) {

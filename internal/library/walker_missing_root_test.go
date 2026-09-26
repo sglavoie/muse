@@ -35,6 +35,9 @@ func TestWalkAudioPaths_MissingRootIsSkipped(t *testing.T) {
 // The deliberate half of the old root guard: a failure below the root stays
 // non-fatal, reaches onErr, and does not stop the rest of the traversal.
 func TestWalkAudioPaths_NonRootFailureDoesNotAbortWalk(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("skipping permission test as root")
+	}
 	root := t.TempDir()
 	mkfile(t, filepath.Join(root, "keep.mp3"))
 	locked := filepath.Join(root, "locked")
