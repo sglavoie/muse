@@ -2,6 +2,8 @@ package db_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -79,8 +81,15 @@ func TestOpen_PragmasApplyToPooledConnections(t *testing.T) {
 	}
 }
 
+// TestOpen_InvalidPath opens a database whose parent directory is a regular
+// file, which fails for every user including root, and never writes outside
+// the test's temp dir (a missing absolute path would be created as root).
 func TestOpen_InvalidPath(t *testing.T) {
-	_, err := db.Open("/nonexistent/directory/test.db")
+	notADir := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(notADir, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := db.Open(filepath.Join(notADir, "directory", "test.db"))
 	if err == nil {
 		t.Fatal("expected error for invalid path, got nil")
 	}
