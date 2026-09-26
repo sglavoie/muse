@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -11,18 +12,6 @@ import (
 	"github.com/sglavoie/muse/internal/notify"
 )
 
-// CheckPrereqs verifies that mpv and a metadata backend are available and
-// functional. It runs a test invocation of each binary to catch broken installs
-// (e.g. ExifTool missing its Perl runtime). Returns an error with actionable
-// installation instructions if a required check fails.
-//
-// mpv is unconditionally required. Metadata extraction is not tied to one
-// binary: ExifTool is preferred, ffprobe is an accepted fallback, and only the
-// absence of both is fatal.
-//
-// Advisory problems that must not block startup are returned separately as
-// warnings. Warnings are always returned, including alongside a fatal error,
-// so callers can surface everything they know in one pass.
 // mpvProbeTimeout is the share of the prerequisite budget reserved for
 // `mpv --version`. mpv has no probe deadline of its own, so this is the only
 // thing bounding it. It is a var so tests can shrink it; nothing outside tests
@@ -48,18 +37,30 @@ func prereqBudget() time.Duration {
 	return mpvProbeTimeout + 2*library.BackendProbeWorstCase()
 }
 
+// CheckPrereqs verifies that mpv and a metadata backend are available and
+// functional. It runs a test invocation of each binary to catch broken installs
+// (e.g. ExifTool missing its Perl runtime). Returns an error with actionable
+// installation instructions if a required check fails.
+//
+// mpv is unconditionally required. Metadata extraction is not tied to one
+// binary: ExifTool is preferred, ffprobe is an accepted fallback, and only the
+// absence of both is fatal.
+//
+// Every check runs even when an earlier one fails, so a host missing both mpv
+// and a metadata backend learns about both in one pass; the fatal problems are
+// combined with errors.Join, one per line.
+//
+// Advisory problems that must not block startup are returned separately as
+// warnings. Warnings are always returned, including alongside a fatal error,
+// so callers can surface everything they know in one pass.
 func CheckPrereqs(ctx context.Context) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, prereqBudget())
 	defer cancel()
 
 	warnings := checkNotifier()
-
-	if err := checkMPV(ctx); err != nil {
-		return warnings, err
-	}
-
-	metadataWarnings, err := checkMetadataBackend(ctx)
-	return append(warnings, metadataWarnings...), err
+	mpvErr := checkMPV(ctx)
+	metadataWarnings, metadataErr := checkMetadataBackend(ctx)
+	return append(warnings, metadataWarnings...), errors.Join(mpvErr, metadataErr)
 }
 
 // checkMetadataBackend applies the same preference order as

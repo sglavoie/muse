@@ -71,6 +71,25 @@ func TestRunCheck_InvalidMusicDirExitsOne(t *testing.T) {
 	}
 }
 
+// With neither mpv nor a metadata backend installed, `muse check` must report
+// both in one run, each on its own "error:" line.
+func TestRunCheck_ReportsEveryMissingPrereqOnItsOwnLine(t *testing.T) {
+	_ = isolateXDG(t)
+	t.Setenv("PATH", t.TempDir())
+
+	var code int
+	out := captureOutput(t, func() { code = runCheck() })
+
+	if code != 1 {
+		t.Fatalf("runCheck = %d, want 1 with no prerequisites installed\noutput:\n%s", code, out)
+	}
+	for _, want := range []string{"error: mpv not found", "error: ExifTool not found"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing a line starting %q:\n%s", want, out)
+		}
+	}
+}
+
 // The same environment plus a populated music directory must not fail on the
 // music-directory check, proving the exit code above is caused by that check
 // and not by an unrelated prerequisite.
