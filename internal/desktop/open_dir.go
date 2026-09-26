@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"log/slog"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -23,12 +24,14 @@ func OpenDir(ctx context.Context, dir string) tea.Cmd {
 			return nil
 		}
 		c := exec.CommandContext(ctx, name, args...)
-		if err := c.Start(); err == nil {
-			// Per os/exec docs, Wait must be called to release associated
-			// system resources (FDs, zombie PID). The handler returns
-			// quickly; reap it asynchronously so the TUI is not blocked.
-			go func() { _ = c.Wait() }()
+		if err := c.Start(); err != nil {
+			slog.Warn("open directory failed", "cmd", name, "dir", dir, "err", err)
+			return nil
 		}
+		// Per os/exec docs, Wait must be called to release associated
+		// system resources (FDs, zombie PID). The handler returns
+		// quickly; reap it asynchronously so the TUI is not blocked.
+		go func() { _ = c.Wait() }()
 		return nil
 	}
 }
@@ -44,11 +47,13 @@ func RevealFile(ctx context.Context, path string) tea.Cmd {
 			return nil
 		}
 		c := exec.CommandContext(ctx, name, args...)
-		if err := c.Start(); err == nil {
-			// See OpenDir: reap the child so its FDs/PID are released
-			// instead of lingering as a zombie until process exit.
-			go func() { _ = c.Wait() }()
+		if err := c.Start(); err != nil {
+			slog.Warn("reveal file failed", "cmd", name, "path", path, "err", err)
+			return nil
 		}
+		// See OpenDir: reap the child so its FDs/PID are released
+		// instead of lingering as a zombie until process exit.
+		go func() { _ = c.Wait() }()
 		return nil
 	}
 }

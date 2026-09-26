@@ -8,9 +8,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -65,10 +67,25 @@ func CopyToClipboard(ctx context.Context, text string) tea.Cmd {
 		if cmd == nil {
 			return ClipboardResultMsg{Err: errNoClipboardTool, Text: text}
 		}
+		var stderr bytes.Buffer
 		cmd.Stdin = bytes.NewBufferString(text)
-		err := cmd.Run()
-		return ClipboardResultMsg{Err: err, Text: text}
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return ClipboardResultMsg{Err: toolError(cmd.Args[0], err, stderr.String()), Text: text}
+		}
+		return ClipboardResultMsg{Text: text}
 	}
+}
+
+// toolError names the clipboard tool that failed and appends the first line of
+// its stderr, so the status bar shows something actionable ("xclip: exit
+// status 1: Error: Can't open display") instead of a bare "exit status 1".
+func toolError(name string, err error, stderr string) error {
+	msg, _, _ := strings.Cut(strings.TrimSpace(stderr), "\n")
+	if msg = strings.TrimSpace(msg); msg != "" {
+		return fmt.Errorf("%s: %w: %s", name, err, msg)
+	}
+	return fmt.Errorf("%s: %w", name, err)
 }
 
 // lookPath is a thin wrapper kept as a var so tests can stub it without

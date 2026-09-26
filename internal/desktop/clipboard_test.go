@@ -3,7 +3,10 @@ package desktop
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -137,5 +140,43 @@ func TestCopyToClipboardAlwaysReturnsClipboardResultMsg(t *testing.T) {
 	}
 	if res.Text != "x" {
 		t.Errorf("expected text 'x', got %q", res.Text)
+	}
+}
+
+// TestCopyToClipboardErrorNamesToolAndStderr guards against a bare "exit
+// status 1" reaching the status bar: the error must name the tool that failed
+// and carry the reason it printed on stderr.
+func TestCopyToClipboardErrorNamesToolAndStderr(t *testing.T) {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		t.Skip("Linux/BSD-only behavior")
+	}
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "xclip")
+	script := "#!/bin/sh\necho \"Error: Can't open display: (null)\" >&2\necho \"second line\" >&2\nexit 1\n"
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+		t.Fatalf("write stub: %v", err)
+	}
+	t.Setenv("PATH", dir)
+
+	origLook, origEnv := lookPath, getEnv
+	defer func() { lookPath, getEnv = origLook, origEnv }()
+	getEnv = func(string) string { return "" }
+	lookPath = func(name string) bool { return name == "xclip" }
+
+	res, ok := CopyToClipboard(context.Background(), "hi")().(ClipboardResultMsg)
+	if !ok {
+		t.Fatal("expected ClipboardResultMsg")
+	}
+	if res.Err == nil {
+		t.Fatal("expected an error from the failing stub")
+	}
+	msg := res.Err.Error()
+	for _, want := range []string{"xclip", "exit status 1", "Can't open display"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error %q does not contain %q", msg, want)
+		}
+	}
+	if strings.Contains(msg, "second line") || strings.Contains(msg, "\n") {
+		t.Errorf("error %q should hold only the first stderr line", msg)
 	}
 }
