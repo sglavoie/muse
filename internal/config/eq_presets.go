@@ -35,6 +35,10 @@ var BuiltinEQPresets = []EQPresetDef{
 	{Name: "Pop", Key: "pop", Bands: [10]int{-1, 1, 3, 4, 3, 0, -1, -1, 1, 2}, Builtin: true},
 }
 
+// eqCustomKey is the eq_preset value for hand-tuned eq_bands that match no
+// named preset; the settings overlay lists it as the "(Custom)" entry.
+const eqCustomKey = "custom"
+
 // EQPresetIndex returns the index of the preset with the given key in presets,
 // or -1 if not found.
 func EQPresetIndex(key string, presets []EQPresetDef) int {
