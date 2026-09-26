@@ -462,3 +462,19 @@ func TestFilteredHelpRender(t *testing.T) {
 		}
 	}
 }
+
+// TestHelpSeekEntriesNameNoFixedOffset guards that the seek entries do not
+// promise a fixed number of seconds: seek_offset_short and seek_offset_long
+// are configurable, so any number printed here can be wrong.
+func TestHelpSeekEntriesNameNoFixedOffset(t *testing.T) {
+	for _, sec := range HelpSections() {
+		for _, e := range sec.entries {
+			if !strings.HasPrefix(e.desc, "Seek") {
+				continue
+			}
+			if strings.ContainsAny(e.desc, "0123456789±") {
+				t.Errorf("%s: %q hardcodes a seek offset: %q", sec.Title, e.key, e.desc)
+			}
+		}
+	}
+}
