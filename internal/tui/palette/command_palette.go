@@ -406,7 +406,9 @@ func (cp CommandPalette) planRows(budget int, emptyQuery bool) cpRowPlan {
 	bodyCount := max(len(cp.Filtered)-cp.bottomPin-plan.bodyStart, 0)
 
 	plan.topBodySep = cp.topPins > 0 && bodyCount > 0
-	plan.header = plan.topBodySep && emptyQuery
+	// The body is only ordered by use once something has been used; before
+	// that it is alphabetical and a "Recent & frequent" header would be false.
+	plan.header = plan.topBodySep && emptyQuery && cp.usage.hasRecords()
 	plan.bodyBottomSep = cp.bottomPin > 0 && bodyCount > 0
 	plan.bodyBudget = plan.fitBody(budget, cp.topPins+cp.bottomPin, bodyCount)
 
