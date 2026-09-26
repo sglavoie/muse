@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 )
 
 func TestHasSufficientHistory_Empty(t *testing.T) {
@@ -101,6 +102,37 @@ func TestReadTopArtists_RankedByPlayCount(t *testing.T) {
 	}
 	if artists[1] != "ArtistB" {
 		t.Errorf("artists[1] = %q, want ArtistB", artists[1])
+	}
+}
+
+// The "Unknown Artist" placeholder and blank artists are missing tags, not a
+// taste: they must never lead the top-artists profile however often untagged
+// files are played.
+func TestReadTopArtists_ExcludesUnknownAndBlankArtists(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Song1", library.UnknownArtist, "", "", 180000, 5000000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Song2", "", "", "", 180000, 5000000, now)
+	insertFullTrack(t, d, "h3", "/c.flac", "Song3", "ArtistA", "AlbumA", "Rock", 180000, 5000000, now)
+	w := newWriter(t, d)
+
+	for i := range 5 {
+		for _, h := range []string{"h1", "h2"} {
+			if err := w.RecordListen(db.PlayRecord{Hash: h, PlayedAt: now + int64(i), ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+				t.Fatalf("RecordListen %s: %v", h, err)
+			}
+		}
+	}
+	if err := w.RecordListen(db.PlayRecord{Hash: "h3", PlayedAt: now + 10, ListenedSecs: 60, DurationSecs: 180, Counted: true}); err != nil {
+		t.Fatalf("RecordListen h3: %v", err)
+	}
+
+	artists, err := d.ReadTopArtists(5)
+	if err != nil {
+		t.Fatalf("ReadTopArtists: %v", err)
+	}
+	if len(artists) != 1 || artists[0] != "ArtistA" {
+		t.Errorf("ReadTopArtists = %q, want [ArtistA]", artists)
 	}
 }
 

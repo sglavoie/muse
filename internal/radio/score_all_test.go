@@ -81,6 +81,22 @@ func TestScoreAll_ArtistMatch(t *testing.T) {
 	}
 }
 
+// An untagged seed must not boost every other untagged file: the placeholder
+// matches by string but says nothing about the listener's taste.
+func TestScoreAll_UnknownArtistSeedGetsNoArtistBonus(t *testing.T) {
+	for _, artist := range []string{library.UnknownArtist, "  " + library.UnknownArtist + " ", ""} {
+		seed := track("s1", artist, "", "", 0)
+		other := track("t1", library.UnknownArtist, "", "", 0)
+		got := ScoreAll(ScoreInput{
+			Seed:      seedFrom(seed, nil, nil),
+			AllTracks: []library.Track{other},
+		})
+		if len(got) != 1 || got[0].Score != 0 {
+			t.Errorf("seed artist %q: got %+v, want a single score of 0", artist, got)
+		}
+	}
+}
+
 func TestScoreAll_AlbumMatch(t *testing.T) {
 	seed := track("s1", "", "AlbumA", "", 0)
 	match := track("t1", "", "AlbumA", "", 0)

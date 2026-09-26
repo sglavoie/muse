@@ -10,7 +10,7 @@ func TestBulkLoad_SortsCorrectly(t *testing.T) {
 		{Artist: "Zappa", Title: "Bobby Brown", Path: "/z.flac", Hash: "h1"},
 		{Artist: "Aphex Twin", Title: "Xtal", Path: "/x.flac", Hash: "h2"},
 		{Artist: "Aphex Twin", Title: "Actium", Path: "/a.flac", Hash: "h3"},
-		{Artist: unknownArtist, Title: "Unknown", Path: "/u.flac", Hash: "h4"},
+		{Artist: UnknownArtist, Title: "Unknown", Path: "/u.flac", Hash: "h4"},
 		{Artist: "Miles Davis", Title: "So What", Path: "/m.flac", Hash: "h5"},
 	}
 

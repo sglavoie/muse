@@ -185,12 +185,15 @@ func (d *DB) countSkippedListens() (int, error) {
 // ReadNeverPlayedMix returns unplayed tracks ranked by artist and genre
 // affinity (how often the user has listened to the same artist or genre).
 // Genre affinity uses the track_genres junction table for exact matching.
+// Untagged plays ("Unknown Artist" or blank) build no artist affinity, so a
+// pile of untagged files is not pushed to the top of the mix.
 func (d *DB) ReadNeverPlayedMix(limit int) ([]library.Track, error) {
 	rows, err := d.Query(`
 		WITH artist_plays AS (
 		    SELECT t.artist, COUNT(*) AS cnt
 		    FROM play_history ph
 		    JOIN tracks t ON ph.track_hash = t.hash
+		    WHERE t.artist NOT IN ('', ?)
 		    GROUP BY t.artist
 		),
 		genre_plays AS (
@@ -210,7 +213,7 @@ func (d *DB) ReadNeverPlayedMix(limit int) ([]library.Track, error) {
 		WHERE t.missing = 0 AND t.play_count = 0
 		GROUP BY t.hash
 		ORDER BY affinity DESC
-		LIMIT ?`, limit)
+		LIMIT ?`, library.UnknownArtist, limit)
 	if err != nil {
 		return nil, fmt.Errorf("db: read never played mix: %w", err)
 	}
@@ -285,14 +288,17 @@ func (d *DB) ReadSessionCoOccurrences(seedHash string, limit int) ([]SessionCoOc
 }
 
 // ReadTopArtists returns the top artists by play count across all play history.
+// The "Unknown Artist" placeholder and blank artists are left out: they are the
+// absence of a tag, not a taste to recommend more of.
 func (d *DB) ReadTopArtists(limit int) ([]string, error) {
 	rows, err := d.Query(`
 		SELECT t.artist, COUNT(*) AS cnt
 		FROM play_history ph
 		JOIN tracks t ON ph.track_hash = t.hash
+		WHERE t.artist NOT IN ('', ?)
 		GROUP BY t.artist
 		ORDER BY cnt DESC
-		LIMIT ?`, limit)
+		LIMIT ?`, library.UnknownArtist, limit)
 	if err != nil {
 		return nil, fmt.Errorf("db: read top artists: %w", err)
 	}

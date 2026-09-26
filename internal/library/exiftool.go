@@ -323,7 +323,7 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 				tracks[i].Title = filenameStem(tracks[i].Path)
 			}
 			if tracks[i].Artist == "" {
-				tracks[i].Artist = "Unknown Artist"
+				tracks[i].Artist = UnknownArtist
 			}
 		}
 		return tracks
@@ -344,7 +344,7 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 		return []Track{{
 			Path:      files[0].Path,
 			Hash:      files[0].Hash,
-			Artist:    "Unknown Artist",
+			Artist:    UnknownArtist,
 			Title:     filenameStem(files[0].Path),
 			ModTime:   files[0].ModTime,
 			SizeBytes: files[0].SizeBytes,

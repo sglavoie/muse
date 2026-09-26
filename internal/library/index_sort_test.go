@@ -63,16 +63,16 @@ func testIndexArtistThenTitleSortStability(t *testing.T) {
 
 func testIndexUnknownArtistBottomSort(t *testing.T) {
 	var idx LibraryIndex
-	idx.Insert(Track{Artist: unknownArtist, Title: "zzz"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "zzz"})
 	idx.Insert(Track{Artist: "Arca", Title: "Piel"})
-	idx.Insert(Track{Artist: unknownArtist, Title: "aaa"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "aaa"})
 	idx.Insert(Track{Artist: "Boards of Canada", Title: "Roygbiv"})
 
 	got := idx.Tracks()
 	// All named artists must precede Unknown Artist entries.
 	namedDone := false
 	for _, tr := range got {
-		if tr.Artist == unknownArtist {
+		if tr.Artist == UnknownArtist {
 			namedDone = true
 		} else if namedDone {
 			t.Errorf("named artist %q appeared after Unknown Artist block", tr.Artist)
@@ -86,7 +86,7 @@ func testIndexUnknownArtistBottomSort(t *testing.T) {
 
 func TestLess_NamedBeforeUnknown(t *testing.T) {
 	a := Track{Artist: "Arca", Title: "Piel"}
-	b := Track{Artist: unknownArtist, Title: "abc"}
+	b := Track{Artist: UnknownArtist, Title: "abc"}
 	if !less(a, b) {
 		t.Error("named artist must sort before Unknown Artist")
 	}
@@ -115,8 +115,8 @@ func TestLess_DifferentArtists(t *testing.T) {
 }
 
 func TestLess_BothUnknownByTitle(t *testing.T) {
-	a := Track{Artist: unknownArtist, Title: "aaa"}
-	b := Track{Artist: unknownArtist, Title: "zzz"}
+	a := Track{Artist: UnknownArtist, Title: "aaa"}
+	b := Track{Artist: UnknownArtist, Title: "zzz"}
 	if !less(a, b) {
 		t.Error("same Unknown Artist: earlier title must sort first")
 	}
@@ -260,16 +260,16 @@ func TestLibraryIndex_InsertSortedOrder(t *testing.T) {
 func TestLibraryIndex_UnknownArtistSortsLast(t *testing.T) {
 	var idx LibraryIndex
 
-	idx.Insert(Track{Artist: unknownArtist, Title: "some-file"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "some-file"})
 	idx.Insert(Track{Artist: "Boards of Canada", Title: "Roygbiv"})
-	idx.Insert(Track{Artist: unknownArtist, Title: "another-file"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "another-file"})
 	idx.Insert(Track{Artist: "Arca", Title: "Piel"})
 
 	got := idx.Tracks()
 	// All named artists must come before Unknown Artist entries.
 	namedDone := false
 	for _, tr := range got {
-		if tr.Artist == unknownArtist {
+		if tr.Artist == UnknownArtist {
 			namedDone = true
 		} else if namedDone {
 			t.Errorf("named artist %q appeared after Unknown Artist block", tr.Artist)

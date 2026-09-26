@@ -7,7 +7,10 @@ import (
 	"unicode/utf8"
 )
 
-const unknownArtist = "Unknown Artist"
+// UnknownArtist is the placeholder the extractors store for a file with no
+// artist tag. It is not a real artist, so taste profiles and similarity scores
+// should treat it (and a blank artist) as "no information".
+const UnknownArtist = "Unknown Artist"
 
 // LibraryIndex is a sorted slice of Track values maintained in artist-then-title
 // order. Tracks with artist "Unknown Artist" sort below all named artists.
@@ -37,10 +40,10 @@ func (idx *LibraryIndex) Tracks() []Track {
 	return tracks
 }
 
-// isUnknownArtist reports whether the artist field represents an unknown artist
+// IsUnknownArtist reports whether the artist field represents an unknown artist
 // (either the sentinel "Unknown Artist" or an empty string).
-func isUnknownArtist(artist string) bool {
-	return artist == unknownArtist || artist == ""
+func IsUnknownArtist(artist string) bool {
+	return artist == UnknownArtist || artist == ""
 }
 
 // less reports whether track i should sort before track j.
@@ -49,8 +52,8 @@ func isUnknownArtist(artist string) bool {
 // unknown titles sort after named titles; otherwise alphabetical, ignoring
 // case (see compareText).
 func less(a, b Track) bool {
-	aUnknown := isUnknownArtist(a.Artist)
-	bUnknown := isUnknownArtist(b.Artist)
+	aUnknown := IsUnknownArtist(a.Artist)
+	bUnknown := IsUnknownArtist(b.Artist)
 	if aUnknown != bUnknown {
 		return bUnknown // named artist before unknown
 	}
