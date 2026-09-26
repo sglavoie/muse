@@ -6,10 +6,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/notify"
 	"github.com/sglavoie/muse/internal/player"
 )
 
@@ -338,5 +340,43 @@ func TestResolveMPVSocketPath(t *testing.T) {
 	}
 	if got := resolveMPVSocketPath(dirs, config.Config{MPVSocketPath: "/tmp/custom.sock"}); got != "/tmp/custom.sock" {
 		t.Errorf("configured socket path = %q, want %q", got, "/tmp/custom.sock")
+	}
+}
+
+// stubNotifications replaces the notification backend for the duration of a
+// test and returns the tracks it was asked to send.
+func stubNotifications(t *testing.T) *[]notify.Track {
+	t.Helper()
+	var sent []notify.Track
+	orig := sendNotification
+	sendNotification = func(n notify.Track) error {
+		sent = append(sent, n)
+		return nil
+	}
+	t.Cleanup(func() { sendNotification = orig })
+	return &sent
+}
+
+// TestRunNowPlaying_ReportsQueryError guards against the not-running banner
+// hiding why mpv could not be queried: the underlying error must reach stderr
+// while stdout and the banner stay unchanged.
+func TestRunNowPlaying_ReportsQueryError(t *testing.T) {
+	_ = isolateXDG(t)
+	sent := stubNotifications(t)
+
+	var code int
+	out := captureOutput(t, func() { code = runNowPlaying() })
+
+	if code != 1 {
+		t.Errorf("runNowPlaying = %d, want 1 when mpv is unreachable\noutput:\n%s", code, out)
+	}
+	if !strings.Contains(out, "error: query mpv: ") {
+		t.Errorf("output does not report the underlying mpv error:\n%s", out)
+	}
+	if want := nowPlayingNotRunning().SummaryLine(); !strings.Contains(out, want) {
+		t.Errorf("output missing summary line %q:\n%s", want, out)
+	}
+	if len(*sent) != 1 || (*sent)[0] != nowPlayingNotRunning() {
+		t.Errorf("sent = %+v, want exactly the not-running banner", *sent)
 	}
 }
