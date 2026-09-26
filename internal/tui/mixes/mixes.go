@@ -195,7 +195,7 @@ func renderMixListRow(cursor string, mix recommendation.MixInfo, width int) stri
 
 func splitMixListRow(cursor string, mix recommendation.MixInfo, width int) (name, rest string) {
 	if width <= 0 {
-		count := fmt.Sprintf("%d tracks", mix.TrackCount)
+		count := fmt.Sprintf("%d %s", mix.TrackCount, text.Pluralize(mix.TrackCount, "track", "tracks"))
 		return fmt.Sprintf("%-14s", mix.Name), fmt.Sprintf("  %-10s  %s", count, mix.Description)
 	}
 
@@ -217,7 +217,7 @@ func splitMixListRow(cursor string, mix recommendation.MixInfo, width int) (name
 	}
 
 	descW := max(width-cursorW-nameW-gapCount-countW-gapCount, 0)
-	count := fmt.Sprintf("%d tracks", mix.TrackCount)
+	count := fmt.Sprintf("%d %s", mix.TrackCount, text.Pluralize(mix.TrackCount, "track", "tracks"))
 	name = text.Pad(mix.Name, nameW)
 	rest = strings.Repeat(" ", gapCount) + text.Pad(count, countW)
 	if descW > 0 {

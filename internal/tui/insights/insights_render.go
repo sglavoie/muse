@@ -167,8 +167,8 @@ func (v View) headerHeight() int {
 
 func (v View) renderStrip(s styles.Styles) string {
 	spec := v.Spec()
-	summary := fmt.Sprintf("%s plays · %s · %d %s",
-		text.FormatCount(v.Snap.TotalPlays),
+	summary := fmt.Sprintf("%s %s · %s · %d %s",
+		text.FormatCount(v.Snap.TotalPlays), text.Pluralize(v.Snap.TotalPlays, "play", "plays"),
 		text.FormatListeningTime(v.Snap.TotalSecs),
 		v.Snap.SpanDays, text.Pluralize(v.Snap.SpanDays, "day", "days"))
 	line := strip.Render(v.width, []string{"Insights", summary},
@@ -272,8 +272,9 @@ func (v View) headline(p Panel) string {
 		if ss.Count == 0 {
 			return "no sessions in this window"
 		}
-		return fmt.Sprintf("%d sessions · median %s · %.0f%% single-artist",
-			ss.Count, text.FormatListeningTime(ss.MedianSecs), ss.SingleArtistShare*100)
+		return fmt.Sprintf("%d %s · median %s · %.0f%% single-artist",
+			ss.Count, text.Pluralize(ss.Count, "session", "sessions"),
+			text.FormatListeningTime(ss.MedianSecs), ss.SingleArtistShare*100)
 	case PanelDiscovery:
 		t := snap.Trends
 		return fmt.Sprintf("%d first-time %s %s · %.0f%% are repeats",
@@ -346,9 +347,10 @@ func (v View) coverageHeaderLines(s styles.Styles) []string {
 
 	lines := []string{
 		"",
-		s.TextPrimary.Render(fmt.Sprintf("In %d %s you played %s tracks. You own %s.",
+		s.TextPrimary.Render(fmt.Sprintf("In %d %s you played %s %s. You own %s.",
 			v.Snap.SpanDays, text.Pluralize(v.Snap.SpanDays, "day", "days"),
-			text.FormatCount(c.HeardTracks), text.FormatCount(c.TotalTracks))),
+			text.FormatCount(c.HeardTracks), text.Pluralize(c.HeardTracks, "track", "tracks"),
+			text.FormatCount(c.TotalTracks))),
 		"",
 	}
 	if !v.compact() {

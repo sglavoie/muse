@@ -1,6 +1,7 @@
 package mixes
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -128,5 +129,17 @@ func TestMixesViewBackResetsTrackView(t *testing.T) {
 	}
 	if len(v.TrackView.SourceTracks) != 0 {
 		t.Fatalf("expected trackView reset after back, got %d tracks", len(v.TrackView.SourceTracks))
+	}
+}
+
+// TestMixListRowSingularTrackCount guards the mix list's count column against
+// "1 tracks", at both the fixed-width and the unbounded layout.
+func TestMixListRowSingularTrackCount(t *testing.T) {
+	mix := recommendation.MixInfo{ID: 1, Name: "Rediscover", TrackCount: 1}
+	for _, width := range []int{0, 80} {
+		row := renderMixListRow("", mix, width)
+		if strings.Contains(row, "1 tracks") || !strings.Contains(row, "1 track") {
+			t.Errorf("width %d: want \"1 track\" in %q", width, row)
+		}
 	}
 }
