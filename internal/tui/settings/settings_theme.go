@@ -128,7 +128,7 @@ func (o SettingsOverlay) displayHint() string {
 		return "#RGB or #RRGGBB · blank for default · enter apply · esc back"
 	}
 	if o.cursor == displayPrimary {
-		return "enter edit · r reset · j/k move · ctrl+s save · esc cancel"
+		return "enter edit · r reset · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
 	}
-	return "j/k move · h/l set · [/] tabs · ctrl+s save · esc cancel"
+	return "[/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 }

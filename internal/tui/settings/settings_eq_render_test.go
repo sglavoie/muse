@@ -86,7 +86,7 @@ func TestEQHintLineIncludesJKFields(t *testing.T) {
 	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
-	if !strings.Contains(out, "j/k fields") {
-		t.Errorf("EQ tab hint: expected 'j/k fields' in output, got:\n%s", out)
+	if !strings.Contains(out, "j/k navigate") {
+		t.Errorf("EQ tab hint: expected 'j/k navigate' in output, got:\n%s", out)
 	}
 }
