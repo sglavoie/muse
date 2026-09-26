@@ -60,7 +60,9 @@ just test
 
 The full suite runs with `-race`; keep it that way. golangci-lint is pinned to
 an exact version in the `golangci_lint` variable at the top of the `justfile`,
-so everyone lints against the same rules — bump it there and nowhere else.
+so everyone lints against the same rules. The CI lint job pins the same
+version, so a bump changes both: the `justfile` variable and the `version` of
+the lint step in `.github/workflows/ci.yml`.
 
 ### Pre-commit hook
 
@@ -122,9 +124,11 @@ regressions.
   user-visible behaviour or configuration.
 - Add a line to the `Unreleased` section of [`CHANGELOG.md`](CHANGELOG.md) for
   anything users would notice.
-- There is no CI pipeline running on pull requests today, so the checks above
-  are the only gate — please actually run them locally on both the code and the
-  tests you touched.
+- CI runs on every pull request and push to `main`, on Linux only: build,
+  `go vet`, the gofmt and `go mod tidy` checks, the full `-race` test suite,
+  and the pinned golangci-lint. macOS-specific code (the `alerter` notification
+  backend, for instance) is not exercised there, so run the checks above
+  locally too, on both the code and the tests you touched.
 
 ## Reporting bugs
 
