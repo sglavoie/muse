@@ -45,6 +45,27 @@ func TestRenderFooterHints_TruncatesToWidth(t *testing.T) {
 	}
 }
 
+// TestRenderFooterHints_KeepsHelpWhenNarrow guards that dropping pairs to fit
+// a narrow width drops the ones before the trailing "? help" pair rather than
+// help itself, which is where every dropped hint can still be found.
+func TestRenderFooterHints_KeepsHelpWhenNarrow(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, width := range []int{10, 20, 40, 60} {
+		got := RenderFooterHints(width, ContextLibrary, HintModeDefault, reg, s)
+		plain := ansi.Strip(got)
+		if ansi.StringWidth(got) > width {
+			t.Errorf("width %d: strip is %d columns wide: %q", width, ansi.StringWidth(got), plain)
+		}
+		if !strings.HasSuffix(plain, "? help") {
+			t.Errorf("width %d: strip should end with \"? help\", got %q", width, plain)
+		}
+	}
+	if got := ansi.Strip(RenderFooterHints(40, ContextLibrary, HintModeDefault, reg, s)); !strings.HasPrefix(got, "  j/k nav") {
+		t.Errorf("leading pairs should still render left to right, got %q", got)
+	}
+}
+
 func TestRenderFooterHints_KeyLabelAsymmetry(t *testing.T) {
 	// Pair tokens must be styled per-token: keys through HelpKey, labels
 	// through TextSecondary, separators through Dim — not the prior

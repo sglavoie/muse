@@ -27,8 +27,10 @@ const footerHintSep = " · "
 // registered for the context, the default-mode set is shown.
 //
 // The returned string is at most width display columns wide. Pairs that
-// don't fit are dropped from the right; any partially-rendered pair is
-// elided with "…" so the strip never wraps.
+// don't fit are dropped from the right, except a trailing "?" (help) pair,
+// which is kept while the pairs before it are dropped: help is where every
+// dropped hint can still be found. Any partially-rendered pair is elided with
+// "…" so the strip never wraps.
 func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styles.Styles) string {
 	if width <= 0 {
 		return ""
@@ -45,6 +47,11 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 	}
 
 	styled, rendered := renderHintsWithinBudget(hints, avail, s)
+	if rendered < len(hints) {
+		if kept, ok := renderHintsKeepingHelp(hints, avail, s); ok {
+			styled, rendered = kept, 1
+		}
+	}
 	if rendered == 0 {
 		// Even the first pair didn't fit — truncate it so something shows.
 		truncated := ansi.Truncate(hintPairText(hints[0]), avail, "…")
@@ -75,6 +82,26 @@ func renderHintsWithinBudget(hints []primaryHint, avail int, s styles.Styles) (s
 		rendered++
 	}
 	return styled.String(), rendered
+}
+
+// renderHintsKeepingHelp renders a strip that ends in the trailing "?" pair,
+// fitting as many of the pairs before it as the remaining budget allows. It
+// reports false when the hints do not end in "?" or that pair alone does not
+// fit, so the caller keeps its left-to-right rendering.
+func renderHintsKeepingHelp(hints []primaryHint, avail int, s styles.Styles) (string, bool) {
+	help := hints[len(hints)-1]
+	if help.Key != "?" {
+		return "", false
+	}
+	helpW := ansi.StringWidth(hintPairText(help))
+	if helpW > avail {
+		return "", false
+	}
+	head, n := renderHintsWithinBudget(hints[:len(hints)-1], avail-helpW-ansi.StringWidth(footerHintSep), s)
+	if n > 0 {
+		head += s.Dim.Render(footerHintSep)
+	}
+	return head + renderHintKeyLabel(help.Key, help.Label, s), true
 }
 
 // hintPairText is the unstyled "key label" text a hint occupies. It is what
