@@ -8,23 +8,11 @@ import (
 	"github.com/sglavoie/muse/internal/safego"
 )
 
-// BridgeScanChannel reads tracks from raw, forwards each to the returned
-// channel, and batches upserts via writer. The returned channel is closed
-// when raw is exhausted and any remaining batch has been flushed.
-// If writer also implements GenrePopulator, PopulateTrackGenres is called
-// after each batch flush to keep the track_genres junction table current.
-//
-// It is a thin compatibility wrapper over bridgeScanChannel using a background
-// context; callers needing cancellation or completion signaling should use
-// bridgeScanChannel directly.
-func BridgeScanChannel(raw <-chan library.Track, writer UpsertBatcher, batchSize int) <-chan library.Track {
-	ch, _ := bridgeScanChannel(context.Background(), raw, writer, newPathHashRegistry(nil), batchSize)
-	return ch
-}
-
 // bridgeScanChannel is the context-aware scan bridge. It forwards every track
 // from raw to the returned channel and batches upserts via writer, draining any
-// remaining batch when raw is exhausted or ctx is cancelled. A batch whose
+// remaining batch when raw is exhausted or ctx is cancelled. If writer also
+// implements GenrePopulator, PopulateTrackGenres is called after each batch
+// flush to keep the track_genres junction table current. A batch whose
 // upsert fails is retained and retried on the next size-cap drain or the final
 // drain, mirroring the watcher bridge's retention without the idle/backoff
 // timers (the diff walk is a bounded, one-shot producer).
@@ -46,7 +34,7 @@ func bridgeScanChannel(ctx context.Context, raw <-chan library.Track, writer Ups
 		populate = gp.PopulateTrackGenres
 	}
 	// marker is optional: LoadLibrary passes a LibraryWriter (which marks), while
-	// the BridgeScanChannel compatibility wrapper may pass a plain UpsertBatcher.
+	// a caller may pass a plain UpsertBatcher.
 	marker, _ := writer.(MissingMarker)
 	ch := make(chan library.Track, scanChannelBuffer)
 	done := make(chan struct{})

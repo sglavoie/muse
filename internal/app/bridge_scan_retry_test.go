@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -13,7 +14,7 @@ func TestBridgeScanChannel_SkipsGenrePopulationOnUpsertFailure(t *testing.T) {
 	close(raw)
 
 	writer := &stubGenreWriter{upsertErr: errors.New("upsert failed")}
-	ch := BridgeScanChannel(raw, writer, 1)
+	ch, _ := bridgeScanChannel(context.Background(), raw, writer, nil, 1)
 
 	for range ch {
 	}
@@ -31,7 +32,7 @@ func TestBridgeScanChannel_RetriesFailedBatchOnLaterDrain(t *testing.T) {
 	close(raw)
 
 	writer := &flakyUpsertBatcher{failures: 1, err: errors.New("transient upsert failed")}
-	ch := BridgeScanChannel(raw, writer, 2)
+	ch, _ := bridgeScanChannel(context.Background(), raw, writer, nil, 2)
 
 	var got []library.Track
 	for track := range ch {
@@ -60,7 +61,7 @@ func TestBridgeScanChannel_CapsRetriedBatchGrowth(t *testing.T) {
 	close(raw)
 
 	writer := &flakyUpsertBatcher{failures: 5, err: errors.New("persistent upsert failure")}
-	ch := BridgeScanChannel(raw, writer, 2)
+	ch, _ := bridgeScanChannel(context.Background(), raw, writer, nil, 2)
 
 	for range ch {
 	}

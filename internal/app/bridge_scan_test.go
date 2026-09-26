@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -14,7 +15,7 @@ func TestBridgeScanChannel(t *testing.T) {
 	close(raw)
 
 	writer := &stubUpsertBatcher{}
-	ch := BridgeScanChannel(raw, writer, 2)
+	ch, _ := bridgeScanChannel(context.Background(), raw, writer, nil, 2)
 
 	var got []library.Track
 	for track := range ch {
@@ -41,7 +42,7 @@ func TestBridgeScanChannel_EmptyInput(t *testing.T) {
 	close(raw)
 
 	writer := &stubUpsertBatcher{}
-	ch := BridgeScanChannel(raw, writer, 10)
+	ch, _ := bridgeScanChannel(context.Background(), raw, writer, nil, 10)
 
 	var got []library.Track
 	for track := range ch {
@@ -62,7 +63,7 @@ func TestBridgeScanChannel_CreatedAtSetBeforeForward(t *testing.T) {
 	close(raw)
 
 	writer := &stubUpsertBatcher{}
-	ch := BridgeScanChannel(raw, writer, 10)
+	ch, _ := bridgeScanChannel(context.Background(), raw, writer, nil, 10)
 
 	track := <-ch
 	if track.CreatedAt == 0 {
