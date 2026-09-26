@@ -41,8 +41,8 @@ var remoteActions = []remoteAction{
 	{"toggle-play", "Toggle play/pause on the running instance"},
 	{"next", "Skip to the next track"},
 	{"previous", "Skip to the previous track"},
-	{"volume-up", "Increase volume by 5%"},
-	{"volume-down", "Decrease volume by 5%"},
+	{"volume-up", "Increase volume by volume_increment (default 5%)"},
+	{"volume-down", "Decrease volume by volume_increment (default 5%)"},
 }
 
 type unixSocketListener struct {

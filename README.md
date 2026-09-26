@@ -333,8 +333,8 @@ Run `muse` with no arguments to launch the TUI. The subcommands are:
 | `muse toggle-play` | Toggle play/pause on the running instance |
 | `muse next` | Skip to the next track |
 | `muse previous` | Skip to the previous track |
-| `muse volume-up` | Increase volume by 5% |
-| `muse volume-down` | Decrease volume by 5% |
+| `muse volume-up` | Increase volume by `volume_increment` (default 5%) |
+| `muse volume-down` | Decrease volume by `volume_increment` (default 5%) |
 
 The five playback commands are relayed to an already-running muse over a Unix
 control socket, so they are convenient to bind to global hotkeys — see
