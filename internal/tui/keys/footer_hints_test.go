@@ -246,3 +246,30 @@ func TestRenderFooterHints_EmptyLabelDoesNotOverReserveWidth(t *testing.T) {
 		t.Errorf("expected no truncation for a key that fits in full, got %q", plain)
 	}
 }
+
+// TestRenderFooterHints_CreateRenameMatchAcrossPlaylistsAndTags guards that
+// Playlists and Tags word and order their create/rename hints the same way.
+func TestRenderFooterHints_CreateRenameMatchAcrossPlaylistsAndTags(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, ctx := range []Context{ContextPlaylists, ContextTags} {
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeDefault, reg, s))
+		if !strings.Contains(got, "c create · r rename") {
+			t.Errorf("context %d: want \"c create · r rename\", got %q", ctx, got)
+		}
+	}
+}
+
+// TestRenderFooterHints_SelectionLabelsRemoveWhereARemoves guards that the
+// selection footer names what a does: in Playlists and Favorites it removes
+// the selection, so "bulk action" undersold a destructive key.
+func TestRenderFooterHints_SelectionLabelsRemoveWhereARemoves(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, ctx := range []Context{ContextPlaylists, ContextFavorites} {
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeSelection, reg, s))
+		if !strings.Contains(got, "a remove") || strings.Contains(got, "bulk action") {
+			t.Errorf("context %d: want \"a remove\" and no \"bulk action\", got %q", ctx, got)
+		}
+	}
+}

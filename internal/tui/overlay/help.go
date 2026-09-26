@@ -316,7 +316,7 @@ var helpSectionsTable = []HelpSection{
 			{"x", "Toggle bulk selection"},
 			{"X", "Clear bulk selection"},
 			{"v", "Toggle visual line selection mode"},
-			{"a", "Add selected tracks to playlist"},
+			{"a", "Add selected tracks to a playlist or the queue"},
 			{"/", "Filter"},
 			{"u", "Undo last tag operation"},
 		},

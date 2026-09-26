@@ -282,8 +282,8 @@ func registerDefaultPrimaries(r *Registry) {
 
 	r.addPrimary(ContextPlaylists, "j/k", "nav")
 	r.addPrimary(ContextPlaylists, "enter", "open")
+	r.addPrimary(ContextPlaylists, "c", "create")
 	r.addPrimary(ContextPlaylists, "r", "rename")
-	r.addPrimary(ContextPlaylists, "c", "new")
 	r.addPrimary(ContextPlaylists, "?", "help")
 
 	for _, ctx := range []Context{ContextBrowse, ContextArtists, ContextAlbums, ContextGenres} {
@@ -342,7 +342,7 @@ func registerSelectionModePrimaries(r *Registry) {
 	r.addPrimaryMode(ContextQueue, HintModeSelection, "?", "help")
 
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "enter", "open")
-	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "a", "remove")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "t", "tag")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "?", "help")
@@ -356,7 +356,7 @@ func registerSelectionModePrimaries(r *Registry) {
 	}
 
 	r.addPrimaryMode(ContextFavorites, HintModeSelection, "enter", "open")
-	r.addPrimaryMode(ContextFavorites, HintModeSelection, "a", "bulk action")
+	r.addPrimaryMode(ContextFavorites, HintModeSelection, "a", "remove")
 	r.addPrimaryMode(ContextFavorites, HintModeSelection, "F", "unfavorite")
 	r.addPrimaryMode(ContextFavorites, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(ContextFavorites, HintModeSelection, "?", "help")
