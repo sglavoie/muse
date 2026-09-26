@@ -3,8 +3,10 @@ package app
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"math"
+	"os/exec"
 	"runtime"
 	"sync"
 
@@ -111,7 +113,19 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 					probeFnMu.RUnlock()
 					dur, err := probe(ctx, t.Path)
 					if err != nil {
-						slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
+						if ctx.Err() != nil {
+							return
+						}
+						if !probeFailureIsFinal(err) {
+							slog.Warn("duration audit: ffprobe failed, skipping", "path", t.Path, "err", err)
+							continue
+						}
+						// ffprobe ran and cannot read this file. Mark it
+						// verified so it is not re-probed (and re-warned) on
+						// every launch; UpsertBatch clears the flag when the
+						// file changes, so a repaired file is audited again.
+						slog.Warn("duration audit: ffprobe cannot read file, keeping stored duration", "path", t.Path, "err", err)
+						results <- result{hash: t.Hash, verified: true}
 						continue
 					}
 					if math.IsNaN(dur) || math.IsInf(dur, 0) || dur < 0 || dur > maxAuditableDurationSeconds {
@@ -171,6 +185,19 @@ func RunDurationAudit(ctx context.Context, reader DurationReader, writer Duratio
 	}()
 
 	return out, outcome
+}
+
+// probeFailureIsFinal reports whether a probe error is about the file itself
+// and so will recur on the next launch. Cancellation, a per-file timeout, and
+// ffprobe failing to start at all (missing or unrunnable binary, fork failure)
+// say nothing about the file, so those tracks stay unverified and are retried.
+func probeFailureIsFinal(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var execErr *exec.Error
+	var pathErr *fs.PathError
+	return !errors.As(err, &execErr) && !errors.As(err, &pathErr)
 }
 
 func durationDiffExceeds(a, b, threshold int64) bool {

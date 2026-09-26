@@ -2,11 +2,13 @@ package library_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sglavoie/muse/internal/library"
 )
@@ -56,5 +58,28 @@ func TestFFProbeDuration_RejectsInvalidDurations(t *testing.T) {
 				t.Fatalf("error = %q, want invalid duration", err)
 			}
 		})
+	}
+}
+
+// A probe killed by its deadline must report the context error, not just
+// "signal: killed", so the duration audit can tell a slow probe from a file
+// ffprobe cannot read.
+func TestFFProbeDuration_TimeoutWrapsContextError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake shell executable is Unix-specific")
+	}
+
+	dir := t.TempDir()
+	ffprobe := filepath.Join(dir, "ffprobe")
+	if err := os.WriteFile(ffprobe, []byte("#!/bin/sh\nexec sleep 5\n"), 0o755); err != nil {
+		t.Fatalf("write fake ffprobe: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := library.FFProbeDuration(ctx, "track.mp3")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want it to wrap context.DeadlineExceeded", err)
 	}
 }

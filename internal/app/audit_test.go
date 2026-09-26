@@ -3,7 +3,10 @@ package app_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io/fs"
 	"math"
+	"os/exec"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -100,11 +103,13 @@ func TestRunDurationAudit_ReadError(t *testing.T) {
 	}
 }
 
-// TestRunDurationAudit_FFProbeFailureSkips verifies that when ffprobe fails,
-// the track is skipped: no fix is sent and no writer method is called.
-func TestRunDurationAudit_FFProbeFailureSkips(t *testing.T) {
+// TestRunDurationAudit_FFProbeFailureMarksVerified verifies that when ffprobe
+// runs but cannot read a file, the stored duration is kept and the track is
+// marked verified, so the same unreadable file is not re-probed (and
+// re-warned) on every launch.
+func TestRunDurationAudit_FFProbeFailureMarksVerified(t *testing.T) {
 	restore := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
-		return 0, errors.New("ffprobe failed")
+		return 0, errors.New("ffprobe: exit status 1")
 	})
 	t.Cleanup(restore)
 
@@ -117,13 +122,54 @@ func TestRunDurationAudit_FFProbeFailureSkips(t *testing.T) {
 	fixes := drainAndWait(t, ch)
 
 	if len(fixes) != 0 {
-		t.Errorf("fixes sent = %d; want 0 (ffprobe fail → skip)", len(fixes))
+		t.Errorf("fixes sent = %d; want 0 (ffprobe fail → keep stored duration)", len(fixes))
 	}
-	if len(writer.verified) != 0 {
-		t.Errorf("MarkDurationVerified calls = %d; want 0", len(writer.verified))
+	if len(writer.verified) != 1 || writer.verified[0] != "hash-a" {
+		t.Errorf("MarkDurationVerified calls = %v; want [hash-a]", writer.verified)
 	}
 	if len(writer.corrected) != 0 {
 		t.Errorf("VerifyTrackDuration calls = %d; want 0", len(writer.corrected))
+	}
+}
+
+// TestRunDurationAudit_TransientProbeFailureSkips verifies that a probe that
+// timed out, was cancelled, or could not start ffprobe at all leaves the track
+// unverified so it is retried on the next launch: none of those say anything
+// about the file.
+func TestRunDurationAudit_TransientProbeFailureSkips(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{name: "timeout", err: fmt.Errorf("ffprobe: %w: signal: killed", context.DeadlineExceeded)},
+		{name: "cancelled", err: fmt.Errorf("ffprobe: %w", context.Canceled)},
+		{name: "binary missing", err: fmt.Errorf("ffprobe: %w", &exec.Error{Name: "ffprobe", Err: exec.ErrNotFound})},
+		{name: "start failure", err: fmt.Errorf("ffprobe: %w", &fs.PathError{Op: "fork/exec", Path: "/usr/bin/ffprobe", Err: errors.New("resource temporarily unavailable")})},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := app.SetProbeFn(func(_ context.Context, _ string) (float64, error) {
+				return 0, tc.err
+			})
+			t.Cleanup(restore)
+
+			reader := &stubReader{tracks: []db.UnverifiedTrack{
+				{Hash: "hash-a", Path: "/any/track.mp3", DurationMs: 120000},
+			}}
+			writer := newStubVerifier()
+
+			ch := runAudit(t, reader, writer)
+			fixes := drainAndWait(t, ch)
+
+			if len(fixes) != 0 {
+				t.Errorf("fixes sent = %d; want 0", len(fixes))
+			}
+			if len(writer.verified) != 0 {
+				t.Errorf("MarkDurationVerified calls = %v; want none", writer.verified)
+			}
+			if len(writer.corrected) != 0 {
+				t.Errorf("VerifyTrackDuration calls = %d; want 0", len(writer.corrected))
+			}
+		})
 	}
 }
 
