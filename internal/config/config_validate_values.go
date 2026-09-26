@@ -318,5 +318,5 @@ func validateFloatRange(ptr *float64, lo, hi float64, field string, dflt float64
 		return
 	}
 	slog.Warn("invalid config value, using default", "field", field, "value", v, "default", dflt)
-	*warnings = append(*warnings, fmt.Sprintf("%s %.1f is out of range (%g-%g), using %.1f", field, v, lo, hi, dflt))
+	*warnings = append(*warnings, fmt.Sprintf("%s %g is out of range (%g-%g), using %g", field, v, lo, hi, dflt))
 }
