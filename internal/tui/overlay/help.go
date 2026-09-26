@@ -332,7 +332,7 @@ var helpSectionsTable = []HelpSection{
 			{"N", "Play next (insert after current track)"},
 			{"x", "Dismiss focused track from future mixes"},
 			{"X", "Undismiss focused track"},
-			{"s", "Cycle sort field (track level)"},
+			{"s", "Cycle sort field (track level); stop on the mix list"},
 			{"S", "Save current mix as a static playlist"},
 			{"A", "Start radio seeded from this mix"},
 			{"/", "Filter tracks (track level)"},

@@ -223,7 +223,7 @@ func registerMixesBindings(r *Registry) {
 	r.register(ContextMixes, "v", ActionVisualMode)
 	r.register(ContextMixes, "a", ActionBulkAction)
 	r.registerWithReason(ContextMixes, "s", ActionSortCycle,
-		"one-key sort cycle at mix track level (ctrl+s remains available)")
+		"one-key sort cycle at mix track level; stays stop on the mix list (ctrl+s remains available)")
 	r.register(ContextMixes, "S", ActionSaveMixAsPlaylist)
 	r.registerWithReason(ContextMixes, "A", ActionMixRadioSeed,
 		"seed radio from focused mix's aggregate metadata")

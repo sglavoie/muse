@@ -70,6 +70,9 @@ import (
 // TestNoSilentlyShadowedGlobalBindings test passes — the domain reason is
 // surfaced as the override's justification. Same-action rebinds (Tags F)
 // are treated as harmless redundancy and not flagged.
+//
+// Mixes s is sort-cycle only once a mix is open; on the mix list the root
+// model resolves it through the global binding (stop) instead.
 
 // Context identifies the context in which key bindings are resolved.
 // The registry checks the view-local context first, then falls back to Global.

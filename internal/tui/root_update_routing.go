@@ -1,6 +1,9 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/keys"
+)
 
 func (m Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) Model {
 	m.termWidth = msg.Width
@@ -25,7 +28,18 @@ func (m Model) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if model, cmd, ok := m.routeKeyPress(msg); ok {
 		return model, cmd
 	}
-	return m.handleKeyAction(m.registry.Resolve(m.activeViewContext(), msg.String()))
+	return m.handleKeyAction(m.resolveKey(msg.String()))
+}
+
+// resolveKey maps key to its action in the active view. Mixes shadows the
+// global stop key with sort-cycle, but only an open mix has tracks to sort, so
+// on the mix list that key keeps its global meaning instead of doing nothing.
+func (m Model) resolveKey(key string) keys.Action {
+	a := m.registry.Resolve(m.activeViewContext(), key)
+	if a == keys.ActionSortCycle && m.ActiveView == viewMixes && m.mixes.Level == 0 {
+		return m.registry.Resolve(keys.ContextGlobal, key)
+	}
+	return a
 }
 
 func (m Model) handleUnhandledMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
