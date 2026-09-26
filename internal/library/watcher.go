@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -49,7 +50,10 @@ type WatchEvent struct {
 // The returned channel emits WatchEvent values and is closed when ctx is
 // cancelled. If fsnotify setup fails (e.g. fd exhaustion on macOS), Watch
 // returns a pre-closed channel and a nil error: the watcher is inactive and the
-// caller should rely on manual rescan as the sole rescan mechanism.
+// caller should rely on manual rescan as the sole rescan mechanism. A root that
+// does not exist or cannot be read is skipped with a warning and the others are
+// still watched; Watch degrades only when registration fails for a reachable
+// root or when no root could be watched at all.
 func Watch(ctx context.Context, roots []string, excludedPaths []string, extractor MetadataExtractor, debounceDelay time.Duration) (<-chan WatchEvent, bool, error) {
 	raiseFDLimit()
 
@@ -60,6 +64,7 @@ func Watch(ctx context.Context, roots []string, excludedPaths []string, extracto
 	}
 
 	degraded := false
+	watched := 0
 	for _, root := range roots {
 		if err := addWatchesRecursive(ctx, w, root, excludedPaths); err != nil {
 			if ctx.Err() != nil {
@@ -71,11 +76,21 @@ func Watch(ctx context.Context, roots []string, excludedPaths []string, extracto
 				_ = w.Close()
 				return closedWatchEventChan(), true, nil
 			}
+			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) {
+				// An unreachable root (an unplugged external drive, an
+				// unmounted share, a directory we may not read) must not take
+				// live watching down for every other root: skip it and keep
+				// watching the rest. It is picked up again on the next launch.
+				slog.Warn("watcher: skipping unreachable root", "root", root, "err", err)
+				continue
+			}
 			slog.Warn("watcher: failed to register directory watches for root", "root", root, "err", err)
 			degraded = true
+			continue
 		}
+		watched++
 	}
-	if degraded && len(roots) > 0 {
+	if (degraded || watched == 0) && len(roots) > 0 {
 		_ = w.Close()
 		slog.Warn("watcher: falling back to manual rescan due to watch registration failures")
 		return closedWatchEventChan(), true, nil
