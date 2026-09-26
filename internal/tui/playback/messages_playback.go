@@ -75,8 +75,8 @@ type PauseChangedMsg struct {
 	Paused bool
 }
 
-// RemoteActionMsg is sent when an external signal (SIGUSR1) requests a
-// playback action.
+// RemoteActionMsg is sent when a remote client requests a playback action
+// over the muse.ctrl control socket (e.g. `muse next`).
 type RemoteActionMsg struct{ ActionName string }
 
 // RemoteAction maps a subcommand name to the corresponding action constant.
