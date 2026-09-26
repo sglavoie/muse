@@ -76,6 +76,9 @@ func buildWhere(sb *strings.Builder, args *[]any, rule SmartRule) error {
 func buildLeaf(sb *strings.Builder, args *[]any, rule SmartRule) error {
 	switch rule.Field {
 	case FieldArtist, FieldTitle, FieldAlbum, FieldGenre, FieldPath:
+		if rule.Field == FieldGenre && buildGenreEquality(sb, args, rule.Operator, rule.Value) {
+			return nil
+		}
 		col := stringFieldCol(rule.Field)
 		return buildStringOp(sb, args, col, rule.Operator, rule.Value)
 
@@ -160,13 +163,34 @@ func stringFieldCol(f RuleField) string {
 	}
 }
 
+// buildGenreEquality writes equals/not-equals on genre as a per-genre match
+// against track_genres, so "genre is Rock" picks a track tagged "Rock; Pop"
+// rather than only one whose whole genre string is exactly "Rock". It reports
+// false, writing nothing, for any other operator and for an empty value, which
+// keep comparing the raw column ("genre is empty" means an untagged track).
+func buildGenreEquality(sb *strings.Builder, args *[]any, op RuleOperator, val string) bool {
+	genre := strings.TrimSpace(val)
+	if genre == "" || (op != OpEquals && op != OpNotEquals) {
+		return false
+	}
+	const subq = "EXISTS (SELECT 1 FROM track_genres tg WHERE tg.track_hash = t.hash AND tg.genre = ? COLLATE NOCASE)"
+	if op == OpNotEquals {
+		sb.WriteString("NOT ")
+	}
+	sb.WriteString(subq)
+	*args = append(*args, genre)
+	return true
+}
+
+// buildStringOp writes a text comparison. Every operator ignores case: LIKE
+// already does, and equals/not-equals use COLLATE NOCASE to match it.
 func buildStringOp(sb *strings.Builder, args *[]any, col string, op RuleOperator, val string) error {
 	switch op {
 	case OpEquals:
-		sb.WriteString(col + " = ?")
+		sb.WriteString(col + " = ? COLLATE NOCASE")
 		*args = append(*args, val)
 	case OpNotEquals:
-		sb.WriteString(col + " != ?")
+		sb.WriteString(col + " != ? COLLATE NOCASE")
 		*args = append(*args, val)
 	case OpContains:
 		sb.WriteString(col + " LIKE ? ESCAPE '\\'")

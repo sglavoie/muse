@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 )
 
 // insertFullTrack inserts a track with all metadata fields. durationMs is in
@@ -19,6 +20,38 @@ func insertFullTrack(t *testing.T, d *db.DB, hash, path, title, artist, album, g
 	)
 	if err != nil {
 		t.Fatalf("insertFullTrack: %v", err)
+	}
+}
+
+// syncTrackGenres fills track_genres from every track's genre column, as the
+// scan bridge does after each batch, for tests that insert tracks directly.
+func syncTrackGenres(t *testing.T, d *db.DB) {
+	t.Helper()
+	rows, err := d.Query(`SELECT hash, genre FROM tracks`)
+	if err != nil {
+		t.Fatalf("syncTrackGenres: %v", err)
+	}
+	type pair struct{ hash, genre string }
+	var pairs []pair
+	for rows.Next() {
+		var hash, genre string
+		if err := rows.Scan(&hash, &genre); err != nil {
+			t.Fatalf("syncTrackGenres scan: %v", err)
+		}
+		for _, g := range library.SplitGenres(genre) {
+			pairs = append(pairs, pair{hash, g})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("syncTrackGenres rows: %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("syncTrackGenres close: %v", err)
+	}
+	for _, p := range pairs {
+		if _, err := d.Exec(`INSERT OR IGNORE INTO track_genres (track_hash, genre) VALUES (?, ?)`, p.hash, p.genre); err != nil {
+			t.Fatalf("syncTrackGenres insert: %v", err)
+		}
 	}
 }
 
