@@ -299,7 +299,7 @@ func (m Model) insightsRutBreakerTracks(limit int) []library.Track {
 		})
 	}
 
-	out := make([]library.Track, 0, min(limit, len(m.library.Index.Tracks())))
+	out := make([]library.Track, 0, min(limit, m.library.Index.Len()))
 	for round := 0; len(out) < limit; round++ {
 		took := false
 		for _, a := range artists {
