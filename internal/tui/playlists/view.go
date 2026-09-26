@@ -255,6 +255,7 @@ func NewInlineInput(initial string) textinput.Model {
 func (v View) StartCreate() View {
 	v.Creating = true
 	v.CreateInput = NewInlineInput("")
+	v.CreateInput.Prompt = "+ " // matches the Tags create row
 	v.Renaming = false
 	v.RenameInput = textinput.Model{}
 	return v
@@ -274,6 +275,7 @@ func (v View) StartRename(currentName string) View {
 	v.CreateInput = textinput.Model{}
 	v.Renaming = true
 	v.RenameInput = NewInlineInput(currentName)
+	v.RenameInput.Prompt = "r " // matches the Tags rename row
 	return v
 }
 

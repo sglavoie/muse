@@ -12,7 +12,7 @@ import (
 
 const (
 	queueLabel  = "Play Queue"
-	createLabel = "New playlist..."
+	createLabel = "New playlist…"
 
 	borderH  = "─"
 	borderV  = "│"
@@ -37,7 +37,7 @@ type DestinationPickedMsg struct {
 type DestinationPickerDismissedMsg struct{}
 
 // DestinationPickerCreateMsg is dispatched when the user selects the
-// "New playlist..." entry that is shown when no playlists exist.
+// "New playlist…" entry that is shown when no playlists exist.
 type DestinationPickerCreateMsg struct{}
 
 // DestinationPickerModal is a focused overlay sub-model for choosing where to
@@ -58,7 +58,7 @@ func NewDestinationPicker(playlists []db.PlaylistRow) DestinationPickerModal {
 }
 
 // destinations returns the ordered list of destination labels: the play queue
-// first, then each playlist name, and finally a "New playlist..." entry so the
+// first, then each playlist name, and finally a "New playlist…" entry so the
 // user can always create a new playlist on the fly.
 func (m DestinationPickerModal) destinations() []string {
 	labels := make([]string, 0, 1+len(m.playlists)+1)
@@ -100,7 +100,7 @@ func (m DestinationPickerModal) HandleKey(key string) (DestinationPickerModal, t
 // confirmCmd builds the Cmd that confirms the current selection.
 func (m DestinationPickerModal) confirmCmd() tea.Cmd {
 	cursor := clamp(m.cursor, 0, len(m.playlists)+1)
-	// Last entry is always "New playlist...".
+	// Last entry is always "New playlist…".
 	if cursor == len(m.playlists)+1 {
 		return func() tea.Msg { return DestinationPickerCreateMsg{} }
 	}
