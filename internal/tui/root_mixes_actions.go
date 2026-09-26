@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -91,12 +92,16 @@ func (m Model) handleMixesSaveMixAsPlaylist() (Model, tea.Cmd) {
 	}
 }
 
-// handleMixEnqueueAll enqueues all cached tracks from the focused mix (level 0).
+// handleMixEnqueueAll enqueues all cached tracks from the focused mix at the
+// list level (0), or from the open mix at the track level (1).
 func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
-	if m.ActiveView != viewMixes || m.mixes.Level != 0 {
+	if m.ActiveView != viewMixes {
 		return m, nil
 	}
 	mix := m.mixes.FocusedMix()
+	if m.mixes.Level == 1 {
+		mix = m.openedMix()
+	}
 	if mix == nil {
 		return m, nil
 	}
@@ -107,7 +112,11 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 	}
 	cached, ok := m.mixes.CachedMixes[mix.ID]
 	if !ok || len(cached) == 0 {
-		m.statusBar.Notify("Load the mix first (press Enter)")
+		if m.mixes.Level == 1 {
+			m.statusBar.Notify("No tracks to enqueue")
+		} else {
+			m.statusBar.Notify("Load the mix first (press enter)")
+		}
 		return m, nil
 	}
 	wasEmpty := len(m.queue.Entries) == 0
@@ -125,6 +134,20 @@ func (m Model) handleMixEnqueueAll() (Model, tea.Cmd) {
 			PlaylistName: mixName,
 		}
 	}
+}
+
+// openedMix returns the mix whose tracks are open at level 1, or nil when no
+// mix is open or it is no longer listed.
+func (m Model) openedMix() *recommendation.MixInfo {
+	if m.mixes.Level != 1 {
+		return nil
+	}
+	for i := range m.mixes.Mixes {
+		if m.mixes.Mixes[i].ID == m.mixes.ActiveMix {
+			return &m.mixes.Mixes[i]
+		}
+	}
+	return nil
 }
 
 // handleMixSavedAsPlaylistMsg updates the playlist list and shows a success
