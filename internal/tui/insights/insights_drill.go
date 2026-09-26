@@ -56,6 +56,7 @@ func (v *View) OpenDrill(label string, tracks []library.Track) {
 	}
 	v.DrillLabel = label
 	v.TrackView = libtui.View{
+		Label:        "Insights — " + label,
 		SourceTracks: tracks,
 		Fuzzy:        library.SahilmFuzzySearcher{},
 		Width:        v.width,

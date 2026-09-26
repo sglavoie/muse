@@ -46,11 +46,12 @@ type View struct {
 	SortDir          string
 	NowPlayingHash   string // hash of the currently playing track; empty when nothing is playing
 	NowPlayingIcon   string // marker glyph (e.g. "▶", "⏸", "■"); empty falls back to "♪"
+	playlistName     string // name of the open playlist, shown in the TrackLevel heading
 }
 
 // visibleRows returns the maximum number of rows that fit on screen.
 // Reserve 1 line for the list level plus 1 extra when a sort indicator is
-// shown, or 4 for the track level ("Tracks" heading + blank line + header
+// shown, or 4 for the track level (heading + blank line + header
 // row + 1 padding).
 func (v View) visibleRows() int {
 	reserve := 1

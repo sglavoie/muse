@@ -75,7 +75,15 @@ func (v *MixesView) OpenMix(id db.MixID) {
 	v.Level = 1
 	v.ActiveMix = id
 	tracks := v.CachedMixes[id]
+	label := "Mixes"
+	for _, mix := range v.Mixes {
+		if mix.ID == id {
+			label += " — " + mix.Name
+			break
+		}
+	}
 	v.TrackView = libtui.View{
+		Label:        label,
 		SourceTracks: tracks,
 		Fuzzy:        library.SahilmFuzzySearcher{},
 		Width:        v.width,

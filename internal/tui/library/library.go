@@ -42,6 +42,7 @@ type View struct {
 	ShowPlayedAt    bool
 	TagFilterHashes map[string]struct{} // non-nil when a cross-view tag filter is active
 	Mode            LibraryMode
+	Label           string                 // overrides the strip's view label when non-empty (an embedded list's own name)
 	modeState       [3]libraryModeSnapshot // saved cursor/scroll/filter per mode
 }
 

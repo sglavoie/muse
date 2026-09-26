@@ -118,7 +118,14 @@ func (v View) renderRenameInputRow(cols Columns) string {
 }
 
 func (v View) renderTracks() string {
-	heading := v.Styles.Heading.Render("Tracks")
+	title := "Playlists"
+	if v.playlistName != "" {
+		title += " — " + v.playlistName
+	}
+	if v.Width > 0 {
+		title = text.Truncate(title, v.Width)
+	}
+	heading := v.Styles.Heading.Render(title)
 	if v.IsSmartPlaylist {
 		heading += "  " + v.Styles.Dim.Render("(smart playlist — read-only)")
 	}
