@@ -75,7 +75,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	case TabDisplay:
 		hint = o.displayHint()
 	case TabEqualizer:
-		hint = "s save preset · d delete preset · [/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+		hint = "s save preset · d delete · [/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 	default:
 		hint = "[/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 	}

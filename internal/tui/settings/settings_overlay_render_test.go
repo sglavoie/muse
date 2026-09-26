@@ -240,7 +240,7 @@ func TestSettingsHintsShareWordingAndOrder(t *testing.T) {
 	}
 
 	eq := settingsHintLine(t, cases[tabNames[TabEqualizer]])
-	for _, want := range []string{"s save preset", "d delete preset"} {
+	for _, want := range []string{"s save preset", "d delete"} {
 		if !strings.Contains(eq, want) {
 			t.Errorf("Equalizer hint missing %q: %q", want, eq)
 		}
