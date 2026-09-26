@@ -61,8 +61,12 @@ func (m Model) activeViewSelectionCount() int {
 		case browse.BrowseModeGenres:
 			return len(m.browse.Genres.SelectedHashes)
 		}
+	case viewPlaylists:
+		return len(m.playlists.SelectedTrackIDs)
 	case viewFavorites:
 		return len(m.favorites.SelectedItems)
+	case viewTags:
+		return len(m.tagsView.SelectedHashes)
 	case viewInsights:
 		return len(m.insights.TrackView.SelectedHashes)
 	}
