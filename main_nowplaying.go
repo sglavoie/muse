@@ -33,6 +33,8 @@ var sendNotification = notify.Send
 // which the TUI must be free to answer; reading mpv directly works even when
 // the TUI is busy.
 func runNowPlaying() int {
+	discardLogs()
+
 	dirs, err := config.ResolveDirs()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve dirs: %v\n", err)
@@ -43,6 +45,9 @@ func runNowPlaying() int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
+	}
+	for _, w := range loadResult.Warnings {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
 	}
 
 	socketPath := resolveMPVSocketPath(dirs, loadResult.Config)
