@@ -170,6 +170,17 @@ func (o SettingsOverlay) StereoWideState() (enabled bool, amount int) {
 	return
 }
 
+// keepFractional returns base while the whole-second field still shows it,
+// and the shown value once the user has changed it. The seek fields hold whole
+// seconds, so writing them back unconditionally would truncate a configured
+// 2.5 to 2 whenever any unrelated setting was saved.
+func keepFractional(base float64, shown int) float64 {
+	if int(base) == shown {
+		return base
+	}
+	return float64(shown)
+}
+
 // ToConfig merges the overlay's field values back into a copy of base.
 func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg := base
@@ -187,8 +198,8 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 
 	pb := o.Fields[TabPlayback]
 	cfg.VolumeIncrement = pb[0].Value
-	cfg.SeekOffsetShort = float64(pb[1].Value)
-	cfg.SeekOffsetLong = float64(pb[2].Value)
+	cfg.SeekOffsetShort = keepFractional(base.SeekOffsetShort, pb[1].Value)
+	cfg.SeekOffsetLong = keepFractional(base.SeekOffsetLong, pb[2].Value)
 	cfg.DefaultVolume = pb[3].Value
 	cfg.NormalizeVolume = pb[4].Value != 0
 	cfg.GaplessAudio = pb[5].Value != 0
