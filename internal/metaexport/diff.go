@@ -77,21 +77,21 @@ func Diff(rows []Row, cur map[string]Current) Plan {
 			p.Moved++
 		}
 
-		if row.Artist != c.Artist {
+		if !sameText(row.Artist, c.Artist) {
 			ch.Artist = &row.Artist
 			p.Counts.Artist++
 		}
-		if row.Title != c.Title {
+		if !sameText(row.Title, c.Title) {
 			ch.Title = &row.Title
 			p.Counts.Title++
 		}
-		if row.Album != c.Album {
+		if !sameText(row.Album, c.Album) {
 			ch.Album = &row.Album
 			p.Counts.Album++
 		}
 		// Genres compare canonically so reordering or respelling the
 		// separators is a no-op, but the raw string is what gets stored.
-		if CanonicalGenre(row.Genre) != CanonicalGenre(c.Genre) {
+		if !sameGenre(row.Genre, c.Genre) {
 			ch.Genre = &row.Genre
 			p.Counts.Genre++
 		}
@@ -112,6 +112,22 @@ func Diff(rows []Row, cur map[string]Current) Plan {
 		p.Changes = append(p.Changes, ch)
 	}
 	return p
+}
+
+// sameText reports whether an imported value leaves the library value alone.
+// Parse runs every cell through Cell, so a library value with its own
+// surrounding quotes or padding (a title like "Heroes", quotes included)
+// comes back cleaned up from an untouched export; matching either form keeps
+// that from showing up as an edit the user never made.
+func sameText(row, cur string) bool {
+	return row == cur || row == Cell(cur)
+}
+
+// sameGenre is sameText for genres, which also compare canonically so
+// reordering or respelling the separators is a no-op.
+func sameGenre(row, cur string) bool {
+	g := CanonicalGenre(row)
+	return g == CanonicalGenre(cur) || g == CanonicalGenre(Cell(cur))
 }
 
 // CanonicalGenre is the form a genre string takes once the library has split
