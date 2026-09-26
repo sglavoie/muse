@@ -1,6 +1,11 @@
 package library
 
-import "sort"
+import (
+	"sort"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 const unknownArtist = "Unknown Artist"
 
@@ -41,30 +46,69 @@ func isUnknownArtist(artist string) bool {
 // less reports whether track i should sort before track j.
 // Tracks with unknown artists sort after all named artists; within the same
 // artist, unknown albums sort after named albums; within the same album,
-// unknown titles sort after named titles; otherwise alphabetical.
+// unknown titles sort after named titles; otherwise alphabetical, ignoring
+// case (see compareText).
 func less(a, b Track) bool {
 	aUnknown := isUnknownArtist(a.Artist)
 	bUnknown := isUnknownArtist(b.Artist)
 	if aUnknown != bUnknown {
 		return bUnknown // named artist before unknown
 	}
-	if a.Artist != b.Artist {
-		return a.Artist < b.Artist
+	if c := compareText(a.Artist, b.Artist); c != 0 {
+		return c < 0
 	}
 	aAlbumUnknown := a.Album == ""
 	bAlbumUnknown := b.Album == ""
 	if aAlbumUnknown != bAlbumUnknown {
 		return bAlbumUnknown // named album before unknown album
 	}
-	if a.Album != b.Album {
-		return a.Album < b.Album
+	if c := compareText(a.Album, b.Album); c != 0 {
+		return c < 0
 	}
 	aTitleUnknown := a.Title == ""
 	bTitleUnknown := b.Title == ""
 	if aTitleUnknown != bTitleUnknown {
 		return bTitleUnknown // named title before unknown title
 	}
-	return a.Title < b.Title
+	return compareText(a.Title, b.Title) < 0
+}
+
+// compareText orders two tag values case-insensitively, matching the rest of
+// the app (column sorts lowercase, SQL uses COLLATE NOCASE), so "alt-J" does
+// not land after "Zappa". Values that differ only in case fall back to a raw
+// byte comparison, keeping the order total and every exact spelling contiguous.
+func compareText(a, b string) int {
+	if c := foldCompare(a, b); c != 0 {
+		return c
+	}
+	return strings.Compare(a, b)
+}
+
+// foldCompare compares a and b rune by rune after lowercasing each rune. It
+// does not allocate, since BulkLoad runs it O(N log N) times over the library.
+func foldCompare(a, b string) int {
+	for a != "" && b != "" {
+		ra, na := utf8.DecodeRuneInString(a)
+		rb, nb := utf8.DecodeRuneInString(b)
+		a, b = a[na:], b[nb:]
+		if ra == rb {
+			continue
+		}
+		if la, lb := unicode.ToLower(ra), unicode.ToLower(rb); la != lb {
+			if la < lb {
+				return -1
+			}
+			return 1
+		}
+	}
+	switch {
+	case a == "" && b == "":
+		return 0
+	case a == "":
+		return -1
+	default:
+		return 1
+	}
 }
 
 // findIndexByHash returns the current slice position for hash. The hash map is
