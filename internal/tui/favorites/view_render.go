@@ -155,7 +155,7 @@ func (v View) renderTrackList() string {
 	if len(v.Tracks) == 0 {
 		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No favorites yet", []styles.EmptyAction{
 			{Key: "1", Label: "go to library"},
-			{Key: "f", Label: "favorite a track"},
+			{Key: "F", Label: "favorite a track"},
 			{Key: "?", Label: "help"},
 		})
 		return heading + "\n\n" + card

@@ -44,10 +44,14 @@ func TestRenderEmptyIndex(t *testing.T) {
 	if !strings.Contains(got, "Library is empty") {
 		t.Errorf("empty library must show title; got: %q", got)
 	}
-	for _, want := range []string{"scan folders", "import", "help"} {
+	for _, want := range []string{"ctrl+r", "rescan folders", "help"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("empty library card missing CTA %q; got: %q", want, got)
 		}
+	}
+	// There is no import action; the card must not advertise one.
+	if strings.Contains(got, "import") {
+		t.Errorf("empty library card advertises a nonexistent import action; got: %q", got)
 	}
 }
 

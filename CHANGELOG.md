@@ -96,6 +96,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- On-screen hints now name keys that do what they say. The empty Library card
+  offers `ctrl+r` rescan instead of `s` (Stop) and a nonexistent import; the
+  empty Playlists card offers `c` new instead of `n` (Next) and a nonexistent
+  M3U import; the empty Favorites card says `F`, not `f`; and the file-watcher
+  warning points at `ctrl+r` rather than `Shift+R` (reset position). The Mixes
+  help no longer describes `x` as bulk selection — there it dismisses a
+  track from future mixes — and footers no longer offer `/ filter`
+  in Playlists, `enter filter-by` in Tags, or `F choose fav` in Favorites.
+
 - Theme canvas colors now survive nested text-style resets in settings and
   primary views, preventing dark terminal backgrounds from leaking into Light.
 
