@@ -255,7 +255,7 @@ func (m Model) handleToggleQueueFollowMsg() (Model, tea.Cmd) {
 // currently-playing track, clearing any active filter first.
 func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 	if m.playback.currentHash == "" {
-		m.statusBar.Notify("Nothing playing")
+		m.statusBar.Notify("No track playing")
 		return m, nil
 	}
 	m.library.Filter = m.library.Filter.Deactivate()
