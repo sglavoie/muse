@@ -220,8 +220,6 @@ func registerMixesBindings(r *Registry) {
 	r.register(ContextMixes, "N", ActionPlayNext)
 	r.register(ContextMixes, "x", ActionMixDismiss)
 	r.register(ContextMixes, "X", ActionMixUndismiss)
-	r.register(ContextMixes, "v", ActionVisualMode)
-	r.register(ContextMixes, "a", ActionBulkAction)
 	r.registerWithReason(ContextMixes, "s", ActionSortCycle,
 		"one-key sort cycle at mix track level; stays stop on the mix list (ctrl+s remains available)")
 	r.register(ContextMixes, "S", ActionSaveMixAsPlaylist)

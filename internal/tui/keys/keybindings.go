@@ -51,10 +51,10 @@ import (
 //   I   | now-playing-info | =        | =          | =          | =             | =          | =          | =           | =
 //   i   | track-info     | =          | =          | =          | =             | =          | =          | =           | =
 //   L   | listening-stats| =          | =          | =          | =             | =          | =          | =           | =
-//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | visual      | visual
+//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | —           | visual
 //   x   | —              | bulk-sel   | bulk-sel   | bulk-sel   | bulk-sel      | bulk-sel   | bulk-sel   | mix-dismiss*| bulk-sel
 //   X   | —              | clear-sel  | clear-sel  | clear-sel  | clear-sel     | clear-sel  | clear-sel  | mix-undism* | clear-sel
-//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | bulk-act    | bulk-act
+//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | —           | bulk-act
 //   K/J | —              | —          | move-trk   | move-trk   | —             | —          | —          | —           | —
 //   C   | —              | —          | —          | clear-q    | —             | —          | —          | —           | —
 //   ` / ~ | —            | mode-cycle | —          | —          | mode-cycle    | —          | —          | —           | panel-cycle
