@@ -22,12 +22,19 @@ const (
 	unknownArtist = "Unknown artist"
 )
 
+// sendNotification delivers the banner; tests replace it so they never post a
+// real desktop notification.
+var sendNotification = notify.Send
+
 // runNowPlaying reads the currently playing track straight from mpv's IPC
-// socket, enriches it from the library database, and posts a macOS
+// socket, enriches it from the library database, and posts a desktop
 // notification. It deliberately bypasses the muse.ctrl control socket, whose
-// protocol is fire-and-forget and has no response path, so it works even when
+// protocol only acknowledges a command with "ok" and cannot return data, and
+// which the TUI must be free to answer; reading mpv directly works even when
 // the TUI is busy.
 func runNowPlaying() int {
+	discardLogs()
+
 	dirs, err := config.ResolveDirs()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve dirs: %v\n", err)
@@ -39,6 +46,9 @@ func runNowPlaying() int {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
 	}
+	for _, w := range loadResult.Warnings {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
+	}
 
 	socketPath := resolveMPVSocketPath(dirs, loadResult.Config)
 	trackPath, paused, ok, err := queryMPVState(socketPath)
@@ -47,6 +57,9 @@ func runNowPlaying() int {
 		// mpv is running but has nothing loaded.
 		return emit(nowPlayingIdle(), 0)
 	case err != nil:
+		// The banner stays generic, but the cause (a stale socket, a
+		// permission problem, a wrong mpv_socket_path) goes to stderr.
+		fmt.Fprintf(os.Stderr, "error: query mpv: %v\n", err)
 		return emit(nowPlayingNotRunning(), 1)
 	case !ok:
 		return emit(nowPlayingIdle(), 0)
@@ -60,7 +73,7 @@ func runNowPlaying() int {
 // unless the notification itself could not be delivered.
 func emit(n notify.Track, exitCode int) int {
 	fmt.Println(n.SummaryLine())
-	if err := notify.Send(n); err != nil {
+	if err := sendNotification(n); err != nil {
 		fmt.Fprintf(os.Stderr, "error: notify: %v\n", err)
 		return 1
 	}

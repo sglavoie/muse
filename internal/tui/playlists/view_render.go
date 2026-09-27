@@ -68,7 +68,7 @@ func (v View) renderPlaylistRows(cols Columns) []string {
 // indicator above it when a sort is active.
 func (v View) renderEmptyList() string {
 	card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No playlists yet", []styles.EmptyAction{
-		{Key: "c", Label: "new"},
+		{Key: "c", Label: "create a playlist"},
 		{Key: "?", Label: "help"},
 	})
 	if v.SortField == "" {
@@ -118,7 +118,14 @@ func (v View) renderRenameInputRow(cols Columns) string {
 }
 
 func (v View) renderTracks() string {
-	heading := v.Styles.Heading.Render("Tracks")
+	title := "Playlists"
+	if v.playlistName != "" {
+		title += " — " + v.playlistName
+	}
+	if v.Width > 0 {
+		title = text.Truncate(title, v.Width)
+	}
+	heading := v.Styles.Heading.Render(title)
 	if v.IsSmartPlaylist {
 		heading += "  " + v.Styles.Dim.Render("(smart playlist — read-only)")
 	}

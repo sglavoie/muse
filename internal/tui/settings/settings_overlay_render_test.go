@@ -190,3 +190,59 @@ func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
 		t.Errorf("Render: expected '2.0x' for stereo amount=20, got:\n%s", out)
 	}
 }
+
+// settingsHintLine returns the key-hint line printed under the overlay box.
+func settingsHintLine(t *testing.T, o SettingsOverlay) string {
+	t.Helper()
+	lines := strings.Split(strings.TrimRight(ansi.Strip(o.Render(200, 40, styles.NewStyles(true))), "\n"), "\n")
+	return strings.TrimSpace(lines[len(lines)-1])
+}
+
+// TestSettingsHintsShareWordingAndOrder guards that every Settings tab words
+// its shared keys the same way ("j/k navigate", "h/l adjust") and lists them
+// in the same order, and that the Equalizer tells its preset keys apart from
+// ctrl+s, which saves the settings.
+func TestSettingsHintsShareWordingAndOrder(t *testing.T) {
+	base := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	tabNames := [tabCount]string{"Library", "Playback", "Equalizer", "Display"}
+	cases := map[string]SettingsOverlay{}
+	for tab := tabLibrary; tab < tabCount; tab++ {
+		o := base
+		o.Tab = tab
+		cases[tabNames[tab]] = o
+	}
+	excluded := base
+	excluded.libSubView = libSubViewExcluded
+	cases["Library excluded"] = excluded
+	primary := base
+	primary.Tab = TabDisplay
+	primary.cursor = displayPrimary
+	cases["Display primary color"] = primary
+
+	for name, o := range cases {
+		hint := settingsHintLine(t, o)
+		order := []string{"[/] tabs", "j/k navigate", "ctrl+s save", "esc "}
+		if strings.Contains(hint, "h/l") {
+			order = []string{"[/] tabs", "j/k navigate", "h/l adjust", "ctrl+s save", "esc "}
+		}
+		last := -1
+		for _, want := range order {
+			i := strings.Index(hint, want)
+			if i < 0 {
+				t.Errorf("%s: hint missing %q: %q", name, want, hint)
+				continue
+			}
+			if i < last {
+				t.Errorf("%s: %q out of order in %q", name, want, hint)
+			}
+			last = i
+		}
+	}
+
+	eq := settingsHintLine(t, cases[tabNames[TabEqualizer]])
+	for _, want := range []string{"s save preset", "d delete"} {
+		if !strings.Contains(eq, want) {
+			t.Errorf("Equalizer hint missing %q: %q", want, eq)
+		}
+	}
+}

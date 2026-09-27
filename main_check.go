@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/sglavoie/muse/internal/config"
@@ -13,6 +14,8 @@ import (
 // launching the full TUI. It prints warnings and errors to stderr and returns
 // 0 on success or 1 if any check fails.
 func runCheck() int {
+	discardLogs()
+
 	dirs, err := config.ResolveDirs()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve dirs: %v\n", err)
@@ -77,4 +80,12 @@ func printErrors(err error) {
 	for _, e := range joined.Unwrap() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", e)
 	}
+}
+
+// discardLogs silences slog for the one-shot commands, which never call
+// config.InitLogging. Without it, config.Load's validation warnings reach
+// stderr twice: once through slog's default handler and once as the command's
+// own "warning:" lines, which carry the same information in a friendlier form.
+func discardLogs() {
+	slog.SetDefault(slog.New(slog.DiscardHandler))
 }

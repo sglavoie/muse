@@ -36,6 +36,12 @@ func FFProbeDuration(ctx context.Context, path string) (float64, error) {
 		path,
 	).Output()
 	if err != nil {
+		// A killed process reports only "signal: killed"; wrap the context
+		// error too so callers can tell a timeout or cancellation from
+		// ffprobe rejecting the file.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return 0, fmt.Errorf("ffprobe: %w: %w", ctxErr, err)
+		}
 		return 0, fmt.Errorf("ffprobe: %w", err)
 	}
 

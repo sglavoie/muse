@@ -54,7 +54,7 @@ func TestAlerterArgsOmitsBlankSubtitle(t *testing.T) {
 	// Only the mpv-idle / not-running states carry a blank artist.
 	args := Track{Title: "muse", Degraded: "Nothing playing"}.alerterArgs()
 
-	if slices.Contains(args, "--subtitle") {
+	if _, ok := argValue(args, "--subtitle"); ok {
 		t.Errorf("--subtitle present for a blank artist: %v", args)
 	}
 	if got, _ := argValue(args, "--message"); got != "Nothing playing" {
@@ -154,14 +154,36 @@ func TestResolveAlerterPrefersAbsolutePaths(t *testing.T) {
 	}
 }
 
-// argValue returns the value following flag in an argv slice.
+// argValue returns flag's value in an argv slice, accepting both the attached
+// "--flag=value" form and a separate "--flag value" pair.
 func argValue(args []string, flag string) (string, bool) {
 	for i, a := range args {
+		if v, ok := strings.CutPrefix(a, flag+"="); ok {
+			return v, true
+		}
 		if a == flag && i+1 < len(args) {
 			return args[i+1], true
 		}
 	}
 	return "", false
+}
+
+// TestAlerterArgsLeadingDash guards against a title or artist that starts with
+// "-" reaching alerter as a separate argv entry, where Swift Argument Parser
+// takes it for an option and alerter exits without showing the banner.
+func TestAlerterArgsLeadingDash(t *testing.T) {
+	args := Track{Title: "-Intro-", Artist: "-M-", Album: "-Dawn"}.alerterArgs()
+
+	for _, want := range []string{"--title=-Intro-", "--subtitle=-M-", "--message=-Dawn"} {
+		if !slices.Contains(args, want) {
+			t.Errorf("%s missing from %v", want, args)
+		}
+	}
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") {
+			t.Errorf("value %q would be parsed as an option in %v", a, args)
+		}
+	}
 }
 
 // TestSendIsFireAndForget points alerterPaths at a stub that records its argv

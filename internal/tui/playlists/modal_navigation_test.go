@@ -60,7 +60,7 @@ func TestModalUpArrowMovesUp(t *testing.T) {
 // already on the last entry does not move it past the end.
 func TestModalCursorClampsAtBottom(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
-	// destinations: [Play Queue, Alpha, Beta, New playlist...] — last index = 3
+	// destinations: [Play Queue, Alpha, Beta, New playlist…] — last index = 3
 	m.cursor = 3
 
 	m2, _ := m.HandleKey("j")
@@ -85,7 +85,7 @@ func TestModalCursorClampsAtTop(t *testing.T) {
 // the cursor visits each index exactly once in sequence.
 func TestModalNavigationFullRange(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("A", "B", "C"))
-	// destinations: [Play Queue, A, B, C, New playlist...] — 5 entries
+	// destinations: [Play Queue, A, B, C, New playlist…] — 5 entries
 	n := len(m.destinations())
 	if n != 5 {
 		t.Fatalf("expected 5 destinations, got %d", n)

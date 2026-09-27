@@ -17,7 +17,9 @@ const (
 
 // notifySendArgs builds the argv passed to notify-send. notify-send has no
 // subtitle concept, so the artist is folded into the body ahead of the message
-// that alerter would render as --message.
+// that alerter would render as --message. The "--" ends option parsing so a
+// title or artist starting with "-" (an artist named "-M-", say) is taken as
+// text rather than rejected as an unknown option.
 func (t Track) notifySendArgs() []string {
 	body := t.Message()
 	if t.Artist != "" {
@@ -27,6 +29,7 @@ func (t Track) notifySendArgs() []string {
 		"--app-name=muse",
 		"--expire-time=" + notifySendExpire,
 		notifySendSyncHint,
+		"--",
 		t.Title,
 		body,
 	}

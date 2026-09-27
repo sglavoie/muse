@@ -129,6 +129,12 @@ func (s *UsageStore) Bump(key string) {
 	s.records[key] = rec
 }
 
+// hasRecords reports whether any command use has been recorded. A nil store
+// has none.
+func (s *UsageStore) hasRecords() bool {
+	return s != nil && len(s.records) > 0
+}
+
 // Get returns the record for key (zero value if absent).
 func (s *UsageStore) Get(key string) UsageRecord {
 	if s == nil || key == "" {

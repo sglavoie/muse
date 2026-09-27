@@ -59,14 +59,18 @@ func alerterSender() string {
 // alerterArgs builds the argv passed to alerter. --group makes repeated
 // notifications replace the existing banner instead of stacking, and --timeout
 // auto-dismisses it (alerter otherwise blocks waiting for interaction).
+//
+// The track-derived values use the attached --flag=value form: alerter parses
+// its argv with Swift Argument Parser, which rejects a separate value that
+// starts with "-" (an artist named "-M-", say) as a missing option value.
 func (t Track) alerterArgs() []string {
-	args := []string{"--title", t.Title}
+	args := []string{"--title=" + t.Title}
 	// An empty --subtitle renders as a blank line, so omit the flag entirely.
 	if t.Artist != "" {
-		args = append(args, "--subtitle", t.Artist)
+		args = append(args, "--subtitle="+t.Artist)
 	}
 	return append(args,
-		"--message", t.Message(),
+		"--message="+t.Message(),
 		"--group", alerterGroup,
 		"--sender", alerterSender(),
 		"--timeout", alerterTimeout,

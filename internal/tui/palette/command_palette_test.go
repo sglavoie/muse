@@ -409,11 +409,26 @@ func TestCommandPalettePinsRemainWhenBodyEmpty(t *testing.T) {
 }
 
 func TestCommandPaletteRecentHeaderWhenEmpty(t *testing.T) {
-	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	usage := NewUsageStore("")
+	usage.Bump(pinnedCommands()[2].Key())
+	cp, _ := NewCommandPalette(pinnedCommands(), usage)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(cp.Render(80, 24, s))
 	if !strings.Contains(out, "Recent & frequent") {
 		t.Error("empty-query render should contain 'Recent & frequent' header")
+	}
+}
+
+// TestCommandPaletteRecentHeaderHiddenWithoutHistory guards that an empty
+// query does not label the body "Recent & frequent" before anything has been
+// used, when the body is simply alphabetical.
+func TestCommandPaletteRecentHeaderHiddenWithoutHistory(t *testing.T) {
+	s := styles.NewStyles(true)
+	for name, usage := range map[string]*UsageStore{"nil store": nil, "empty store": NewUsageStore("")} {
+		cp, _ := NewCommandPalette(pinnedCommands(), usage)
+		if out := ansi.Strip(cp.Render(80, 24, s)); strings.Contains(out, "Recent & frequent") {
+			t.Errorf("%s: header shown with no usage history:\n%s", name, out)
+		}
 	}
 }
 

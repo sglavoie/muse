@@ -298,3 +298,15 @@ func TestPlaylistsRShadowsGlobalRepeat(t *testing.T) {
 		t.Errorf("resolve(contextQueue, \"r\") = %v, want actionRepeatCycle", got)
 	}
 }
+
+// TestMixesLeavesVisualAndBulkUnbound guards that Mixes does not bind v or a:
+// Mixes has neither visual nor bulk selection, so both keys were silently
+// swallowed there while help advertised them.
+func TestMixesLeavesVisualAndBulkUnbound(t *testing.T) {
+	reg := NewRegistry()
+	for _, key := range []string{"v", "a"} {
+		if got := reg.Resolve(ContextMixes, key); got != ActionNone {
+			t.Errorf("Resolve(ContextMixes, %q) = %v, want ActionNone", key, got)
+		}
+	}
+}

@@ -1,6 +1,7 @@
 package metaexport
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
@@ -139,6 +140,53 @@ func TestDiffGenreComparesCanonically(t *testing.T) {
 		if len(p.Changes) != 0 || p.Unchanged != 1 {
 			t.Fatalf("genre %q should be a no-op, got %+v", genre, p)
 		}
+	}
+}
+
+// Parse cleans every cell with Cell, so a library value whose quotes or
+// padding are part of the tag must not come back from an untouched export as
+// an edit.
+func TestDiffUntouchedRoundTripIsUnchanged(t *testing.T) {
+	cur := Current{
+		Path:   "/Music/Bowie/heroes.mp3",
+		Artist: "David Bowie ",
+		Title:  `"Heroes"`,
+		Album:  "'Low'",
+		Genre:  `"Art Rock"`,
+		Track:  3,
+		Disc:   1,
+	}
+	doc := Document{
+		Roots: []string{"/Music"},
+		Rows: []Row{{
+			Hash: "a3f", RootID: 1, RelPath: "Bowie/heroes.mp3",
+			Artist: cur.Artist, Title: cur.Title, Album: cur.Album, Genre: cur.Genre,
+			Track: cur.Track, Disc: cur.Disc,
+		}},
+	}
+	var buf bytes.Buffer
+	if err := Encode(&buf, doc); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	f, err := Parse(&buf)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	p := Diff(f.Rows, map[string]Current{"a3f": cur})
+	if len(p.Changes) != 0 || p.Unchanged != 1 {
+		t.Fatalf("untouched round-trip should be a no-op, got %+v", p)
+	}
+
+	// A real edit to the same row still registers.
+	row := f.Rows[0]
+	row.Title = "Heroes (2017 Remaster)"
+	p = Diff([]Row{row}, map[string]Current{"a3f": cur})
+	if len(p.Changes) != 1 || p.Changes[0].Title == nil || *p.Changes[0].Title != row.Title {
+		t.Fatalf("edited title should be a change, got %+v", p)
+	}
+	if c := p.Changes[0]; c.Artist != nil || c.Album != nil || c.Genre != nil {
+		t.Fatalf("only the title changed, got %+v", c)
 	}
 }
 

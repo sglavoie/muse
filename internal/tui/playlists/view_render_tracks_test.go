@@ -132,7 +132,7 @@ func TestRenderTracksScrollOffsetBeyondCount(t *testing.T) {
 		},
 	}
 	out := v.Render()
-	if !strings.Contains(out, "Tracks") {
+	if !strings.Contains(out, "Playlists") {
 		t.Errorf("expected heading in output even with out-of-bounds scroll, got:\n%s", out)
 	}
 	if !strings.Contains(out, "Song A") {

@@ -63,16 +63,16 @@ func testIndexArtistThenTitleSortStability(t *testing.T) {
 
 func testIndexUnknownArtistBottomSort(t *testing.T) {
 	var idx LibraryIndex
-	idx.Insert(Track{Artist: unknownArtist, Title: "zzz"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "zzz"})
 	idx.Insert(Track{Artist: "Arca", Title: "Piel"})
-	idx.Insert(Track{Artist: unknownArtist, Title: "aaa"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "aaa"})
 	idx.Insert(Track{Artist: "Boards of Canada", Title: "Roygbiv"})
 
 	got := idx.Tracks()
 	// All named artists must precede Unknown Artist entries.
 	namedDone := false
 	for _, tr := range got {
-		if tr.Artist == unknownArtist {
+		if tr.Artist == UnknownArtist {
 			namedDone = true
 		} else if namedDone {
 			t.Errorf("named artist %q appeared after Unknown Artist block", tr.Artist)
@@ -86,7 +86,7 @@ func testIndexUnknownArtistBottomSort(t *testing.T) {
 
 func TestLess_NamedBeforeUnknown(t *testing.T) {
 	a := Track{Artist: "Arca", Title: "Piel"}
-	b := Track{Artist: unknownArtist, Title: "abc"}
+	b := Track{Artist: UnknownArtist, Title: "abc"}
 	if !less(a, b) {
 		t.Error("named artist must sort before Unknown Artist")
 	}
@@ -115,10 +115,104 @@ func TestLess_DifferentArtists(t *testing.T) {
 }
 
 func TestLess_BothUnknownByTitle(t *testing.T) {
-	a := Track{Artist: unknownArtist, Title: "aaa"}
-	b := Track{Artist: unknownArtist, Title: "zzz"}
+	a := Track{Artist: UnknownArtist, Title: "aaa"}
+	b := Track{Artist: UnknownArtist, Title: "zzz"}
 	if !less(a, b) {
 		t.Error("same Unknown Artist: earlier title must sort first")
+	}
+}
+
+// The default library order must ignore case like every other sort in the app,
+// so a lowercase artist does not drop below "Zappa".
+func TestLess_ArtistAlbumTitleIgnoreCase(t *testing.T) {
+	cases := []struct {
+		name string
+		a, b Track
+	}{
+		{"artist", Track{Artist: "alt-J", Title: "x"}, Track{Artist: "Zappa", Title: "a"}},
+		{"album", Track{Artist: "A", Album: "an awesome wave", Title: "x"}, Track{Artist: "A", Album: "Zebra", Title: "a"}},
+		{"title", Track{Artist: "A", Album: "B", Title: "bloodflood"}, Track{Artist: "A", Album: "B", Title: "Taro"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if !less(c.a, c.b) {
+				t.Errorf("%+v must sort before %+v", c.a, c.b)
+			}
+			if less(c.b, c.a) {
+				t.Errorf("%+v must not sort before %+v", c.b, c.a)
+			}
+		})
+	}
+}
+
+// Case-insensitive ordering must still keep each exact artist spelling in one
+// contiguous run, and stay consistent between BulkLoad and Insert.
+func TestLibraryIndex_CaseVariantsStayContiguous(t *testing.T) {
+	tracks := []Track{
+		{Hash: "1", Artist: "ABBA", Title: "b"},
+		{Hash: "2", Artist: "abba", Title: "a"},
+		{Hash: "3", Artist: "Abba", Title: "c"},
+		{Hash: "4", Artist: "ABBA", Title: "a"},
+		{Hash: "5", Artist: "abba", Title: "c"},
+		{Hash: "6", Artist: "Abba", Title: "a"},
+		{Hash: "7", Artist: "beck", Title: "a"},
+		{Hash: "8", Artist: "Air", Title: "a"},
+	}
+
+	var bulk LibraryIndex
+	bulk.BulkLoad(tracks)
+	var inserted LibraryIndex
+	for _, tr := range tracks {
+		inserted.Insert(tr)
+	}
+
+	for name, idx := range map[string]*LibraryIndex{"BulkLoad": &bulk, "Insert": &inserted} {
+		got := idx.Tracks()
+		var order []string
+		seen := map[string]bool{}
+		for i, tr := range got {
+			if i > 0 && got[i-1].Artist != tr.Artist && seen[tr.Artist] {
+				t.Errorf("%s: artist %q is not contiguous: %v", name, tr.Artist, got)
+			}
+			if !seen[tr.Artist] {
+				seen[tr.Artist] = true
+				order = append(order, tr.Artist)
+			}
+		}
+		want := []string{"ABBA", "Abba", "abba", "Air", "beck"}
+		if len(order) != len(want) {
+			t.Fatalf("%s: artist order = %v, want %v", name, order, want)
+		}
+		for i := range want {
+			if order[i] != want[i] {
+				t.Fatalf("%s: artist order = %v, want %v", name, order, want)
+			}
+		}
+		for _, tr := range tracks {
+			if _, ok := idx.findIndexByHash(tr.Hash); !ok {
+				t.Errorf("%s: hash %q not found", name, tr.Hash)
+			}
+		}
+	}
+}
+
+func TestFoldCompare(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want int
+	}{
+		{"", "", 0},
+		{"abc", "ABC", 0},
+		{"Émile", "émile", 0},
+		{"a", "B", -1},
+		{"b", "A", 1},
+		{"ab", "ABC", -1},
+		{"abc", "AB", 1},
+	}
+	for _, c := range cases {
+		if got := foldCompare(c.a, c.b); got != c.want {
+			t.Errorf("foldCompare(%q, %q) = %d, want %d", c.a, c.b, got, c.want)
+		}
 	}
 }
 
@@ -166,16 +260,16 @@ func TestLibraryIndex_InsertSortedOrder(t *testing.T) {
 func TestLibraryIndex_UnknownArtistSortsLast(t *testing.T) {
 	var idx LibraryIndex
 
-	idx.Insert(Track{Artist: unknownArtist, Title: "some-file"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "some-file"})
 	idx.Insert(Track{Artist: "Boards of Canada", Title: "Roygbiv"})
-	idx.Insert(Track{Artist: unknownArtist, Title: "another-file"})
+	idx.Insert(Track{Artist: UnknownArtist, Title: "another-file"})
 	idx.Insert(Track{Artist: "Arca", Title: "Piel"})
 
 	got := idx.Tracks()
 	// All named artists must come before Unknown Artist entries.
 	namedDone := false
 	for _, tr := range got {
-		if tr.Artist == unknownArtist {
+		if tr.Artist == UnknownArtist {
 			namedDone = true
 		} else if namedDone {
 			t.Errorf("named artist %q appeared after Unknown Artist block", tr.Artist)

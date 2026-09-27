@@ -1,8 +1,13 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
+	"log"
+	"log/slog"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -164,5 +169,44 @@ func TestRevealFileCommand_SelectsCommandsByOS(t *testing.T) {
 				t.Fatalf("revealFileCommand() args = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
+	}
+}
+
+// captureSlog routes slog output to a buffer for the rest of the test and
+// restores the previous default logger, and the log package state that
+// slog.SetDefault rewires, afterwards.
+func captureSlog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	origSlog, origOut, origFlags := slog.Default(), log.Writer(), log.Flags()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() {
+		slog.SetDefault(origSlog)
+		log.SetOutput(origOut)
+		log.SetFlags(origFlags)
+	})
+	return &buf
+}
+
+// TestOpenDirAndRevealFileLogStartFailure guards against a missing file
+// manager (no xdg-open, say) failing silently: the Start error must at least
+// reach the log.
+func TestOpenDirAndRevealFileLogStartFailure(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	buf := captureSlog(t)
+
+	dir := t.TempDir()
+	if msg := OpenDir(context.Background(), dir)(); msg != nil {
+		t.Errorf("OpenDir: expected nil msg, got %#v", msg)
+	}
+	if msg := RevealFile(context.Background(), filepath.Join(dir, "a.flac"))(); msg != nil {
+		t.Errorf("RevealFile: expected nil msg, got %#v", msg)
+	}
+
+	logged := buf.String()
+	for _, want := range []string{"open directory failed", "reveal file failed"} {
+		if !strings.Contains(logged, want) {
+			t.Errorf("log does not contain %q:\n%s", want, logged)
+		}
 	}
 }

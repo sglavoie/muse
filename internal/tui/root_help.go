@@ -60,6 +60,14 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 		m.helpFiltered = !m.helpFiltered
 		m.refreshHelpViewport()
 		return m, nil, true
+	case "g", "home":
+		// The viewport's default keymap has no top/bottom jump; match the
+		// g / G every list view uses.
+		m.helpViewport.GotoTop()
+		return m, nil, true
+	case "G", "end":
+		m.helpViewport.GotoBottom()
+		return m, nil, true
 	default:
 		var cmd tea.Cmd
 		m.helpViewport, cmd = m.helpViewport.Update(msg)

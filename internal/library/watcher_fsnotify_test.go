@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -332,5 +333,42 @@ func TestWatch_MissingRootDegradesToClosedChannel(t *testing.T) {
 	}
 	if _, ok := <-ch; ok {
 		t.Fatal("Watch with missing root: expected pre-closed event channel")
+	}
+}
+
+// An unreachable root (e.g. an unplugged external drive) must not disable live
+// watching for the roots that are still there: the missing root is skipped and
+// changes under the good root keep producing events.
+func TestWatch_MissingRootDoesNotDisableOtherRoots(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "unplugged")
+	good := t.TempDir()
+	const debounce = 100 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	ch, degraded, err := Watch(ctx, []string{missing, good}, nil, &fakeExtractor{}, debounce)
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	if degraded {
+		t.Fatal("Watch with one missing and one good root: expected degraded=false")
+	}
+
+	p := filepath.Join(good, "new.mp3")
+	mkfile(t, p)
+
+	for {
+		select {
+		case e, ok := <-ch:
+			if !ok {
+				t.Fatal("event channel closed before the good root reported a change")
+			}
+			if !e.Deleted && e.Track.Path == p {
+				return
+			}
+		case <-ctx.Done():
+			t.Fatalf("no event for %q under the good root", p)
+		}
 	}
 }

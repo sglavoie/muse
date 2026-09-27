@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"io"
 	"os"
@@ -43,5 +44,40 @@ func TestGlobalUsageOmitsTUITest(t *testing.T) {
 		if !strings.Contains(usage, want) {
 			t.Errorf("usage unexpectedly missing %q:\n%s", want, usage)
 		}
+	}
+}
+
+// TestHelpFlagPrintsUsageToStdout covers explicit `muse --help`: the text goes
+// to stdout (it is the requested output, not an error), and the Flags section
+// lists the global flags instead of being empty, since none of them is
+// registered with the flag package.
+func TestHelpFlagPrintsUsageToStdout(t *testing.T) {
+	var stdout bytes.Buffer
+	if !runGlobalFlag(globalFlagHelp, &stdout) {
+		t.Fatal("runGlobalFlag(help) = false, want true")
+	}
+	usage := stdout.String()
+
+	if !strings.HasPrefix(usage, "Usage: muse [command]\n") {
+		t.Errorf("usage line should not advertise [flags] for commands:\n%s", usage)
+	}
+	_, flags, ok := strings.Cut(usage, "\nFlags:\n")
+	if !ok {
+		t.Fatalf("usage has no Flags section:\n%s", usage)
+	}
+	for _, want := range []string{"-h, --help", "--version"} {
+		if !strings.Contains(flags, want) {
+			t.Errorf("Flags section missing %q:\n%s", want, flags)
+		}
+	}
+}
+
+func TestRunGlobalFlagIgnoresNone(t *testing.T) {
+	var stdout bytes.Buffer
+	if runGlobalFlag(globalFlagNone, &stdout) {
+		t.Fatal("runGlobalFlag(none) = true, want false")
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("runGlobalFlag(none) wrote %q, want nothing", stdout.String())
 	}
 }

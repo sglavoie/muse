@@ -137,7 +137,7 @@ func TestModalEscFromQueuePositionDismisses(t *testing.T) {
 // --- empty playlist list shows create prompt ---
 
 // TestModalEmptyPlaylistListShowsCreateLabel verifies that when no playlists
-// are provided, the destinations slice contains the "New playlist..." entry as
+// are provided, the destinations slice contains the "New playlist…" entry as
 // the second item (after the Play Queue).
 func TestModalEmptyPlaylistListShowsCreateLabel(t *testing.T) {
 	m := NewDestinationPicker(nil)
@@ -155,10 +155,10 @@ func TestModalEmptyPlaylistListShowsCreateLabel(t *testing.T) {
 }
 
 // TestModalEnterOnCreateLabelDispatchesCreateMsg verifies that Enter when the
-// cursor points to the "New playlist..." entry dispatches DestinationPickerCreateMsg.
+// cursor points to the "New playlist…" entry dispatches DestinationPickerCreateMsg.
 func TestModalEnterOnCreateLabelDispatchesCreateMsg(t *testing.T) {
 	m := NewDestinationPicker(nil)
-	m.cursor = 1 // "New playlist..."
+	m.cursor = 1 // "New playlist…"
 
 	_, cmd := m.HandleKey("enter")
 	if cmd == nil {
@@ -211,7 +211,7 @@ func TestModalDestinationsQueueFirst(t *testing.T) {
 
 // TestModalDestinationsIncludeAllPlaylists verifies that every playlist name
 // passed to NewDestinationPicker appears in destinations(), after the queue
-// and before the "New playlist..." entry.
+// and before the "New playlist…" entry.
 func TestModalDestinationsIncludeAllPlaylists(t *testing.T) {
 	names := []string{"Ambient", "Chill", "Focus", "Sleep"}
 	m := NewDestinationPicker(fakePlaylistRows(names...))
@@ -221,7 +221,7 @@ func TestModalDestinationsIncludeAllPlaylists(t *testing.T) {
 	if dests[0] != queueLabel {
 		t.Fatalf("expected first destination %q, got %q", queueLabel, dests[0])
 	}
-	// Queue + playlists + "New playlist..." = len(names) + 2
+	// Queue + playlists + "New playlist…" = len(names) + 2
 	if len(dests) != len(names)+2 {
 		t.Fatalf("expected %d destinations, got %d: %v", len(names)+2, len(dests), dests)
 	}
@@ -230,13 +230,13 @@ func TestModalDestinationsIncludeAllPlaylists(t *testing.T) {
 			t.Errorf("destination[%d]: expected %q, got %q", i+1, name, dests[i+1])
 		}
 	}
-	// Last entry must be "New playlist...".
+	// Last entry must be "New playlist…".
 	if dests[len(dests)-1] != createLabel {
 		t.Errorf("expected last destination %q, got %q", createLabel, dests[len(dests)-1])
 	}
 }
 
-// TestModalCreateLabelAlwaysShown verifies that the "New playlist..." entry
+// TestModalCreateLabelAlwaysShown verifies that the "New playlist…" entry
 // is always present as the last destination, even when playlists exist.
 func TestModalCreateLabelAlwaysShown(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("OnlyOne"))
@@ -247,11 +247,11 @@ func TestModalCreateLabelAlwaysShown(t *testing.T) {
 }
 
 // TestModalEnterOnCreateLabelWithPlaylistsDispatchesCreateMsg verifies that
-// Enter on "New playlist..." dispatches DestinationPickerCreateMsg even when
+// Enter on "New playlist…" dispatches DestinationPickerCreateMsg even when
 // playlists already exist.
 func TestModalEnterOnCreateLabelWithPlaylistsDispatchesCreateMsg(t *testing.T) {
 	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta"))
-	// "New playlist..." is at index 3: [Play Queue, Alpha, Beta, New playlist...]
+	// "New playlist…" is at index 3: [Play Queue, Alpha, Beta, New playlist…]
 	m.cursor = 3
 
 	_, cmd := m.HandleKey("enter")
@@ -282,7 +282,7 @@ func TestModalReceivesPreSortedPlaylistsFromFakeReader(t *testing.T) {
 	m := NewDestinationPicker(fakeRead)
 	dests := m.destinations()
 
-	// Expect: [Play Queue, Ambient, Chill, Workout, New playlist...]
+	// Expect: [Play Queue, Ambient, Chill, Workout, New playlist…]
 	expected := []string{queueLabel, "Ambient", "Chill", "Workout", createLabel}
 	if len(dests) != len(expected) {
 		t.Fatalf("expected %d destinations, got %d: %v", len(expected), len(dests), dests)

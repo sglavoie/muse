@@ -22,7 +22,8 @@ test-v:
 test-pkg pkg:
     go test -race -count=1 -v ./{{pkg}}/...
 
-# Pinned golangci-lint version — keep in sync with .github/workflows/ci.yml
+# Pinned golangci-lint version — keep in sync with the lint job's `version` in
+# .github/workflows/ci.yml
 golangci_lint := "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"
 
 # Run the linter
@@ -67,6 +68,6 @@ hooks:
     @chmod +x .git/hooks/pre-commit
     @echo "pre-commit hook installed"
 
-# Remove build artifacts
+# Remove build artifacts and coverage reports
 clean:
-    rm -f muse
+    rm -f muse coverage.out coverage.html

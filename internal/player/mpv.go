@@ -14,8 +14,17 @@ import (
 
 // baseFlags are always prepended to the mpv command line. They keep mpv in
 // headless audio-only mode so it never registers with the macOS window server
-// (which would create a Dock icon and app-switcher entry).
-var baseFlags = []string{"--no-video", "--no-terminal", "--really-quiet"}
+// (which would create a Dock icon and app-switcher entry). --volume-max=100
+// caps mpv's volume at the 0-100 range muse tracks and displays; mpv's own
+// default of 130 would let relative "add volume" steps climb past it.
+var baseFlags = []string{"--no-video", "--no-terminal", "--really-quiet", "--volume-max=100"}
+
+// launchArgs returns the full mpv argument list: idle mode and the IPC socket,
+// then baseFlags, then any user-supplied extra flags.
+func launchArgs(socketPath string, extra []string) []string {
+	args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, baseFlags...)
+	return append(args, extra...)
+}
 
 // Compile-time check that Manager implements Player.
 var _ Player = (*Manager)(nil)
@@ -426,9 +435,7 @@ func NewManager(socketPath string) *Manager {
 		m.mu.RLock()
 		extra := m.extraFlags
 		m.mu.RUnlock()
-		args := append([]string{"--idle=yes", "--input-ipc-server=" + socketPath}, baseFlags...)
-		args = append(args, extra...)
-		cmd := exec.CommandContext(ctx, "mpv", args...)
+		cmd := exec.CommandContext(ctx, "mpv", launchArgs(socketPath, extra)...)
 		if err := cmd.Start(); err != nil {
 			return nil, fmt.Errorf("mpv: start: %w", err)
 		}

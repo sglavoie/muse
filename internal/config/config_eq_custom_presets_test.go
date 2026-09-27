@@ -199,3 +199,19 @@ bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 	}
 	requireWarningContaining(t, result.Warnings, "built-in preset", "rock")
 }
+
+// "custom" is the sentinel key the settings overlay uses for hand-tuned bands;
+// a user preset under it used to load fine and then vanish on the next save.
+func TestLoad_EQCustomPresets_SentinelKeyDropped(t *testing.T) {
+	result := loadEQConfigFromContent(t, `
+[[eq_custom_presets]]
+name = "My Custom"
+key = "custom"
+bands = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+`)
+
+	if len(result.Config.EQCustomPresets) != 0 {
+		t.Fatalf("EQCustomPresets len = %d, want 0 for the reserved \"custom\" key", len(result.Config.EQCustomPresets))
+	}
+	requireWarningContaining(t, result.Warnings, "built-in preset", "custom")
+}

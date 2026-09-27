@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -348,5 +349,31 @@ func TestLoad_NewFields_OutOfRange_FallsBackToDefault(t *testing.T) {
 				t.Errorf("expected warning mentioning %q, got: %v", tt.field, result.Warnings)
 			}
 		})
+	}
+}
+
+// TestLoad_FloatOutOfRangeWarningShowsExactValue guards against rounding in
+// the warning: with %.1f, 60.04 printed as "60.0 is out of range (1-60)",
+// which reads as a contradiction.
+func TestLoad_FloatOutOfRangeWarningShowsExactValue(t *testing.T) {
+	tests := []struct {
+		content string
+		want    string
+	}{
+		{"seek_offset_short = 60.04\n", "seek_offset_short 60.04 is out of range (1-60), using 5"},
+		{"[mixes]\ndeep_cuts_min_completion = 1.05\n", "mixes.deep_cuts_min_completion 1.05 is out of range (0-1), using 0.8"},
+	}
+	for _, tt := range tests {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, configFileName), []byte(tt.content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		result, err := Load(dir)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if !slices.Contains(result.Warnings, tt.want) {
+			t.Errorf("warnings = %q, want %q", result.Warnings, tt.want)
+		}
 	}
 }

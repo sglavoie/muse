@@ -93,6 +93,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts, surfaces the problem as a warning with the configuration hint, and
   keeps the remaining directories in the scan.
 - The macOS notification group identifier is now `muse.now-playing`.
+- `muse volume-up` / `volume-down` help and the README describe the step as
+  `volume_increment` (default 5%) rather than a fixed 5%.
+- `config.example.toml` and the first-run config document the `eq_bands` range
+  and band frequencies, the valid `eq_preset` keys, and the
+  `stereo_wide_amount` range.
+- Track lists are headed by what is open — "Mixes — <mix>", "Insights —
+  <drill>", "Playlists — <playlist>" — matching Tags, instead of "Library" or
+  "Tracks".
+- Footer and help labels agree with what the keys do: Playlists and Tags both
+  read `c create · r rename`, the selection footer says `a remove` where `a`
+  removes (Playlists, Favorites), every Settings tab words and orders its hints
+  the same way, and the Equalizer reads `s save preset`, which tells it apart
+  from `ctrl+s`. Playlist create and rename inputs show the same `+ ` and `r `
+  prompts as Tags.
+- Mixes and Insights no longer bind `v` and `a`, which did nothing there.
+- Dropped two redundant database indexes (migration 026), slightly reducing
+  write work when refreshing recommendations and editing playlists.
+- CI runs again on pull requests and pushes to `main`: a Linux build, vet,
+  format and `go mod tidy` check, race-enabled tests, and the pinned
+  golangci-lint.
+- `just clean` also removes `coverage.out` and `coverage.html`.
 
 ### Fixed
 
@@ -188,6 +209,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a user launching straight into the player saw a slower scan or silent track
   notifications with no explanation on screen; they now appear in the status bar
   alongside the configuration warnings. `muse check` is unchanged.
+
+- The volume can no longer go above 100%. mpv's own limit is 130%, so repeated
+  volume-up presses at "100%" made playback louder than the level shown.
+- One unplugged drive or missing directory in `music_directories` no longer
+  turns off live library watching for every other directory; only the
+  unreachable one is skipped, with a warning.
+- Numeric tag values are indexed as written: a tag of `1000000` no longer shows
+  as `1e+06`, and `0.10` stays `0.10`.
+- The default library order ignores case, so artists, albums, and titles
+  starting with a lowercase letter no longer sort after "Z".
+- Importing a metadata export no longer reports untouched values as edits when
+  the tag itself has surrounding quotes (such as `"Heroes"`) or stray
+  whitespace.
+- "Unknown Artist" no longer counts as a favorite artist: it is left out of
+  Hidden Gems' top artists and the never-played mix's artist affinity, and an
+  untagged radio seed no longer boosts every other untagged track.
+- Smart playlist "is" / "is not" rules ignore case like "contains" does, and a
+  genre rule matches one genre of a multi-genre track ("genre is Rock" now
+  matches a track tagged "Rock; Pop").
+- The startup duration check no longer re-probes and re-warns about the same
+  unreadable files on every launch; they are checked again once the file
+  changes.
+- Track-change and `muse now-playing` notifications appear for titles or
+  artists that start with "-" (such as "-M-"), which `notify-send` and
+  `alerter` used to reject as options.
+- Saving settings no longer replaces a symlinked `config.toml` (for example one
+  managed by stow or chezmoi) with a regular file; the link's target is
+  updated instead.
+- Saving settings no longer rounds a fractional seek offset (such as 2.5) down
+  to a whole second.
+- An `[[eq_custom_presets]]` entry keyed `custom` is rejected with a warning
+  instead of loading and then vanishing on the next settings save.
+- `muse check` and `muse now-playing` print each config warning once instead
+  of twice, and out-of-range decimal values are reported exactly as written
+  (60.04 no longer shows as "60.0 is out of range (1-60)").
+- `muse now-playing` prints why it could not reach mpv (`error: query mpv: …`)
+  instead of only reporting that muse is not running.
+- `muse --help` lists `-h`/`--help` and `--version` under Flags, which used to
+  be empty, and prints to stdout.
+- A failed copy to the clipboard names the tool and its error message instead
+  of just "exit status 1", and a missing file manager when opening or
+  revealing a folder is logged instead of failing silently.
+- Selecting rows in Playlists or Tags switches the footer to its selection
+  hints and shows the selection count, as every other view already did.
+- `E` in Mixes enqueues the open mix instead of doing nothing once a mix is
+  open, `/` on the mix list explains that you open a mix to filter it, and `s`
+  stops playback on the mix list; it only cycles the sort field inside a mix.
+- The empty Tags card suggests `c` to create a tag instead of `t`, which has
+  no track to act on there.
+- The footer keeps `? help` at narrow widths and drops the hints before it
+  instead.
+- The help overlay no longer lists the seek keys as ±5s/±30s, since both
+  offsets are configurable, and `g`/`G` and `home`/`end` jump to its top and
+  bottom.
+- Counts of one read "1 track", "1 play", and "1 session" in Mixes and
+  Insights, and the Data Health messages read "1 track carries no genre tag"
+  instead of "1 tracks carry".
+- The command palette only shows its "Recent & frequent" heading once a
+  command has been used.
 
 ## [0.1.0]
 

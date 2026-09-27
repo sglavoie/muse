@@ -37,6 +37,70 @@ func TestEvalSmartPlaylist_TitleEquals(t *testing.T) {
 	}
 }
 
+// Equals and not-equals ignore case like contains (LIKE) always has, so
+// "radiohead" finds the same tracks either way.
+func TestEvalSmartPlaylist_TextEqualsIgnoresCase(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "Creep", "Radiohead", "Pablo Honey", "rock", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "Song", "Other", "Album", "rock", 200000, 1000, now)
+
+	eq := evalQuery(t, d, db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldArtist, Operator: db.OpEquals, Value: "radiohead"},
+	})
+	if len(eq) != 1 || eq[0].Hash != "h1" {
+		t.Errorf("equals: got hashes %v, want [h1]", hashes(eq))
+	}
+	ne := evalQuery(t, d, db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldAlbum, Operator: db.OpNotEquals, Value: "PABLO HONEY"},
+	})
+	if len(ne) != 1 || ne[0].Hash != "h2" {
+		t.Errorf("not equals: got hashes %v, want [h2]", hashes(ne))
+	}
+}
+
+// Genre equals/not-equals match one genre of a multi-genre track, the way the
+// library splits genres, instead of the whole raw genre string.
+func TestEvalSmartPlaylist_GenreEqualsMatchesEachGenre(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "A", "Artist", "Album", "Rock; Pop", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "B", "Artist", "Album", "Pop", 200000, 1000, now)
+	insertFullTrack(t, d, "h3", "/c.flac", "C", "Artist", "Album", "Jazz", 200000, 1000, now)
+	insertFullTrack(t, d, "h4", "/d.flac", "D", "Artist", "Album", "", 200000, 1000, now)
+	syncTrackGenres(t, d)
+
+	eq := evalQuery(t, d, db.SmartPlaylistQuery{
+		Root:   db.SmartRule{Field: db.FieldGenre, Operator: db.OpEquals, Value: "pop"},
+		SortBy: "title",
+	})
+	if got := hashes(eq); len(got) != 2 || got[0] != "h1" || got[1] != "h2" {
+		t.Errorf("equals pop: got hashes %v, want [h1 h2]", got)
+	}
+	ne := evalQuery(t, d, db.SmartPlaylistQuery{
+		Root:   db.SmartRule{Field: db.FieldGenre, Operator: db.OpNotEquals, Value: "rock"},
+		SortBy: "title",
+	})
+	if got := hashes(ne); len(got) != 3 || got[0] != "h2" || got[1] != "h3" || got[2] != "h4" {
+		t.Errorf("not equals rock: got hashes %v, want [h2 h3 h4]", got)
+	}
+	// An empty value still compares the raw column: "genre is empty" means an
+	// untagged track.
+	empty := evalQuery(t, d, db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldGenre, Operator: db.OpEquals, Value: ""},
+	})
+	if got := hashes(empty); len(got) != 1 || got[0] != "h4" {
+		t.Errorf("equals empty: got hashes %v, want [h4]", got)
+	}
+	// Contains is unchanged and still matches the raw string.
+	contains := evalQuery(t, d, db.SmartPlaylistQuery{
+		Root: db.SmartRule{Field: db.FieldGenre, Operator: db.OpContains, Value: "k; P"},
+	})
+	if got := hashes(contains); len(got) != 1 || got[0] != "h1" {
+		t.Errorf("contains: got hashes %v, want [h1]", got)
+	}
+}
+
 func TestEvalSmartPlaylist_GenreStartsWith(t *testing.T) {
 	d := openMigratedDB(t)
 	now := time.Now().Unix()

@@ -2,6 +2,8 @@ package main
 
 import (
 	"io"
+	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,9 +13,11 @@ import (
 // isolateXDG points every muse directory at temp dirs and gives the process a
 // home with no ~/Music, so runCheck sees a pristine first-run environment.
 // It returns the temporary home so callers can populate it without reading the
-// environment back.
+// environment back. The one-shot commands replace slog's default logger, so the
+// logging state is restored when the test ends too.
 func isolateXDG(t *testing.T) string {
 	t.Helper()
+	restoreLogging(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -106,5 +110,73 @@ func TestRunCheck_ValidMusicDirDoesNotReportDirError(t *testing.T) {
 
 	if strings.Contains(out, "music directory") {
 		t.Errorf("unexpected music directory error for a populated ~/Music:\n%s", out)
+	}
+}
+
+// restoreLogging snapshots slog's default logger and the log package state
+// that slog.SetDefault rewires, and restores both when the test ends.
+func restoreLogging(t *testing.T) {
+	t.Helper()
+	origSlog, origOut, origFlags := slog.Default(), log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(origSlog)
+		log.SetOutput(origOut)
+		log.SetFlags(origFlags)
+	})
+}
+
+// writeOutOfRangeVolumeConfig gives the isolated home a config whose
+// default_volume triggers exactly one validation warning.
+func writeOutOfRangeVolumeConfig(t *testing.T, home string) {
+	t.Helper()
+	dir := filepath.Join(home, ".config", "muse")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte("default_volume = 500\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// captureWithLog is captureOutput that also captures the log package, which
+// slog's default handler writes through; its writer was bound to the real
+// stderr at init, so swapping os.Stderr alone would miss it. Callers must have
+// called isolateXDG, which restores the log package afterwards.
+func captureWithLog(t *testing.T, fn func()) string {
+	t.Helper()
+	return captureOutput(t, func() {
+		log.SetOutput(os.Stderr)
+		fn()
+	})
+}
+
+// The one-shot commands never call InitLogging, so config warnings used to
+// appear twice: once through slog's default handler and once as "warning:".
+func TestRunCheck_PrintsConfigWarningOnce(t *testing.T) {
+	home := isolateXDG(t)
+	writeOutOfRangeVolumeConfig(t, home)
+
+	out := captureWithLog(t, func() { runCheck() })
+
+	if n := strings.Count(out, "default_volume"); n != 1 {
+		t.Errorf("default_volume warning printed %d times, want 1:\n%s", n, out)
+	}
+	if !strings.Contains(out, "warning: default_volume 500 is out of range") {
+		t.Errorf("output missing the warning line:\n%s", out)
+	}
+}
+
+func TestRunNowPlaying_PrintsConfigWarningOnce(t *testing.T) {
+	home := isolateXDG(t)
+	writeOutOfRangeVolumeConfig(t, home)
+	_ = stubNotifications(t)
+
+	out := captureWithLog(t, func() { runNowPlaying() })
+
+	if n := strings.Count(out, "default_volume"); n != 1 {
+		t.Errorf("default_volume warning printed %d times, want 1:\n%s", n, out)
+	}
+	if !strings.Contains(out, "warning: default_volume 500 is out of range") {
+		t.Errorf("output missing the warning line:\n%s", out)
 	}
 }

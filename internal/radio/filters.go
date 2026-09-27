@@ -9,12 +9,6 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
-// unknownArtistSentinel mirrors the library's placeholder for files without an
-// artist tag (internal/library/index.go). The domain keeps its own copy rather
-// than importing an unexported constant; blank artists fold onto the same key
-// so an explicit "Unknown Artist" filter covers both spellings.
-const unknownArtistSentinel = "Unknown Artist"
-
 // FilterSet is one side (include or exclude) of the DJ pickers. Values inside a
 // field are OR'd together.
 type FilterSet struct {
@@ -446,7 +440,7 @@ func matchTagIDs(filterIDs []int64, trackTags map[int64]struct{}) (string, bool)
 func artistFilterKey(artist string) string {
 	key := normalizedArtistKey(artist)
 	if key == "" {
-		return normalizedArtistKey(unknownArtistSentinel)
+		return normalizedArtistKey(library.UnknownArtist)
 	}
 	return key
 }

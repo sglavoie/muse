@@ -131,10 +131,15 @@ func validate(raw rawConfig) (Config, []string) {
 	// Trim whitespace from name/key so a TOML entry like key = "  rock  "
 	// cannot silently slip through dedup and produce a key that fails to
 	// match any preset lookup later (lookups compare against trimmed keys).
-	builtinEQKeys := make(map[string]bool, len(BuiltinEQPresets))
+	builtinEQKeys := make(map[string]bool, len(BuiltinEQPresets)+1)
 	for _, p := range BuiltinEQPresets {
 		builtinEQKeys[p.Key] = true
 	}
+	// "custom" is the built-in sentinel for hand-tuned bands. A user preset
+	// under that key collides with it in the settings overlay, which skips
+	// every "custom" entry when saving, so the preset would silently vanish
+	// on the next save; reject it like the other built-in keys.
+	builtinEQKeys[eqCustomKey] = true
 	seen := make(map[string]bool)
 	for _, cp := range raw.EQCustomPresets {
 		trimmedKey := strings.TrimSpace(cp.Key)
@@ -185,7 +190,7 @@ func validate(raw rawConfig) (Config, []string) {
 		for _, cp := range cfg.EQCustomPresets {
 			allPresets = append(allPresets, EQPresetDef{Key: cp.Key})
 		}
-		allPresets = append(allPresets, EQPresetDef{Key: "custom"})
+		allPresets = append(allPresets, EQPresetDef{Key: eqCustomKey})
 		if EQPresetIndex(raw.EQPreset, allPresets) >= 0 {
 			cfg.EQPreset = raw.EQPreset
 		} else {
@@ -318,5 +323,5 @@ func validateFloatRange(ptr *float64, lo, hi float64, field string, dflt float64
 		return
 	}
 	slog.Warn("invalid config value, using default", "field", field, "value", v, "default", dflt)
-	*warnings = append(*warnings, fmt.Sprintf("%s %.1f is out of range (%g-%g), using %.1f", field, v, lo, hi, dflt))
+	*warnings = append(*warnings, fmt.Sprintf("%s %g is out of range (%g-%g), using %g", field, v, lo, hi, dflt))
 }

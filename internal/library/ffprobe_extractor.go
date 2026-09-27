@@ -149,7 +149,7 @@ func fallbackTrack(f HashedFile) Track {
 	return Track{
 		Path:      f.Path,
 		Hash:      f.Hash,
-		Artist:    "Unknown Artist",
+		Artist:    UnknownArtist,
 		Title:     filenameStem(f.Path),
 		ModTime:   f.ModTime,
 		SizeBytes: f.SizeBytes,

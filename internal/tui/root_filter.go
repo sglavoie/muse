@@ -135,6 +135,12 @@ func (m Model) allFilterOps() *filterOps {
 func (m Model) handleFilterBarMsg() (Model, tea.Cmd) {
 	ops := m.allFilterOps()
 	if ops == nil {
+		if m.ActiveView == viewMixes {
+			// The Mixes footer advertises "/" at both levels, but only an
+			// open mix has a track list to filter.
+			m.statusBar.Notify("Open a mix to filter its tracks")
+			return m, nil
+		}
 		m.statusBar.Notify("Filter not available in this view")
 		return m, nil
 	}

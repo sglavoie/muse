@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 )
 
@@ -18,6 +19,18 @@ func TestStartCreateActivatesInput(t *testing.T) {
 	}
 	if v2.CreateInput.Value() != "" {
 		t.Errorf("StartCreate: expected empty CreateInput, got %q", v2.CreateInput.Value())
+	}
+}
+
+// TestInlineInputsShowTagsStylePrompt guards that the playlist create and
+// rename rows carry the same "+ " / "r " prompt as the Tags rows, rather than
+// an unlabelled input indistinguishable from a playlist name.
+func TestInlineInputsShowTagsStylePrompt(t *testing.T) {
+	if got := ansi.Strip((View{}).StartCreate().CreateInput.View()); !strings.HasPrefix(got, "+ ") {
+		t.Errorf("create input should start with %q, got %q", "+ ", got)
+	}
+	if got := ansi.Strip((View{}).StartRename("Old").RenameInput.View()); !strings.HasPrefix(got, "r Old") {
+		t.Errorf("rename input should start with %q, got %q", "r Old", got)
 	}
 }
 

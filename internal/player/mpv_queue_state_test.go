@@ -321,6 +321,29 @@ func TestManager_SetExtraFlags(t *testing.T) {
 	m.mu.RUnlock()
 }
 
+// TestLaunchArgs_CapsVolumeAt100 guards the --volume-max=100 flag: without it
+// mpv allows up to 130%, so relative "add volume" steps could push the real
+// level past the 0-100 range muse tracks and displays.
+func TestLaunchArgs_CapsVolumeAt100(t *testing.T) {
+	args := launchArgs("/tmp/muse.sock", []string{"--ao=null"})
+
+	var hasCap bool
+	for _, a := range args {
+		if a == "--volume-max=100" {
+			hasCap = true
+		}
+	}
+	if !hasCap {
+		t.Errorf("launchArgs = %v, want --volume-max=100", args)
+	}
+	if args[0] != "--idle=yes" || args[1] != "--input-ipc-server=/tmp/muse.sock" {
+		t.Errorf("launchArgs prefix = %v, want idle mode and IPC socket first", args[:2])
+	}
+	if args[len(args)-1] != "--ao=null" {
+		t.Errorf("launchArgs = %v, want user extra flags last so they can override", args)
+	}
+}
+
 func TestManager_SetMissingMarker(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{ctx: ctx, cancel: cancel}

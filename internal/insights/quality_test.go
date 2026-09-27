@@ -2,6 +2,7 @@ package insights
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -105,6 +106,40 @@ func TestQualityReportsPlaceholderGenresAsFixable(t *testing.T) {
 	}
 	if issue.Affected != 47 {
 		t.Errorf("issue.Affected = %d, want 47", issue.Affected)
+	}
+}
+
+// Issue details must agree with their count: "1 genres are" reads as a bug.
+func TestQualityIssueDetailsAgreeWithCount(t *testing.T) {
+	one := computeQuality(foldGenres([]GenreRow{
+		{Genre: "Ambient", Plays: 2},
+		{Genre: "ambient", Plays: 1},
+		{Genre: "Unknown", Plays: 1},
+	}), QualityCounts{TracksWithoutGenre: 1, PlaysWithoutGenre: 1, TracksMissing: 1})
+	many := computeQuality(foldGenres([]GenreRow{
+		{Genre: "Ambient", Plays: 2},
+		{Genre: "ambient", Plays: 1},
+		{Genre: "Jazz", Plays: 2},
+		{Genre: "jazz", Plays: 1},
+		{Genre: "Unknown", Plays: 1},
+		{Genre: "Misc", Plays: 1},
+	}), QualityCounts{TracksWithoutGenre: 3, PlaysWithoutGenre: 3, TracksMissing: 2})
+
+	for _, tc := range []struct {
+		kind      IssueKind
+		one, many string
+	}{
+		{IssueGenreCollision, "1 genre is split across", "2 genres are split across"},
+		{IssuePlaceholderGenre, "Unknown: a placeholder tag that still takes a bar of its own", "Misc, Unknown: placeholder tags that still take a bar of their own"},
+		{IssueGenreMissing, "1 track carries no genre tag, so it is absent", "3 tracks carry no genre tag, so they are absent"},
+		{IssueMissingFiles, "1 track is indexed but not on disk and is excluded", "2 tracks are indexed but not on disk and are excluded"},
+	} {
+		if got := findIssue(t, one, tc.kind).Detail; !strings.HasPrefix(got, tc.one) {
+			t.Errorf("%s singular detail = %q, want prefix %q", tc.kind, got, tc.one)
+		}
+		if got := findIssue(t, many, tc.kind).Detail; !strings.HasPrefix(got, tc.many) {
+			t.Errorf("%s plural detail = %q, want prefix %q", tc.kind, got, tc.many)
+		}
 	}
 }
 

@@ -77,10 +77,12 @@ func ScoreAll(input ScoreInput) []TrackScore {
 		// (broken taggers occasionally emit " Artist " or "Artist\t"). Without
 		// trimming, the same artist with a stray space would miss the +5 boost
 		// while still being treated as the same artist by the PickBatch cap
-		// (which uses normalizedArtistKey).
+		// (which uses normalizedArtistKey). An untagged seed ("Unknown
+		// Artist" or blank) says nothing about taste, so it earns no bonus
+		// for every other untagged file.
 		trackArtist := strings.TrimSpace(track.Artist)
 		seedArtist := strings.TrimSpace(input.Seed.Artist)
-		if trackArtist != "" && seedArtist != "" && strings.EqualFold(trackArtist, seedArtist) {
+		if !library.IsUnknownArtist(seedArtist) && strings.EqualFold(trackArtist, seedArtist) {
 			score += 5
 		}
 

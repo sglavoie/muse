@@ -86,6 +86,9 @@ func (v View) Panel() Panel {
 		ShowPlayedAt:    v.ShowPlayedAt,
 		StripViewLabel:  StripLabel(v.Mode),
 	}
+	if v.Label != "" {
+		lv.StripViewLabel = v.Label
+	}
 	switch {
 	case v.SortState.Field != sorting.SortDefault:
 		lv.OverrideTracks = v.SortedTracks

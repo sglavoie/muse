@@ -67,8 +67,7 @@ func (p *PreviewPlayer) Start() error {
 	launch := p.launchFn
 	if launch == nil {
 		launch = func(ctx context.Context, sock string) (*exec.Cmd, error) {
-			args := append([]string{"--idle=yes", "--input-ipc-server=" + sock}, baseFlags...)
-			cmd := exec.CommandContext(ctx, "mpv", args...)
+			cmd := exec.CommandContext(ctx, "mpv", launchArgs(sock, nil)...)
 			if err := cmd.Start(); err != nil {
 				return nil, fmt.Errorf("preview mpv: start: %w", err)
 			}

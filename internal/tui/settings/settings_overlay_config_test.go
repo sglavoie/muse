@@ -67,6 +67,32 @@ func TestSettingsToConfigPreservesOtherFields(t *testing.T) {
 	}
 }
 
+// TestSettingsToConfigKeepsFractionalSeekOffsets guards that saving Settings
+// does not truncate a fractional seek offset the whole-second field cannot
+// show (2.5 became 2 after saving any unrelated setting), while a seek field
+// the user did change still takes the new value.
+func TestSettingsToConfigKeepsFractionalSeekOffsets(t *testing.T) {
+	base := config.Defaults()
+	base.SeekOffsetShort = 2.5
+	base.SeekOffsetLong = 12.5
+
+	o := NewSettingsOverlay(base, base.DefaultVolume, base.MusicDirectories)
+	o.Fields[TabPlayback][0].Value = 10 // an unrelated setting
+	got := o.ToConfig(base)
+	if got.SeekOffsetShort != 2.5 || got.SeekOffsetLong != 12.5 {
+		t.Errorf("unchanged seek offsets: want 2.5 / 12.5, got %v / %v", got.SeekOffsetShort, got.SeekOffsetLong)
+	}
+
+	o.Fields[TabPlayback][1].Value = 4
+	got = o.ToConfig(base)
+	if got.SeekOffsetShort != 4 {
+		t.Errorf("edited short seek: want 4, got %v", got.SeekOffsetShort)
+	}
+	if got.SeekOffsetLong != 12.5 {
+		t.Errorf("untouched long seek: want 12.5, got %v", got.SeekOffsetLong)
+	}
+}
+
 func TestStereoWideToConfigRoundTrip(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true

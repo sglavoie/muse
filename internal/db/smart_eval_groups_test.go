@@ -35,6 +35,7 @@ func TestEvalSmartPlaylist_OrGroup(t *testing.T) {
 	insertFullTrack(t, d, "h1", "/a.flac", "Track A", "Artist A", "Album", "rock", 200000, 1000, now)
 	insertFullTrack(t, d, "h2", "/b.flac", "Track B", "Artist B", "Album", "pop", 200000, 1000, now)
 	insertFullTrack(t, d, "h3", "/c.flac", "Track C", "Artist C", "Album", "jazz", 200000, 1000, now)
+	syncTrackGenres(t, d)
 
 	q := db.SmartPlaylistQuery{
 		Root: db.SmartRule{
@@ -58,6 +59,7 @@ func TestEvalSmartPlaylist_NestedGroups(t *testing.T) {
 	insertFullTrack(t, d, "h2", "/b.flac", "B", "X", "Alb", "pop", 200000, 1000, now)
 	insertFullTrack(t, d, "h3", "/c.flac", "C", "X", "Alb", "jazz", 200000, 1000, now)
 	insertFullTrack(t, d, "h4", "/d.flac", "D", "Y", "Alb", "rock", 200000, 1000, now)
+	syncTrackGenres(t, d)
 
 	q := db.SmartPlaylistQuery{
 		Root: db.SmartRule{

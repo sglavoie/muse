@@ -83,20 +83,37 @@ func TestNotifySendArgsBodyNeverEmpty(t *testing.T) {
 	}
 }
 
-// notifySendPositional returns the trailing summary and body arguments, i.e.
-// the last two entries that are not --flag=value options.
+// notifySendPositional returns the summary and body arguments, i.e. the two
+// entries following the "--" end-of-options marker, which must be last.
 func notifySendPositional(args []string) (string, string, bool) {
-	var positional []string
-	for _, a := range args {
-		if strings.HasPrefix(a, "--") {
-			continue
-		}
-		positional = append(positional, a)
-	}
-	if len(positional) != 2 {
+	i := slices.Index(args, "--")
+	if i < 0 || len(args)-i-1 != 2 {
 		return "", "", false
 	}
-	return positional[0], positional[1], true
+	return args[i+1], args[i+2], true
+}
+
+// TestNotifySendArgsLeadingDash guards against a title or artist that starts
+// with "-" being parsed by notify-send as an option, which makes it refuse to
+// show the banner at all.
+func TestNotifySendArgsLeadingDash(t *testing.T) {
+	args := Track{Title: "-Intro-", Artist: "-M-", Album: "Je dis aime"}.notifySendArgs()
+
+	for _, a := range args[:slices.Index(args, "--")+1] {
+		if !strings.HasPrefix(a, "--") {
+			t.Fatalf("non-option %q appears before the \"--\" marker in %v", a, args)
+		}
+	}
+	summary, body, ok := notifySendPositional(args)
+	if !ok {
+		t.Fatalf("summary/body not placed after \"--\" in %v", args)
+	}
+	if summary != "-Intro-" {
+		t.Errorf("summary = %q, want %q", summary, "-Intro-")
+	}
+	if body != "-M- — Je dis aime" {
+		t.Errorf("body = %q, want %q", body, "-M- — Je dis aime")
+	}
 }
 
 // TestSendIsFireAndForget puts a notify-send stub on $PATH that records its

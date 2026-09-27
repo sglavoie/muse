@@ -45,6 +45,27 @@ func TestRenderFooterHints_TruncatesToWidth(t *testing.T) {
 	}
 }
 
+// TestRenderFooterHints_KeepsHelpWhenNarrow guards that dropping pairs to fit
+// a narrow width drops the ones before the trailing "? help" pair rather than
+// help itself, which is where every dropped hint can still be found.
+func TestRenderFooterHints_KeepsHelpWhenNarrow(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, width := range []int{10, 20, 40, 60} {
+		got := RenderFooterHints(width, ContextLibrary, HintModeDefault, reg, s)
+		plain := ansi.Strip(got)
+		if ansi.StringWidth(got) > width {
+			t.Errorf("width %d: strip is %d columns wide: %q", width, ansi.StringWidth(got), plain)
+		}
+		if !strings.HasSuffix(plain, "? help") {
+			t.Errorf("width %d: strip should end with \"? help\", got %q", width, plain)
+		}
+	}
+	if got := ansi.Strip(RenderFooterHints(40, ContextLibrary, HintModeDefault, reg, s)); !strings.HasPrefix(got, "  j/k nav") {
+		t.Errorf("leading pairs should still render left to right, got %q", got)
+	}
+}
+
 func TestRenderFooterHints_KeyLabelAsymmetry(t *testing.T) {
 	// Pair tokens must be styled per-token: keys through HelpKey, labels
 	// through TextSecondary, separators through Dim — not the prior
@@ -223,5 +244,32 @@ func TestRenderFooterHints_EmptyLabelDoesNotOverReserveWidth(t *testing.T) {
 	}
 	if strings.Contains(plain, "…") {
 		t.Errorf("expected no truncation for a key that fits in full, got %q", plain)
+	}
+}
+
+// TestRenderFooterHints_CreateRenameMatchAcrossPlaylistsAndTags guards that
+// Playlists and Tags word and order their create/rename hints the same way.
+func TestRenderFooterHints_CreateRenameMatchAcrossPlaylistsAndTags(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, ctx := range []Context{ContextPlaylists, ContextTags} {
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeDefault, reg, s))
+		if !strings.Contains(got, "c create · r rename") {
+			t.Errorf("context %d: want \"c create · r rename\", got %q", ctx, got)
+		}
+	}
+}
+
+// TestRenderFooterHints_SelectionLabelsRemoveWhereARemoves guards that the
+// selection footer names what a does: in Playlists and Favorites it removes
+// the selection, so "bulk action" undersold a destructive key.
+func TestRenderFooterHints_SelectionLabelsRemoveWhereARemoves(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, ctx := range []Context{ContextPlaylists, ContextFavorites} {
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeSelection, reg, s))
+		if !strings.Contains(got, "a remove") || strings.Contains(got, "bulk action") {
+			t.Errorf("context %d: want \"a remove\" and no \"bulk action\", got %q", ctx, got)
+		}
 	}
 }

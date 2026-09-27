@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"os/exec"
@@ -94,10 +93,12 @@ func coerceString(raw json.RawMessage) string {
 		}
 		return strings.Join(parts, "; ")
 	}
-	// Try number (rare for text fields but possible).
-	var f float64
-	if json.Unmarshal(raw, &f) == nil {
-		return fmt.Sprintf("%g", f)
+	// Try number (rare for text fields but possible). Keep the literal JSON
+	// text: a float round-trip would turn a tag of 1000000 into "1e+06" and
+	// 0.10 into "0.1".
+	var n json.Number
+	if json.Unmarshal(raw, &n) == nil {
+		return n.String()
 	}
 	// Try bool as a final fallback (exiftool will occasionally emit booleans
 	// for tags like "Lossless"; we don't want to drop them on the floor).
@@ -322,7 +323,7 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 				tracks[i].Title = filenameStem(tracks[i].Path)
 			}
 			if tracks[i].Artist == "" {
-				tracks[i].Artist = "Unknown Artist"
+				tracks[i].Artist = UnknownArtist
 			}
 		}
 		return tracks
@@ -343,7 +344,7 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 		return []Track{{
 			Path:      files[0].Path,
 			Hash:      files[0].Hash,
-			Artist:    "Unknown Artist",
+			Artist:    UnknownArtist,
 			Title:     filenameStem(files[0].Path),
 			ModTime:   files[0].ModTime,
 			SizeBytes: files[0].SizeBytes,

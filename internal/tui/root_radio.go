@@ -141,7 +141,7 @@ func (m Model) radioCanEnqueue() bool {
 	if m.playback.repeatMode == playback.RepeatAll {
 		return false
 	}
-	if len(m.library.Index.Tracks()) == 0 {
+	if m.library.Index.Len() == 0 {
 		return false
 	}
 	if m.radioRemainingCount() > radioLowWaterMark {

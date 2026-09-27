@@ -462,3 +462,43 @@ func TestFilteredHelpRender(t *testing.T) {
 		}
 	}
 }
+
+// TestHelpSeekEntriesNameNoFixedOffset guards that the seek entries do not
+// promise a fixed number of seconds: seek_offset_short and seek_offset_long
+// are configurable, so any number printed here can be wrong.
+func TestHelpSeekEntriesNameNoFixedOffset(t *testing.T) {
+	for _, sec := range HelpSections() {
+		for _, e := range sec.entries {
+			if !strings.HasPrefix(e.desc, "Seek") {
+				continue
+			}
+			if strings.ContainsAny(e.desc, "0123456789±") {
+				t.Errorf("%s: %q hardcodes a seek offset: %q", sec.Title, e.key, e.desc)
+			}
+		}
+	}
+}
+
+// TestMixesHelpListsOnlyBoundKeys guards that every key the Mixes help
+// section lists does something in Mixes: v and a used to be listed (and
+// bound) though Mixes has no visual or bulk selection, and x / X were
+// described as selection keys though they dismiss and undismiss.
+func TestMixesHelpListsOnlyBoundKeys(t *testing.T) {
+	reg := keys.NewRegistry()
+	for _, sec := range HelpSections() {
+		if sec.Context != keys.ContextMixes {
+			continue
+		}
+		for _, e := range sec.entries {
+			for k := range strings.SplitSeq(e.key, " / ") {
+				k = strings.TrimSpace(k)
+				if reg.Lookup(keys.ContextMixes, k) == keys.ActionNone && reg.Lookup(keys.ContextGlobal, k) == keys.ActionNone {
+					t.Errorf("Mixes help lists %q (%s), which is unbound in Mixes", k, e.desc)
+				}
+			}
+			if (e.key == "x" || e.key == "X") && strings.Contains(e.desc, "selection") {
+				t.Errorf("Mixes help describes %q as %q, but it dismisses", e.key, e.desc)
+			}
+		}
+	}
+}

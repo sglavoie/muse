@@ -24,6 +24,7 @@ func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums 
 		RenameInput:      v.RenameInput,
 		SelectedTrackIDs: v.SelectedTrackIDs,
 		IsSmartPlaylist:  v.SmartQuery != nil,
+		playlistName:     v.sourcePlaylistName(),
 	}
 	if v.SortState.Field != sorting.SortDefault {
 		pv.SortField = sorting.SortFieldLabel(v.SortState.Field)

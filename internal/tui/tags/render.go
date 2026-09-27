@@ -21,7 +21,7 @@ func (v View) renderTags() string {
 			title = "No tagged tracks yet"
 		}
 		return v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), title, []styles.EmptyAction{
-			{Key: "t", Label: "tag a track"},
+			{Key: "c", Label: "create a tag"},
 			{Key: "?", Label: "help"},
 		})
 	}
