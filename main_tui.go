@@ -14,6 +14,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/app"
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/control"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/notify"
@@ -24,7 +25,7 @@ import (
 
 // runTUI resolves dirs, initialises logging, loads config, and runs the full
 // TUI music player until it exits or ctx is cancelled.
-func runTUI(ctx context.Context) error {
+func runTUI(ctx context.Context, opts tuiOptions) error {
 	dirs, err := config.ResolveDirs()
 	if err != nil {
 		return fmt.Errorf("resolve dirs: %w", err)
@@ -64,7 +65,8 @@ func runTUI(ctx context.Context) error {
 	var mgr *player.Manager
 
 	deps := app.Deps{
-		Config: cfg,
+		Config:       cfg,
+		CheckPrereqs: checkPrereqsFor(opts),
 		LaunchMPV: func(ctx context.Context, socketPath string) error {
 			mgr = player.NewManager(socketPath)
 			mgr.SetExtraFlags(cfg.MPVExtraFlags)
@@ -139,6 +141,13 @@ func runTUI(ctx context.Context) error {
 		CloseLog:   config.CloseLog,
 	}
 
+	ctrlServer, err := listenControl(opts, &shutdownDeps)
+	if err != nil {
+		slog.Error("startup: control socket", "err", err)
+		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
+		return err
+	}
+
 	startupCount, err := result.DB.IncrementStartupCount()
 	if err != nil {
 		slog.Warn("startup: increment startup count", "err", err)
@@ -183,7 +192,7 @@ func runTUI(ctx context.Context) error {
 		auditCh, _ = app.RunDurationAudit(ctx, result.DB, result.Writer)
 	}
 
-	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, musicDirsPartial, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount)
+	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, musicDirsPartial, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount, ctrlServer)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -210,6 +219,14 @@ func runTUI(ctx context.Context) error {
 		OnDisconnected: func() { p.Send(playback.PlayerDisconnectedMsg{}) },
 	})
 	mgr.SetMissingMarker(result.Writer)
+
+	// Answer the host only now that p exists to carry its requests. muse.ctrl
+	// below keeps running alongside, so `muse next` still reaches this muse.
+	if err := serveControl(ctrlServer, p.Send); err != nil {
+		slog.Error("startup: serve control socket", "err", err)
+		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
+		return err
+	}
 
 	// Listen for remote commands on a Unix domain socket.
 	ctrlListener, err := startCommandListener(p, dirs.Runtime)
@@ -393,8 +410,9 @@ func buildModel(
 	mgr *player.Manager,
 	auditCh <-chan library.DurationFix,
 	startupCount int,
+	ctrlServer *control.Server,
 ) tui.Model {
-	return tui.New(ctx,
+	opts := []tui.Option{
 		tui.WithConfig(cfg),
 		tui.WithConfigPath(configPath, cfgResult.Created),
 		tui.WithConfigWarnings(cfgResult.Warnings),
@@ -431,7 +449,7 @@ func buildModel(
 		tui.WithSmartPlaylistWriter(adapter),
 		tui.WithPlayCountWriter(result.Writer),
 		tui.WithHistoryRecorder(result.Writer),
-		tui.WithTrackNotifier(desktopNotifier{}),
+		tui.WithTrackNotifier(notifierFor(ctrlServer)),
 		tui.WithHistoryReader(result.DB),
 		tui.WithInsightsReader(result.DB),
 		tui.WithRecommendationReader(result.DB),
@@ -446,7 +464,8 @@ func buildModel(
 		tui.WithTagWriter(result.Writer),
 		tui.WithSessionCount(startupCount),
 		tui.WithFreshLibrary(libResult.FreshLibrary),
-	)
+	}
+	return tui.New(ctx, append(opts, controlModelOptions(ctrlServer)...)...)
 }
 
 // desktopNotifier adapts internal/notify to the TUI's trackNotifier port. It

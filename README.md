@@ -341,7 +341,55 @@ The five playback commands are relayed to an already-running muse over a Unix
 control socket, so they are convenient to bind to global hotkeys — see
 [`docs/karabiner.md`](docs/karabiner.md) for a macOS Karabiner-Elements setup.
 
-Global flags: `muse --version`, `muse --help`.
+Global flags: `muse --version`, `muse --help`, and `muse --control PATH` (see
+[Hosting muse](#hosting-muse)).
+
+### Hosting muse
+
+`muse --control PATH` runs the normal TUI and also serves a JSON control socket
+at `PATH`, so a host app (such as a native macOS wrapper that runs muse in an
+embedded terminal) can drive it and hear what it is doing. `muse.ctrl` keeps
+working alongside it, so `muse next` and global hotkeys still reach the same
+instance.
+
+Hosting changes three things:
+
+- **Notifications.** Track-change banners go to the host as `notify` events
+  instead of through alerter or notify-send, and the "notifications are
+  unavailable" startup warning is skipped. Whether to notify is still muse's
+  decision: `notify_on_track_change` and the palette toggle apply as before.
+- **Window title.** muse sets it to `▶ Title — Artist` while playing,
+  `⏸ Title — Artist` while paused, and `muse` otherwise.
+- **Exit status.** As in any session, status 3 means another muse already holds
+  the instance lock, so a host can say so instead of reporting a crash.
+
+The wire format is newline-delimited JSON, protocol version 1. A host writes
+requests and muse answers each with a reply carrying the request's `id`:
+
+```json
+{"id":1,"op":"toggle-play"}
+{"reply":1,"ok":true,"message":"toggle-play"}
+```
+
+The ops are `toggle-play`, `next`, `previous`, `volume-up`, `volume-down` and
+`state`, whose reply carries a `state` object. Any other op is refused with
+`ok:false`.
+
+muse also writes events, each shaped `{"event":"<name>","<name>":{...}}`. A new
+connection hears `hello` first, then the latest `state`:
+
+```json
+{"event":"hello","hello":{"pid":4242,"version":"v1.2.3","protocol":1}}
+{"event":"state","state":{"playback":"playing","track":{"id":"<hash>","queueId":7,"title":"Song","artist":"Band","album":"Record","duration":183},"elapsed":12.5}}
+{"event":"notify","notify":{"title":"Song","subtitle":"Band","body":"Record"}}
+{"event":"quitting"}
+```
+
+- `state` is sent whenever the playback state (`playing`, `paused` or
+  `stopped`) or the track changes, not on every tick; `elapsed` and `duration`
+  are seconds, and `track` is absent when nothing is loaded.
+- `quitting` means muse has begun shutting down and refuses new requests; the
+  socket reaching EOF afterwards means shutdown finished.
 
 ### Core keybindings
 

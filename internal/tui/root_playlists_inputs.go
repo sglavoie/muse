@@ -11,7 +11,7 @@ func (m Model) handlePlaylistCreateInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 	}
 	switch msg.String() {
 	case "ctrl+c":
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc":
 		m.playlists = m.playlists.CancelCreate()
 		return m, nil, true
@@ -57,7 +57,7 @@ func (m Model) handlePlaylistRenameInput(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 	}
 	switch msg.String() {
 	case "ctrl+c":
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc":
 		m.playlists = m.playlists.CancelRename()
 		return m, nil, true
@@ -108,7 +108,7 @@ func (m Model) handleQueueSaveInput(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 	}
 	switch msg.String() {
 	case "ctrl+c":
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc":
 		m.queue = m.queue.CancelSaveAsPlaylist()
 		return m, nil, true

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `muse --control PATH` serves a JSON control socket for a host app: playback
+  requests, `state` events on each track or pause change, and track-change
+  banners as `notify` events instead of through alerter. Hosted sessions also
+  set the window title to the playing track. See "Hosting muse" in the README.
+
+- muse paints the terminal background with its theme once it knows the
+  terminal's own background, and restores it on quit.
+
+- A hidden `muse build-info` prints `version=`, `revision=` and `time=` for
+  launchers that need to compare builds; `just release` now stamps the build
+  time.
+
 - muse exits with status 3 when another instance is already running, so a
   launcher can tell that apart from any other failure. The message is
   unchanged.

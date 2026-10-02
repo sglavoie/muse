@@ -77,7 +77,7 @@ func (m Model) handleInsightsMergeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd,
 		return m, nil, false
 	}
 	if msg.String() == "ctrl+c" {
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	}
 	if key := msg.String(); key != "y" && key != "Y" {
 		m.insights.PendingMerge = nil

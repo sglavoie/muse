@@ -164,7 +164,7 @@ func (m Model) handleFilterKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 
 	switch msg.String() {
 	case "ctrl+c":
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc":
 		m = ops.deactivate()
 	case "enter", "/":

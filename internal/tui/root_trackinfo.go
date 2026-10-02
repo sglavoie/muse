@@ -13,7 +13,7 @@ func (m Model) handleTrackInfoKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.trackInfo = nil
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc", "i":
 		m.overlay.trackInfo = nil
 		return m, nil, true

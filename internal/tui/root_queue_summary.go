@@ -63,7 +63,7 @@ func (m Model) handleQueueSummaryKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, 
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.queueSummary = nil
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc", "q":
 		m.overlay.queueSummary = nil
 		return m, nil, true

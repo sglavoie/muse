@@ -19,7 +19,7 @@ func (m Model) handleFavoriteTargetPickerKeyPress(msg tea.KeyPressMsg) (Model, t
 		return m, nil, false
 	}
 	if msg.String() == "ctrl+c" {
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	}
 	updated, cmd := m.overlay.favoriteTargetPicker.HandleKey(msg.String())
 	m.overlay.favoriteTargetPicker = &updated

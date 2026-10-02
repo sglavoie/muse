@@ -130,7 +130,7 @@ func (m Model) handleMetadataImportKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 	height := max(m.termHeight-3, 1)
 	switch msg.String() {
 	case "ctrl+c":
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc", "q", "n":
 		m.overlay.metadataImport = nil
 		m.statusBar.Notify("Import canceled")

@@ -54,10 +54,26 @@ func prereqBudget() time.Duration {
 // warnings. Warnings are always returned, including alongside a fatal error,
 // so callers can surface everything they know in one pass.
 func CheckPrereqs(ctx context.Context) ([]string, error) {
+	return CheckPrereqsWith(ctx, PrereqOptions{})
+}
+
+// PrereqOptions adjusts which checks CheckPrereqsWith runs.
+type PrereqOptions struct {
+	// SkipNotifier drops the notification-backend warning. A hosted session
+	// (--control) hands its banners to the host, so a missing alerter is
+	// irrelevant there and warning about it would only mislead.
+	SkipNotifier bool
+}
+
+// CheckPrereqsWith is CheckPrereqs with opts applied.
+func CheckPrereqsWith(ctx context.Context, opts PrereqOptions) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, prereqBudget())
 	defer cancel()
 
-	warnings := checkNotifier()
+	var warnings []string
+	if !opts.SkipNotifier {
+		warnings = checkNotifier()
+	}
 	mpvErr := checkMPV(ctx)
 	metadataWarnings, metadataErr := checkMetadataBackend(ctx)
 	return append(warnings, metadataWarnings...), errors.Join(mpvErr, metadataErr)

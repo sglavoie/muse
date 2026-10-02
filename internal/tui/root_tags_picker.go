@@ -16,7 +16,7 @@ func (m Model) handleTagPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 		return m, nil, false
 	}
 	if msg.String() == "ctrl+c" {
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	}
 	updated, cmd := m.overlay.tagPicker.HandleKey(msg.String(), msg)
 	m.overlay.tagPicker = &updated

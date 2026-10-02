@@ -313,7 +313,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		m.overlay.trackInfo = nil
 		m = m.closePreview()
 		m.overlay.previewWasPlaying = false
-		return m, tea.Quit
+		return m.markQuitting(), tea.Quit
 	case keys.ActionFilterBar:
 		return m, func() tea.Msg { return FilterBarMsg{} }
 	case keys.ActionSwitchLibrary:
@@ -457,7 +457,7 @@ func (m Model) handleModesLegendKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, b
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.modesLegend = nil
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc", ";":
 		m.overlay.modesLegend = nil
 		return m, nil, true

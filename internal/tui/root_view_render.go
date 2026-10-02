@@ -18,7 +18,7 @@ func (m Model) View() tea.View {
 	if m.terminalTooSmall() {
 		v := tea.NewView(m.styles.RenderScreen(m.renderTerminalTooSmall(), m.termWidth, m.termHeight))
 		v.AltScreen = true
-		return v
+		return m.finishView(v)
 	}
 
 	body := m.renderActiveBody()
@@ -56,7 +56,7 @@ func (m Model) View() tea.View {
 
 	v := tea.NewView(m.styles.RenderScreen(content, m.termWidth, m.termHeight))
 	v.AltScreen = true
-	return v
+	return m.finishView(v)
 }
 
 func (m Model) terminalTooSmall() bool {

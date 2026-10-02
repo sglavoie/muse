@@ -45,7 +45,7 @@ fmt-check:
 
 # Build with version tag (e.g., just release v1.2.3)
 release version:
-    go build -ldflags "-X main.Version={{version}}" -o muse .
+    go build -ldflags "-X main.Version={{version}} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o muse .
 
 # Run the application
 run *args:

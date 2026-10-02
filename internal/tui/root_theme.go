@@ -6,11 +6,17 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-func (m Model) applyTheme() Model {
-	preset, primary := m.cfg.Theme, m.cfg.PrimaryColor
+// themeState returns the preset and primary color in effect, preferring the
+// settings overlay's unsaved choice while it is open.
+func (m Model) themeState() (preset, primary string) {
 	if m.overlay.settings != nil {
-		preset, primary = m.overlay.settings.ThemeState()
+		return m.overlay.settings.ThemeState()
 	}
+	return m.cfg.Theme, m.cfg.PrimaryColor
+}
+
+func (m Model) applyTheme() Model {
+	preset, primary := m.themeState()
 	hasDark := m.terminalHasDark
 	switch preset {
 	case "dark":

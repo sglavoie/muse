@@ -33,7 +33,7 @@ func (m Model) handleTagFilterPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 		return m, nil, false
 	}
 	if msg.String() == "ctrl+c" {
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	}
 	updated, cmd := m.overlay.tagFilterPicker.HandleKey(msg.String())
 	m.overlay.tagFilterPicker = &updated

@@ -28,6 +28,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Every branch of updateInner returns this Model.
 	updated := next.(Model)
 	updated, flushCmd := updated.drainListenFlushes()
+	updated = updated.publishControlState()
 	if flushCmd == nil {
 		return updated, cmd
 	}
@@ -43,6 +44,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.BackgroundColorMsg:
 		m.terminalHasDark = msg.IsDark()
+		m.backgroundDetected = true
 		m = m.applyTheme()
 
 	case library.ScanProgressMsg:
@@ -128,6 +130,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case playback.PauseChangedMsg:
 		return m.handlePauseChangedMsg(msg)
+
+	case controlRequestMsg:
+		return m.handleControlRequest(msg)
 
 	case playback.RemoteActionMsg:
 		m, cmd, _ := m.handlePlaybackKeyAction(playback.RemoteAction(msg.ActionName))

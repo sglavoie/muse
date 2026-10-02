@@ -21,7 +21,7 @@ func (m Model) handleNowPlayingKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.nowPlaying = nil
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc", "I":
 		m.overlay.nowPlaying = nil
 		return m, nil, true
@@ -40,7 +40,7 @@ func (m Model) handlePreviewKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 	case "ctrl+c":
 		m = m.closePreview()
 		m.overlay.previewWasPlaying = false
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	case "esc", "P":
 		m, cmd := m.dismissPreview()
 		return m, cmd, true

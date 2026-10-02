@@ -14,7 +14,7 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 		return m, nil, false
 	}
 	if msg.String() == "ctrl+c" {
-		return m, tea.Quit, true
+		return m.markQuitting(), tea.Quit, true
 	}
 	updated, act, cmd := m.overlay.smartRuleEditor.HandleKey(msg)
 	m.overlay.smartRuleEditor = &updated

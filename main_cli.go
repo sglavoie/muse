@@ -28,6 +28,17 @@ func main() {
 		os.Exit(runTUITestCLI(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
 
+	// Hidden build-info report for muse.app's binary resolver, which needs a
+	// build time to prefer the newer of two installed binaries.
+	if len(os.Args) > 1 && os.Args[1] == "build-info" {
+		if err := validateNoCommandArgs(os.Args[1], os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "muse: %v\n", err)
+			os.Exit(1)
+		}
+		printBuildInfo(os.Stdout)
+		return
+	}
+
 	// Handle local subcommands before flag parsing. These run entirely in this
 	// process, unlike remoteActions which are relayed to a running instance
 	// over the control socket.
@@ -55,6 +66,7 @@ func main() {
 		}
 	}
 
+	controlPath := flag.String("control", "", "")
 	flag.Parse()
 
 	if flag.NArg() > 0 {
@@ -65,7 +77,7 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), shutdownSignals()...)
 
-	if err := runTUI(ctx); err != nil {
+	if err := runTUI(ctx, tuiOptions{ControlPath: *controlPath}); err != nil {
 		cancel()
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
 		os.Exit(exitCodeFor(err))
@@ -79,9 +91,9 @@ func configureUsage() {
 	flag.Usage = func() { printUsage(os.Stderr) }
 }
 
-// printUsage writes the help text. The global flags are listed by hand because
-// they are detected by detectGlobalFlag rather than registered with the flag
-// package, so flag.PrintDefaults would print nothing.
+// printUsage writes the help text. The flags are listed by hand: the global
+// flags are detected by detectGlobalFlag rather than registered with the flag
+// package, and the --control line has a fixed shape a host app parses.
 func printUsage(w io.Writer) {
 	var b strings.Builder
 	b.WriteString("Usage: muse [command]\n\nCommands:\n")
@@ -94,6 +106,8 @@ func printUsage(w io.Writer) {
 	b.WriteString("\nFlags:\n")
 	fmt.Fprintf(&b, "  %-14s %s\n", "-h, --help", "Show this help and exit")
 	fmt.Fprintf(&b, "  %-14s %s\n", "--version", "Print the version and exit")
+	// muse.app probes for this line, taking its first token as the flag name.
+	fmt.Fprintf(&b, "  %-14s %s\n", "--control PATH", "Serve a JSON control socket at PATH for a host app")
 	_, _ = io.WriteString(w, b.String())
 }
 

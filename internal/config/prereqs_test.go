@@ -236,3 +236,27 @@ func TestCheckPrereqs_ExifToolMissing(t *testing.T) {
 		t.Errorf("error should mention exiftool, got: %s", err.Error())
 	}
 }
+
+// TestCheckPrereqsWith_SkipNotifier covers a hosted session: the host shows the
+// banners, so a missing notification backend must not produce a warning there,
+// while the default options still report it.
+func TestCheckPrereqsWith_SkipNotifier(t *testing.T) {
+	stubWorkingPrereqBinaries(t)
+	stubNotifier(t, errors.New("stub backend not found on $PATH"))
+
+	warnings, err := CheckPrereqsWith(context.Background(), PrereqOptions{SkipNotifier: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("SkipNotifier must drop the notifier warning, got %v", warnings)
+	}
+
+	warnings, err = CheckPrereqsWith(context.Background(), PrereqOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("default options must keep the notifier warning, got %v", warnings)
+	}
+}

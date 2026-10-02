@@ -388,6 +388,17 @@ type Model struct {
 	// independently of previews and explicit theme choices.
 	styles          *styles.Styles
 	terminalHasDark bool
+	// backgroundDetected is set once the terminal has answered the background
+	// query. Until then, or an explicit dark/light preset, the window chrome
+	// leaves the terminal background alone; see root_view_chrome.go.
+	backgroundDetected bool
+
+	// control is the hosted-session state; see root_control.go.
+	control controlState
+
+	// quitting is set when an action has asked Bubble Tea to quit, so the final
+	// frame hands the terminal background back.
+	quitting bool
 
 	// paletteUsage tracks command palette usage counts for MRU ranking.
 	// May be nil when persistence is disabled (e.g. headless tests).
