@@ -427,9 +427,32 @@ just enough to get moving.
 muse renders normal layout at terminal sizes of **60x15 and larger**; below
 that it shows a "terminal window is too small" message instead.
 
+## macOS app
+
+On macOS, muse can also run as its own app, `muse.app`: a native window that
+embeds a Ghostty terminal running the ordinary `muse` binary, with its own Dock
+icon, a menu-bar icon showing the current track with Play/Pause, Next and
+Previous, a global shortcut (`ctrl+opt+cmd+m`) that shows or hides it, and
+native track-change notifications. Closing the window hides it and the music
+keeps playing; `Cmd+Q` shuts muse down cleanly, so the last listen is recorded.
+mpv and ExifTool/ffprobe still come from your login shell's `PATH`.
+
+It is built from a checkout, not through `go install`, and needs Xcode:
+
+```sh
+just mac-install    # build a signed Release muse.app into /Applications
+```
+
+The app talks to muse through `--control` (see [Hosting muse](#hosting-muse)),
+and `muse next` from a terminal still drives it. Only one muse runs at a time:
+quit a terminal muse before launching the app. Build details, signing, privacy
+prompts for libraries outside `~/Music`, preferences and the terminal config
+are in [`macos/README.md`](macos/README.md).
+
 ## Platform support
 
-muse supports **macOS and Linux**.
+muse supports **macOS and Linux**. On macOS it also runs as a standalone
+[macOS app](#macos-app) (macOS 14 or later, built from source).
 
 **Windows is not supported.** This is not a packaging gap — the code depends on
 Unix-only primitives:

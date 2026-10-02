@@ -51,12 +51,13 @@ release version:
 mac-ghosttykit:
     ./macos/scripts/build-ghosttykit.sh
 
-# Build macos/build/muse.app (Debug, or Release bundling `just build`'s muse; outside CI)
+# Build macos/build/muse.app (Debug, or Release bundling a versioned muse; outside CI)
 mac-app configuration="Debug":
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{ configuration }}" = Release ]; then
-        just build
+        version="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+        go build -ldflags "-X main.Version=$version -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o muse .
         export MUSE_BINARY="$PWD/muse"
     fi
     ./macos/scripts/build-app.sh {{ configuration }}
@@ -64,6 +65,10 @@ mac-app configuration="Debug":
 # Run the muse.app XCTest suite with xcodebuild test (outside CI)
 mac-test:
     ./macos/scripts/test-app.sh
+
+# Build the Release muse.app and install it to /Applications (outside CI)
+mac-install: (mac-app "Release")
+    ./macos/scripts/install-app.sh
 
 # Run the application
 run *args:

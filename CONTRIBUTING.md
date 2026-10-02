@@ -77,6 +77,22 @@ and the pinned `golangci-lint run`. The hook is generated from the `hooks`
 recipe in the `justfile`, so re-run `just hooks` whenever that recipe changes
 (for example after a golangci-lint version bump) to pick up the new command.
 
+### macOS app
+
+The `macos/` tree builds `muse.app` (see [`macos/README.md`](macos/README.md)).
+Its recipes need macOS and Xcode, and are kept out of CI and out of the gates
+above; run them by hand when you touch `macos/`:
+
+| Recipe | What it runs |
+| --- | --- |
+| `just mac-ghosttykit` | builds and vendors the pinned `GhosttyKit.xcframework` |
+| `just mac-app [Debug\|Release]` | builds `macos/build/muse.app`; Release bundles a versioned `muse` |
+| `just mac-test` | the `MuseAppTests` XCTest suite |
+| `just mac-install` | a Release build, signed, installed to `/Applications` |
+
+A change under `macos/` ships with a passing `just mac-test`. Go files Zig
+fetches into `macos/.cache` are gitignored, so `just fmt-check` never sees them.
+
 ## Changes ship with tests
 
 muse has roughly 1.7 lines of test code per line of source, and that ratio is

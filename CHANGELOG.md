@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- muse.app, a standalone macOS app for muse: `just mac-install` builds a
+  Release app bundling a muse stamped with its version and build time, signs
+  it inside out (an Apple Development identity by default, so privacy grants
+  survive reinstalls; `MUSE_CODESIGN_IDENTITY=-` for ad-hoc; Developer ID plus
+  `MUSE_NOTARY_PROFILE` to notarize) and installs it to `/Applications`. It
+  has its own note icon and menu-bar template icon, asks for access to music
+  libraries in Documents, Desktop, Downloads, on external drives and network
+  shares, and is documented in `macos/README.md` and the README's "macOS app"
+  section.
+
 - A `macos/` skeleton for a standalone muse.app ported from tt: pinned
   GhosttyKit build (`just mac-ghosttykit`), an XcodeGen project, `just mac-app`
   and `just mac-test`. The app runs `muse` from the login shell's PATH in an

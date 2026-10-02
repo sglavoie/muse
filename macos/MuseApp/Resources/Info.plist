@@ -26,11 +26,19 @@
 	<string>public.app-category.music</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>muse plays and scans music libraries kept on the Desktop.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>muse.app reads your login shell's settings, which may live in Documents.</string>
+	<string>muse.app reads your login shell's settings, which may live in Documents, and muse plays and scans music libraries kept there.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>muse plays and scans music libraries kept in Downloads.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>muse plays and scans music libraries on network shares.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>muse plays and scans music libraries on external drives.</string>
 </dict>
 </plist>

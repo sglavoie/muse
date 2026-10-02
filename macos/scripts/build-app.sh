@@ -8,7 +8,8 @@
 # Environment:
 #   MUSE_BINARY             muse to bundle at Contents/Resources/bin/muse;
 #                           required for Release (`just mac-app Release` builds
-#                           it with `just build`), optional for Debug
+#                           it with the version and build time stamped in),
+#                           optional for Debug
 #   MUSE_MACOS_CACHE        cache root (default macos/.cache, gitignored)
 
 set -eu
