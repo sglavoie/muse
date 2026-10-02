@@ -74,9 +74,14 @@ func (c *conn) close() {
 }
 
 // requestStop asks the writer to flush what is queued and then end the
-// connection.
+// connection. The write deadline it sets also interrupts a write already
+// blocked on a host that stopped reading, so the flush ends within
+// flushTimeout either way.
 func (c *conn) requestStop() {
-	c.stopOnce.Do(func() { close(c.stop) })
+	c.stopOnce.Do(func() {
+		_ = c.SetWriteDeadline(time.Now().Add(flushTimeout))
+		close(c.stop)
+	})
 }
 
 // Listen opens the socket at path, replacing a stale file a crashed session
@@ -281,9 +286,9 @@ func (s *Server) write(c *conn) {
 	}
 }
 
-// flush writes the lines already queued for c, bounded by flushTimeout.
+// flush writes the lines already queued for c, bounded by the write deadline
+// requestStop set.
 func (s *Server) flush(c *conn) {
-	_ = c.SetWriteDeadline(time.Now().Add(flushTimeout))
 	for {
 		select {
 		case line := <-c.out:

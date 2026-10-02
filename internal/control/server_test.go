@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -253,6 +254,73 @@ func TestServerCloseFlushesThenEnds(t *testing.T) {
 	}
 	server.Publish(Event{Event: EventState, State: &State{}})
 	server.Drain()
+}
+
+func TestServerCloseUnblocksBlockedWriter(t *testing.T) {
+	server := serve(t, echoDispatch)
+	host := dial(t, server.Path())
+
+	var c *conn
+	deadline := time.Now().Add(2 * time.Second)
+	for c == nil {
+		server.mu.Lock()
+		for registered := range server.conns {
+			c = registered
+		}
+		server.mu.Unlock()
+		if c == nil {
+			if time.Now().After(deadline) {
+				t.Fatal("connection never registered")
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+
+	// A line far larger than any socket buffer cannot be written while the
+	// host reads nothing, so once the writer takes it off the queue it is
+	// blocked in Write until something interrupts it.
+	huge := strings.Repeat("x", 8<<20)
+	server.Publish(Event{Event: EventState, State: &State{Track: &Track{Title: huge}}})
+	for len(c.out) != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("writer never took the oversized line")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	server.Drain()
+
+	closed := make(chan error, 1)
+	start := time.Now()
+	go func() { closed <- server.Close() }()
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(flushTimeout + 2*time.Second):
+		t.Fatal("Close stayed blocked behind a writer whose host stopped reading")
+	}
+	if elapsed := time.Since(start); elapsed > flushTimeout+time.Second {
+		t.Fatalf("Close took %v, want about %v", elapsed, flushTimeout)
+	}
+
+	// Close waits for every reader and writer, so none is left and the
+	// connection is gone.
+	server.mu.Lock()
+	remaining := len(server.conns)
+	server.mu.Unlock()
+	if remaining != 0 {
+		t.Fatalf("%d connections remain after Close", remaining)
+	}
+	select {
+	case <-c.done:
+	default:
+		t.Fatal("connection not ended after Close")
+	}
+	_ = host.conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := io.Copy(io.Discard, host.conn); err != nil {
+		t.Fatalf("host did not see the connection end: %v", err)
+	}
 }
 
 func TestServerCloseWithoutServe(t *testing.T) {
