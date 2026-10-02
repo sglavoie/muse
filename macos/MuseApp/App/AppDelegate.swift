@@ -1,7 +1,7 @@
 import AppKit
 import GhosttyKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, StatusItemDelegate {
     /// How long Quit waits for muse to drain before SIGKILLing its process
     /// group: muse's own shutdown is bounded well inside this.
     static let quitDrainTimeout: TimeInterval = 12
@@ -15,6 +15,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
     private(set) var quitLink: MuseQuitLink?
     /// What `build-info` said of the muse running, for About.
     private var museVersion: MuseVersion?
+    let preferencesModel = PreferencesModel()
+    private var preferencesController: PreferencesWindowController?
+    private var preferences: NSWindow? { preferencesController?.window }
+    private(set) var statusItem: StatusItemController?
+    private(set) var hotKeys: HotKeyCenter?
 
     /// A hosted test bundle launches this app too; it must not spawn muse.
     private static var isRunningTests: Bool {
@@ -22,8 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        // A regular app with its own Dock icon.
-        NSApp.setActivationPolicy(.regular)
+        // A regular app with its own Dock icon, unless set to live in the
+        // menu bar alone.
+        NSApp.setActivationPolicy(preferencesModel.activationPolicy.appKitPolicy)
         NSApp.mainMenu = MainMenu.make()
     }
 
@@ -36,10 +42,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
             return
         }
         guard !Self.isRunningTests else { return }
+        setUpShell()
 
-        let environment = LaunchEnvironment.current().applying(MuseEnvironmentOverrides.load())
+        let detected = LaunchEnvironment.current()
+        let model = preferencesModel
+        model.detectedEnvironment = detected
+        let environment = detected.applying(model.environmentOverrides)
+        let resolver = MuseBinaryResolver.live(environment: environment)
+        model.goInstallBinaryPath = resolver.goInstallPath
         let binary: MuseBinaryResolver.Resolution
-        switch MuseBinaryResolver.live(environment: environment).resolve() {
+        switch resolver.resolve() {
         case .success(let resolution):
             binary = resolution
         case .failure(let notFound):
@@ -49,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
         }
         NSLog("muse: running %@ (%@)", binary.url.path, String(describing: binary.source))
         museVersion = MuseVersion.read(binary: binary.url.path)
+        model.runningBinary = binary
 
         guard let launcher = Bundle.main.url(forResource: "muse-launch", withExtension: nil) else {
             showLaunchError(title: "muse.app is incomplete.", message: "Its muse-launch helper is missing from Resources.")
@@ -64,14 +77,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
             NSLog("muse: %@ does not accept %@; Quit waits on its exit status instead",
                   binary.url.path, MuseControlLaunch.flag)
         }
-        let commandEnvironment = environment.commandEnvironment
         let overrides = Ghostty.ConfigOverrides(
             command: launcher,
             arguments: [statusFile.path, binary.url.path] + MuseControlLaunch.arguments(controlPath: controlPath),
-            environment: commandEnvironment,
+            environment: environment.commandEnvironment,
             waitAfterCommand: true
         )
-        let ghostty = Ghostty.App { Ghostty.Config(overrides: overrides) }
+        // Read on every load, so a reload applies the current default zoom and
+        // the environment Preferences sets.
+        let ghostty = Ghostty.App {
+            var current = overrides
+            current.fontSize = model.defaultFontSize
+            current.environment = detected.applying(model.environmentOverrides).commandEnvironment
+            return Ghostty.Config(overrides: current)
+        }
         guard ghostty.readiness == .ready else {
             showLaunchError(
                 title: "Ghostty failed to start.",
@@ -81,21 +100,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
         }
         ghostty.delegate = self
         self.ghostty = ghostty
+        model.onDefaultFontSizeChange = { [weak self] _ in self?.applyDefaultFontSize() }
+        model.onEnvironmentChange = { [weak self] in self?.scheduleEnvironmentReload() }
+        model.onRelaunch = { [weak self] in self?.relaunchTerminal() }
+        refreshConfigFontSize()
 
         if let controlPath {
             quitLink = MuseQuitLink(path: controlPath)
         }
 
         // The lock a terminal muse holds sits where this muse would look,
-        // which the forwarded XDG_RUNTIME_DIR (or the shared TMPDIR) decides.
-        let lockEnvironment = ProcessInfo.processInfo.environment.merging(commandEnvironment) { _, forwarded in forwarded }
+        // which the forwarded XDG_RUNTIME_DIR (or the shared TMPDIR) of the
+        // session that exited decides.
         let controller = TerminalWindowController(
             ghostty: ghostty,
             statusFile: statusFile,
-            holderPID: { MuseInstanceLock.holderPID(environment: lockEnvironment) }
+            holderPID: { [weak model] in
+                let forwarded = model?.sessionEnvironment ?? environment.commandEnvironment
+                let lockEnvironment = ProcessInfo.processInfo.environment.merging(forwarded) { _, forwarded in forwarded }
+                return MuseInstanceLock.holderPID(environment: lockEnvironment)
+            }
         )
-        controller.onWillStartSession = { [weak self] in self?.quitLink?.connect() }
-        controller.onSessionEnd = { [weak self] in self?.quitLink?.disconnect() }
+        // A new muse takes the config's environment, so a reload still waiting
+        // on the typing pause goes first.
+        controller.onWillStartSession = { [weak self, weak model] in
+            self?.flushEnvironmentReload()
+            model?.sessionEnvironment = model?.effectiveEnvironment?.commandEnvironment
+            self?.quitLink?.connect()
+        }
+        controller.onSessionEnd = { [weak self, weak model] in
+            model?.sessionEnvironment = nil
+            self?.quitLink?.disconnect()
+        }
         terminal = controller
         controller.show()
     }
@@ -124,7 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
 
     /// Switching to muse.app (Cmd+Tab, the Dock) brings its window back.
     func applicationDidBecomeActive(_ notification: Notification) {
-        guard let terminal, !terminal.window.isVisible, !terminal.isDraining else { return }
+        guard let terminal, !terminal.window.isVisible, !terminal.isDraining,
+              !(preferences?.isVisible ?? false) else { return }
         terminal.show()
     }
 
@@ -145,10 +182,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
         return menu
     }
 
-    /// Preferences arrive with their window; until then the item still owns
-    /// Cmd+, so the shortcut never falls through to Ghostty's config.
+    /// The menu item owns Cmd+, so the shortcut never falls through to
+    /// Ghostty's config.
     @objc func showPreferences(_ sender: Any?) {
-        NSSound.beep()
+        let controller = preferencesController ?? PreferencesWindowController(model: preferencesModel)
+        preferencesController = controller
+        controller.show()
     }
 
     @objc func showReadme(_ sender: Any?) {
@@ -156,7 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
     }
 
     @objc func relaunchFromMenu(_ sender: Any?) {
-        terminal?.relaunch()
+        relaunchTerminal()
     }
 
     @objc func showAbout(_ sender: Any?) {
@@ -168,6 +207,140 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate {
                 museVersion: museVersion?.version, ghosttyVersion: Ghostty.versionDescription, notice: notice
             ),
         ])
+    }
+
+    // MARK: Shell: status item, global shortcut, preferences
+
+    /// The pieces that work even when muse itself could not start.
+    private func setUpShell() {
+        let model = preferencesModel
+        model.onActivationPolicyChange = { [weak self] in self?.applyActivationPolicy($0) }
+        model.onHotKeyChange = { [weak self] in self?.registerHotKey($0) }
+        model.onRecordingChange = { [weak self] recording in
+            guard let self else { return }
+            if recording {
+                self.hotKeys?.unregister()
+            } else {
+                self.registerHotKey(self.preferencesModel.hotKey)
+            }
+        }
+        model.onOpenGhosttyConfig = { Ghostty.App.openConfig() }
+        model.onReloadGhosttyConfig = { [weak self] in
+            self?.ghostty?.reloadConfig()
+            self?.refreshConfigFontSize()
+        }
+
+        statusItem = StatusItemController(delegate: self)
+        let hotKeys = HotKeyCenter()
+        hotKeys.onPress = { [weak self] in self?.toggleTerminal() }
+        self.hotKeys = hotKeys
+        registerHotKey(model.hotKey)
+    }
+
+    /// Registers `combo` and tells Preferences what is wrong with it, if anything.
+    private func registerHotKey(_ combo: HotKeyCombo?) {
+        guard let hotKeys else { return }
+        var problem = hotKeys.register(combo).problem
+        if problem == nil, let combo, SystemHotKeys.conflicts(with: combo) {
+            problem = "macOS also uses \(combo.displayString) (System Settings › Keyboard › Keyboard Shortcuts); "
+                + "turn it off there, or choose another shortcut."
+        }
+        if let problem {
+            NSLog("muse: hotkey: %@", problem)
+        }
+        preferencesModel.hotKeyProblem = problem
+    }
+
+    /// Switched live. Changing the policy can drop the app's activation, so
+    /// the window the change was made from is brought back.
+    private func applyActivationPolicy(_ policy: MuseActivationPolicy) {
+        NSApp.setActivationPolicy(policy.appKitPolicy)
+        let front = [preferences, terminal?.window, window].compactMap { $0 }.first { $0.isVisible }
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            front?.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// Applies a changed default zoom now: the reload makes it the size Cmd+0
+    /// returns to, and resetting moves the running terminal there even when
+    /// it was zoomed, which a reload alone would preserve.
+    private func applyDefaultFontSize() {
+        guard let ghostty, ghostty.reloadConfig() else { return }
+        terminal?.surfaceView?.performBindingAction("reset_font_size")
+        refreshConfigFontSize()
+    }
+
+    private var pendingEnvironmentReload: DispatchWorkItem?
+
+    /// Each keystroke in an environment field changes the overrides; the
+    /// config is reloaded once typing pauses rather than per key.
+    private func scheduleEnvironmentReload() {
+        pendingEnvironmentReload?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.flushEnvironmentReload() }
+        pendingEnvironmentReload = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+    }
+
+    private func flushEnvironmentReload() {
+        guard let pending = pendingEnvironmentReload else { return }
+        pending.cancel()
+        pendingEnvironmentReload = nil
+        ghostty?.reloadConfig()
+    }
+
+    /// What Preferences shows while no default zoom is set. With one set the
+    /// loaded config carries it, so the last config-only value is kept.
+    private func refreshConfigFontSize() {
+        guard preferencesModel.defaultFontSize == nil,
+              let size = ghostty?.config.get("font-size", as: Float.self, initial: 0), size > 0 else { return }
+        preferencesModel.configFontSize = size
+    }
+
+    // MARK: StatusItemDelegate
+
+    var isTerminalFrontmost: Bool {
+        guard let terminal else { return false }
+        return TerminalToggle.action(
+            appIsActive: NSApp.isActive,
+            windowIsVisible: terminal.window.isVisible,
+            windowIsKey: terminal.window.isKeyWindow
+        ) == .hide
+    }
+
+    var canRelaunchTerminal: Bool { terminal != nil && !(terminal?.isDraining ?? false) }
+
+    var isLaunchAtLoginEnabled: Bool { LoginItem.isEnabled }
+
+    /// The global shortcut and a left click on the status item: show and
+    /// focus muse, or hide it when it is already in front.
+    func toggleTerminal() {
+        guard let terminal else {
+            // muse could not start; its launch error is what there is to show.
+            NSApp.activate(ignoringOtherApps: true)
+            window?.makeKeyAndOrderFront(nil)
+            return
+        }
+        guard !terminal.isDraining else { return }
+        if isTerminalFrontmost {
+            terminal.hide()
+        } else {
+            terminal.show()
+        }
+    }
+
+    func relaunchTerminal() {
+        guard let terminal, !terminal.isDraining else { return }
+        terminal.relaunch()
+    }
+
+    func toggleLaunchAtLogin() {
+        guard let failure = preferencesModel.setLaunchAtLogin(!LoginItem.isEnabled) else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Launch at Login"
+        alert.informativeText = failure
+        alert.runModal()
     }
 
     private func showLaunchError(title: String, message: String) {

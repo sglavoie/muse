@@ -7,6 +7,13 @@ struct MuseVersion: Equatable {
     /// The `time=` instant; nil for a build that records none.
     let built: Date?
 
+    /// What Preferences says of it, e.g. `v1.2.3 (built 2026-10-02T12:00:00Z)`.
+    var line: String {
+        let name = version.isEmpty ? "unknown version" : version
+        guard let built else { return name }
+        return "\(name) (built \(ISO8601DateFormatter().string(from: built)))"
+    }
+
     static func parse(_ output: String) -> MuseVersion? {
         guard let line = output.split(whereSeparator: \.isNewline).first.map(String.init),
               line.hasPrefix("version=") else {

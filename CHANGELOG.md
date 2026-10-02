@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still running after 12 s. A muse already running in a terminal is named,
   with its PID, under a Relaunch banner.
 
+- muse.app has a menu-bar item (left click shows or hides muse; right click
+  opens Show/Relaunch/Preferences/Launch at Login/Quit), a global
+  `ctrl+opt+cmd+m` shortcut that needs no Accessibility permission, and a
+  Preferences window (⌘,): the shortcut recorder with conflict warnings, Dock
+  and menu bar or menu bar only (switched live), Launch at Login, default
+  zoom, track-change notifications on/off, the on-exit behavior, the muse
+  binary override, environment overrides, and the app's `ghostty.conf`.
+
 - `muse --control PATH` serves a JSON control socket for a host app: playback
   requests, `state` events on each track or pause change, and track-change
   banners as `notify` events instead of through alerter. Hosted sessions also
