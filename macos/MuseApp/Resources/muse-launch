@@ -1,0 +1,17 @@
+#!/bin/sh
+# muse.app runs muse through this launcher: Ghostty starts every command under
+# login(1), which always exits 0, so the app learns how muse ended from the
+# status this writes. Usage: muse-launch STATUS_FILE MUSE [ARG...]
+#
+# STATUS_FILE.pid holds this launcher's pid, whose process group muse and mpv
+# share, so the app can end the group on quit even without a control socket.
+# A hangup is caught rather than fatal here: muse handles it by shutting down,
+# and the launcher outlives it to record how that went.
+status_file=$1
+shift
+printf '%s\n' "$$" > "$status_file.pid"
+trap ':' HUP
+"$@"
+status=$?
+printf '%s\n' "$status" > "$status_file"
+exit "$status"

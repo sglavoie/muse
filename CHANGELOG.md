@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   embedded Ghostty terminal with full kitty keyboard support; an optional
   `~/.config/muse-app/ghostty.conf` layers over Ghostty's defaults.
 
+- muse.app finds muse through a `museBinaryPath` override, its bundled copy,
+  the `go install` location (preferred when built later than the bundled copy)
+  or the login shell's PATH, and forwards the shell's PATH, XDG directories
+  and locale so a Finder launch finds mpv and the same database. Closing the
+  window hides it while music keeps playing; Quit drains muse so the last
+  listen is recorded, and kills its process group (mpv included) if it is
+  still running after 12 s. A muse already running in a terminal is named,
+  with its PID, under a Relaunch banner.
+
 - `muse --control PATH` serves a JSON control socket for a host app: playback
   requests, `state` events on each track or pause change, and track-change
   banners as `notify` events instead of through alerter. Hosted sessions also

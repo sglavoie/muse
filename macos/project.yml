@@ -19,6 +19,11 @@ targets:
     platform: macOS
     sources:
       - path: MuseApp
+        excludes:
+          - Resources/muse-launch
+      # The launcher muse runs under, copied executable into Resources.
+      - path: MuseApp/Resources/muse-launch
+        buildPhase: resources
       # Shown in the About panel.
       - path: NOTICE-ghostty
         buildPhase: resources
