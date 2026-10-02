@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zoom, track-change notifications on/off, the on-exit behavior, the muse
   binary override, environment overrides, and the app's `ghostty.conf`.
 
+- muse.app talks to muse over `--control`: its menu-bar menu shows the
+  current track (`Title — Artist`, album) and Play/Pause, Next and Previous,
+  the menu-bar tooltip names the track, and each track change posts one
+  native notification (clicking it shows muse) unless muse's window is in
+  front. muse's `notify_on_track_change` still decides whether to notify; the
+  app's toggle can only silence it. Relaunching muse reconnects the controls
+  without restarting the app.
+
 - `muse --control PATH` serves a JSON control socket for a host app: playback
   requests, `state` events on each track or pause change, and track-change
   banners as `notify` events instead of through alerter. Hosted sessions also

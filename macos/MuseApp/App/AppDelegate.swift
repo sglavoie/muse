@@ -10,9 +10,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
     private var window: NSWindow?
     private(set) var ghostty: Ghostty.App?
     private(set) var terminal: TerminalWindowController?
-    /// The running muse's control socket, for the quit path; nil when the muse
-    /// is too old to serve one.
-    private(set) var quitLink: MuseQuitLink?
+    /// The running muse's control socket, for the menu-bar controls, its
+    /// notifications and the quit path; nil when the muse is too old to serve one.
+    private(set) var control: MuseControlClient?
+    /// What muse is playing, as its control socket last said.
+    let nowPlaying = NowPlaying()
+    let notifications = MuseNotifications()
     /// What `build-info` said of the muse running, for About.
     private var museVersion: MuseVersion?
     let preferencesModel = PreferencesModel()
@@ -106,7 +109,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
         refreshConfigFontSize()
 
         if let controlPath {
-            quitLink = MuseQuitLink(path: controlPath)
+            let control = MuseControlClient(path: controlPath)
+            control.onConnectionChange = { [weak self] in self?.nowPlaying.connectionChanged($0) }
+            control.onEvent = { [weak self] in self?.handle($0) }
+            self.control = control
         }
 
         // The lock a terminal muse holds sits where this muse would look,
@@ -126,11 +132,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
         controller.onWillStartSession = { [weak self, weak model] in
             self?.flushEnvironmentReload()
             model?.sessionEnvironment = model?.effectiveEnvironment?.commandEnvironment
-            self?.quitLink?.connect()
+            self?.control?.connect()
         }
         controller.onSessionEnd = { [weak self, weak model] in
             model?.sessionEnvironment = nil
-            self?.quitLink?.disconnect()
+            self?.control?.disconnect()
         }
         terminal = controller
         controller.show()
@@ -146,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let terminal, terminal.surfaceView != nil else { return .terminateNow }
         guard !terminal.isDraining else { return .terminateLater }
-        terminal.drainForQuit(link: quitLink, timeout: Self.quitDrainTimeout) {
+        terminal.drainForQuit(link: control, timeout: Self.quitDrainTimeout) {
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
@@ -166,10 +172,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        quitLink?.disconnect()
+        control?.disconnect()
         terminal?.teardown()
         // muse removes its socket on a clean exit; a killed one leaves it.
-        if let path = quitLink?.path {
+        if let path = control?.path {
             try? FileManager.default.removeItem(atPath: path)
         }
     }
@@ -230,7 +236,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
             self?.refreshConfigFontSize()
         }
 
-        statusItem = StatusItemController(delegate: self)
+        notifications.isEnabled = { [weak model] in model?.notificationsEnabled ?? false }
+        notifications.isMuseInFront = { [weak self] in
+            NSApp.isActive && (self?.terminal?.window.isVisible ?? false)
+        }
+        notifications.onActivate = { [weak self] in self?.showTerminal() }
+        statusItem = StatusItemController(delegate: self, nowPlaying: nowPlaying)
         let hotKeys = HotKeyCenter()
         hotKeys.onPress = { [weak self] in self?.toggleTerminal() }
         self.hotKeys = hotKeys
@@ -332,6 +343,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
     func relaunchTerminal() {
         guard let terminal, !terminal.isDraining else { return }
         terminal.relaunch()
+    }
+
+    func togglePlayback() { control?.send(.togglePlay) }
+    func playNext() { control?.send(.next) }
+    func playPrevious() { control?.send(.previous) }
+
+    /// A banner click: bring muse forward, or its launch error.
+    private func showTerminal() {
+        guard let terminal else {
+            toggleTerminal()
+            return
+        }
+        guard !terminal.isDraining else { return }
+        terminal.show()
+    }
+
+    // MARK: Control socket
+
+    /// The control socket's events, on the main queue.
+    private func handle(_ event: MuseControlEvent) {
+        nowPlaying.apply(event)
+        if case .notify(let notification) = event {
+            notifications.post(notification)
+        }
     }
 
     func toggleLaunchAtLogin() {

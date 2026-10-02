@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 /// What the status item asks of the app.
 protocol StatusItemDelegate: AnyObject {
@@ -10,14 +11,28 @@ protocol StatusItemDelegate: AnyObject {
     func relaunchTerminal()
     func showPreferences(_ sender: Any?)
     func toggleLaunchAtLogin()
+    func togglePlayback()
+    func playNext()
+    func playPrevious()
 }
 
 /// The menu-bar icon: a left click toggles muse like the global shortcut; a
-/// right click, or a Control-click, opens its menu.
+/// right click, or a Control-click, opens its menu, which starts with what is
+/// playing and the mini controls. The tooltip names the current track.
 final class StatusItemController: NSObject, NSMenuDelegate {
     let statusItem: NSStatusItem
     let menu = NSMenu()
+    let nowPlaying: NowPlaying
     private weak var delegate: StatusItemDelegate?
+    private var nowPlayingObservation: AnyCancellable?
+
+    static let notPlaying = "Not playing"
+
+    private let headlineItem = NSMenuItem(title: notPlaying, action: nil, keyEquivalent: "")
+    private let albumItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let playPauseItem = NSMenuItem(title: "Play", action: #selector(playPause(_:)), keyEquivalent: "")
+    private let nextItem = NSMenuItem(title: "Next", action: #selector(next(_:)), keyEquivalent: "")
+    private let previousItem = NSMenuItem(title: "Previous", action: #selector(previous(_:)), keyEquivalent: "")
 
     private let toggleItem = NSMenuItem(title: "Show muse", action: #selector(toggle(_:)), keyEquivalent: "")
     private let relaunchItem = NSMenuItem(title: "Relaunch muse", action: #selector(relaunch(_:)), keyEquivalent: "")
@@ -25,14 +40,24 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(launchAtLogin(_:)), keyEquivalent: "")
     private let quitItem = NSMenuItem(title: "Quit muse", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
 
-    init(delegate: StatusItemDelegate, statusBar: NSStatusBar = .system) {
+    init(delegate: StatusItemDelegate, nowPlaying: NowPlaying = NowPlaying(), statusBar: NSStatusBar = .system) {
         self.delegate = delegate
+        self.nowPlaying = nowPlaying
         statusItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
-        for item in [toggleItem, relaunchItem, preferencesItem, loginItem] {
+        for item in [playPauseItem, nextItem, previousItem, toggleItem, relaunchItem, preferencesItem, loginItem] {
             item.target = self
         }
+        headlineItem.isEnabled = false
+        albumItem.isEnabled = false
+        menu.addItem(headlineItem)
+        menu.addItem(albumItem)
+        menu.addItem(.separator())
+        menu.addItem(playPauseItem)
+        menu.addItem(nextItem)
+        menu.addItem(previousItem)
+        menu.addItem(.separator())
         menu.addItem(toggleItem)
         menu.addItem(relaunchItem)
         menu.addItem(.separator())
@@ -50,6 +75,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             button.action = #selector(clicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+        refreshNowPlaying()
+        // objectWillChange fires before the change lands, so the refresh
+        // runs on the next turn of the main queue.
+        nowPlayingObservation = nowPlaying.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshNowPlaying() }
     }
 
     deinit {
@@ -69,8 +100,22 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         return image
     }
 
+    /// Brings the track header, the controls and the tooltip in line with
+    /// what muse last said. The controls need a live connection to act on.
+    func refreshNowPlaying() {
+        headlineItem.title = nowPlaying.headline ?? Self.notPlaying
+        albumItem.title = nowPlaying.album ?? ""
+        albumItem.isHidden = nowPlaying.album == nil
+        playPauseItem.title = nowPlaying.isPlaying ? "Pause" : "Play"
+        for item in [playPauseItem, nextItem, previousItem] {
+            item.isEnabled = nowPlaying.isConnected
+        }
+        statusItem.button?.toolTip = nowPlaying.toolTip
+    }
+
     /// Brings the menu's titles and states in line with the app.
     func refreshMenu() {
+        refreshNowPlaying()
         let frontmost = delegate?.isTerminalFrontmost ?? false
         toggleItem.title = frontmost ? "Hide muse" : "Show muse"
         relaunchItem.isEnabled = delegate?.canRelaunchTerminal ?? false
@@ -98,6 +143,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         refreshMenu()
     }
 
+    @objc private func playPause(_ sender: Any?) { delegate?.togglePlayback() }
+    @objc private func next(_ sender: Any?) { delegate?.playNext() }
+    @objc private func previous(_ sender: Any?) { delegate?.playPrevious() }
     @objc private func toggle(_ sender: Any?) { delegate?.toggleTerminal() }
     @objc private func relaunch(_ sender: Any?) { delegate?.relaunchTerminal() }
     @objc private func preferences(_ sender: Any?) { delegate?.showPreferences(sender) }

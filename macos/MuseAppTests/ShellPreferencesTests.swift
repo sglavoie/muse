@@ -300,6 +300,9 @@ private final class FakeStatusDelegate: StatusItemDelegate {
     func relaunchTerminal() { calls.append("relaunch") }
     func showPreferences(_ sender: Any?) { calls.append("preferences") }
     func toggleLaunchAtLogin() { calls.append("login") }
+    func togglePlayback() { calls.append("play-pause") }
+    func playNext() { calls.append("next") }
+    func playPrevious() { calls.append("previous") }
 }
 
 final class StatusItemTests: XCTestCase {
@@ -309,15 +312,18 @@ final class StatusItemTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(controller.statusItem.button?.image).isTemplate)
 
         controller.refreshMenu()
-        let titles = controller.menu.items.filter { !$0.isSeparatorItem }.map(\.title)
-        XCTAssertEqual(titles, ["Show muse", "Relaunch muse", "Preferences…", "Launch at Login", "Quit muse"])
+        let titles = controller.menu.items.filter { !$0.isSeparatorItem && !$0.isHidden }.map(\.title)
+        XCTAssertEqual(titles, [
+            "Not playing", "Play", "Next", "Previous",
+            "Show muse", "Relaunch muse", "Preferences…", "Launch at Login", "Quit muse",
+        ])
         XCTAssertEqual(controller.menu.items.last?.action, #selector(NSApplication.terminate(_:)))
 
         delegate.isTerminalFrontmost = true
         delegate.isLaunchAtLoginEnabled = true
         delegate.canRelaunchTerminal = false
         controller.refreshMenu()
-        XCTAssertEqual(controller.menu.items[0].title, "Hide muse")
+        XCTAssertNotNil(controller.menu.item(withTitle: "Hide muse"))
         XCTAssertFalse(controller.menu.item(withTitle: "Relaunch muse")?.isEnabled ?? true)
         XCTAssertEqual(controller.menu.item(withTitle: "Launch at Login")?.state, .on)
 

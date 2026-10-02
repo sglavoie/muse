@@ -258,7 +258,7 @@ final class TerminalWindowController: NSObject, NSWindowDelegate {
     /// reached EOF, or the launcher recorded its exit — or `timeout` passed,
     /// when the group is SIGKILLed so mpv cannot outlive it. Freeing a surface
     /// whose command still runs blocks until it exits, hangup after hangup.
-    func drainForQuit(link: MuseQuitLink?, timeout: TimeInterval, completion: @escaping () -> Void) {
+    func drainForQuit(link: MuseControlClient?, timeout: TimeInterval, completion: @escaping () -> Void) {
         guard let surface = surfaceView?.surface, !ghostty_surface_process_exited(surface),
               let pid = link?.helloPID ?? launcherPID, let group = Self.processGroup(of: pid) else {
             teardown()
