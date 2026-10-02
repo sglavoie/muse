@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A `macos/` skeleton for a standalone muse.app ported from tt: pinned
+  GhosttyKit build (`just mac-ghosttykit`), an XcodeGen project, `just mac-app`
+  and `just mac-test`. The app opens an empty window for now.
+
 - `muse --control PATH` serves a JSON control socket for a host app: playback
   requests, `state` events on each track or pause change, and track-change
   banners as `notify` events instead of through alerter. Hosted sessions also
@@ -88,6 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   playing — invisibly.
 
 ### Changed
+
+- `just fmt`, `just fmt-check` and CI's formatting check skip gitignored Go
+  files, so Go sources Zig fetches into `macos/.cache` never fail them.
 
 - SIGHUP now shuts muse down cleanly, as SIGINT and SIGTERM do: closing the
   terminal saves the in-flight listen and flushes the database instead of

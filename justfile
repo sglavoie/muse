@@ -35,17 +35,35 @@ lint:
 lint-complexity:
     go run {{golangci_lint}} run -c .golangci-complexity.yml ./...
 
-# Format all Go files
+# Format Go files that are not gitignored (so never macos/.cache, where Zig fetches Go sources)
 fmt:
-    gofmt -w .
+    git ls-files -z --cached --others --exclude-standard '*.go' | xargs -0 gofmt -w
 
-# Check formatting without modifying files (useful for CI)
+# Check formatting of Go files that are not gitignored, without modifying them (useful for CI)
 fmt-check:
-    @test -z "$(gofmt -l .)" || (echo "Files need formatting:" && gofmt -l . && exit 1)
+    @out="$(git ls-files -z --cached --others --exclude-standard '*.go' | xargs -0 gofmt -l)"; test -z "$out" || (echo "Files need formatting:" && echo "$out" && exit 1)
 
 # Build with version tag (e.g., just release v1.2.3)
 release version:
     go build -ldflags "-X main.Version={{version}} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o muse .
+
+# Build and vendor the pinned GhosttyKit.xcframework for the macOS app (outside CI)
+mac-ghosttykit:
+    ./macos/scripts/build-ghosttykit.sh
+
+# Build macos/build/muse.app (Debug, or Release bundling `just build`'s muse; outside CI)
+mac-app configuration="Debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{ configuration }}" = Release ]; then
+        just build
+        export MUSE_BINARY="$PWD/muse"
+    fi
+    ./macos/scripts/build-app.sh {{ configuration }}
+
+# Run the muse.app XCTest suite with xcodebuild test (outside CI)
+mac-test:
+    ./macos/scripts/test-app.sh
 
 # Run the application
 run *args:

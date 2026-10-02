@@ -1,4 +1,4 @@
-muse
+/muse
 coverage.out
 coverage.html
 
@@ -6,3 +6,11 @@ coverage.html
 .venv/
 .claude/
 .spec/
+
+# macOS app: the vendored GhosttyKit is built by `just mac-ghosttykit`, and the
+# Xcode project is generated from macos/project.yml.
+macos/Vendor/
+macos/.cache/
+macos/build/
+macos/DerivedData/
+*.xcodeproj

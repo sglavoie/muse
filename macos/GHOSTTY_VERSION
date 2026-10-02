@@ -1,0 +1,10 @@
+# Pinned upstream for GhosttyKit.xcframework, read by scripts/build-ghosttykit.sh.
+# The embedding API (include/ghostty.h) is not stable, so bump these together:
+# ZIG_VERSION is the tag's build.zig.zon minimum_zig_version, and the checksums
+# are ziglang.org/download/index.json's shasum for that release.
+# macos/patches/ghostty/ holds the patches this tag needs; re-check them on a bump.
+GHOSTTY_REPO=https://github.com/ghostty-org/ghostty.git
+GHOSTTY_TAG=v1.3.1
+ZIG_VERSION=0.15.2
+ZIG_SHA256_AARCH64_MACOS=3cc2bab367e185cdfb27501c4b30b1b0653c28d9f73df8dc91488e66ece5fa6b
+ZIG_SHA256_X86_64_MACOS=375b6909fc1495d16fc2c7db9538f707456bfc3373b14ee83fdd3e22b3d43f7f
