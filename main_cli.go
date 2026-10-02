@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 func main() {
@@ -64,12 +63,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), shutdownSignals()...)
 
 	if err := runTUI(ctx); err != nil {
 		cancel()
 		fmt.Fprintf(os.Stderr, "muse: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitCodeFor(err))
 	}
 	cancel()
 }

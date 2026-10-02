@@ -218,14 +218,19 @@ func runTUI(ctx context.Context) error {
 	}
 	shutdownDeps.CtrlListener = ctrlListener
 
-	// When the signal context is cancelled (SIGTERM/SIGINT from outside),
-	// tell the TUI to quit so p.Run() returns and shutdown proceeds.
+	// When the signal context is cancelled (SIGINT/SIGTERM/SIGHUP from
+	// outside), tell the TUI to quit so p.Run() returns and shutdown proceeds.
+	// BeginShutdown comes first: a SIGHUP reaches the whole process group, so
+	// mpv may already be dying, and the restart supervisor must not race the
+	// coming Close to relaunch it.
 	go func() {
 		<-ctx.Done()
+		mgr.BeginShutdown()
 		p.Quit()
 	}()
 
 	finalModel, err := p.Run()
+	mgr.BeginShutdown()
 
 	// Bubble Tea has exited, so a tea.Cmd would never run: persist the
 	// in-flight listen here, ahead of the app.Shutdown calls that cancel the DB
@@ -236,6 +241,16 @@ func runTUI(ctx context.Context) error {
 				slog.Warn("quit: flush pending listen failed", "err", err)
 			}
 		}
+	}
+
+	// A signal can end p.Run with an error rather than through Quit: a SIGHUP
+	// from a closed terminal also takes away the tty Bubble Tea reads. That is
+	// still the clean exit the signal asked for, not a TUI failure, and the
+	// terminal the session summary would go to may be gone.
+	if endedBySignal(ctx, err) {
+		slog.Info("TUI ended by shutdown signal", "err", err)
+		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
+		return nil
 	}
 
 	if err != nil {

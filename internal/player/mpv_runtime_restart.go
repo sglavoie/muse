@@ -19,6 +19,10 @@ func (m *Manager) watchAndRestart() {
 		case <-m.rootCtx.Done():
 			return
 		case <-m.disconnectCh:
+			if m.shutdownBegun() {
+				slog.Info("mpv: disconnected during shutdown, not restarting")
+				return
+			}
 			if !m.recoverOutage() {
 				return
 			}
@@ -101,6 +105,9 @@ func (m *Manager) recoverOutage() bool {
 	maxAttempts := m.effectiveMaxAttempts()
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if m.shutdownBegun() {
+			return false
+		}
 		if attempt > 1 {
 			select {
 			case <-m.rootCtx.Done():
@@ -146,6 +153,9 @@ func backoffDelay(base, maxDelay time.Duration, attempt int) time.Duration {
 // on a launch failure or socket timeout — either of which the caller retries.
 // User commands queued during the outage are preserved across failed attempts.
 func (m *Manager) attemptRestart(restore restoreState) bool {
+	if m.shutdownBegun() {
+		return false
+	}
 	m.mu.Lock()
 	m.cancel()
 	oldCmd := m.cmd
@@ -184,6 +194,15 @@ func (m *Manager) attemptRestart(restore restoreState) bool {
 
 	if launchFn == nil {
 		slog.Warn("mpv: restart attempt failed: launchFn is nil")
+		newCancel()
+		return false
+	}
+
+	// Re-check right before launching: shutdown may have begun while the old
+	// process was being reaped, and a fresh mpv started now would outlive the
+	// Close that is about to run, or blip audio on its way out.
+	if m.shutdownBegun() {
+		slog.Info("mpv: restart abandoned, shutdown has begun")
 		newCancel()
 		return false
 	}

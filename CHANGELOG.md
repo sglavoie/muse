@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- muse exits with status 3 when another instance is already running, so a
+  launcher can tell that apart from any other failure. The message is
+  unchanged.
+
 - A **Toggle theme** command in the command palette switches Dark and Light,
   saving the choice while preserving the custom primary color.
 
@@ -73,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- SIGHUP now shuts muse down cleanly, as SIGINT and SIGTERM do: closing the
+  terminal saves the in-flight listen and flushes the database instead of
+  killing muse outright, and mpv is no longer relaunched while muse exits.
 - The command palette and Settings hold still. The palette keeps the width of
   the full command list instead of shrinking around whatever the filter leaves,
   and both overlays are anchored to the top of the screen rather than centered,

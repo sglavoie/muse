@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -149,5 +151,48 @@ func TestLockfile_RuntimeDirCreatedIfMissing(t *testing.T) {
 
 	if _, err := os.Stat(nested); err != nil {
 		t.Errorf("runtime dir not created: %v", err)
+	}
+}
+
+// TestLockfile_AlreadyRunningErrorIsTyped: a held lock surfaces as
+// *AlreadyRunningError carrying the holder's PID and the lockfile path, and it
+// matches ErrAlreadyRunning even after the startup path wraps it.
+func TestLockfile_AlreadyRunningErrorIsTyped(t *testing.T) {
+	tmp := t.TempDir()
+	owner := NewLockfile(tmp)
+	if err := owner.Acquire(); err != nil {
+		t.Fatalf("owner Acquire: %v", err)
+	}
+	t.Cleanup(owner.Release)
+
+	err := fmt.Errorf("startup: %w", NewLockfile(tmp).Acquire())
+	if !errors.Is(err, ErrAlreadyRunning) {
+		t.Fatalf("errors.Is(%v, ErrAlreadyRunning) = false", err)
+	}
+	var running *AlreadyRunningError
+	if !errors.As(err, &running) {
+		t.Fatalf("errors.As(%v, *AlreadyRunningError) = false", err)
+	}
+	if running.PID != os.Getpid() {
+		t.Errorf("PID = %d, want %d", running.PID, os.Getpid())
+	}
+	if want := filepath.Join(tmp, lockfileName); running.Path != want {
+		t.Errorf("Path = %q, want %q", running.Path, want)
+	}
+}
+
+// TestAlreadyRunningError_MessageUnchanged pins the message text, with and
+// without a readable PID, to what Acquire printed before the type existed.
+func TestAlreadyRunningError_MessageUnchanged(t *testing.T) {
+	withPID := &AlreadyRunningError{PID: 42, Path: "/run/muse.pid"}
+	if got, want := withPID.Error(), "another instance is running (PID 42); quit it first or remove /run/muse.pid if the process is stale"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+	noPID := &AlreadyRunningError{Path: "/run/muse.pid"}
+	if got, want := noPID.Error(), "another instance is running; quit it first or remove /run/muse.pid if the process is stale"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+	if errors.Is(errors.New("another instance is running"), ErrAlreadyRunning) {
+		t.Error("an unrelated error with the same text matched ErrAlreadyRunning")
 	}
 }

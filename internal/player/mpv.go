@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -195,6 +196,12 @@ type Manager struct {
 	// launchFn starts the mpv subprocess. Tests replace this with a no-op
 	// that returns (nil, nil) while providing their own fake socket server.
 	launchFn func(ctx context.Context, socketPath string) (*exec.Cmd, error)
+
+	// shuttingDown is set by BeginShutdown once the process has decided to
+	// exit, so the restart supervisor stops relaunching mpv. It is atomic
+	// rather than guarded by mu because the supervisor reads it right before
+	// launchFn, outside the lock.
+	shuttingDown atomic.Bool
 
 	// gaplessEnabled tracks whether gapless playback is active; when false
 	// the prefetch mechanism is skipped entirely.

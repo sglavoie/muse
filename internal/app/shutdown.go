@@ -44,6 +44,11 @@ type ShutdownDeps struct {
 	// Nil means no-op.
 	CloseDB func()
 
+	// DrainControl tells the hosted-session control server that muse is
+	// quitting, so it refuses further requests and a host hears why. It runs
+	// first, before anything is torn down. Nil means no control server.
+	DrainControl func()
+
 	// CtrlListener is the Unix domain socket listener for remote commands.
 	// Closed first during shutdown to stop accepting new commands. Nil means
 	// remote control was not started.
@@ -55,6 +60,12 @@ type ShutdownDeps struct {
 	// SocketPath is the path to the mpv Unix socket to delete.
 	SocketPath string
 
+	// CloseControl ends every control connection and removes its socket. It
+	// runs after every other teardown step and just before CloseLog, so a host
+	// that reads EOF on the socket knows shutdown has finished. Nil means no
+	// control server.
+	CloseControl func()
+
 	// CloseLog flushes and closes the log file. Called last so that all
 	// shutdown log entries are written before the handle is released.
 	CloseLog func()
@@ -65,14 +76,16 @@ type ShutdownDeps struct {
 // Pass ShutdownTimeout for the normal production timeout.
 //
 // The teardown sequence is:
-//  0. Close the remote control listener (stop accepting new commands)
+//  0. Drain the control server (refuse requests, announce quitting), then
+//     close the remote control listener (stop accepting new commands)
 //  1. Close the player (stop playback + terminate mpv)
 //  2. Stop and flush the library pipeline (final watcher/scan upserts)
 //  3. Flush pending DB writes (cancel writer context, wait for goroutine exit)
 //  4. Close database connection
 //  5. Release PID lockfile
 //  6. Delete mpv socket file
-//  7. Close log file (last, so all shutdown entries are captured)
+//  7. Close the control server (its EOF tells a host shutdown finished)
+//  8. Close log file (last, so all shutdown entries are captured)
 //
 // All steps are attempted regardless of prior errors so that resources are
 // always released. Errors from individual steps are logged at Warn level.
@@ -132,8 +145,17 @@ func runShutdownStep(step string, fn func()) {
 // runShutdownStep, so a panic in one step is logged and the remaining steps
 // still run exactly once.
 func shutdownSequence(deps ShutdownDeps) {
-	// Step 0: Close the remote control listener to stop accepting new commands.
-	runShutdownStep("0: close control listener", func() {
+	// Step 0: Drain the control server so a host stops sending requests and
+	// learns why, then close the remote control listener to stop accepting new
+	// commands.
+	runShutdownStep("0a: drain control server", func() {
+		if deps.DrainControl == nil {
+			return
+		}
+		slog.Info("shutdown: draining control server")
+		deps.DrainControl()
+	})
+	runShutdownStep("0b: close control listener", func() {
 		if deps.CtrlListener == nil {
 			return
 		}
@@ -214,8 +236,19 @@ func shutdownSequence(deps ShutdownDeps) {
 		slog.Info("shutdown: mpv socket removed")
 	})
 
-	// Step 7: Close log file last so all shutdown log entries are captured.
-	runShutdownStep("7: close log", func() {
+	// Step 7: Close the control server. Everything else is torn down by now,
+	// so the EOF a host reads on the socket means shutdown has finished.
+	runShutdownStep("7: close control server", func() {
+		if deps.CloseControl == nil {
+			return
+		}
+		slog.Info("shutdown: closing control server")
+		deps.CloseControl()
+		slog.Info("shutdown: control server closed")
+	})
+
+	// Step 8: Close log file last so all shutdown log entries are captured.
+	runShutdownStep("8: close log", func() {
 		if deps.CloseLog != nil {
 			deps.CloseLog()
 		}

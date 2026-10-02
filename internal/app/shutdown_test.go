@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -395,5 +397,64 @@ func TestShutdownTimeout_ForcesExit(t *testing.T) {
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
 		t.Errorf("expected exit code 1, got: %v", err)
+	}
+}
+
+// recordingListener is a net.Listener whose Close is recorded, so the control
+// listener's place in the shutdown order can be asserted.
+type recordingListener struct {
+	net.Listener
+	rec *stepRecorder
+}
+
+func (l recordingListener) Close() error { l.rec.record("closeListener"); return nil }
+
+// TestShutdownControlServerOrder pins where the control server's hooks run:
+// DrainControl before anything is torn down (even the old listener), and
+// CloseControl after every other step but CloseLog, so EOF on the control
+// socket tells a host that shutdown has finished.
+func TestShutdownControlServerOrder(t *testing.T) {
+	installLogger(t)
+
+	rec := &stepRecorder{}
+	deps := app.ShutdownDeps{
+		DrainControl:        func() { rec.record("drainControl") },
+		CtrlListener:        recordingListener{rec: rec},
+		ClosePlayer:         func() error { rec.record("closePlayer"); return nil },
+		StopLibraryPipeline: func() { rec.record("stopPipeline") },
+		CancelDBWriter:      func() { rec.record("cancelDB") },
+		WaitDBWriter:        func() { rec.record("waitDB") },
+		CloseDB:             func() { rec.record("closeDB") },
+		CloseControl:        func() { rec.record("closeControl") },
+		CloseLog:            func() { rec.record("closeLog") },
+	}
+
+	app.Shutdown(deps, app.ShutdownTimeout)
+
+	want := []string{
+		"drainControl", "closeListener", "closePlayer", "stopPipeline",
+		"cancelDB", "waitDB", "closeDB", "closeControl", "closeLog",
+	}
+	if got := rec.snapshot(); !slices.Equal(got, want) {
+		t.Fatalf("shutdown order = %v, want %v", got, want)
+	}
+}
+
+// TestShutdownControlHooksRunDespitePanics: a panicking DrainControl does not
+// skip teardown, and CloseControl still runs.
+func TestShutdownControlHooksRunDespitePanics(t *testing.T) {
+	installLogger(t)
+
+	rec := &stepRecorder{}
+	deps := app.ShutdownDeps{
+		DrainControl: func() { panic("drain") },
+		ClosePlayer:  func() error { rec.record("closePlayer"); return nil },
+		CloseControl: func() { rec.record("closeControl") },
+	}
+
+	app.Shutdown(deps, app.ShutdownTimeout)
+
+	if got := rec.snapshot(); !slices.Equal(got, []string{"closePlayer", "closeControl"}) {
+		t.Fatalf("steps = %v", got)
 	}
 }

@@ -13,6 +13,30 @@ import (
 
 const lockfileName = "muse.pid"
 
+// ErrAlreadyRunning is the sentinel an AlreadyRunningError matches through
+// errors.Is, for callers that only need to know another instance holds the
+// lock.
+var ErrAlreadyRunning = errors.New("another instance is running")
+
+// AlreadyRunningError reports that another muse holds the PID lockfile. PID is
+// the holder's recorded PID, or 0 when the file could not be read. A host that
+// launches muse tells this apart from any other startup failure by its exit
+// status rather than by matching the message text.
+type AlreadyRunningError struct {
+	PID  int
+	Path string
+}
+
+func (e *AlreadyRunningError) Error() string {
+	if e.PID > 0 {
+		return fmt.Sprintf("another instance is running (PID %d); quit it first or remove %s if the process is stale", e.PID, e.Path)
+	}
+	return fmt.Sprintf("another instance is running; quit it first or remove %s if the process is stale", e.Path)
+}
+
+// Is makes errors.Is(err, ErrAlreadyRunning) match.
+func (e *AlreadyRunningError) Is(target error) bool { return target == ErrAlreadyRunning }
+
 // Lockfile manages a PID lockfile to prevent multiple instances from running.
 // The file handle stays open for the lifetime of the process so the advisory
 // lock remains held until Release closes it.
@@ -47,10 +71,10 @@ func (l *Lockfile) Acquire() error {
 		pid, pidErr := readLockfilePID(f)
 		_ = f.Close()
 		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
-			if pidErr == nil {
-				return fmt.Errorf("another instance is running (PID %d); quit it first or remove %s if the process is stale", pid, l.path)
+			if pidErr != nil {
+				pid = 0
 			}
-			return fmt.Errorf("another instance is running; quit it first or remove %s if the process is stale", l.path)
+			return &AlreadyRunningError{PID: pid, Path: l.path}
 		}
 		return fmt.Errorf("lockfile: could not acquire %q: %w", l.path, err)
 	}
