@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A `macos/` skeleton for a standalone muse.app ported from tt: pinned
   GhosttyKit build (`just mac-ghosttykit`), an XcodeGen project, `just mac-app`
-  and `just mac-test`. The app opens an empty window for now.
+  and `just mac-test`. The app runs `muse` from the login shell's PATH in an
+  embedded Ghostty terminal with full kitty keyboard support; an optional
+  `~/.config/muse-app/ghostty.conf` layers over Ghostty's defaults.
 
 - `muse --control PATH` serves a JSON control socket for a host app: playback
   requests, `state` events on each track or pause change, and track-change
