@@ -79,12 +79,20 @@ func TestNavigationPaletteSearchFindsRecentAndHistory(t *testing.T) {
 					body = append(body, command)
 				}
 			}
-			if len(body) != 1 {
-				t.Fatalf("query %q returned %d body commands: %+v", tc.query, len(body), body)
+			wantNames := map[string]bool{tc.want: true}
+			if tc.query == "recent" {
+				wantNames["Show recent messages"] = true
 			}
-			if body[0].Name != tc.want {
-				t.Fatalf("query %q returned %q, want %q", tc.query, body[0].Name, tc.want)
+			for _, command := range body {
+				if !wantNames[command.Name] {
+					t.Fatalf("unexpected match for %q: %q", tc.query, command.Name)
+				}
+				delete(wantNames, command.Name)
 			}
+			if len(wantNames) != 0 {
+				t.Fatalf("query %q missing commands: %v", tc.query, wantNames)
+			}
+
 		})
 	}
 }

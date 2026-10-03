@@ -38,6 +38,9 @@ func (m Model) activeFilterOps() *filterOps {
 func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, rebuild func()) *filterOps {
 	return &filterOps{
 		activate: func() (Model, tea.Cmd) {
+			if !f.Active && f.Text == "" {
+				f.Origin = filter.CapturePosition(m.filterRowKeys(), *cursor, *scrollOffset)
+			}
 			var cmd tea.Cmd
 			*f, cmd = f.Activate()
 			return *m, cmd
@@ -47,12 +50,14 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 			return *m
 		},
 		deactivate: func() Model {
+			origin := f.Origin
+			focused := filter.CapturePosition(m.filterRowKeys(), *cursor, *scrollOffset).Key
 			*f = f.Deactivate()
-			*cursor = 0
-			*scrollOffset = 0
 			if rebuild != nil {
 				rebuild()
 			}
+			*cursor, *scrollOffset = origin.Restore(m.filterRowKeys(), focused)
+			m.clampAllScrollOffsets()
 			return *m
 		},
 		update: func(msg tea.KeyPressMsg) (Model, tea.Cmd) {

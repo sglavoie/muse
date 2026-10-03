@@ -13,6 +13,7 @@ package tui
 // otherwise silently unlist a fixture-safe command.
 func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
+		"messages.show":          {},
 		"help.show":              {},
 		"help.modes_legend":      {},
 		"debug.show":             {},

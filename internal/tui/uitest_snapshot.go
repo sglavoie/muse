@@ -86,6 +86,8 @@ func (m Model) ActiveOverlayName() string {
 		return "settings"
 	case m.overlay.nowPlaying != nil:
 		return "now_playing"
+	case m.overlay.messages != nil:
+		return "recent_messages"
 	case m.overlay.queueSummary != nil:
 		return "queue_summary"
 	case m.overlay.modesLegend != nil:

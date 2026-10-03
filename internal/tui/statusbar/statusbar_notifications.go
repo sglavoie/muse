@@ -41,6 +41,9 @@ type TransientNotification struct {
 // The queue is capped at 5 entries; when full the lowest-priority oldest entry
 // is evicted. If all existing entries outrank the incoming one it is dropped.
 func (s *StatusBar) PushMsg(msg string, dur time.Duration, priority NotifPriority) {
+	if priority == NotifNormal {
+		s.rememberMessage(msg)
+	}
 	const maxQueue = 5
 	n := TransientNotification{Msg: msg, ExpiresAt: time.Now().Add(dur), priority: priority}
 	s.PruneNotifications()

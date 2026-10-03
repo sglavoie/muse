@@ -19,7 +19,9 @@ import (
 
 // BuildPaletteCommands returns the list of commands available in the palette.
 func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
-	var cmds []palette.PaletteCommand
+	cmds := []palette.PaletteCommand{
+		paletteMessageCmd("messages.show", "app", "Show recent messages", "", showRecentMessagesMsg{}),
+	}
 
 	for _, entry := range paletteCatalog {
 		cmds = append(cmds, m.paletteCommandFor(entry))

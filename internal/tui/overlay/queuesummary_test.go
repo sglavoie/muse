@@ -55,3 +55,11 @@ func TestQueueSummaryOverlay_OmitsRemainingCountWhenZero(t *testing.T) {
 		t.Errorf("expected no remaining-count parenthetical when remainN==0, got:\n%s", out)
 	}
 }
+
+func TestQueueSummaryMarksUnknownRemainingDuration(t *testing.T) {
+	q := QueueSummaryOverlay{RemainMs: 60000, RemainN: 2, RemainUnknown: true}
+	got := ansi.Strip(q.Render(80, 24, newTestStyles()))
+	if !strings.Contains(got, "1:00+ (2 tracks)") {
+		t.Fatalf("missing unknown-duration marker: %s", got)
+	}
+}

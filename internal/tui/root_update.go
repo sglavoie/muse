@@ -39,6 +39,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Ctrl+C quits. Escape-style navigation remains delegated to the active view.
 func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case showRecentMessagesMsg:
+		m = m.showRecentMessages()
+
 	case tea.WindowSizeMsg:
 		m = m.handleWindowSizeMsg(msg)
 

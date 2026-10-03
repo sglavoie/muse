@@ -4,7 +4,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/overlay"
-	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
 // buildQueueSummary computes aggregate statistics from the current queue
@@ -14,10 +13,9 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 	albums := make(map[string]struct{})
 	sources := make(map[string]struct{})
 	var totalMs int64
-	var remainMs int64
-	var remainN int
+	remainMs, remainN, unknown := m.queueRemaining()
 
-	for i, entry := range m.queue.Entries {
+	for _, entry := range m.queue.Entries {
 		totalMs += entry.DurationMs
 		if entry.Artist != "" {
 			artists[entry.Artist] = struct{}{}
@@ -28,29 +26,17 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 		if entry.SourcePlaylist != "" {
 			sources[entry.SourcePlaylist] = struct{}{}
 		}
-		if m.playback.currentIndex >= 0 && i > m.playback.currentIndex {
-			remainMs += entry.DurationMs
-			remainN++
-		}
-	}
-
-	if m.playback.currentIndex >= 0 &&
-		(m.playback.state == playback.StatePlaying || m.playback.state == playback.StatePaused) {
-		leftSecs := m.playback.totalSecs - m.playback.elapsedSecs
-		if leftSecs > 0 {
-			remainMs += int64(leftSecs * 1000)
-			remainN++
-		}
 	}
 
 	return &overlay.QueueSummaryOverlay{
-		Tracks:   len(m.queue.Entries),
-		Artists:  len(artists),
-		Albums:   len(albums),
-		Sources:  len(sources),
-		RemainMs: remainMs,
-		RemainN:  remainN,
-		TotalMs:  totalMs,
+		Tracks:        len(m.queue.Entries),
+		Artists:       len(artists),
+		Albums:        len(albums),
+		Sources:       len(sources),
+		RemainMs:      remainMs,
+		RemainN:       remainN,
+		RemainUnknown: unknown,
+		TotalMs:       totalMs,
 	}
 }
 

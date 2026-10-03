@@ -46,6 +46,7 @@ type Entry struct {
 // that handles key strings — that would duplicate registry logic and create a
 // path where registry key renames silently stop working.
 type View struct {
+	RemainingLabel      string // supplied by root; independent of filters and display sort
 	Entries             []Entry
 	Cursor              int // index of the currently selected entry
 	ScrollOffset        int // first visible entry index

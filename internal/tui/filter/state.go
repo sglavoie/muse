@@ -12,6 +12,7 @@ import (
 // Text is kept as a public field for backward compatibility; it is always
 // synced with the underlying textinput value after Activate/Update/Commit/Deactivate.
 type State struct {
+	Origin      Position // browsing position before this filter session
 	Active      bool
 	Text        string          // current filter text; synced with input on every Update
 	input       textinput.Model // drives cursor, paste, and Bash keybindings when Active
@@ -52,6 +53,7 @@ func (s State) Commit() State {
 
 // Deactivate exits input mode and clears the text.
 func (s State) Deactivate() State {
+	s.Origin = Position{}
 	s.Active = false
 	s.Text = ""
 	s.input.SetValue("")

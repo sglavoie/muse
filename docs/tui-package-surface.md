@@ -133,12 +133,12 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 153 | 41 | 110 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 97 | 29 | 67 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 50 | 1 | 48 | 1 | `tui`, `queue`, `uitest` |
+| `tui/overlay` | 102 | 29 | 72 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/statusbar` | 54 | 1 | 51 | 2 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 48 | 0 | 46 | 2 | `tui` |
-| `tui/queue` | 76 | 16 | 59 | 1 | `tui`, `internal/app` |
+| `tui/queue` | 77 | 16 | 60 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**996 exported identifiers across 15 packages**: 153 reached from two or more packages, 784 from exactly one, 59 from none (23 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1006 exported identifiers across 15 packages**: 153 reached from two or more packages, 793 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -569,6 +569,9 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `HelpSection.Title` | field | `internal/tui†` | root (tests only) |
 | `tui/overlay` | `HelpSections` | func | `internal/tui` | root |
 | `tui/overlay` | `HintRows` | func | `internal/tui` | root |
+| `tui/overlay` | `MessagesOverlay` | type | `internal/tui` | root |
+| `tui/overlay` | `MessagesOverlay.Render` | method | `internal/tui` | root |
+| `tui/overlay` | `MessagesOverlay.Scroll` | method | `internal/tui` | root |
 | `tui/overlay` | `MinInnerWidth` | const | `tui/metadata`, `tui/settings` | multi |
 | `tui/overlay` | `ModesLegendOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `ModesLegendOverlay.Radio` | field | `internal/tui` | root |
@@ -578,6 +581,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `ModesLegendOverlay.StopAfter` | field | `internal/tui` | root |
 | `tui/overlay` | `MusicDirHeadline` | func | `internal/tui` | root |
 | `tui/overlay` | `NewGoToModal` | func | `internal/tui`, `tui/uitest†` | multi |
+| `tui/overlay` | `NewMessages` | func | `internal/tui` | root |
 | `tui/overlay` | `NewTrackInfoOverlay` | func | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Album` | field | `internal/tui` | root |
@@ -604,6 +608,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `QueueSummaryOverlay.Artists` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.RemainMs` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.RemainN` | field | `internal/tui` | root |
+| `tui/overlay` | `QueueSummaryOverlay.RemainUnknown` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.Render` | method | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.Sources` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.TotalMs` | field | `internal/tui` | root |
@@ -633,6 +638,9 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `LongOpState.Label` | field | `internal/tui` | root |
 | `tui/statusbar` | `LongOpState.StartedAt` | field | `internal/tui` | root |
 | `tui/statusbar` | `LongOpState.Update` | method | `internal/tui` | root |
+| `tui/statusbar` | `Message` | type | — | api |
+| `tui/statusbar` | `Message.At` | field | `internal/tui` | root |
+| `tui/statusbar` | `Message.Text` | field | `internal/tui` | root |
 | `tui/statusbar` | `NotifInfo` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifNormal` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifPriority` | type | — | api |
@@ -659,6 +667,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.QueueEmpty` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.QueuePosition` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.RadioMode` | field | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.RecentMessages` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Render` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.RepeatMode` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.SelectionCount` | field | `internal/tui` | root |
@@ -831,6 +840,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.MoveQueueCursor` | method | `internal/tui†` | root (tests only) |
 | `tui/queue` | `View.PlacementBlockReason` | method | `internal/tui` | root |
 | `tui/queue` | `View.RecomputeDisplayOrder` | method | `internal/tui` | root |
+| `tui/queue` | `View.RemainingLabel` | field | `internal/tui` | root |
 | `tui/queue` | `View.Render` | method | `internal/tui` | root |
 | `tui/queue` | `View.SaveInput` | field | `internal/tui†` | root (tests only) |
 | `tui/queue` | `View.SaveInputIsEmpty` | method | `internal/tui` | root |

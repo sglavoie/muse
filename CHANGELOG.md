@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **Show recent messages** palette command retains the last 50 action results
+  and errors for the current session, with wrapping and scrolling.
+- Remaining queue duration in the Queue header, using scheduled playback rows
+  for shuffle and sequential insertions; unknown durations are marked with `+`.
+- Metadata re-exports preserve the previous file as `metadata-export.tsv.bak`.
+  If the backup fails, the working export is left untouched.
+
 - muse.app, a standalone macOS app for muse: `just mac-install` builds a
   Release app bundling a muse stamped with its version and build time, signs
   it inside out (an Apple Development identity by default, so privacy grants
@@ -129,6 +136,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   playing — invisibly.
 
 ### Changed
+
+- Clearing a text filter preserves the focused row, including duplicate queue
+  entries, or restores the pre-search position when there are no matches.
+- Empty Recently Added and History views explain their own state and offer
+  relevant next actions.
+- Queue summaries use the same remaining-time calculation as the Queue header.
 
 - `just fmt`, `just fmt-check` and CI's formatting check skip gitignored Go
   files, so Go sources Zig fetches into `macos/.cache` never fail them.

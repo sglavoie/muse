@@ -1,0 +1,73 @@
+{
+  "name": "usability-polish",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "queued"
+      },
+      "label": "queue-duration-in-header"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "queue-duration-in-header"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "queue-header-fits-minimum"
+    },
+    {
+      "command": "messages.show"
+    },
+    {
+      "assert": {
+        "overlay": "recent_messages"
+      },
+      "label": "overlay"
+    },
+    {
+      "assert": {
+        "contains": "No recent messages yet"
+      },
+      "label": "contains"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "no_layout_issues"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "history-resizes"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "command": "nav.library.history"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "no_layout_issues"
+    }
+  ]
+}

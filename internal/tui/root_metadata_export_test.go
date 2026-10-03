@@ -300,3 +300,94 @@ func TestMetadataExportExistsTracksTheFile(t *testing.T) {
 		t.Fatal("expected the written export to be found")
 	}
 }
+
+func TestMetadataReexportBacksUpExternalEdits(t *testing.T) {
+	dir := t.TempDir()
+	m := exportModel(t, dir)
+	next, cmd := m.handleMetadataExportRequest()
+	if cmd == nil {
+		t.Fatal("missing export command")
+	}
+	first := cmd().(metadataExportedMsg)
+	if first.err != nil || first.backup != "" {
+		t.Fatalf("first export: %+v", first)
+	}
+	m = next.(Model).handleMetadataExportedMsg(first)
+	edited := []byte("manually edited TSV bytes\n")
+	if err := os.WriteFile(first.path, edited, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	next, cmd = m.handleMetadataExportRequest()
+	// Repeated input cannot start a competing backup/write.
+	if _, duplicate := next.(Model).handleMetadataExportRequest(); duplicate != nil {
+		t.Fatal("concurrent export allowed")
+	}
+	result := cmd().(metadataExportedMsg)
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	backup, err := os.ReadFile(first.path + ".bak")
+	if err != nil || string(backup) != string(edited) {
+		t.Fatalf("backup = %q, %v", backup, err)
+	}
+	info, err := os.Stat(result.backup)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("backup permissions: %v, %v", info, err)
+	}
+	done := next.(Model).handleMetadataExportedMsg(result)
+	if done.metadataExportBusy {
+		t.Fatal("export remained busy")
+	}
+	found := false
+	for _, entry := range done.statusBar.RecentMessages() {
+		if strings.Contains(entry.Text, result.backup) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("backup location absent from recent messages")
+	}
+	// A third export replaces the one backup with the immediately previous bytes.
+	previous, err := os.ReadFile(first.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, cmd = done.handleMetadataExportRequest()
+	result = cmd().(metadataExportedMsg)
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+	backup, err = os.ReadFile(result.backup)
+	if err != nil || string(backup) != string(previous) {
+		t.Fatal("backup did not rotate")
+	}
+}
+
+func TestMetadataBackupFailurePreservesWorkingExport(t *testing.T) {
+	dir := t.TempDir()
+	path := metadataExportPath(dir)
+	original := []byte("unimported edits")
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(path+".bak", 0o700); err != nil {
+		t.Fatal(err)
+	}
+	m := exportModel(t, dir)
+	next, cmd := m.handleMetadataExportRequest()
+	result := cmd().(metadataExportedMsg)
+	if result.err == nil {
+		t.Fatal("expected backup failure")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || string(got) != string(original) {
+		t.Fatal("failed backup damaged working export")
+	}
+	done := next.(Model).handleMetadataExportedMsg(result)
+	if done.metadataExportBusy {
+		t.Fatal("failed export remained busy")
+	}
+	if !strings.Contains(done.statusBar.TopNotification().Msg, "Export failed") {
+		t.Fatal("missing failure notification")
+	}
+}

@@ -38,17 +38,17 @@ func (m *Manager) sequentialTraversalLocked() QueueTraversal {
 	for i := range order {
 		order[i] = i
 	}
-	// With no current entry the whole queue is still ahead: sequential playback
-	// starts at index 0, so every row is remaining.
-	t := QueueTraversal{Order: order, CurrentPosition: -1, Remaining: n}
+	t := QueueTraversal{Order: order, CurrentPosition: -1, RemainingIndices: make([]int, 0, n)}
 	if m.currentIndex >= 0 && m.currentIndex < n {
 		t.CurrentPosition = m.currentIndex
-		ahead := n - m.currentIndex - 1
-		if m.sequentialFrontierLocked() > m.currentIndex {
-			ahead = len(m.sequentialSuccessorsLocked(m.currentIndex + 1))
+		for _, add := range m.unreachedAdditionsLocked(m.currentIndex + 1) {
+			t.RemainingIndices = append(t.RemainingIndices, add.index)
 		}
-		t.Remaining = ahead + m.countUnreachedAdditionsLocked()
+		t.RemainingIndices = append(t.RemainingIndices, m.sequentialSuccessorsLocked(m.currentIndex+1)...)
+	} else {
+		t.RemainingIndices = append(t.RemainingIndices, order...)
 	}
+	t.Remaining = len(t.RemainingIndices)
 	return t
 }
 
@@ -62,29 +62,30 @@ func (m *Manager) sequentialTraversalLocked() QueueTraversal {
 // The caller must hold m.mu.
 func (m *Manager) shuffledTraversalLocked() QueueTraversal {
 	p := newTraversalPlacer(queueIdentities(m.queue))
-	position, remaining := m.placeHistoryLocked(p)
+	position, scheduled := m.placeHistoryLocked(p)
 	for _, id := range m.shuffleUnseen {
 		if p.place(id) {
-			remaining++
+			scheduled = append(scheduled, p.order[len(p.order)-1])
 		}
 	}
 	p.placeUnscheduled()
 	return QueueTraversal{
-		Order:           p.order,
-		CurrentPosition: position,
-		Remaining:       remaining,
-		Shuffled:        true,
+		Order:            p.order,
+		CurrentPosition:  position,
+		Remaining:        len(scheduled),
+		RemainingIndices: scheduled,
+		Shuffled:         true,
 	}
 }
 
 // placeHistoryLocked places the played history, the current entry, and the
 // forward history a Previous left unreplayed, in that order. It returns the
 // position of the current entry within the order built so far (-1 when the
-// cursor names no live row) and how many placed history entries are still ahead
-// of it.
+// cursor names no live row) and the scheduled queue indices still ahead of it.
 //
 // The caller must hold m.mu.
-func (m *Manager) placeHistoryLocked(p *traversalPlacer) (position, remaining int) {
+func (m *Manager) placeHistoryLocked(p *traversalPlacer) (position int, scheduled []int) {
+	scheduled = make([]int, 0)
 	position = -1
 	for h, id := range m.shuffleHistory {
 		if !p.place(id) {
@@ -96,10 +97,10 @@ func (m *Manager) placeHistoryLocked(p *traversalPlacer) (position, remaining in
 		case h > m.shufflePos:
 			// Forward history left behind by Previous, or — when the cursor sits
 			// at -1 — history that is entirely ahead of playback.
-			remaining++
+			scheduled = append(scheduled, p.order[len(p.order)-1])
 		}
 	}
-	return position, remaining
+	return position, scheduled
 }
 
 // traversalPlacer builds a snapshot order by resolving shuffle identities to

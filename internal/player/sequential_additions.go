@@ -114,17 +114,6 @@ func (m *Manager) unreachedAdditionsLocked(limit int) []unreachedAddition {
 	return out
 }
 
-// countUnreachedAdditionsLocked reports how many recorded additions sit at or
-// before the cursor. They are rows the traversal will still visit but that the
-// "everything after the current index" arithmetic cannot see, so the traversal
-// snapshot has to add them to Remaining or a consumer would read an extended
-// queue as finished.
-//
-// The caller must hold m.mu.
-func (m *Manager) countUnreachedAdditionsLocked() int {
-	return len(m.unreachedAdditionsLocked(m.currentIndex + 1))
-}
-
 // forgetAdditionLocked drops an addition the traversal gave up on, so a later
 // resume does not attempt the same missing file again. It mirrors what
 // excludeIdentityLocked does for the shuffle cycle.

@@ -12,6 +12,9 @@ import (
 // should describe.
 func assertTraversal(t *testing.T, got QueueTraversal, order []int, pos, remaining int, shuffled bool) {
 	t.Helper()
+	if len(got.RemainingIndices) != got.Remaining {
+		t.Fatalf("remaining indices disagree with count: %+v", got)
+	}
 	if !slices.Equal(got.Order, order) || got.CurrentPosition != pos ||
 		got.Remaining != remaining || got.Shuffled != shuffled {
 		t.Fatalf("traversal = {Order:%v CurrentPosition:%d Remaining:%d Shuffled:%v}, want {Order:%v CurrentPosition:%d Remaining:%d Shuffled:%v}",

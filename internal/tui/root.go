@@ -33,6 +33,7 @@ import (
 
 // overlayInfo groups all overlay and modal state.
 type overlayInfo struct {
+	messages              *overlay.MessagesOverlay
 	preview               *overlay.PreviewOverlay
 	previewPlayer         player.Previewer
 	previewStarting       bool
@@ -317,12 +318,13 @@ type Model struct {
 	scanWriter          scanUpsertBatcher    // may be nil; set via WithScanWriter
 	upsertBatchSize     int                  // batch size for scan DB writes; set via WithScanWriter
 
-	undo            undoInfo       // reversible undo slot and pending confirmation flags
-	confirmationBar string         // when non-empty, rendered as a full-width warning between body and status bar
-	exportCopyHint  exportPathCopy // arms y to copy the last export path while its notification is on screen
-	visual          visualState    // Vim-like visual line selection mode state
-	yankBuffer      []queue.Entry  // clipboard for queue yank/paste; persists until next yank
-	yankIsCut       bool           // true when the buffer was populated via cut (ctrl+x)
+	undo               undoInfo // reversible undo slot and pending confirmation flags
+	confirmationBar    string   // when non-empty, rendered as a full-width warning between body and status bar
+	metadataExportBusy bool
+	exportCopyHint     exportPathCopy // arms y to copy the last export path while its notification is on screen
+	visual             visualState    // Vim-like visual line selection mode state
+	yankBuffer         []queue.Entry  // clipboard for queue yank/paste; persists until next yank
+	yankIsCut          bool           // true when the buffer was populated via cut (ctrl+x)
 
 	// missingTrackCount tracks how many queue entries were skipped due to
 	// missing files during the current playback session. Reset when playback

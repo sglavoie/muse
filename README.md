@@ -70,6 +70,10 @@ full keybinding reference.
   alone by a re-tune, and so is the one playing. Radio mode and the tuned
   settings survive a restart: muse restores the session, its seed, and its
   discovery balance, and keeps filling from where it left off.
+- **Queue duration at a glance** — the Queue header shows time remaining in the
+  current batch, including shuffle order. Repeat, Auto-DJ, and stop-after modes
+  label it as queued time rather than an end time; `+` marks unknown durations.
+  The duration yields to filtering and selection details in narrow windows.
 - **Gapless playback** via mpv prefetch (`gapless_audio`).
 - **10-band equalizer** with built-in presets (Flat, Bass Boost, Treble Boost,
   Rock, Jazz, Classical, Pop) and user-defined custom presets, plus stereo
@@ -87,10 +91,17 @@ full keybinding reference.
   never modified. `i` shows the raw tags read from the file by whichever
   metadata backend is active (ExifTool or ffprobe).
 - **Metadata export / import** — round-trip the visible view's rows through a
-  TSV file in the data directory, for bulk cleanup outside the TUI.
+  TSV file in the data directory, for bulk cleanup outside the TUI. Re-exporting
+  keeps the previous file, including any external edits, as `metadata-export.tsv.bak`.
+  To recover it, copy that backup over `metadata-export.tsv` before importing.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
 - Undo (`u`) for destructive operations.
+- Clearing a text filter with `Esc` or the palette keeps the focused row in view; a search with no matches
+  returns to your position before filtering.
+- **Recent messages** — `:` → _Show recent messages_ reopens the last 50 action
+  results and errors from this session. Long messages wrap; `j`/`k` scroll.
+  Progress updates are excluded, and past messages do not reactivate their shortcuts.
 
 **Supported audio formats**: `.aac`, `.ac3`, `.aif`, `.aifc`, `.aiff`, `.ape`,
 `.au`, `.caf`, `.dts`, `.flac`, `.m4a`, `.m4b`, `.m4r`, `.mka`, `.mp2`, `.mp3`,

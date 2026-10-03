@@ -57,6 +57,10 @@ type QueueTraversal struct {
 	// scheduled row counts as remaining.
 	Remaining int
 
+	// RemainingIndices names scheduled rows, including sequential insertions behind
+	// the cursor. Consumers must not infer these from storage order.
+	RemainingIndices []int
+
 	// Shuffled reports whether Order came from shuffle traversal.
 	Shuffled bool
 }

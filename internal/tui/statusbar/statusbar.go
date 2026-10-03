@@ -12,6 +12,7 @@ type StatusBar struct {
 	ConfigPath    string
 	WatchDegraded bool
 	Notifications []TransientNotification
+	history       []Message
 	TransientDur  time.Duration // configurable notification duration
 
 	// UndoExpiresAt is set by renderStatusBar when an undo slot is active.

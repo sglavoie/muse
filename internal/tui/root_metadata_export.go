@@ -2,7 +2,9 @@ package tui
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -48,6 +50,7 @@ type metadataExportRequestedMsg struct{}
 type metadataExportedMsg struct {
 	err     error
 	path    string
+	backup  string
 	label   string
 	count   int
 	skipped int
@@ -58,6 +61,10 @@ type metadataExportedMsg struct {
 // tea.Cmd. Refusals notify and return no command, so a model with no data
 // directory (every test model) cannot touch the filesystem.
 func (m Model) handleMetadataExportRequest() (tea.Model, tea.Cmd) {
+	if m.metadataExportBusy {
+		m.statusBar.Notify("Metadata export already in progress")
+		return m, nil
+	}
 	if m.dataDir == "" {
 		m.statusBar.Notify("Cannot export: no data directory configured")
 		return m, nil
@@ -72,6 +79,7 @@ func (m Model) handleMetadataExportRequest() (tea.Model, tea.Cmd) {
 		m.statusBar.Notify("Nothing to export from " + label)
 		return m, nil
 	}
+	m.metadataExportBusy = true
 	return m, writeMetadataExportCmd(metadataExportPath(m.dataDir), doc, label, skipped)
 }
 
@@ -88,6 +96,7 @@ func (e exportPathCopy) armed() bool {
 }
 
 func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
+	m.metadataExportBusy = false
 	if msg.err != nil {
 		m.statusBar.Notify("Export failed: " + msg.err.Error())
 		return m
@@ -100,6 +109,10 @@ func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 	}
 	if msg.count > metadataExportWarnRows {
 		notice += " — too large for one chat paste; split it"
+	}
+	if msg.backup != "" {
+		m.statusBar.Notify("Previous export saved to " + msg.backup)
+		notice += " · backup: " + filepath.Base(msg.backup)
 	}
 	notice += " · y copies path"
 	m.exportCopyHint = exportPathCopy{
@@ -171,7 +184,11 @@ func (m Model) metadataExportDocument(tracks []library.Track, label string) (met
 
 func writeMetadataExportCmd(path string, doc metaexport.Document, label string, skipped int) tea.Cmd {
 	return func() tea.Msg {
-		err := fsutil.WriteAtomically(path, 0o600, func(f *os.File) error {
+		backup, err := backupMetadataExport(path)
+		if err != nil {
+			return metadataExportedMsg{err: err}
+		}
+		err = fsutil.WriteAtomically(path, 0o600, func(f *os.File) error {
 			w := bufio.NewWriter(f)
 			if err := metaexport.Encode(w, doc); err != nil {
 				return err
@@ -181,9 +198,35 @@ func writeMetadataExportCmd(path string, doc metaexport.Document, label string, 
 		return metadataExportedMsg{
 			err:     err,
 			path:    path,
+			backup:  backup,
 			label:   label,
 			count:   len(doc.Rows),
 			skipped: skipped,
 		}
 	}
+}
+
+// Keep the previous bytes (including unimported external edits) before replacing
+// the export. A failed backup must leave the working export untouched.
+func backupMetadataExport(path string) (string, error) {
+	source, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read previous export: %w", err)
+	}
+	defer source.Close()
+	backup := path + ".bak"
+	if info, statErr := os.Lstat(backup); statErr == nil && !info.Mode().IsRegular() {
+		return "", fmt.Errorf("backup destination is not a regular file: %s", backup)
+	}
+	err = fsutil.WriteAtomically(backup, 0o600, func(f *os.File) error {
+		_, copyErr := io.Copy(f, source)
+		return copyErr
+	})
+	if err != nil {
+		return "", fmt.Errorf("back up previous export: %w", err)
+	}
+	return backup, nil
 }

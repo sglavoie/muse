@@ -11,18 +11,22 @@ import (
 // QueueSummaryOverlay renders a centered overlay box showing aggregate
 // statistics about the current play queue.
 type QueueSummaryOverlay struct {
-	Tracks   int
-	Artists  int
-	Albums   int
-	Sources  int
-	RemainMs int64 // remaining duration from current track onward
-	RemainN  int   // remaining track count
-	TotalMs  int64 // total queue duration
+	Tracks        int
+	Artists       int
+	Albums        int
+	Sources       int
+	RemainMs      int64 // remaining duration from current track onward
+	RemainUnknown bool  // at least one scheduled track has no known duration
+	RemainN       int   // remaining track count
+	TotalMs       int64 // total queue duration
 }
 
 // Render produces a centered overlay string for the queue summary.
 func (q QueueSummaryOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	remaining := text.FormatDurationMs(q.RemainMs)
+	if q.RemainUnknown {
+		remaining += "+"
+	}
 	if q.RemainN > 0 {
 		remaining = fmt.Sprintf("%s (%d %s)", remaining, q.RemainN, text.Pluralize(q.RemainN, "track", "tracks"))
 	}

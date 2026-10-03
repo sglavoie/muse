@@ -28,10 +28,7 @@ type displayTrack struct {
 func (v Panel) Render() string {
 	allTracks := v.tracks()
 	if len(allTracks) == 0 {
-		return v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "Library is empty", []styles.EmptyAction{
-			{Key: "ctrl+r", Label: "rescan folders"},
-			{Key: "?", Label: "help"},
-		})
+		return v.renderEmpty()
 	}
 
 	display := v.resolveDisplayTracks(allTracks)

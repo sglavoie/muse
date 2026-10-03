@@ -144,6 +144,8 @@ func (m Model) renderOverlayBody() (string, bool) {
 		return m.overlay.settings.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.nowPlaying != nil:
 		return m.overlay.nowPlaying.Render(m.termWidth, overlayHeight, *m.styles), true
+	case m.overlay.messages != nil:
+		return m.overlay.messages.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.queueSummary != nil:
 		return m.overlay.queueSummary.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.modesLegend != nil:
@@ -196,6 +198,7 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 	case viewPlaylists:
 		return m.playlists.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewQueue:
+		m.queue.RemainingLabel = "· " + m.queueRemainingLabel()
 		return m.queue.Render(display, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 	case viewBrowse:
 		return m.browse.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)

@@ -40,7 +40,7 @@ func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineAct
 	if n := len(v.SelectedHashes()); n > 0 {
 		sel = &strip.SelectionChunk{Count: n}
 	}
-	return strip.Render(v.Width, []string{queueStripLabel(v.SortState.Field, timelineActive)}, sortChunk, f, counts, sel, "", s)
+	return strip.Render(v.Width, []string{queueStripLabel(v.SortState.Field, timelineActive)}, sortChunk, f, counts, sel, v.RemainingLabel, s)
 }
 
 // queueStripLabel names the view, appending the shuffle-order mode when the
