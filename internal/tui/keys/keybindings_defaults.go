@@ -11,6 +11,7 @@ func NewRegistry() Registry {
 
 	registerDefaultBindings(&r)
 	registerDefaultPrimaries(&r)
+	registerTrackModePrimaries(&r)
 	registerSelectionModePrimaries(&r)
 	registerVisualModePrimaries(&r)
 
@@ -321,6 +322,15 @@ func registerDefaultPrimaries(r *Registry) {
 	r.addPrimary(ContextInsights, "enter", "open")
 	r.addPrimary(ContextInsights, "E", "enqueue all")
 	r.addPrimary(ContextInsights, "?", "help")
+}
+
+func registerTrackModePrimaries(r *Registry) {
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "j/k", "nav")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "e", "enqueue")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "E", "enqueue all")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "esc", "clear/back")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "/", "filter")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "?", "help")
 }
 
 func registerSelectionModePrimaries(r *Registry) {

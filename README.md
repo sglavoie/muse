@@ -410,6 +410,7 @@ just enough to get moving.
 | `ctrl+d` / `ctrl+u` | Half-page down / up |
 | `g` / `G` | Go to top / bottom |
 | `/` | Filter the current view |
+| `esc` | Clear the current text filter; otherwise go back |
 | `enter` | Enqueue / open the focused row |
 | `x` / `X` / `v` | Toggle bulk selection / clear selection / visual line mode |
 | `r` / `z` | Cycle repeat mode / toggle shuffle |

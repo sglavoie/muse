@@ -20,7 +20,7 @@ func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
 		segments = append(segments, notif.Render(fmt.Sprintf(" config created: %s ", s.ConfigPath)))
 	}
 	if s.WatchDegraded {
-		segments = append(segments, notifErr.Render(" File watcher unavailable — press r to rescan manually "))
+		segments = append(segments, notifErr.Render(" File watcher unavailable — press ctrl+r to rescan manually "))
 	}
 	if top := s.TopNotification(); top.Msg != "" {
 		msg := s.withUndoCountdown(top.Msg)

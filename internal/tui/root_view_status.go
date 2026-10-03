@@ -23,7 +23,7 @@ func (m Model) RenderStatusBar() string {
 	sb.ConfigCreated = m.configCreated
 	sb.WatchDegraded = m.watchDegraded
 	sb.QueueEmpty = len(m.queue.Entries) == 0
-	if m.playback.state == playback.StatePlaying && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.Entries) {
+	if (m.playback.state == playback.StatePlaying || m.playback.state == playback.StatePaused) && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.Entries) {
 		sb.QueuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.Entries))
 	} else {
 		sb.QueuePosition = ""
@@ -105,27 +105,6 @@ func (m Model) focusedBucketLabel() string {
 // hasCommittedFilter reports whether the active view has a committed
 // (non-empty, non-active) text filter applied.
 func (m Model) hasCommittedFilter() bool {
-	committed := func(text string, active bool) bool { return text != "" && !active }
-	switch m.ActiveView {
-	case viewLibrary:
-		return committed(m.library.Filter.Text, m.library.Filter.Active)
-	case viewQueue:
-		return committed(m.queue.Filter.Text, m.queue.Filter.Active)
-	case viewBrowse:
-		switch m.browse.Mode {
-		case browse.BrowseModeArtists:
-			return committed(m.browse.Artists.Filter.Text, m.browse.Artists.Filter.Active)
-		case browse.BrowseModeAlbums:
-			return committed(m.browse.Albums.Filter.Text, m.browse.Albums.Filter.Active)
-		case browse.BrowseModeGenres:
-			return committed(m.browse.Genres.Filter.Text, m.browse.Genres.Filter.Active)
-		}
-	case viewFavorites:
-		return committed(m.favorites.Filter.Text, m.favorites.Filter.Active)
-	case viewTags:
-		return committed(m.tagsView.Filter.Text, m.tagsView.Filter.Active)
-	case viewInsights:
-		return committed(m.insights.TrackView.Filter.Text, m.insights.TrackView.Filter.Active)
-	}
-	return false
+	ops := m.allFilterOps()
+	return ops != nil && ops.hasText() && !ops.isActive()
 }

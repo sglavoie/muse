@@ -171,7 +171,7 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionLibraryEnqueue, id: "queue.enqueue.focused", name: "Enqueue focused or selected", category: "queue", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewMixes)},
 	{act: keys.ActionLibraryEnqueueReplace, id: "queue.enqueue.replace", name: "Replace queue with track", category: "queue", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags)},
 	{act: keys.ActionPlayNext, id: "queue.play_next", name: "Play focused track next", category: "queue", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags)},
-	{act: keys.ActionLibraryFilterClear, id: "view.filter.clear", name: "Clear view filter", category: "view", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewQueue)},
+	{act: keys.ActionLibraryFilterClear, id: "view.filter.clear", name: "Clear view filter", category: "view", ctx: keys.ContextLibrary, enabled: Model.hasCommittedFilter},
 
 	{act: keys.ActionPlaylistRename, id: "playlist.rename", name: "Rename playlist", category: "list", ctx: keys.ContextPlaylists, enabled: activeViewIs(viewPlaylists)},
 	{act: keys.ActionPlaylistDelete, id: "playlist.delete", name: "Delete playlist", category: "list", ctx: keys.ContextPlaylists, enabled: atPlaylistListLevel},

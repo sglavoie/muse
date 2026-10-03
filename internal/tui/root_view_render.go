@@ -222,6 +222,8 @@ func (m Model) renderFooterHint() string {
 		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:
 		mode = keys.HintModeSelection
+	case m.ActiveView == viewMixes && m.mixes.Level == 1:
+		mode = keys.HintModeTracks
 	}
 	return keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
 }

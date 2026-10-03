@@ -16,6 +16,7 @@ type filterOps struct {
 	update     func(tea.KeyPressMsg) (Model, tea.Cmd)
 	updateMsg  func(tea.Msg) (Model, tea.Cmd)
 	isActive   func() bool
+	hasText    func() bool
 	activate   func() (Model, tea.Cmd)
 }
 
@@ -81,6 +82,7 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 			return *m, cmd
 		},
 		isActive: func() bool { return f.Active },
+		hasText:  func() bool { return f.Text != "" },
 	}
 }
 
@@ -175,4 +177,22 @@ func (m Model) handleFilterKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		return m, cmd, true
 	}
 	return m, nil, true
+}
+
+// clearViewFilter uses the same reset and cache rebuild as the filter editor.
+func (m Model) clearViewFilter() Model {
+	m = exitVisualMode(m)
+	if ops := m.allFilterOps(); ops != nil && (ops.hasText() || ops.isActive()) {
+		return ops.deactivate()
+	}
+	return m
+}
+
+// handleCommittedFilterKeyPress runs after modal handlers so Esc dismisses
+// overlays and cancels scans before clearing the underlying view's filter.
+func (m Model) handleCommittedFilterKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+	if msg.String() != "esc" || !m.hasCommittedFilter() {
+		return m, nil, false
+	}
+	return m.clearViewFilter(), nil, true
 }

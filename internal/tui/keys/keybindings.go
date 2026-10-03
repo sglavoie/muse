@@ -273,13 +273,15 @@ type primaryHint struct {
 
 // HintMode selects which primary-hint set the footer strip should show.
 // Selection and Visual modes surface action sets relevant to an in-progress
-// bulk-action workflow; Default is the resting-state set.
+// bulk-action workflow; Tracks describes an open collection, and Default is
+// the resting-state set.
 type HintMode int
 
 const (
 	HintModeDefault   HintMode = iota // resting-state hints (no selection, no visual mode)
 	HintModeSelection                 // one or more rows are bulk-selected
 	HintModeVisual                    // visual line-selection mode is active
+	HintModeTracks                    // a collection is open at its track list
 )
 
 // primaryHintKey is the composite map key for per-context, per-mode hint sets.

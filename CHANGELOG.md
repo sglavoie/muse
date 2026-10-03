@@ -180,6 +180,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Esc clears a committed text filter before navigating back in Browse,
+  Favorites, Tags, Mixes, and Insights, matching Library and Queue. The palette's
+  Clear view filter command works wherever a committed filter is present, and
+  Mixes shows the filtered badge too.
+- Pausing playback keeps the queue position visible in the status bar.
+- The persistent file-watcher warning names `ctrl+r` as the rescan shortcut.
+- An open mix's footer advertises `e` to enqueue a track; help now correctly
+  describes Enter as opening a mix.
+
 - On-screen hints now name keys that do what they say. The empty Library card
   offers `ctrl+r` rescan instead of `s` (Stop) and a nonexistent import; the
   empty Playlists card offers `c` new instead of `n` (Next) and a nonexistent

@@ -23,7 +23,8 @@ const footerHintSep = " · "
 //
 // mode selects the hint set: HintModeDefault for the resting state,
 // HintModeSelection when 1+ rows are bulk-selected, and HintModeVisual
-// while visual line-selection is active. When a mode-specific set is not
+// while visual line-selection is active. HintModeTracks describes an open
+// collection's track list. When a mode-specific set is not
 // registered for the context, the default-mode set is shown.
 //
 // The returned string is at most width display columns wide. Pairs that
