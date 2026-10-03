@@ -35,7 +35,7 @@ func TestQueueFilterRendersFilterBar(t *testing.T) {
 }
 
 // TestQueueFilterNoMatchesShowsMessage verifies that when filter matches
-// nothing, "(no matches)" is displayed.
+// nothing, "No matches — Esc clears text filter" is displayed.
 func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 	q := queue.View{
 		Entries: []queue.Entry{
@@ -49,7 +49,7 @@ func TestQueueFilterNoMatchesShowsMessage(t *testing.T) {
 
 	s := styles.NewStyles(true)
 	out := q.Render(s, -1, playback.StateIdle, nil, nil, nil)
-	if !strings.Contains(out, "(no matches)") {
-		t.Errorf("expected '(no matches)' when filter has no results, got:\n%s", out)
+	if !strings.Contains(out, "No matches — Esc clears text filter") {
+		t.Errorf("expected text-filter recovery hint when filter has no results, got:\n%s", out)
 	}
 }

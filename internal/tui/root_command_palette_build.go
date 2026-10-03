@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/desktop"
@@ -50,25 +51,28 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	// Hand-written rather than catalog entries: the palette is the only trigger
 	// (no keybinding), so neither needs an action constant or a registry binding.
 	cmds = append(cmds, palette.PaletteCommand{
-		ID:       "metadata.export.tsv",
-		Name:     "Export visible tracks to TSV",
-		Category: "lib",
-		Exec:     func() tea.Cmd { return func() tea.Msg { return metadataExportRequestedMsg{} } },
-		Enabled:  func() bool { return m.dataDir != "" },
+		ID:             "metadata.export.tsv",
+		Name:           "Export visible tracks to TSV",
+		Category:       "lib",
+		Exec:           func() tea.Cmd { return func() tea.Msg { return metadataExportRequestedMsg{} } },
+		Enabled:        func() bool { return m.dataDir != "" },
+		DisabledReason: "Data directory is unavailable",
 	})
 	cmds = append(cmds, palette.PaletteCommand{
-		ID:       "metadata.import",
-		Name:     "Import metadata edits…",
-		Category: "lib",
-		Exec:     func() tea.Cmd { return func() tea.Msg { return metadataImportRequestedMsg{} } },
-		Enabled:  func() bool { return metadataExportExists(m.dataDir) },
+		ID:             "metadata.import",
+		Name:           "Import metadata edits…",
+		Category:       "lib",
+		Exec:           func() tea.Cmd { return func() tea.Msg { return metadataImportRequestedMsg{} } },
+		Enabled:        func() bool { return metadataExportExists(m.dataDir) },
+		DisabledReason: "Export metadata first",
 	})
 	cmds = append(cmds, palette.PaletteCommand{
-		ID:       "metadata.export.reveal",
-		Name:     "Reveal metadata export file",
-		Category: "lib",
-		Exec:     func() tea.Cmd { return desktop.RevealFile(m.appCtx, metadataExportPath(m.dataDir)) },
-		Enabled:  func() bool { return metadataExportExists(m.dataDir) },
+		ID:             "metadata.export.reveal",
+		Name:           "Reveal metadata export file",
+		Category:       "lib",
+		Exec:           func() tea.Cmd { return desktop.RevealFile(m.appCtx, metadataExportPath(m.dataDir)) },
+		Enabled:        func() bool { return metadataExportExists(m.dataDir) },
+		DisabledReason: "Export metadata first",
 	})
 
 	// Stable navigation targets. Library and Browse use explicit mode messages
@@ -84,18 +88,19 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	)
 
 	cmds = append(cmds, palette.PaletteCommand{
-		ID:       "mixes.refresh",
-		Name:     "Refresh mixes",
-		Category: "lib",
-		Exec:     m.loadMixCountsCmd,
-		Enabled:  func() bool { return m.recReader != nil },
+		ID:             "mixes.refresh",
+		Name:           "Refresh mixes",
+		Category:       "lib",
+		Exec:           m.loadMixCountsCmd,
+		Enabled:        func() bool { return m.recReader != nil },
+		DisabledReason: "Mixes are unavailable",
 	})
 
 	trackFocused := func() bool { return hasFocusedTrack(m) }
 
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "track.reveal",
-		Name:     "Reveal in Finder",
+		Name:     revealFilePaletteName(runtime.GOOS),
 		Category: "file",
 		Exec: func() tea.Cmd {
 			path, _, _, found := m.focusedTrackForPalette()
@@ -104,7 +109,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 			}
 			return desktop.RevealFile(m.appCtx, path)
 		},
-		Enabled: trackFocused,
+		Enabled:        trackFocused,
+		DisabledReason: "Focus a track first",
 	})
 
 	cmds = append(cmds, palette.PaletteCommand{
@@ -119,7 +125,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 			text := fmt.Sprintf("%s \u2013 %s", artist, title)
 			return desktop.CopyToClipboard(m.appCtx, text)
 		},
-		Enabled: trackFocused,
+		Enabled:        trackFocused,
+		DisabledReason: "Focus a track first",
 	})
 
 	cmds = append(cmds, palette.PaletteCommand{
@@ -133,7 +140,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 			}
 			return desktop.CopyToClipboard(m.appCtx, path)
 		},
-		Enabled: trackFocused,
+		Enabled:        trackFocused,
+		DisabledReason: "Focus a track first",
 	})
 
 	// Hand-written for the same reason the metadata commands are: the palette is
@@ -152,7 +160,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return autoDJStartSelectionMsg{} }
 		},
-		Enabled: m.djCanStartFromSelection,
+		Enabled:        m.djCanStartFromSelection,
+		DisabledReason: "Select tracks or focus a playable row first",
 	})
 
 	cmds = append(cmds, palette.PaletteCommand{
@@ -218,7 +227,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return jumpToNowPlayingMsg{} }
 		},
-		Enabled: func() bool { return m.playback.currentHash != "" },
+		Enabled:        func() bool { return m.playback.currentHash != "" },
+		DisabledReason: "Load a track first",
 	})
 
 	queueHasTracks := func() bool { return len(m.queue.Entries) > 1 }
@@ -229,7 +239,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return queueShuffleMsg{} }
 		},
-		Enabled: queueHasTracks,
+		Enabled:        queueHasTracks,
+		DisabledReason: "Queue needs at least two tracks",
 	})
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "queue.dedup",
@@ -238,13 +249,15 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return queueDedupMsg{} }
 		},
-		Enabled: queueHasTracks,
+		Enabled:        queueHasTracks,
+		DisabledReason: "Queue needs at least two tracks",
 	})
 
 	cmds = append(cmds, palette.PaletteCommand{
-		ID:       "playlist.shuffle",
-		Name:     "Shuffle playlist in place",
-		Category: "play",
+		ID:             "playlist.shuffle",
+		DisabledReason: "Choose a static playlist with at least two tracks",
+		Name:           "Shuffle playlist in place",
+		Category:       "play",
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return playlistShuffleMsg{} }
 		},
@@ -268,7 +281,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return openTagFilterPickerMsg{} }
 		},
-		Enabled: func() bool { return len(nonEmptyTags(m.tags, m.tagsView.TagCounts)) > 0 },
+		Enabled:        func() bool { return len(nonEmptyTags(m.tags, m.tagsView.TagCounts)) > 0 },
+		DisabledReason: "Add a tag to a track first",
 	})
 	if m.activeTagFilter != nil {
 		cmds = append(cmds, palette.PaletteCommand{
@@ -283,9 +297,10 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	}
 
 	cmds = append(cmds, palette.PaletteCommand{
-		ID:       "tag.track.remove_all",
-		Name:     "Remove all tags from track",
-		Category: "tag",
+		ID:             "tag.track.remove_all",
+		DisabledReason: "Focus a track with tags first",
+		Name:           "Remove all tags from track",
+		Category:       "tag",
 		Exec: func() tea.Cmd {
 			hash := m.focusedTrackHash()
 			if hash == "" {
@@ -398,12 +413,13 @@ func (m Model) focusedTrackForPalette() (path, artist, title string, found bool)
 // hint behind.
 func (m Model) paletteCommandFor(e paletteEntry) palette.PaletteCommand {
 	cmd := palette.PaletteCommand{
-		ID:       e.id,
-		Name:     e.name,
-		Category: e.category,
-		Shortcut: m.paletteShortcutFor(e),
-		Pinned:   e.pin,
-		Exec:     func() tea.Cmd { return func() tea.Msg { return commandPaletteActionMsg{action: e.act, view: e.view} } },
+		ID:             e.id,
+		Name:           e.name,
+		Category:       e.category,
+		Shortcut:       m.paletteShortcutFor(e),
+		Pinned:         e.pin,
+		DisabledReason: e.disabledReason,
+		Exec:           func() tea.Cmd { return func() tea.Msg { return commandPaletteActionMsg{action: e.act, view: e.view} } },
 	}
 	if e.enabled != nil {
 		// e.enabled is evaluated here, against the pre-switch model, because
@@ -452,4 +468,11 @@ func configTogglePalette(id, category, name string, field configToggleField) pal
 		Category: category,
 		Exec:     func() tea.Cmd { return func() tea.Msg { return configToggleMsg{field: field} } },
 	}
+}
+
+func revealFilePaletteName(goos string) string {
+	if goos == "darwin" {
+		return "Reveal in Finder"
+	}
+	return "Open containing folder"
 }

@@ -505,3 +505,41 @@ func TestCommandPaletteRenderShowsCategoryPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestDisabledCommandExplanationFollowsFocus(t *testing.T) {
+	enabled := false
+	cp, _ := NewCommandPalette([]PaletteCommand{
+		{Name: "Clear queue", Enabled: func() bool { return enabled }, DisabledReason: "Queue is empty"},
+		{Name: "Show help"},
+	}, nil)
+	s := styles.NewStyles(true)
+	for _, size := range [][2]int{{60, 12}, {100, 27}} {
+		out := ansi.Strip(cp.Render(size[0], size[1], s))
+		if !strings.Contains(out, "Queue is empty") {
+			t.Fatalf("disabled reason missing at %v: %s", size, out)
+		}
+		lines := strings.Split(out, "\n")
+		if len(lines) > size[1] {
+			t.Fatalf("reason increased dialog height beyond %v", size)
+		}
+		for _, line := range lines {
+			if ansi.StringWidth(line) > size[0] {
+				t.Fatalf("reason overflow at %v: %q", size, line)
+			}
+		}
+		if cmd := cp.runFocused(); cmd != nil {
+			t.Fatal("disabled command executed")
+		}
+		moved := cp.nextCommand()
+		if strings.Contains(ansi.Strip(moved.Render(size[0], size[1], s)), "Queue is empty") {
+			t.Fatal("stale reason shown for enabled command")
+		}
+	}
+	enabled = true
+	if strings.Contains(ansi.Strip(cp.Render(60, 12, s)), "Queue is empty") {
+		t.Fatal("reason shown after command became enabled")
+	}
+	if cp.runFocused() == nil {
+		t.Fatal("enabled command did not execute")
+	}
+}

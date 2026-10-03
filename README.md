@@ -8,7 +8,8 @@ and renders everything through a
 TUI: seven primary views, a command palette, an in-app metadata editor, a
 listening-insights dashboard, and a steerable Auto-DJ that keeps picking the
 next track for you. It is keyboard-driven throughout — press `?` at any time for the
-full keybinding reference.
+full keybinding reference. Unavailable command-palette entries explain what
+you need to select or open before using them.
 
 > **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
 > snapshot harness will print a real rendered screen for you — no config file,
@@ -98,9 +99,11 @@ full keybinding reference.
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
 - Undo (`u`) for destructive operations.
 - Clearing a text filter with `Esc` or the palette keeps the focused row in view; a search with no matches
-  returns to your position before filtering.
+  returns to your position before filtering. Library and Queue no-match hints
+  distinguish `Esc` to clear a text filter from `ctrl+t` to clear a tag filter.
 - **Recent messages** — `:` → _Show recent messages_ reopens the last 50 action
   results and errors from this session. Long messages wrap; `j`/`k` scroll.
+  File-manager errors include the affected path and are retained here too.
   Progress updates are excluded, and past messages do not reactivate their shortcuts.
 
 **Supported audio formats**: `.aac`, `.ac3`, `.aif`, `.aifc`, `.aiff`, `.ape`,

@@ -74,8 +74,9 @@ type paletteEntry struct {
 	// a non-zero view may therefore only read state that survives the switch
 	// (len(m.queue.entries) > 0, m.tagReader != nil), never cursor or focus
 	// state, which switchToView and the destination view's own state discard.
-	enabled func(Model) bool
-	pin     palette.PalettePin
+	disabledReason string
+	enabled        func(Model) bool
+	pin            palette.PalettePin
 }
 
 // paletteCatalog is the set of registry-backed palette commands. Every action
@@ -100,14 +101,14 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionStopAfterCurrent, id: "playback.stop_after_current", name: "Toggle stop after current", category: "play", ctx: keys.ContextGlobal},
 	{act: keys.ActionVolumeUp, id: "playback.volume.up", name: "Raise volume", category: "play", ctx: keys.ContextGlobal},
 	{act: keys.ActionVolumeDown, id: "playback.volume.down", name: "Lower volume", category: "play", ctx: keys.ContextGlobal},
-	{act: keys.ActionSeekBack, id: "playback.seek.back", name: "Seek backward", category: "play", ctx: keys.ContextGlobal, enabled: playbackHasTrack},
-	{act: keys.ActionSeekForward, id: "playback.seek.forward", name: "Seek forward", category: "play", ctx: keys.ContextGlobal, enabled: playbackHasTrack},
-	{act: keys.ActionSeekBackLong, id: "playback.seek.back.long", name: "Seek backward (long)", category: "play", ctx: keys.ContextGlobal, enabled: playbackHasTrack},
-	{act: keys.ActionSeekForwardLong, id: "playback.seek.forward.long", name: "Seek forward (long)", category: "play", ctx: keys.ContextGlobal, enabled: playbackHasTrack},
+	{act: keys.ActionSeekBack, id: "playback.seek.back", name: "Seek backward", category: "play", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
+	{act: keys.ActionSeekForward, id: "playback.seek.forward", name: "Seek forward", category: "play", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
+	{act: keys.ActionSeekBackLong, id: "playback.seek.back.long", name: "Seek backward (long)", category: "play", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
+	{act: keys.ActionSeekForwardLong, id: "playback.seek.forward.long", name: "Seek forward (long)", category: "play", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
 	// Named "Seek to start", not "Restart current track": the latter fuzzy-matches
 	// the query "recent" at a word start and outranks "Go to Library: Recently
 	// Added" for it.
-	{act: keys.ActionResetPosition, id: "playback.seek.start", name: "Seek to start of track", category: "play", ctx: keys.ContextGlobal, enabled: playbackHasTrack},
+	{act: keys.ActionResetPosition, id: "playback.seek.start", name: "Seek to start of track", category: "play", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
 
 	{act: keys.ActionSwitchPlaylists, id: "nav.playlists", name: "Go to Playlists", category: "nav", ctx: keys.ContextGlobal},
 	{act: keys.ActionSwitchQueue, id: "nav.queue", name: "Go to Queue", category: "nav", ctx: keys.ContextGlobal},
@@ -120,7 +121,7 @@ var paletteCatalog = []paletteEntry{
 	// discoverable key instead of the bracket keysFor ranks first.
 	{act: keys.ActionNextView, id: "nav.view.next", name: "Go to next view", category: "nav", ctx: keys.ContextGlobal, preferKey: "tab"},
 	{act: keys.ActionPrevView, id: "nav.view.previous", name: "Go to previous view", category: "nav", ctx: keys.ContextGlobal, preferKey: "shift+tab"},
-	{act: keys.ActionFocusNowPlaying, id: "queue.jump.nowplaying", name: "Jump to now-playing in queue", category: "nav", ctx: keys.ContextGlobal, enabled: playbackHasTrack},
+	{act: keys.ActionFocusNowPlaying, id: "queue.jump.nowplaying", name: "Jump to now-playing in queue", category: "nav", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
 	{act: keys.ActionGoTo, id: "nav.goto", name: "Go to artist, album or genre…", category: "nav", ctx: keys.ContextGlobal},
 
 	{act: keys.ActionSortCycle, id: "sort.cycle", name: "Cycle sort field", category: "sort", ctx: keys.ContextGlobal},
@@ -139,10 +140,10 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionQueueSummary, id: "queue.summary", name: "Show queue summary", category: "queue", ctx: keys.ContextGlobal},
 	{act: keys.ActionTagPicker, id: "tag.picker.open", name: "Manage tags for track…", category: "tag", ctx: keys.ContextGlobal},
 
-	{act: keys.ActionPreview, id: "track.preview", name: "Preview focused track", category: "trk", ctx: keys.ContextGlobal, enabled: hasFocusedTrack},
-	{act: keys.ActionTrackInfo, id: "track.info", name: "Show track info", category: "trk", ctx: keys.ContextGlobal, enabled: hasFocusedTrack},
-	{act: keys.ActionEditMetadata, id: "track.metadata.edit", name: "Edit track metadata", category: "trk", ctx: keys.ContextGlobal, enabled: hasFocusedTrack},
-	{act: keys.ActionToggleFavorite, id: "track.favorite.toggle", name: "Toggle favorite", category: "trk", ctx: keys.ContextGlobal, enabled: hasFocusedTrack},
+	{act: keys.ActionPreview, id: "track.preview", name: "Preview focused track", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
+	{act: keys.ActionTrackInfo, id: "track.info", name: "Show track info", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
+	{act: keys.ActionEditMetadata, id: "track.metadata.edit", name: "Edit track metadata", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
+	{act: keys.ActionToggleFavorite, id: "track.favorite.toggle", name: "Toggle favorite", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
 
 	// Collection-targeting view-local actions: they operate on a whole
 	// collection, not on the cursor row, so switching to the owning view first
@@ -152,9 +153,9 @@ var paletteCatalog = []paletteEntry{
 	// The three create handlers also require their view's collection level,
 	// which switchToView preserves rather than resets; handleCommandPaletteAction
 	// drills the destination back out for them (atCollectionLevelFor).
-	{act: keys.ActionClearQueue, id: "queue.clear", name: "Clear queue", category: "queue", ctx: keys.ContextQueue, view: viewQueue, enabled: queueHasEntries},
-	{act: keys.ActionSaveQueueAsPlaylist, id: "queue.save_as_playlist", name: "Save queue as playlist", category: "queue", ctx: keys.ContextQueue, view: viewQueue, enabled: queueHasEntries},
-	{act: keys.ActionPaste, id: "queue.paste", name: "Paste yanked tracks", category: "queue", ctx: keys.ContextQueue, view: viewQueue, enabled: func(m Model) bool { return len(m.yankBuffer) > 0 }},
+	{act: keys.ActionClearQueue, id: "queue.clear", name: "Clear queue", category: "queue", ctx: keys.ContextQueue, view: viewQueue, disabledReason: "Queue is empty", enabled: queueHasEntries},
+	{act: keys.ActionSaveQueueAsPlaylist, id: "queue.save_as_playlist", name: "Save queue as playlist", category: "queue", ctx: keys.ContextQueue, view: viewQueue, disabledReason: "Queue is empty", enabled: queueHasEntries},
+	{act: keys.ActionPaste, id: "queue.paste", name: "Paste yanked tracks", category: "queue", ctx: keys.ContextQueue, view: viewQueue, disabledReason: "Copy or cut tracks first", enabled: func(m Model) bool { return len(m.yankBuffer) > 0 }},
 	{act: keys.ActionPlaylistCreate, id: "playlist.create", name: "Create playlist", category: "list", ctx: keys.ContextPlaylists, view: viewPlaylists},
 	{act: keys.ActionSmartPlaylistCreate, id: "playlist.smart.create", name: "Create smart playlist", category: "list", ctx: keys.ContextPlaylists, view: viewPlaylists},
 	{act: keys.ActionTagCreate, id: "tag.create", name: "Create tag", category: "tag", ctx: keys.ContextTags, view: viewTags},
@@ -163,41 +164,41 @@ var paletteCatalog = []paletteEntry{
 	// Switching first would run a destructive edit against whatever row the
 	// destination view's cursor happens to sit on, so these stay listed and
 	// searchable but render dimmed and are skipped by enter elsewhere.
-	{act: keys.ActionDequeue, id: "queue.dequeue", name: "Remove track from queue", category: "queue", ctx: keys.ContextQueue, enabled: activeViewIs(viewQueue)},
-	{act: keys.ActionMoveTrackUp, id: "queue.move.up", name: "Move track up", category: "queue", ctx: keys.ContextQueue, enabled: activeViewIs(viewQueue, viewPlaylists)},
-	{act: keys.ActionMoveTrackDown, id: "queue.move.down", name: "Move track down", category: "queue", ctx: keys.ContextQueue, enabled: activeViewIs(viewQueue, viewPlaylists)},
-	{act: keys.ActionYank, id: "queue.yank", name: "Copy tracks to yank buffer", category: "queue", ctx: keys.ContextQueue, enabled: activeViewIs(viewQueue)},
-	{act: keys.ActionCut, id: "queue.cut", name: "Cut tracks to yank buffer", category: "queue", ctx: keys.ContextQueue, enabled: activeViewIs(viewQueue)},
-	{act: keys.ActionLibraryEnqueue, id: "queue.enqueue.focused", name: "Enqueue focused or selected", category: "queue", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewMixes)},
-	{act: keys.ActionLibraryEnqueueReplace, id: "queue.enqueue.replace", name: "Replace queue with track", category: "queue", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags)},
-	{act: keys.ActionPlayNext, id: "queue.play_next", name: "Play focused track next", category: "queue", ctx: keys.ContextLibrary, enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags)},
-	{act: keys.ActionLibraryFilterClear, id: "view.filter.clear", name: "Clear view filter", category: "view", ctx: keys.ContextLibrary, enabled: Model.hasCommittedFilter},
+	{act: keys.ActionDequeue, id: "queue.dequeue", name: "Remove track from queue", category: "queue", ctx: keys.ContextQueue, disabledReason: "Open Queue first", enabled: activeViewIs(viewQueue)},
+	{act: keys.ActionMoveTrackUp, id: "queue.move.up", name: "Move track up", category: "queue", ctx: keys.ContextQueue, disabledReason: "Open Queue or Playlists first", enabled: activeViewIs(viewQueue, viewPlaylists)},
+	{act: keys.ActionMoveTrackDown, id: "queue.move.down", name: "Move track down", category: "queue", ctx: keys.ContextQueue, disabledReason: "Open Queue or Playlists first", enabled: activeViewIs(viewQueue, viewPlaylists)},
+	{act: keys.ActionYank, id: "queue.yank", name: "Copy tracks to yank buffer", category: "queue", ctx: keys.ContextQueue, disabledReason: "Open Queue first", enabled: activeViewIs(viewQueue)},
+	{act: keys.ActionCut, id: "queue.cut", name: "Cut tracks to yank buffer", category: "queue", ctx: keys.ContextQueue, disabledReason: "Open Queue first", enabled: activeViewIs(viewQueue)},
+	{act: keys.ActionLibraryEnqueue, id: "queue.enqueue.focused", name: "Enqueue focused or selected", category: "queue", ctx: keys.ContextLibrary, disabledReason: "Open Library or Mixes first", enabled: activeViewIs(viewLibrary, viewMixes)},
+	{act: keys.ActionLibraryEnqueueReplace, id: "queue.enqueue.replace", name: "Replace queue with track", category: "queue", ctx: keys.ContextLibrary, disabledReason: "Open Library, Browse, Playlists, Favorites or Tags", enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags)},
+	{act: keys.ActionPlayNext, id: "queue.play_next", name: "Play focused track next", category: "queue", ctx: keys.ContextLibrary, disabledReason: "Open Library, Browse, Playlists, Favorites or Tags", enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags)},
+	{act: keys.ActionLibraryFilterClear, id: "view.filter.clear", name: "Clear view filter", category: "view", ctx: keys.ContextLibrary, disabledReason: "No text filter to clear", enabled: Model.hasCommittedFilter},
 
-	{act: keys.ActionPlaylistRename, id: "playlist.rename", name: "Rename playlist", category: "list", ctx: keys.ContextPlaylists, enabled: activeViewIs(viewPlaylists)},
-	{act: keys.ActionPlaylistDelete, id: "playlist.delete", name: "Delete playlist", category: "list", ctx: keys.ContextPlaylists, enabled: atPlaylistListLevel},
-	{act: keys.ActionPlaylistEnqueueAll, id: "playlist.enqueue_all", name: "Enqueue playlist tracks", category: "list", ctx: keys.ContextPlaylists, enabled: activeViewIs(viewPlaylists)},
-	{act: keys.ActionSmartPlaylistEdit, id: "playlist.smart.edit", name: "Edit smart playlist rules", category: "list", ctx: keys.ContextPlaylists, enabled: activeViewIs(viewPlaylists)},
+	{act: keys.ActionPlaylistRename, id: "playlist.rename", name: "Rename playlist", category: "list", ctx: keys.ContextPlaylists, disabledReason: "Open Playlists first", enabled: activeViewIs(viewPlaylists)},
+	{act: keys.ActionPlaylistDelete, id: "playlist.delete", name: "Delete playlist", category: "list", ctx: keys.ContextPlaylists, disabledReason: "Open the playlist list first", enabled: atPlaylistListLevel},
+	{act: keys.ActionPlaylistEnqueueAll, id: "playlist.enqueue_all", name: "Enqueue playlist tracks", category: "list", ctx: keys.ContextPlaylists, disabledReason: "Open Playlists first", enabled: activeViewIs(viewPlaylists)},
+	{act: keys.ActionSmartPlaylistEdit, id: "playlist.smart.edit", name: "Edit smart playlist rules", category: "list", ctx: keys.ContextPlaylists, disabledReason: "Open Playlists first", enabled: activeViewIs(viewPlaylists)},
 
-	{act: keys.ActionTagRename, id: "tag.rename", name: "Rename tag", category: "tag", ctx: keys.ContextTags, enabled: activeViewIs(viewTags)},
-	{act: keys.ActionTagDelete, id: "tag.delete", name: "Delete tag", category: "tag", ctx: keys.ContextTags, enabled: activeViewIs(viewTags)},
-	{act: keys.ActionTagEnqueueAll, id: "tag.enqueue_all", name: "Enqueue tag tracks", category: "tag", ctx: keys.ContextTags, enabled: activeViewIs(viewTags)},
-	{act: keys.ActionTagMerge, id: "tag.merge", name: "Merge tag into another…", category: "tag", ctx: keys.ContextTags, enabled: activeViewIs(viewTags)},
+	{act: keys.ActionTagRename, id: "tag.rename", name: "Rename tag", category: "tag", ctx: keys.ContextTags, disabledReason: "Open Tags first", enabled: activeViewIs(viewTags)},
+	{act: keys.ActionTagDelete, id: "tag.delete", name: "Delete tag", category: "tag", ctx: keys.ContextTags, disabledReason: "Open Tags first", enabled: activeViewIs(viewTags)},
+	{act: keys.ActionTagEnqueueAll, id: "tag.enqueue_all", name: "Enqueue tag tracks", category: "tag", ctx: keys.ContextTags, disabledReason: "Open Tags first", enabled: activeViewIs(viewTags)},
+	{act: keys.ActionTagMerge, id: "tag.merge", name: "Merge tag into another…", category: "tag", ctx: keys.ContextTags, disabledReason: "Open Tags first", enabled: activeViewIs(viewTags)},
 
-	{act: keys.ActionMixEnqueueAll, id: "mix.enqueue_all", name: "Enqueue mix tracks", category: "mix", ctx: keys.ContextMixes, enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionSaveMixAsPlaylist, id: "mix.save_as_playlist", name: "Save mix as playlist", category: "mix", ctx: keys.ContextMixes, enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionMixRadioSeed, id: "mix.radio.seed", name: "Start radio from mix", category: "mix", ctx: keys.ContextMixes, enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionMixDismiss, id: "mix.dismiss", name: "Dismiss track from mix", category: "mix", ctx: keys.ContextMixes, enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionMixUndismiss, id: "mix.undismiss", name: "Undismiss track", category: "mix", ctx: keys.ContextMixes, enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionMixEnqueueAll, id: "mix.enqueue_all", name: "Enqueue mix tracks", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionSaveMixAsPlaylist, id: "mix.save_as_playlist", name: "Save mix as playlist", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionMixRadioSeed, id: "mix.radio.seed", name: "Start radio from mix", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionMixDismiss, id: "mix.dismiss", name: "Dismiss track from mix", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionMixUndismiss, id: "mix.undismiss", name: "Undismiss track", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
 
-	{act: keys.ActionInsightsPanelNext, id: "insights.panel.next", name: "Next insights panel", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsPanelPrev, id: "insights.panel.previous", name: "Previous insights panel", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsWindowNext, id: "insights.window.next", name: "Next window or bucket size", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsWindowPrev, id: "insights.window.previous", name: "Previous window or bucket size", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsEnqueueAll, id: "insights.enqueue_all", name: "Enqueue tracks behind row", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsRadioSeed, id: "insights.radio.seed", name: "Start radio from insight row", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsSavePlaylist, id: "insights.save_as_playlist", name: "Save insight tracks as playlist", category: "stats", ctx: keys.ContextInsights, enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsMergeGenre, id: "insights.merge_genre", name: "Merge genre spellings", category: "stats", ctx: keys.ContextInsights, enabled: insightsHasGenreCollision},
+	{act: keys.ActionInsightsPanelNext, id: "insights.panel.next", name: "Next insights panel", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsPanelPrev, id: "insights.panel.previous", name: "Previous insights panel", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsWindowNext, id: "insights.window.next", name: "Next window or bucket size", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsWindowPrev, id: "insights.window.previous", name: "Previous window or bucket size", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsEnqueueAll, id: "insights.enqueue_all", name: "Enqueue tracks behind row", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsRadioSeed, id: "insights.radio.seed", name: "Start radio from insight row", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsSavePlaylist, id: "insights.save_as_playlist", name: "Save insight tracks as playlist", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsMergeGenre, id: "insights.merge_genre", name: "Merge genre spellings", category: "stats", ctx: keys.ContextInsights, disabledReason: "Select a genre collision in Data Health", enabled: insightsHasGenreCollision},
 }
 
 // playbackHasTrack reports whether a track is loaded, gating catalog entries

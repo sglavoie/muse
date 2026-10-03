@@ -77,7 +77,7 @@ func CopyToClipboard(ctx context.Context, text string) tea.Cmd {
 	}
 }
 
-// toolError names the clipboard tool that failed and appends the first line of
+// toolError names the desktop tool that failed and appends the first line of
 // its stderr, so the status bar shows something actionable ("xclip: exit
 // status 1: Error: Can't open display") instead of a bare "exit status 1".
 func toolError(name string, err error, stderr string) error {

@@ -2,11 +2,14 @@ package desktop
 
 import (
 	"bytes"
+	tea "charm.land/bubbletea/v2"
 	"context"
 	"log"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -68,14 +71,8 @@ func TestRevealFileWhitespacePathIsNoOp(t *testing.T) {
 	}
 }
 
-// TestOpenDirReapsChildProcess verifies the fix for an FD/zombie leak: the
-// previous implementation called Start() without a matching Wait(), which the
-// os/exec docs explicitly warn leaks system resources. After the fix the
-// command should run to completion in the background; we exercise that path by
-// invoking OpenDir with a context that is already cancelled so Start fails fast
-// without leaving a launched-but-unreaped subprocess behind. The test simply
-// asserts the helper does not panic and returns nil promptly.
-func TestOpenDirReapsChildProcess(t *testing.T) {
+// A cancelled app context should not create a failure notification at shutdown.
+func TestOpenDirCancelledContextIsQuiet(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	cmd := OpenDir(ctx, t.TempDir())
@@ -87,9 +84,8 @@ func TestOpenDirReapsChildProcess(t *testing.T) {
 	}
 }
 
-// TestRevealFileReapsChildProcess mirrors TestOpenDirReapsChildProcess for the
-// RevealFile helper.
-func TestRevealFileReapsChildProcess(t *testing.T) {
+// A cancelled reveal should stay quiet, just like opening a directory.
+func TestRevealFileCancelledContextIsQuiet(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	cmd := RevealFile(ctx, "/tmp/does-not-exist")
@@ -196,11 +192,14 @@ func TestOpenDirAndRevealFileLogStartFailure(t *testing.T) {
 	buf := captureSlog(t)
 
 	dir := t.TempDir()
-	if msg := OpenDir(context.Background(), dir)(); msg != nil {
-		t.Errorf("OpenDir: expected nil msg, got %#v", msg)
-	}
-	if msg := RevealFile(context.Background(), filepath.Join(dir, "a.flac"))(); msg != nil {
-		t.Errorf("RevealFile: expected nil msg, got %#v", msg)
+	for _, cmd := range []tea.Cmd{
+		OpenDir(context.Background(), dir),
+		RevealFile(context.Background(), filepath.Join(dir, "a.flac")),
+	} {
+		msg, ok := cmd().(FileManagerResultMsg)
+		if !ok || msg.Err == nil || msg.Path == "" || msg.Action == "" {
+			t.Errorf("expected actionable file-manager failure, got %#v", msg)
+		}
 	}
 
 	logged := buf.String()
@@ -208,5 +207,46 @@ func TestOpenDirAndRevealFileLogStartFailure(t *testing.T) {
 		if !strings.Contains(logged, want) {
 			t.Errorf("log does not contain %q:\n%s", want, logged)
 		}
+	}
+}
+
+func TestFileManagerReportsExitFailure(t *testing.T) {
+	for _, action := range []string{"open", "reveal"} {
+		t.Run(action, func(t *testing.T) {
+			binDir := t.TempDir()
+			tool := "xdg-open"
+			if runtime.GOOS == "darwin" {
+				tool = "open"
+			}
+			// Exercise the public command with a real child that starts but fails.
+			script := "#!/bin/sh\necho 'permission denied' >&2\necho 'extra detail' >&2\nexit 7\n"
+			if err := os.WriteFile(filepath.Join(binDir, tool), []byte(script), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", binDir)
+			path := filepath.Join(t.TempDir(), "music with spaces")
+			cmd := OpenDir(context.Background(), path)
+			if action == "reveal" {
+				cmd = RevealFile(context.Background(), path)
+			}
+			msg, ok := cmd().(FileManagerResultMsg)
+			if !ok || msg.Err == nil || msg.Path != path {
+				t.Fatalf("expected exit failure for %q, got %#v", path, msg)
+			}
+			for _, want := range []string{tool, "exit status 7", "permission denied"} {
+				if !strings.Contains(msg.Err.Error(), want) {
+					t.Errorf("error %q missing %q", msg.Err, want)
+				}
+			}
+			if strings.Contains(msg.Err.Error(), "extra detail") {
+				t.Fatal("notification should use only the first stderr line")
+			}
+		})
+	}
+}
+
+func TestFileManagerSuccessIsQuiet(t *testing.T) {
+	if msg := runFileManager(context.Background(), "/bin/sh", []string{"-c", "exit 0"}, "Open directory", "/music"); msg != nil {
+		t.Fatalf("successful open should not notify: %#v", msg)
 	}
 }

@@ -1,12 +1,15 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -23,16 +26,7 @@ func OpenDir(ctx context.Context, dir string) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		c := exec.CommandContext(ctx, name, args...)
-		if err := c.Start(); err != nil {
-			slog.Warn("open directory failed", "cmd", name, "dir", dir, "err", err)
-			return nil
-		}
-		// Per os/exec docs, Wait must be called to release associated
-		// system resources (FDs, zombie PID). The handler returns
-		// quickly; reap it asynchronously so the TUI is not blocked.
-		go func() { _ = c.Wait() }()
-		return nil
+		return runFileManager(ctx, name, args, "Open directory", dir)
 	}
 }
 
@@ -46,16 +40,34 @@ func RevealFile(ctx context.Context, path string) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		c := exec.CommandContext(ctx, name, args...)
-		if err := c.Start(); err != nil {
-			slog.Warn("reveal file failed", "cmd", name, "path", path, "err", err)
-			return nil
-		}
-		// See OpenDir: reap the child so its FDs/PID are released
-		// instead of lingering as a zombie until process exit.
-		go func() { _ = c.Wait() }()
-		return nil
+		return runFileManager(ctx, name, args, "Reveal file", path)
 	}
+}
+
+// FileManagerResultMsg reports file-manager failures to the UI.
+type FileManagerResultMsg struct {
+	Action string
+	Path   string
+	Err    error
+}
+
+// Bubble Tea runs commands off the update loop. Waiting here reaps the child
+// and reports exit failures as well as launch failures without blocking input.
+func runFileManager(ctx context.Context, name string, args []string, action, path string) tea.Msg {
+	cmd := exec.CommandContext(ctx, name, args...)
+	// A launched desktop app may inherit stderr after the opener exits.
+	cmd.WaitDelay = time.Second
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil || errors.Is(err, exec.ErrWaitDelay) {
+			return nil // shutdown or inherited pipes are not opener failures
+		}
+		err = toolError(name, err, stderr.String())
+		slog.Warn(strings.ToLower(action)+" failed", "path", path, "err", err)
+		return FileManagerResultMsg{Action: action, Path: path, Err: err}
+	}
+	return nil
 }
 
 func openDirCommand(goos, dir string) (string, []string, bool) {

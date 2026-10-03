@@ -58,7 +58,7 @@ func (v View) BaseTracks() []musiclib.Track {
 	} else {
 		all = v.Index.Tracks()
 	}
-	if len(v.TagFilterHashes) == 0 {
+	if v.TagFilterHashes == nil {
 		return all
 	}
 	filtered := make([]musiclib.Track, 0, len(all))
@@ -80,6 +80,7 @@ func (v View) Panel() Panel {
 		ScrollOffset:    v.ScrollOffset,
 		Filter:          v.Filter,
 		FilteredMatches: v.FilteredMatches,
+		TagFilterActive: v.TagFilterHashes != nil,
 		Fuzzy:           v.Fuzzy,
 		SelectedHashes:  v.SelectedHashes,
 		ShowDateAdded:   v.ShowDateAdded,
@@ -92,13 +93,15 @@ func (v View) Panel() Panel {
 	switch {
 	case v.SortState.Field != sorting.SortDefault:
 		lv.OverrideTracks = v.SortedTracks
+		if lv.OverrideTracks == nil {
+			// A nil sort cache must not bypass source or tag restrictions.
+			lv.OverrideTracks = v.BaseTracks()
+		}
 		lv.SortField = int(v.SortState.Field)
 		lv.SortDir = int(v.SortState.Dir)
 		lv.StripSortLabel = sorting.SortFieldLabel(v.SortState.Field)
 		lv.StripSortIndicator = sorting.SortDirIndicator(v.SortState.Dir)
-	case v.SourceTracks != nil:
-		lv.OverrideTracks = v.SourceTracks
-	case len(v.TagFilterHashes) > 0:
+	case v.SourceTracks != nil || v.TagFilterHashes != nil:
 		lv.OverrideTracks = v.BaseTracks()
 	}
 	if sorting.SortFieldHasBuckets(v.SortState.Field) {

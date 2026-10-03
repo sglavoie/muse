@@ -50,7 +50,8 @@ type Panel struct {
 	Width           int
 	Height          int
 	Cursor          int
-	ScrollOffset    int // first visible track index
+	ScrollOffset    int  // first visible track index
+	TagFilterActive bool // cross-view tag filter remains active even when it matches nothing
 	Filter          filter.State
 	FilteredMatches []musiclib.Match // pre-computed; nil means not yet cached
 	Fuzzy           musiclib.FuzzySearcher

@@ -22,7 +22,7 @@ func (v View) filteredEntries(t Traversal) []Entry {
 	if len(ordered) == 0 {
 		return nil
 	}
-	if len(v.TagFilterHashes) > 0 {
+	if v.TagFilterHashes != nil {
 		ordered = v.tagFiltered(ordered)
 	}
 	if v.Filter.Text == "" {

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Disabled command-palette entries explain how to make the selected action
+  available, without increasing the dialog height.
+- Library and Queue no-match states show separate recovery keys for text and
+  tag filters. Empty active tag filters stay empty, including sorted and
+  History library views, until cleared.
+- File-manager launch and exit errors appear as notifications and in recent
+  messages, with the affected path. Linux uses “Open containing folder” in
+  the palette instead of “Reveal in Finder”.
+
 - A **Show recent messages** palette command retains the last 50 action results
   and errors for the current session, with wrapping and scrolling.
 - Remaining queue duration in the Queue header, using scheduled playback rows

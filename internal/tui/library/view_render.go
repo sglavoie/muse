@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/buckets"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -27,7 +29,7 @@ type displayTrack struct {
 // the first terminal size message) it uses a simple single-line format.
 func (v Panel) Render() string {
 	allTracks := v.tracks()
-	if len(allTracks) == 0 {
+	if len(allTracks) == 0 && v.Filter.Text == "" && !v.TagFilterActive {
 		return v.renderEmpty()
 	}
 
@@ -49,9 +51,7 @@ func (v Panel) Render() string {
 	stripLine := v.renderStateStrip(len(allTracks), len(display))
 
 	if len(display) == 0 {
-		noMatches := "No matches"
-		leftPad := max(0, (v.Width-len(noMatches))/2)
-		return stripLine + "\n" + header + "\n" + strings.Repeat(" ", leftPad) + noMatches
+		return stripLine + "\n" + header + "\n" + v.renderNoMatches()
 	}
 	if start >= end {
 		return stripLine + "\n" + header
@@ -130,7 +130,7 @@ func (v Panel) renderZeroWidthFallback(display []displayTrack, start, end int) s
 		separator = "Filter: " + v.Filter.Text + "\n"
 	}
 	if len(display) == 0 {
-		return separator + "No matches — press Esc to clear"
+		return separator + filter.NoMatchesMessage(v.Filter.Text != "", v.TagFilterActive)
 	}
 	if start >= end {
 		return strings.TrimSuffix(separator, "\n")
@@ -539,4 +539,13 @@ func bucketedWindowIncludesRow(labels []string, rowIdx, maxRows int) bool {
 		b.takeDataRow()
 	}
 	return false
+}
+
+func (v Panel) renderNoMatches() string {
+	lines := strings.Split(filter.NoMatchesMessage(v.Filter.Text != "", v.TagFilterActive), "\n")
+	for i, line := range lines {
+		line = text.Truncate(line, v.Width)
+		lines[i] = strings.Repeat(" ", max(0, (v.Width-ansi.StringWidth(line))/2)) + line
+	}
+	return strings.Join(lines, "\n")
 }

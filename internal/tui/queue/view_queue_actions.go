@@ -158,7 +158,7 @@ func (v View) placementBlockReason(timeline Traversal) string {
 	if v.timelineActive(timeline) {
 		return placementBlockedShuffle
 	}
-	if v.DisplayOrder != nil || v.Filter.Text != "" || len(v.TagFilterHashes) > 0 {
+	if v.DisplayOrder != nil || v.Filter.Text != "" || v.TagFilterHashes != nil {
 		return placementBlockedSorted
 	}
 	return ""

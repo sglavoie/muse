@@ -457,6 +457,11 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case navigateBrowseModeMsg:
 		return m.handleNavigateBrowseModeMsg(msg)
 
+	case desktop.FileManagerResultMsg:
+		if msg.Err != nil {
+			m.statusBar.Notify(msg.Action + " failed: " + msg.Path + " — " + msg.Err.Error())
+		}
+
 	case desktop.ClipboardResultMsg:
 		if msg.Err != nil {
 			m.statusBar.Notify("Copy failed: " + msg.Err.Error())

@@ -23,13 +23,14 @@ const (
 
 // PaletteCommand describes a single entry in the command palette.
 type PaletteCommand struct {
-	ID       string // stable identifier for usage tracking; falls back to Name when empty
-	Name     string
-	Category string // short tag rendered dim before Name, from paletteCategories; empty for pins / uncategorized
-	Shortcut string // optional keyboard shortcut shown right-aligned in the palette
-	Pinned   PalettePin
-	Exec     func() tea.Cmd
-	Enabled  func() bool // nil means always enabled
+	ID             string // stable identifier for usage tracking; falls back to Name when empty
+	Name           string
+	Category       string // short tag rendered dim before Name, from paletteCategories; empty for pins / uncategorized
+	Shortcut       string // optional keyboard shortcut shown right-aligned in the palette
+	Pinned         PalettePin
+	Exec           func() tea.Cmd
+	Enabled        func() bool // nil means always enabled
+	DisabledReason string      // recovery hint shown when the focused command is unavailable
 }
 
 // Key returns the stable key used to identify the command in the usage store.
@@ -246,14 +247,29 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	}
 	lines = append(lines, cp.commandLines(cpCommandRowBudget(termHeight), m, s)...)
 	lines = append(lines,
-		// Inner bottom padding row.
-		padRow,
+		// Reuse the bottom padding row for an unavailable command’s explanation.
+		cp.reasonLine(m, s),
 		// Bottom border.
 		cpCornerBL+strings.Repeat(cpBorderH, m.innerWidth)+cpCornerBR,
 		// Hint line.
 		"  "+s.Dim.Render(text.Truncate("↑/↓ navigate · enter run · esc cancel", max(termWidth-2, 0))),
 	)
 	return lines
+}
+
+// reasonLine keeps the dialog's height stable as focus moves between commands.
+func (cp CommandPalette) reasonLine(m cpBoxMetrics, s styles.Styles) string {
+	reason := ""
+	if cp.cursor >= 0 && cp.cursor < len(cp.Filtered) {
+		cmd := cp.Filtered[cp.cursor]
+		if !cmd.IsEnabled() {
+			reason = cmd.DisabledReason
+			if reason == "" {
+				reason = "Unavailable in this context"
+			}
+		}
+	}
+	return cpBorderV + "  " + s.Dim.Render(text.Pad(reason, m.contentWidth)) + "  " + cpBorderV
 }
 
 // boxMetrics sizes the box from the title and every command's name, shortcut

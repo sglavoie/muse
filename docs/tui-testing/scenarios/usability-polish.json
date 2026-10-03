@@ -68,6 +68,95 @@
         "no_layout_issues": true
       },
       "label": "no_layout_issues"
+    },
+    {
+      "command": "nav.library.all"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Remove track from queue"
+    },
+    {
+      "assert": {
+        "contains": "Open Queue first"
+      },
+      "label": "disabled-command-explains-context"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "overlay": "command_palette"
+      },
+      "label": "disabled-command-stays-open"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "zzzz-no-track"
+    },
+    {
+      "assert": {
+        "contains": "Esc clears text filter"
+      },
+      "label": "library-filter-recovery"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "3"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "zzzz-no-track"
+    },
+    {
+      "assert": {
+        "contains": "Esc clears text filter"
+      },
+      "label": "queue-filter-recovery"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
     }
   ]
 }

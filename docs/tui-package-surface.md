@@ -129,7 +129,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 
 | Package | exp | multi-consumer | single-consumer | zero-consumer | importers |
 |---|---:|---:|---:|---:|---|
-| `internal/desktop` | 6 | 0 | 6 | 0 | `internal/tui` |
+| `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 153 | 41 | 110 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1006 exported identifiers across 15 packages**: 153 reached from two or more packages, 793 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1010 exported identifiers across 15 packages**: 153 reached from two or more packages, 797 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -265,6 +265,10 @@ export must either earn a justification, be recorded in
 | `internal/desktop` | `ClipboardResultMsg.Err` | field | `internal/tui` | root |
 | `internal/desktop` | `ClipboardResultMsg.Text` | field | `internal/tui` | root |
 | `internal/desktop` | `CopyToClipboard` | func | `internal/tui` | root |
+| `internal/desktop` | `FileManagerResultMsg` | type | `internal/tui` | root |
+| `internal/desktop` | `FileManagerResultMsg.Action` | field | `internal/tui` | root |
+| `internal/desktop` | `FileManagerResultMsg.Err` | field | `internal/tui` | root |
+| `internal/desktop` | `FileManagerResultMsg.Path` | field | `internal/tui` | root |
 | `internal/desktop` | `OpenDir` | func | `internal/tui` | root |
 | `internal/desktop` | `RevealFile` | func | `internal/tui` | root |
 | `tui/sorting` | `AdjustScroll` | func | `internal/tui`, `tui/insights`, `tui/library` | multi |

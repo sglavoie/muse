@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/sglavoie/muse/internal/tui/buckets"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -68,8 +69,12 @@ func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState pla
 // renderEmpty renders the placeholder shown when no entry is visible, which
 // means either an empty queue or a filter that matched nothing.
 func (v View) renderEmpty(s styles.Styles) string {
-	if v.Filter.Text != "" {
-		return "(no matches)"
+	if v.Filter.Text != "" || v.TagFilterHashes != nil {
+		lines := strings.Split(filter.NoMatchesMessage(v.Filter.Text != "", v.TagFilterHashes != nil), "\n")
+		for i, line := range lines {
+			lines[i] = clampQueueLine(line, v.Width)
+		}
+		return strings.Join(lines, "\n")
 	}
 	return s.RenderEmptyCard(v.Width, v.VisibleRows(), "Queue is empty", []styles.EmptyAction{
 		{Key: "1", Label: "go to library"},
