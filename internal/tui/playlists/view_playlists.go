@@ -1,9 +1,12 @@
 package playlists
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/textinput"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -12,6 +15,8 @@ import (
 // (at TrackLevel) the tracks of the open playlist. Rendering is delegated to
 // View.
 type PlaylistsView struct {
+	Filter           filter.State
+	listFilter       filter.State
 	Level            Level
 	Cursor           int
 	ListCursor       int // saved list cursor; preserved across drill-down and back
@@ -35,55 +40,81 @@ type PlaylistsView struct {
 
 func (v *PlaylistsView) SetSize(w, h int) { v.Width = w; v.Height = h }
 
-// EffectivePlaylists returns the sorted playlists when sort is active,
-// otherwise the original playlists.
+// EffectivePlaylists returns playlists in their visible sort and filter order.
 func (v PlaylistsView) EffectivePlaylists() []db.PlaylistRow {
+	rows := v.Playlists
 	if v.SortedPlaylists != nil {
-		return v.SortedPlaylists
+		rows = v.SortedPlaylists
 	}
-	return v.Playlists
+	if v.Filter.Text == "" {
+		return rows
+	}
+	query := strings.ToLower(v.Filter.Text)
+	var out []db.PlaylistRow
+	for _, row := range rows {
+		if strings.Contains(strings.ToLower(row.Name), query) {
+			out = append(out, row)
+		}
+	}
+	return out
 }
 
-// DisplayTracks returns the playlist's tracks in display order. Unlike
-// TagsView.displayTracks there is no filter step: PlaylistsView carries no
-// filter state and root_filter.go has no viewPlaylists case.
-//
-// A stale SortedTrackOrder (length mismatch or out-of-range index) falls back
-// to natural order — reordering through a partially-filled or out-of-range
-// permutation would show empty rows or panic.
+// displayTrackIndices retains canonical row indices, including duplicate songs.
+// Stale sort permutations fall back to natural order before filtering.
+func (v PlaylistsView) displayTrackIndices() []int {
+	order := v.SortedTrackOrder
+	if !v.validTrackOrder() {
+		order = make([]int, len(v.Tracks))
+		for i := range order {
+			order[i] = i
+		}
+	}
+	if v.Filter.Text == "" {
+		return order
+	}
+	query := strings.ToLower(v.Filter.Text)
+	filtered := make([]int, 0, len(order))
+	for _, idx := range order {
+		row := v.Tracks[idx]
+		if strings.Contains(strings.ToLower(row.Title), query) ||
+			strings.Contains(strings.ToLower(row.Artist), query) ||
+			strings.Contains(strings.ToLower(row.Album), query) {
+			filtered = append(filtered, idx)
+		}
+	}
+	return filtered
+}
+
+// DisplayTracks returns the visible rows without losing playlist row IDs.
 func (v PlaylistsView) DisplayTracks() []db.PlaylistTrackRow {
-	if v.SortedTrackOrder == nil || len(v.SortedTrackOrder) != len(v.Tracks) {
+	if v.Filter.Text == "" && v.SortedTrackOrder == nil {
 		return v.Tracks
 	}
-	reordered := make([]db.PlaylistTrackRow, len(v.Tracks))
-	for i, idx := range v.SortedTrackOrder {
-		if idx < 0 || idx >= len(v.Tracks) {
-			return v.Tracks
-		}
-		reordered[i] = v.Tracks[idx]
+	order := v.displayTrackIndices()
+	rows := make([]db.PlaylistTrackRow, len(order))
+	for i, idx := range order {
+		rows[i] = v.Tracks[idx]
 	}
-	return reordered
+	return rows
 }
 
-// TrackIndex translates a display row index to the underlying Tracks index,
-// going through SortedTrackOrder when a sort is active.
+// TrackIndex translates a visible row to its canonical index, or -1.
 func (v PlaylistsView) TrackIndex(displayIdx int) int {
-	if v.SortedTrackOrder == nil {
+	if displayIdx < 0 || displayIdx >= len(v.Tracks) {
+		return -1
+	}
+	if v.Filter.Text == "" && v.SortedTrackOrder == nil {
 		return displayIdx
 	}
-	if displayIdx < 0 || displayIdx >= len(v.SortedTrackOrder) {
-		return displayIdx
+	order := v.displayTrackIndices()
+	if displayIdx < 0 || displayIdx >= len(order) {
+		return -1
 	}
-	return v.SortedTrackOrder[displayIdx]
+	return order[displayIdx]
 }
 
-// FindTrackDisplayPosition returns the display row for the given underlying
-// track index. Returns 0 if not found.
 func (v PlaylistsView) FindTrackDisplayPosition(trackIdx int) int {
-	if v.SortedTrackOrder == nil {
-		return trackIdx
-	}
-	for i, idx := range v.SortedTrackOrder {
+	for i, idx := range v.displayTrackIndices() {
 		if idx == trackIdx {
 			return i
 		}
@@ -101,4 +132,16 @@ func (v PlaylistsView) RecomputePlaylistSort() PlaylistsView {
 		v.SortedTrackOrder = sorting.SortPlaylistTrackIndices(v.Tracks, v.SortState.Field, v.SortState.Dir)
 	}
 	return v
+}
+
+func (v PlaylistsView) validTrackOrder() bool {
+	if v.SortedTrackOrder == nil || len(v.SortedTrackOrder) != len(v.Tracks) {
+		return false
+	}
+	for _, idx := range v.SortedTrackOrder {
+		if idx < 0 || idx >= len(v.Tracks) {
+			return false
+		}
+	}
+	return true
 }

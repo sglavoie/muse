@@ -3,6 +3,7 @@ package playlists
 import (
 	"github.com/sglavoie/muse/internal/db"
 	musiclib "github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -53,10 +54,11 @@ func (v PlaylistsView) HandleAction(a keys.Action) PlaylistsView {
 // toggleFocusedTrackSelection flips the bulk-selection marker on the focused
 // track. It is a no-op anywhere but on a non-empty track list.
 func (v PlaylistsView) toggleFocusedTrackSelection() PlaylistsView {
-	if v.Level != TrackLevel || len(v.Tracks) == 0 || v.Cursor >= len(v.Tracks) {
+	idx := v.TrackIndex(v.Cursor)
+	if v.Level != TrackLevel || idx < 0 {
 		return v
 	}
-	id := v.Tracks[v.TrackIndex(v.Cursor)].ID
+	id := v.Tracks[idx].ID
 	view := View{SelectedTrackIDs: v.SelectedTrackIDs}.ToggleBulkSelection(id)
 	v.SelectedTrackIDs = view.SelectedTrackIDs
 	return v
@@ -71,14 +73,15 @@ func (v PlaylistsView) navigationView() View {
 		sortDir = sorting.SortDirIndicator(v.SortState.Dir)
 	}
 	return View{
-		Level:        v.Level,
-		Cursor:       v.Cursor,
-		ScrollOffset: v.ScrollOffset,
-		Height:       v.Height,
-		Playlists:    v.Playlists,
-		Tracks:       v.Tracks,
-		SortField:    sortField,
-		SortDir:      sortDir,
+		Level:         v.Level,
+		Cursor:        v.Cursor,
+		ScrollOffset:  v.ScrollOffset,
+		Height:        v.Height,
+		Playlists:     v.EffectivePlaylists(),
+		Tracks:        v.DisplayTracks(),
+		FilterVisible: v.Filter.Active || v.Filter.Text != "",
+		SortField:     sortField,
+		SortDir:       sortDir,
 	}
 }
 
@@ -98,6 +101,14 @@ func (v PlaylistsView) ClearTrackSelection() PlaylistsView {
 // playlist rename or create) where the new cursor position may fall outside
 // the current viewport.
 func (v PlaylistsView) EnsureCursorVisible() PlaylistsView {
+	if v.Filter.Text != "" {
+		count := len(v.EffectivePlaylists())
+		if v.Level == TrackLevel {
+			count = len(v.DisplayTracks())
+		}
+		v.Cursor, v.ScrollOffset = layout.ClampAfterRemoval(v.Cursor, v.ScrollOffset, count)
+
+	}
 	if v.Cursor < v.ScrollOffset {
 		v.ScrollOffset = v.Cursor
 	} else {
@@ -120,7 +131,7 @@ func (v PlaylistsView) EnsureCursorVisible() PlaylistsView {
 func (v PlaylistsView) RefreshTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 	v.Tracks = tracks
 	v.SortedTrackOrder = nil
-	v.Cursor, v.ScrollOffset = layout.ClampAfterRemoval(v.Cursor, v.ScrollOffset, len(tracks))
+	v.Cursor, v.ScrollOffset = layout.ClampAfterRemoval(v.Cursor, v.ScrollOffset, len(v.DisplayTracks()))
 	return v
 }
 
@@ -133,7 +144,7 @@ func (v PlaylistsView) OpenTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 	// sort is active at list level.
 	canonicalCursor := v.Cursor
 	effective := v.EffectivePlaylists()
-	if v.SortedPlaylists != nil && v.Cursor >= 0 && v.Cursor < len(effective) {
+	if (v.SortedPlaylists != nil || v.Filter.Text != "") && v.Cursor >= 0 && v.Cursor < len(effective) {
 		focusedID := effective[v.Cursor].ID
 		for i, p := range v.Playlists {
 			if p.ID == focusedID {
@@ -147,6 +158,8 @@ func (v PlaylistsView) OpenTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 		Cursor:     canonicalCursor,
 		ListCursor: v.ListCursor,
 	}.OpenTracks(tracks)
+	v.listFilter = v.Filter
+	v.Filter = filter.State{}
 	v.Level = view.Level
 	v.Cursor = view.Cursor
 	v.ListCursor = view.ListCursor
@@ -163,6 +176,13 @@ func (v PlaylistsView) OpenTracks(tracks []db.PlaylistTrackRow) PlaylistsView {
 // BackToList transitions the view back to ListLevel, restoring the list cursor
 // to the position it held before the drill-down.
 func (v PlaylistsView) BackToList() PlaylistsView {
+	var focusedID int64
+	if v.ListCursor >= 0 && v.ListCursor < len(v.Playlists) {
+		focusedID = v.Playlists[v.ListCursor].ID
+	}
+	v.Filter = v.listFilter
+	v.listFilter = filter.State{}
+	v.SortedPlaylists = nil
 	view := View{
 		Level:            v.Level,
 		Cursor:           v.Cursor,
@@ -181,7 +201,10 @@ func (v PlaylistsView) BackToList() PlaylistsView {
 	v.SortedTrackOrder = nil
 	v.SmartQuery = nil
 	v.PendingLoadID = 0 // discard any in-flight async track load
-	return v
+	if v.Filter.Text != "" && focusedID != 0 {
+		v.Cursor = sorting.FindPlaylistPosition(v.EffectivePlaylists(), focusedID)
+	}
+	return v.EnsureCursorVisible()
 }
 
 // AtListLevel reports whether the view is currently showing the playlist list.
@@ -195,10 +218,11 @@ func (v PlaylistsView) FocusedTrack() (musiclib.Track, bool) {
 	if v.Level != TrackLevel || len(v.Tracks) == 0 {
 		return musiclib.Track{}, false
 	}
-	if v.Cursor < 0 || v.Cursor >= len(v.Tracks) {
+	idx := v.TrackIndex(v.Cursor)
+	if idx < 0 {
 		return musiclib.Track{}, false
 	}
-	t := v.Tracks[v.TrackIndex(v.Cursor)]
+	t := v.Tracks[idx]
 	return musiclib.Track{
 		Hash:     t.Hash,
 		Path:     t.Path,

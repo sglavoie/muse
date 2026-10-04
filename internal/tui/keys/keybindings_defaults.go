@@ -283,6 +283,7 @@ func registerDefaultPrimaries(r *Registry) {
 
 	r.addPrimary(ContextPlaylists, "j/k", "nav")
 	r.addPrimary(ContextPlaylists, "enter", "open")
+	r.addPrimary(ContextPlaylists, "/", "filter")
 	r.addPrimary(ContextPlaylists, "c", "create")
 	r.addPrimary(ContextPlaylists, "r", "rename")
 	r.addPrimary(ContextPlaylists, "?", "help")

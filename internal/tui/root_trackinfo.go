@@ -2,6 +2,8 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/sglavoie/muse/internal/desktop"
 )
 
 // handleTrackInfoKeyPress handles key events while the track info overlay is
@@ -18,8 +20,11 @@ func (m Model) handleTrackInfoKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 		m.overlay.trackInfo = nil
 		return m, nil, true
 	case "y":
-		m.statusBar.Notify("Path copied to clipboard")
-		return m, tea.SetClipboard(m.overlay.trackInfo.Path), true
+		if m.fixtureSafeCommands {
+			m.statusBar.Notify("Clipboard copy blocked in fixture mode")
+			return m, nil, true
+		}
+		return m, desktop.CopyToClipboard(m.appCtx, m.overlay.trackInfo.Path), true
 	default:
 		next := *m.overlay.trackInfo
 		next.Scroll(msg.String(), m.termWidth, max(m.termHeight-3, 1))

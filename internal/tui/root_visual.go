@@ -160,7 +160,7 @@ func visualListLen(m Model) int {
 	case viewQueue:
 		return len(m.queue.FilteredEntries())
 	case viewPlaylists:
-		return len(m.playlists.Tracks)
+		return len(m.playlists.DisplayTracks())
 	case viewBrowse:
 		switch m.visual.browseMode {
 		case browse.BrowseModeArtists:
@@ -281,15 +281,15 @@ func selectRange(m Model, lo, hi int) Model {
 		}
 	case viewPlaylists:
 		if m.playlists.Level == pltui.TrackLevel {
+			rows := m.playlists.DisplayTracks()
 			for i := lo; i <= hi; i++ {
-				realIdx := m.playlists.TrackIndex(i)
-				if realIdx < 0 || realIdx >= len(m.playlists.Tracks) {
+				if i < 0 || i >= len(rows) {
 					continue
 				}
 				if m.playlists.SelectedTrackIDs == nil {
 					m.playlists.SelectedTrackIDs = make(map[int64]struct{})
 				}
-				m.playlists.SelectedTrackIDs[m.playlists.Tracks[realIdx].ID] = struct{}{}
+				m.playlists.SelectedTrackIDs[rows[i].ID] = struct{}{}
 			}
 		}
 	case viewBrowse:

@@ -14,6 +14,7 @@ func TestFilterEditingFooterAcrossViews(t *testing.T) {
 		setup func(*Model)
 	}{
 		{"library", func(m *Model) { m.ActiveView = viewLibrary }},
+		{"playlists", func(m *Model) { m.ActiveView = viewPlaylists }},
 		{"queue", func(m *Model) { m.ActiveView = viewQueue }},
 		{"artists", func(m *Model) { m.ActiveView = viewBrowse; m.browse.Mode = browse.BrowseModeArtists }},
 		{"albums", func(m *Model) { m.ActiveView = viewBrowse; m.browse.Mode = browse.BrowseModeAlbums }},

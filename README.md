@@ -5,45 +5,38 @@ muse is a terminal music player for a local music library. It drives
 of your files built from [ExifTool](https://exiftool.org) or ffprobe metadata,
 and renders everything through a
 [Bubble Tea](https://github.com/charmbracelet/bubbletea)
-TUI: seven primary views, a command palette, an in-app metadata editor, a
+TUI: eight primary views, a command palette, an in-app metadata editor, a
 listening-insights dashboard, and a steerable Auto-DJ that keeps picking the
 next track for you. It is keyboard-driven throughout — press `?` at any time for the
-full keybinding reference. Unavailable command-palette entries explain what
-you need to select or open before using them. Focus a toggle command to see its
-current setting in the palette’s detail line. Undo describes the change it will
-reverse and is unavailable when its undo window has expired.
-Queue commands describe their target in the palette's detail line. Library enqueue
-reports the selected-track count; Play next and Replace queue identify the focused
-track and explicitly say when a bulk selection will not be used. Replace also
-states that it clears the queue. Commands needing a track are unavailable at
-collection level or when there are no matching tracks.
-Palette search also accepts synonyms such as `refresh library`, `EQ`, and
-`tune radio`; matches against displayed command names rank first. Seek and volume commands show
-their configured step sizes in the detail line.
+full keybinding reference.
 
-> **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
-> snapshot harness will print a real rendered screen for you — no config file,
-> database, music files, or mpv involved:
->
-> ```sh
-> just build
-> printf '{"type":"observe"}\n' | ./muse tui-test session --fixture rich --size 100x30 |
->   jq -r '.observation.plain_screen'
-> ```
->
-> Swap `rich` for `empty`, `narrow`, `playback`, or `health`, and send
-> `{"type":"action","action":{"key":"4"}}` before the observe to land on
-> another view.
-> See [`docs/tui-testing/README.md`](docs/tui-testing/README.md).
+![Muse Library view rendered from the rich test fixture](docs/muse-library.svg)
+
+## Quick start
+
+1. Install **Go 1.26+**, **mpv**, and either **ExifTool** or **ffprobe**.
+   On macOS: `brew install go mpv exiftool`. See [Requirements](#requirements)
+   for Linux commands.
+2. Install muse: `go install github.com/sglavoie/muse@latest`.
+   If your shell cannot find `muse`, see the [PATH setup](#install).
+3. Run `muse` once to create its config, then quit with `ctrl+c`.
+   Edit `~/.config/muse/config.toml` (or `$XDG_CONFIG_HOME/muse/config.toml`)
+   and set `music_directories = ["/path/to/your/music"]`.
+4. Run `muse check`, then `muse`. Select a track and press `Enter` to enqueue
+   it; the first queued track starts playback. Use `Space` to pause, `/` to
+   filter, `3` to see the queue, and `?` for help.
+
+The preview above uses fictional library data from the
+[fixture harness](docs/tui-testing/README.md); it needs no music files or mpv.
 
 ## Features
 
-**Seven primary views**, switched with `1`–`7` (plus Insights on `8`):
+**Eight primary views**, switched with `1`–`8`:
 
 | View | What it does |
 | --- | --- |
 | **Library** (`1`) | The whole collection, with sub-modes for All / Recently Added / History. Filter with prefixes (`a:` artist, `t:` title, `l:` album, `g:` genre). |
-| **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). |
+| **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). `/` filters playlist names or the open playlist’s title, artist, and album fields. |
 | **Queue** (`3`) | The live play queue: reorder, remove, yank/cut/paste rows, save the queue as a playlist. |
 | **Browse** (`4`) | Hierarchical browsing by Artists ↔ Albums ↔ Genres, drilling down to tracks. |
 | **Favorites** (`5`) | Favorited tracks, albums, and artists, grouped by category. |
@@ -130,7 +123,12 @@ their configured step sizes in the detail line.
   visible while you type; other populated terms still apply.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished
-  query. History lasts for the current session; cancelled queries are excluded.
+  query. History survives restarts in `filter_history.json` in the data directory;
+  cancelled queries are excluded, and startup does not apply a saved filter.
+- Playlist filters preserve individual rows when the same song appears more than
+  once. `Esc` clears the track filter before returning to the playlist list, where
+  the previous name filter is restored. Reordering and shuffle-in-place require
+  an unfiltered track list. `E` still enqueues the entire playlist.
 - **Direct sorting** — search the palette for _Sort by_ to choose a field supported
   by the current view. The selected field and direction appear in its detail line.
   The existing sort-cycle and direction shortcuts remain available.
@@ -377,6 +375,20 @@ keeps the sandbox on a separate control socket and PID lock instead of talking
 to the live process.
 
 ## Usage
+
+Unavailable command-palette entries explain what
+you need to select or open before using them. Focus a toggle command to see its
+current setting in the palette’s detail line. Undo describes the change it will
+reverse and is unavailable when its undo window has expired.
+
+Queue commands describe their target in the palette's detail line. Library enqueue
+reports the selected-track count; Play next and Replace queue identify the focused
+track and explicitly say when a bulk selection will not be used. Replace also
+states that it clears the queue. Commands needing a track are unavailable at
+collection level or when there are no matching tracks.
+Palette search also accepts synonyms such as `refresh library`, `EQ`, and
+`tune radio`; matches against displayed command names rank first. Seek and volume commands show
+their configured step sizes in the detail line.
 
 Run `muse` with no arguments to launch the TUI. The subcommands are:
 

@@ -257,7 +257,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:             "playlist.shuffle",
-		DisabledReason: "Choose a static playlist with at least two tracks",
+		DisabledReason: "Choose a static playlist with at least two tracks and clear its track filter",
 		Name:           "Shuffle playlist in place",
 		Category:       "play",
 		Exec: func() tea.Cmd {
@@ -271,7 +271,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 				pl, ok := m.playlists.FocusedPlaylist()
 				return ok && !pl.IsSmart && pl.TrackCount > 1
 			}
-			return m.playlists.SmartQuery == nil && len(m.playlists.Tracks) > 1
+			return m.playlists.SmartQuery == nil && len(m.playlists.Tracks) > 1 && m.playlists.Filter.Text == ""
 		},
 	})
 

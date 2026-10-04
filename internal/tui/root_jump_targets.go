@@ -131,7 +131,7 @@ func (m Model) jumpToGenre(genreName string) Model {
 // jumpToPlaylist switches to the Playlists view with the cursor
 // pre-positioned on the named playlist at ListLevel.
 func (m Model) jumpToPlaylist(playlistName string) Model {
-	playlists := m.playlists.EffectivePlaylists()
+	playlists := m.playlists.Playlists
 	idx := -1
 	for i, playlist := range playlists {
 		if playlist.Name == playlistName {
@@ -144,6 +144,8 @@ func (m Model) jumpToPlaylist(playlistName string) Model {
 	}
 
 	scrollOffset := max(0, idx-m.playlists.Height/2)
+	m.playlists = m.playlists.BackToList()
+	m.playlists.Filter = m.playlists.Filter.Deactivate()
 	m.playlists.Level = pltui.ListLevel
 	m.playlists.Cursor = idx
 	m.playlists.ScrollOffset = scrollOffset

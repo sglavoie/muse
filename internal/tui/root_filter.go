@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"log/slog"
+	"slices"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/tui/browse"
@@ -47,7 +50,13 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 		},
 		commit: func() Model {
 			*f = f.Commit()
-			m.filterHistory = f.History()
+			history := f.History()
+			if !slices.Equal(m.filterHistory, history) {
+				m.filterHistory = history
+				if err := filter.SaveHistory(m.dataDir, history); err != nil {
+					slog.Warn("filter history: save failed", "err", err)
+				}
+			}
 			return *m
 		},
 		deactivate: func() Model {
@@ -93,10 +102,12 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 }
 
 // allFilterOps returns the filter operations for the currently active view,
-// regardless of whether the filter is active. Returns nil for views that do
-// not support filtering (e.g. Playlists).
+// regardless of whether the filter is active. Returns nil at unsupported levels.
 func (m Model) allFilterOps() *filterOps {
 	switch m.ActiveView {
+	case viewPlaylists:
+		return makeFilterOps(&m, &m.playlists.Filter, &m.playlists.Cursor, &m.playlists.ScrollOffset,
+			func() { m.playlists.SelectedTrackIDs = nil })
 	case viewLibrary:
 		return makeFilterOps(&m, &m.library.Filter, &m.library.Cursor, &m.library.ScrollOffset,
 			func() { m.library = m.library.RebuildFilterCache() })

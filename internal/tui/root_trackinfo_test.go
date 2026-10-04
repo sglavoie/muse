@@ -216,7 +216,7 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 }
 
 // TestTrackInfoYankPath verifies that pressing y while the track info overlay
-// is active returns a clipboard command and shows a notification.
+// is active returns a clipboard command without claiming success before it finishes.
 func TestTrackInfoYankPath(t *testing.T) {
 	m := New(context.Background())
 	overlay := overlay.NewTrackInfoOverlay("/music/artist/song.flac", map[string]any{"Title": "T"}, 0, nil)
@@ -231,8 +231,8 @@ func TestTrackInfoYankPath(t *testing.T) {
 	if nm.overlay.trackInfo == nil {
 		t.Fatal("overlay should remain active after yank")
 	}
-	if nm.statusBar.TopNotification().Msg != "Path copied to clipboard" {
-		t.Fatalf("expected 'Path copied to clipboard' notification, got %q", nm.statusBar.TopNotification().Msg)
+	if nm.statusBar.TopNotification().Msg != "" {
+		t.Fatalf("unexpected notification before clipboard result: %q", nm.statusBar.TopNotification().Msg)
 	}
 }
 

@@ -99,11 +99,11 @@ func TestHistoryEscClearsCommittedFilter(t *testing.T) {
 	}
 }
 
-// TestFilterBarMsgIgnoredOutsideLibraryView verifies that pressing '/' while on
+// TestFilterBarMsgUsesActiveView verifies that pressing '/' while on
 // the playlists view does not activate the library filter bar. Before the fix,
 // FilterBarMsg always toggled the library filter regardless of the active view,
 // silently leaving it in an inconsistent state.
-func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
+func TestFilterBarMsgUsesActiveView(t *testing.T) {
 	m := New(context.Background())
 
 	next, _ := m.Update(tea.KeyPressMsg{Code: '3', Text: "3"})
@@ -128,7 +128,7 @@ func TestFilterBarMsgIgnoredOutsideLibraryView(t *testing.T) {
 	if nm.library.Filter.Active {
 		t.Error("library filterActive should remain false when FilterBarMsg is sent on playlists view")
 	}
-	if nm.statusBar.TopNotification().Msg == "" {
-		t.Error("FilterBarMsg on playlists view should set a transient notification")
+	if !nm.playlists.Filter.Active {
+		t.Error("FilterBarMsg on playlists view should activate its filter")
 	}
 }

@@ -230,9 +230,9 @@ func (m Model) fillPlaylistsSnapshot(snap *UITestSnapshot) {
 	snap.ScrollOffset = p.ScrollOffset
 	snap.SelectionCount = len(p.SelectedTrackIDs)
 	if p.Level == pltui.TrackLevel {
-		snap.VisibleCount = len(p.Tracks)
+		snap.VisibleCount = len(p.DisplayTracks())
 	} else {
-		snap.VisibleCount = len(p.Playlists)
+		snap.VisibleCount = len(p.EffectivePlaylists())
 	}
 }
 

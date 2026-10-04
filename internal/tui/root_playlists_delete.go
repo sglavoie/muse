@@ -61,7 +61,7 @@ func (m Model) handlePlaylistDeleteAtListLevel() (Model, tea.Cmd) {
 	m.playlists.Playlists = append(m.playlists.Playlists[:canonicalIdx], m.playlists.Playlists[canonicalIdx+1:]...)
 	m = m.preservePlaylistsSort()
 	m.playlists.Cursor, m.playlists.ScrollOffset = layout.ClampAfterRemoval(
-		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.Playlists))
+		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.EffectivePlaylists()))
 	return m, nil
 }
 
@@ -116,7 +116,7 @@ func (m Model) handlePlaylistDeleteBulkTracks() (Model, tea.Cmd) {
 	m.playlists.Tracks = remaining
 	m = m.preservePlaylistsSort()
 	m.playlists.Cursor, m.playlists.ScrollOffset = layout.ClampAfterRemoval(
-		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.Tracks))
+		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.DisplayTracks()))
 	m = exitVisualMode(m)
 	m.playlists = m.playlists.ClearTrackSelection()
 	m.setUndoSlot(undoBulkRemovePlaylistTracksAction{entries: removedEntries, indices: removedIndices}, cancel)
@@ -130,7 +130,7 @@ func (m Model) handlePlaylistDeleteSingleTrack() (Model, tea.Cmd) {
 		return m, nil
 	}
 	displayIdx := m.playlists.Cursor
-	if displayIdx < 0 || displayIdx >= len(m.playlists.Tracks) {
+	if displayIdx < 0 || displayIdx >= len(m.playlists.DisplayTracks()) {
 		return m, nil
 	}
 	idx := m.playlists.TrackIndex(displayIdx)
@@ -157,6 +157,6 @@ func (m Model) handlePlaylistDeleteSingleTrack() (Model, tea.Cmd) {
 	m.playlists.Tracks = append(m.playlists.Tracks[:idx], m.playlists.Tracks[idx+1:]...)
 	m = m.preservePlaylistsSort()
 	m.playlists.Cursor, m.playlists.ScrollOffset = layout.ClampAfterRemoval(
-		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.Tracks))
+		m.playlists.Cursor, m.playlists.ScrollOffset, len(m.playlists.DisplayTracks()))
 	return m, nil
 }

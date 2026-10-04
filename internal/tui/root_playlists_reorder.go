@@ -27,6 +27,9 @@ func (m Model) shiftPlaylistTrack(dir int) (Model, tea.Cmd) {
 	if m.playlists.AtListLevel() || m.playlists.SmartQuery != nil {
 		return m, nil
 	}
+	if m.playlists.Filter.Text != "" {
+		return m, func() tea.Msg { return statusbar.TransientNotifyMsg("Clear filter before reordering") }
+	}
 	if m.playlists.SortedTrackOrder != nil {
 		return m, func() tea.Msg { return statusbar.TransientNotifyMsg("Cannot reorder while sorted") }
 	}

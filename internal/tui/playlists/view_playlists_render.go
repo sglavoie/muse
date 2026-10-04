@@ -1,20 +1,19 @@
 package playlists
 
 import (
+	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
-	playlists := v.Playlists
-	if v.SortedPlaylists != nil {
-		playlists = v.SortedPlaylists
-	}
 	pv := View{
 		Level:            v.Level,
 		Cursor:           v.Cursor,
 		ScrollOffset:     v.ScrollOffset,
-		Playlists:        playlists,
+		Playlists:        v.EffectivePlaylists(),
+		FilterVisible:    v.Filter.Active || v.Filter.Text != "",
 		Tracks:           v.DisplayTracks(),
 		Width:            v.Width,
 		Height:           v.Height,
@@ -36,5 +35,12 @@ func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums 
 	pv.FavoriteAlbums = favAlbums
 	pv.NowPlayingHash = nowPlayingHash
 	pv.NowPlayingIcon = nowPlayingIcon
-	return pv.Render()
+	body := pv.Render()
+	if v.Filter.Text != "" && ((v.AtListLevel() && len(pv.Playlists) == 0) || (!v.AtListLevel() && len(pv.Tracks) == 0)) {
+		body = filter.NoMatchesMessage(true, false)
+	}
+	if pv.FilterVisible {
+		return ansi.Truncate("Filter: "+v.Filter.View(), v.Width, "…") + "\n" + body
+	}
+	return body
 }

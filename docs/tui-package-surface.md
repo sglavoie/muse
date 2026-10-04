@@ -74,7 +74,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 
 <!-- BEGIN GENERATED: package layers -->
 
-**33 packages, 136 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
+**33 packages, 137 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
 
 | Level | Packages |
 |---:|---|
@@ -106,7 +106,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/insights` | L3 | `tui/library` (L2), `tui/chart` (L1), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/mixes` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/overlay` | L3 | `tui/playback` (L2), `tui/keys` (L1), `tui/styles` (L0), `tui/text` (L0) |
-| `tui/playlists` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/playlists` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/statusbar` | L3 | `tui/playback` (L2), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/artists` | L2 | `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/library` | L2 | `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
@@ -130,7 +130,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | Package | exp | multi-consumer | single-consumer | zero-consumer | importers |
 |---|---:|---:|---:|---:|---|
 | `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
-| `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
+| `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 105 | 29 | 75 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1024 exported identifiers across 15 packages**: 153 reached from two or more packages, 810 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1024 exported identifiers across 15 packages**: 154 reached from two or more packages, 809 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -283,7 +283,7 @@ export must either earn a justification, be recorded in
 | `tui/sorting` | `CycleSortField` | func | `internal/tui`, `tui/library` | multi |
 | `tui/sorting` | `FavListSortFields` | var | `internal/tui` | root |
 | `tui/sorting` | `FavTrackSortFields` | var | `internal/tui` | root |
-| `tui/sorting` | `FindPlaylistPosition` | func | `internal/tui` | root |
+| `tui/sorting` | `FindPlaylistPosition` | func | `internal/tui`, `tui/playlists` | multi |
 | `tui/sorting` | `FindStringPosition` | func | `internal/tui` | root |
 | `tui/sorting` | `FindTrackHashPosition` | func | `internal/tui` | root |
 | `tui/sorting` | `GenreArtistSortFields` | var | `internal/tui` | root |
@@ -316,7 +316,7 @@ export must either earn a justification, be recorded in
 | `tui/sorting` | `SortState.Dir` | field | `internal/tui`, `tui/browse`, `tui/favorites`, `tui/library`, `tui/playlists`, `tui/queue`, `tui/tags` | multi |
 | `tui/sorting` | `SortState.Field` | field | `internal/tui`, `tui/browse`, `tui/favorites`, `tui/library`, `tui/playlists`, `tui/queue`, `tui/tags` | multi |
 | `tui/sorting` | `SortStrings` | func | `tui/browse`, `tui/favorites` | multi |
-| `tui/sorting` | `SortTitle` | const | `internal/tui†`, `tui/queue` | multi |
+| `tui/sorting` | `SortTitle` | const | `internal/tui†`, `tui/playlists†`, `tui/queue` | multi |
 | `tui/sorting` | `SortTrackCount` | const | `internal/tui†` | root (tests only) |
 | `tui/sorting` | `SortTracks` | func | `internal/tui†`, `tui/browse`, `tui/favorites`, `tui/library` | multi |
 | `tui/sorting` | `TagsTrackSortFields` | var | `internal/tui` | root |

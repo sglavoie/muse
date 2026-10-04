@@ -23,6 +23,7 @@ var _ styles.Styles = View{}.Styles
 // View is the pure render struct for the playlists panel. All fields are set
 // by the caller (PlaylistsView in the tui package) before each Render call.
 type View struct {
+	FilterVisible    bool
 	Level            Level
 	Cursor           int
 	ListCursor       int // saved list cursor; restored when BackToList is called
@@ -60,6 +61,9 @@ func (v View) visibleRows() int {
 	}
 	if v.Level == TrackLevel {
 		reserve = 4
+	}
+	if v.FilterVisible {
+		reserve++
 	}
 	return layout.VisibleRows(v.Height, reserve)
 }

@@ -131,7 +131,7 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionSettings, id: "settings.open", name: "Open settings", category: "app", ctx: keys.ContextGlobal},
 	{act: keys.ActionUndo, id: "app.undo", name: "Undo last change", category: "app", ctx: keys.ContextGlobal, disabledReason: "Nothing to undo", enabled: Model.canUndo},
 	{act: keys.ActionRescan, id: "library.rescan", name: "Rescan library", category: "lib", ctx: keys.ContextGlobal},
-	{act: keys.ActionFilterBar, id: "view.filter", name: "Filter current view", category: "view", ctx: keys.ContextGlobal},
+	{act: keys.ActionFilterBar, id: "view.filter", name: "Filter current view", category: "view", ctx: keys.ContextGlobal, disabledReason: "Open a track list to filter", enabled: func(m Model) bool { return m.allFilterOps() != nil }},
 
 	{act: keys.ActionNowPlayingInfo, id: "playback.nowplaying.info", name: "Show now-playing info", category: "play", ctx: keys.ContextGlobal},
 	// "play" ("playback transport, volume and info"), not "mode": the legend only

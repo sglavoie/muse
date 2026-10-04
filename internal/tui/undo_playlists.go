@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -32,7 +33,8 @@ func (a undoDeletePlaylistAction) perform(m Model) (Model, error) {
 	playlists[idx] = a.entry
 	copy(playlists[idx+1:], m.playlists.Playlists[idx:])
 	m.playlists.Playlists = playlists
-	m.playlists.Cursor = idx
+	m = m.resetPlaylistsSort()
+	m.playlists.Cursor = sorting.FindPlaylistPosition(m.playlists.EffectivePlaylists(), a.entry.ID)
 	m.playlists = m.playlists.EnsureCursorVisible()
 	m.statusBar.Notify("Undone: restored playlist")
 	return m, nil
@@ -63,7 +65,8 @@ func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, error) {
 	tracks[idx] = a.entry
 	copy(tracks[idx+1:], m.playlists.Tracks[idx:])
 	m.playlists.Tracks = tracks
-	m.playlists.Cursor = idx
+	m = m.resetPlaylistsSort()
+	m.playlists.Cursor = m.playlists.FindTrackDisplayPosition(idx)
 	m.playlists = m.playlists.EnsureCursorVisible()
 	m.statusBar.Notify("Undone: restored playlist track")
 	return m, nil
@@ -101,6 +104,7 @@ func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, error) {
 		copy(tracks[idx+1:], m.playlists.Tracks[idx:])
 		m.playlists.Tracks = tracks
 	}
+	m = m.resetPlaylistsSort()
 	if m.playlists.Cursor < 0 {
 		m.playlists.Cursor = 0
 	} else if m.playlists.Cursor >= len(m.playlists.Tracks) {

@@ -162,7 +162,7 @@ func TestPlaylistsTrackIndexBoundsCheck(t *testing.T) {
 	if got := v.TrackIndex(-1); got != -1 {
 		t.Errorf("negative index: got %d, want -1", got)
 	}
-	if got := v.TrackIndex(5); got != 5 {
-		t.Errorf("over-bounds index: got %d, want 5", got)
+	if got := v.TrackIndex(5); got != -1 {
+		t.Errorf("over-bounds index: got %d, want -1", got)
 	}
 }

@@ -16,6 +16,8 @@ import (
 // bulk selection. Queue IDs distinguish multiple occurrences of the same track.
 func (m Model) filterRowKeys() []string {
 	switch m.ActiveView {
+	case viewPlaylists:
+		return m.playlistFilterRowKeys()
 	case viewLibrary:
 		return filterTrackKeys(m.library.Panel().VisibleTracks())
 	case viewMixes:
@@ -122,6 +124,20 @@ func (m Model) queueFilterRowKeys() []string {
 		keys[i] = fmt.Sprintf("id:%d", e.ID)
 		if e.ID == 0 {
 			keys[i] = fmt.Sprintf("row:%d:%s", e.OrigIdx, e.Path)
+		}
+	}
+	return keys
+}
+
+func (m Model) playlistFilterRowKeys() []string {
+	var keys []string
+	if m.playlists.AtListLevel() {
+		for _, row := range m.playlists.EffectivePlaylists() {
+			keys = append(keys, fmt.Sprintf("playlist:%d", row.ID))
+		}
+	} else {
+		for _, row := range m.playlists.DisplayTracks() {
+			keys = append(keys, fmt.Sprintf("playlist-track:%d", row.ID))
 		}
 	}
 	return keys

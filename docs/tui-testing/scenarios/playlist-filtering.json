@@ -1,0 +1,125 @@
+{
+  "name": "playlist-filtering",
+  "fixture": "rich",
+  "size": "100x24",
+  "actions": [
+    {
+      "key": "2"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "focus"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Focus"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Track A1"
+      }
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "B1"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Track B1"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Track A1"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Track A1"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Filter: focus"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "no such playlist"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "No matches"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Focus"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

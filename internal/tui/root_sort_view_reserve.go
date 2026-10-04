@@ -18,6 +18,9 @@ func playlistsVisibleReserve(v pltui.PlaylistsView) int {
 	if v.Level == pltui.TrackLevel {
 		reserve = 4
 	}
+	if v.Filter.Active || v.Filter.Text != "" {
+		reserve++
+	}
 	return reserve
 }
 

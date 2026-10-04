@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -405,7 +406,7 @@ type Model struct {
 	// paletteUsage tracks command palette usage counts for MRU ranking.
 	// May be nil when persistence is disabled (e.g. headless tests).
 	paletteUsage  *palette.UsageStore
-	filterHistory []string // session-local queries, shared across view filters
+	filterHistory []string // recent committed queries, shared across view filters
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after
@@ -464,6 +465,11 @@ func New(ctx context.Context, opts ...Option) Model {
 	// Load errors are swallowed (best-effort persistence).
 	m.paletteUsage = palette.NewUsageStore(m.dataDir)
 	_ = m.paletteUsage.Load()
+	var historyErr error
+	m.filterHistory, historyErr = filter.LoadHistory(m.dataDir)
+	if historyErr != nil {
+		slog.Warn("filter history: load failed, starting fresh", "err", historyErr)
+	}
 	// Derive scanning state from scanCh after options are applied.
 	m.scanning = m.scanCh != nil
 	// Pre-load the set of favorited track hashes for row highlighting.

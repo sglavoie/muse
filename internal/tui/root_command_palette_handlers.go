@@ -282,6 +282,10 @@ func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
 }
 
 func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
+	if m.playlists.Filter.Text != "" {
+		m.statusBar.Notify("Clear filter before shuffling playlist")
+		return m, nil
+	}
 	if m.playlists.SmartQuery != nil {
 		m.statusBar.Notify("Cannot shuffle smart playlist")
 		return m, nil

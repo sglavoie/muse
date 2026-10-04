@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
@@ -18,7 +20,7 @@ func (m Model) renderTitleBar() string {
 	queueIndicator := m.titleBarQueueIndicator()
 	filterBadge := m.titleBarFilterBadge()
 
-	fullWidth := chevronWidth
+	fullWidth := chevronWidth + ansi.StringWidth(filterBadge)
 	for i, id := range viewOrder {
 		if i < 10 {
 			fullWidth += badgeWidth
@@ -125,7 +127,7 @@ func (m Model) renderNarrowTitleBar(chevronWidth int, sep, filterBadge string) s
 	available := m.termWidth - chevronWidth
 	left := activeIdx
 	right := activeIdx
-	used := len(m.narrowTitleBarName(viewOrder[activeIdx])) + 2
+	used := len(m.narrowTitleBarName(viewOrder[activeIdx])) + 2 + ansi.StringWidth(filterBadge)
 
 	for {
 		tryLeft := left > 0
