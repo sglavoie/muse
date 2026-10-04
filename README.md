@@ -12,6 +12,11 @@ full keybinding reference. Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its
 current setting in the palette’s detail line. Undo describes the change it will
 reverse and is unavailable when its undo window has expired.
+Queue commands describe their target in the palette's detail line. Library enqueue
+reports the selected-track count; Play next and Replace queue identify the focused
+track and explicitly say when a bulk selection will not be used. Replace also
+states that it clears the queue. Commands needing a track are unavailable at
+collection level or when there are no matching tracks.
 Palette search also accepts synonyms such as `refresh library`, `EQ`, and
 `tune radio`; matches against displayed command names rank first.
 
@@ -118,6 +123,9 @@ Palette search also accepts synonyms such as `refresh library`, `EQ`, and
 - Clearing a text filter with `Esc` or the palette keeps the focused row in view; a search with no matches
   returns to your position before filtering. Library and Queue no-match hints
   distinguish `Esc` to clear a text filter from `ctrl+t` to clear a tag filter.
+- While editing a filter, the footer shows `Enter` to apply, `Esc` to clear,
+  and Up/Down to recall history. Empty field prefixes such as `a:` leave tracks
+  visible while you type; other populated terms still apply.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished
   query. History lasts for the current session; cancelled queries are excluded.

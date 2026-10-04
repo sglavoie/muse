@@ -221,6 +221,8 @@ func (m Model) renderFooterHint() string {
 	}
 	mode := keys.HintModeDefault
 	switch {
+	case m.activeFilterOps() != nil:
+		mode = keys.HintModeFilter
 	case m.visual.active:
 		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:

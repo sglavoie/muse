@@ -16,6 +16,20 @@ func TestRenderFooterHints_EmptyWhenNoPrimaries(t *testing.T) {
 	}
 }
 
+func TestFilterFooterPrioritizesApplyAndClear(t *testing.T) {
+	reg := NewRegistry()
+	s := styles.NewStyles(true)
+	for _, width := range []int{26, 60, 100} {
+		got := ansi.Strip(RenderFooterHints(width, ContextLibrary, HintModeFilter, reg, s))
+		if !strings.Contains(got, "enter apply · esc clear") || ansi.StringWidth(got) > width {
+			t.Fatalf("width %d: %q", width, got)
+		}
+		if width == 26 && strings.Contains(got, "history") {
+			t.Fatalf("history should yield to apply and clear: %q", got)
+		}
+	}
+}
+
 func TestRenderFooterHints_ZeroWidth(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)

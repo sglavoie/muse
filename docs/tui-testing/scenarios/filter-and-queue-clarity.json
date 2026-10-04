@@ -1,0 +1,190 @@
+{
+  "name": "filter-and-queue-clarity",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {
+      "key": "/"
+    },
+    {
+      "text": "a:"
+    },
+    {
+      "assert": {
+        "contains": "Track A1"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "No matches"
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter apply"
+      }
+    },
+    {
+      "assert": {
+        "contains": "\u2191/\u2193 history"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter apply"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc clear"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "not_contains": "enter apply"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Track A1"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Enqueue focused or selected"
+    },
+    {
+      "assert": {
+        "contains": "Append 2 selected tracks"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "assert": {
+        "contains": "Append 2 selected tracks"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Play focused track next"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "assert": {
+        "contains": "focused track only"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Replace queue with track"
+    },
+    {
+      "assert": {
+        "contains": "Clear queue and enqueue"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "4"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Play focused track next"
+    },
+    {
+      "assert": {
+        "contains": "Focus a track first"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "overlay": "command_palette"
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

@@ -28,9 +28,6 @@ func (f FakeFuzzySearcher) Search(query string, tracks []Track) []Match {
 	}
 
 	q := fq.General
-	if q == "" {
-		q = strings.TrimSpace(query)
-	}
 
 	var matches []Match
 	for i, t := range tracks {

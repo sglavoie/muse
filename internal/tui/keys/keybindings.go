@@ -282,6 +282,7 @@ const (
 	HintModeSelection                 // one or more rows are bulk-selected
 	HintModeVisual                    // visual line-selection mode is active
 	HintModeTracks                    // a collection is open at its track list
+	HintModeFilter                    // a view filter is being edited
 )
 
 // primaryHintKey is the composite map key for per-context, per-mode hint sets.
@@ -314,6 +315,10 @@ func (r Registry) primaryHints(ctx Context) []primaryHint {
 // default-mode set so the footer never goes empty just because a mode-
 // specific set wasn't customized for this view.
 func (r Registry) primaryHintsForMode(ctx Context, mode HintMode) []primaryHint {
+	// Filter input is handled before view bindings, identically in every view.
+	if mode == HintModeFilter {
+		return []primaryHint{{Key: "enter", Label: "apply"}, {Key: "esc", Label: "clear"}, {Key: "↑/↓", Label: "history"}}
+	}
 	if hints, ok := r.primaries[primaryHintKey{ctx: ctx, mode: mode}]; ok && len(hints) > 0 {
 		return hints
 	}

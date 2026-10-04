@@ -111,7 +111,7 @@ var helpSectionsTable = []HelpSection{
 			{"A", "Toggle radio mode (Auto-DJ)"},
 			{"ctrl+a", "Tune Auto-DJ (presets, discovery, filters) and its Preview and Recipes tabs"},
 			{"u", "Undo"},
-			{"/", "Filter current view; Up/Down recalls recent filters while editing"},
+			{"/", "Filter current view; Enter applies, Esc clears, Up/Down recalls recent filters"},
 			{"P", "Preview focused track"},
 			{"I", "Show now-playing info"},
 			{"i", "Show track info (exiftool)"},
@@ -146,7 +146,7 @@ var helpSectionsTable = []HelpSection{
 		Context: keys.ContextLibrary,
 		entries: []helpEntry{
 			{"` / ~", "Cycle sub-mode forward / backward (All ↔ Recently Added ↔ History)"},
-			{"/", "Filter tracks (prefixes: a: t: l: g:)"},
+			{"/", "Filter tracks (prefixes: a: t: l: g:; empty prefixes impose no restriction)"},
 			{"enter", "Enqueue focused / selected tracks"},
 			{"N", "Play next (insert after current track)"},
 			{"shift+enter", "Replace queue with track"},

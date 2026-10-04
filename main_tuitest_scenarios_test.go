@@ -16,6 +16,7 @@ const scenarioDir = "docs/tui-testing/scenarios"
 // against their declared fixtures and are expected to report ok:true.
 var gatedScenarios = []string{
 	"usability-polish.json",
+	"filter-and-queue-clarity.json",
 	"baseline-layout.json",
 	"all-primary-views.json",
 	"overlays.json",

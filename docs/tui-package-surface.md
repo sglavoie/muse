@@ -131,7 +131,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 |---|---:|---:|---:|---:|---|
 | `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
-| `tui/keys` | 153 | 41 | 110 | 2 | `tui` + 11 view packages |
+| `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 105 | 29 | 75 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 54 | 1 | 51 | 2 | `tui`, `queue`, `uitest` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1015 exported identifiers across 15 packages**: 153 reached from two or more packages, 802 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1016 exported identifiers across 15 packages**: 153 reached from two or more packages, 803 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -461,6 +461,7 @@ export must either earn a justification, be recorded in
 | `tui/keys` | `ContextTags` | const | `internal/tui`, `tui/overlay` | multi |
 | `tui/keys` | `HintMode` | type | — | api |
 | `tui/keys` | `HintModeDefault` | const | `internal/tui` | root |
+| `tui/keys` | `HintModeFilter` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeSelection` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeTracks` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeVisual` | const | `internal/tui` | root |

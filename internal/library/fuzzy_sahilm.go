@@ -30,9 +30,6 @@ func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
 	}
 
 	searchTerm := fq.General
-	if searchTerm == "" {
-		searchTerm = strings.TrimSpace(query)
-	}
 
 	var matches []Match
 	for i, t := range tracks {
