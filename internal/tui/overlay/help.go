@@ -111,7 +111,7 @@ var helpSectionsTable = []HelpSection{
 			{"A", "Toggle radio mode (Auto-DJ)"},
 			{"ctrl+a", "Tune Auto-DJ (presets, discovery, filters) and its Preview and Recipes tabs"},
 			{"u", "Undo"},
-			{"/", "Filter (Library / Queue / Browse / Favorites / Tags / Mixes)"},
+			{"/", "Filter current view; Up/Down recalls recent filters while editing"},
 			{"P", "Preview focused track"},
 			{"I", "Show now-playing info"},
 			{"i", "Show track info (exiftool)"},

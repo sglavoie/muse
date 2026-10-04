@@ -5,8 +5,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
-	libtui "github.com/sglavoie/muse/internal/tui/library"
-	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
 
@@ -31,17 +29,19 @@ func (m Model) handleSortAction(a keys.Action) (tea.Model, tea.Cmd, bool) {
 
 // handleSortCycle cycles to the next sort field for the active view.
 func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
+	fields, state := m.activeSortFields()
+	if len(fields) == 0 {
+		return m, nil, false
+	}
+	return m.applySortField(sorting.CycleSortField(state.Field, fields))
+}
+
+// applySortField shares cache rebuilds and cursor resets with keyboard cycling.
+func (m Model) applySortField(next sorting.SortField) (tea.Model, tea.Cmd, bool) {
 	var ss sorting.SortState
 	switch m.ActiveView {
 	case viewLibrary:
-		switch m.library.Mode {
-		case libtui.LibraryModeRecent:
-			m.library, ss = m.library.CycleSortField(sorting.RecentlyAddedSortFields)
-		case libtui.LibraryModeHistory:
-			m.library, ss = m.library.CycleSortField(sorting.HistorySortFields)
-		default:
-			m.library, ss = m.library.CycleSortField(sorting.LibrarySortFields)
-		}
+		m.library, ss = m.library.ApplySortField(next)
 		m.statusBar.NotifyInfo(sortNotification(ss))
 		return m, nil, true
 
@@ -49,7 +49,6 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.queue.SavingAsPlaylist {
 			return m, nil, false
 		}
-		next := sorting.CycleSortField(m.queue.SortState.Field, sorting.QueueSortFields)
 		m.queue.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.queue.SortState.Dir = sorting.SortAsc
@@ -64,11 +63,6 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.playlists.Creating || m.playlists.Renaming {
 			return m, nil, false
 		}
-		fields := sorting.PlaylistListSortFields
-		if m.playlists.Level == pltui.TrackLevel {
-			fields = sorting.PlaylistTrackSortFields
-		}
-		next := sorting.CycleSortField(m.playlists.SortState.Field, fields)
 		m.playlists.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.playlists.SortState.Dir = sorting.SortAsc
@@ -82,7 +76,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 	case viewBrowse:
 		var ss sorting.SortState
 		var ok bool
-		if m, ss, ok = m.cycleBrowseSortField(); !ok {
+		if m, ss, ok = m.applyBrowseSortField(next); !ok {
 			return m, nil, false
 		}
 		m.statusBar.NotifyInfo(sortNotification(ss))
@@ -93,7 +87,6 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if fields == nil {
 			return m, nil, false
 		}
-		next := sorting.CycleSortField(m.favorites.SortState.Field, fields)
 		m.favorites.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.favorites.SortState.Dir = sorting.SortAsc
@@ -111,7 +104,6 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if fields == nil {
 			return m, nil, false
 		}
-		next := sorting.CycleSortField(m.tagsView.SortState.Field, fields)
 		m.tagsView.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.tagsView.SortState.Dir = sorting.SortAsc
@@ -127,7 +119,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if m.mixes.Level != 1 {
 			return m, nil, false
 		}
-		m.mixes.TrackView, _ = m.mixes.TrackView.CycleSortField(sorting.LibrarySortFields)
+		m.mixes.TrackView, _ = m.mixes.TrackView.ApplySortField(next)
 		m.mixes.TrackView.Cursor = 0
 		m.mixes.TrackView.ScrollOffset = 0
 		m.statusBar.NotifyInfo(sortNotification(m.mixes.TrackView.SortState))
@@ -137,7 +129,7 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 		if !m.insights.AtTracks() {
 			return m, nil, false
 		}
-		m.insights.TrackView, _ = m.insights.TrackView.CycleSortField(sorting.LibrarySortFields)
+		m.insights.TrackView, _ = m.insights.TrackView.ApplySortField(next)
 		m.insights.TrackView.Cursor = 0
 		m.insights.TrackView.ScrollOffset = 0
 		m.statusBar.NotifyInfo(sortNotification(m.insights.TrackView.SortState))

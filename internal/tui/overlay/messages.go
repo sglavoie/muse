@@ -1,6 +1,7 @@
 package overlay
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -17,6 +18,15 @@ type MessagesOverlay struct {
 
 func NewMessages(messages []string) *MessagesOverlay {
 	return &MessagesOverlay{messages: messages}
+}
+
+// CopyText returns the complete snapshot, newest first, without screen wrapping.
+func (v MessagesOverlay) CopyText() string {
+	var messages []string
+	for i := len(v.messages) - 1; i >= 0; i-- {
+		messages = append(messages, ansi.Strip(v.messages[i]))
+	}
+	return strings.Join(messages, "\n\n")
 }
 
 func (v MessagesOverlay) lines(width int) []string {
@@ -59,7 +69,11 @@ func (v MessagesOverlay) Render(width, height int, s styles.Styles) string {
 	rows := max(1, height-2)
 	start := max(0, min(v.offset, len(lines)-rows))
 	body := lines[start:min(len(lines), start+rows)]
-	title := s.Heading.Render(text.Truncate("Recent messages — newest first", width))
-	hint := s.Dim.Render(text.Truncate("Past results · j/k scroll · q/esc close", width))
+	heading := "Recent messages — newest first"
+	if len(lines) > rows {
+		heading = fmt.Sprintf("Recent messages — lines %d–%d/%d", start+1, start+len(body), len(lines))
+	}
+	title := s.Heading.Render(text.Truncate(heading, width))
+	hint := s.Dim.Render(text.Truncate("j/k scroll · y copy all · q/esc close", width))
 	return title + "\n" + strings.Join(body, "\n") + "\n" + hint
 }

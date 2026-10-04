@@ -39,8 +39,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Ctrl+C quits. Escape-style navigation remains delegated to the active view.
 func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case selectSortFieldMsg:
+		return m.selectSortField(msg.field)
 	case showRecentMessagesMsg:
 		m = m.showRecentMessages()
+	case messagesCopiedMsg:
+		if msg.err != nil {
+			m.statusBar.Notify("Copy failed: " + msg.err.Error())
+		} else {
+			m.statusBar.Notify("Copied recent messages")
+		}
 
 	case tea.WindowSizeMsg:
 		m = m.handleWindowSizeMsg(msg)

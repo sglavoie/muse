@@ -198,8 +198,8 @@ func TestMetadataExportPaletteEntriesAreHandWrittenAndUnsafe(t *testing.T) {
 		}
 	}
 
-	if !built["metadata.export.tsv"].IsEnabled() {
-		t.Error("export must be enabled once a data directory is configured")
+	if built["metadata.export.tsv"].IsEnabled() {
+		t.Error("export must stay disabled with no exportable tracks")
 	}
 	if built["metadata.export.reveal"].IsEnabled() {
 		t.Error("reveal must stay disabled until an export exists")

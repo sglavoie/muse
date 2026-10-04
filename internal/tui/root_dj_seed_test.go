@@ -270,11 +270,11 @@ func TestDJStartFromTracksHonoursTheSelection(t *testing.T) {
 func TestDJBulkSelectionIsRecognisedPerView(t *testing.T) {
 	t.Run("queue", func(t *testing.T) {
 		m := djQueueModel("f1", "f2")
-		if m.djHasBulkSelection() {
+		if m.hasBulkSelection() {
 			t.Error("an unselected queue reported a bulk selection")
 		}
 		m.queue.Entries[1].Selected = true
-		if !m.djHasBulkSelection() {
+		if !m.hasBulkSelection() {
 			t.Error("a selected queue row was not recognised")
 		}
 	})
@@ -282,11 +282,11 @@ func TestDJBulkSelectionIsRecognisedPerView(t *testing.T) {
 	t.Run("library", func(t *testing.T) {
 		m := newDJModel()
 		m.ActiveView = viewLibrary
-		if m.djHasBulkSelection() {
+		if m.hasBulkSelection() {
 			t.Error("an unselected library reported a bulk selection")
 		}
 		m.library.SelectedHashes = map[string]struct{}{"f1": {}}
-		if !m.djHasBulkSelection() {
+		if !m.hasBulkSelection() {
 			t.Error("a selected library row was not recognised")
 		}
 	})
@@ -294,7 +294,7 @@ func TestDJBulkSelectionIsRecognisedPerView(t *testing.T) {
 	t.Run("a view with no selection concept", func(t *testing.T) {
 		m := newDJModel()
 		m.ActiveView = viewInsights
-		if m.djHasBulkSelection() {
+		if m.hasBulkSelection() {
 			t.Error("a view with no track list reported a bulk selection")
 		}
 	})

@@ -1,6 +1,9 @@
 package filter
 
 import (
+	"slices"
+	"strings"
+
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 )
@@ -17,7 +20,20 @@ type State struct {
 	Text        string          // current filter text; synced with input on every Update
 	input       textinput.Model // drives cursor, paste, and Bash keybindings when Active
 	initialized bool            // true once Activate() has seeded the textinput
+	history     []string        // oldest first; immutable across State copies
+	historyBack int             // zero is the unfinished query
+	draft       string
 }
+
+const historyLimit = 20
+
+// WithHistory supplies the session's committed queries without sharing mutable slices.
+func (s State) WithHistory(history []string) State {
+	s.history = slices.Clone(history)
+	return s
+}
+
+func (s State) History() []string { return slices.Clone(s.history) }
 
 // New returns a properly-initialized State with an empty filter.
 func New() State {
@@ -28,6 +44,7 @@ func New() State {
 // The textinput is re-initialized so the cursor starts at the end of the
 // current text. Returns a cmd to start the cursor blink animation.
 func (s State) Activate() (State, tea.Cmd) {
+	s.historyBack = 0
 	s.input = newInput(s.Text)
 	s.Text = s.input.Value()
 	s.input.CursorEnd()
@@ -48,6 +65,17 @@ func (s State) Commit() State {
 		s.input.Blur()
 	}
 	s.Active = false
+	if strings.TrimSpace(s.Text) != "" {
+		history := make([]string, 0, len(s.history)+1)
+		for _, query := range s.history {
+			if query != s.Text {
+				history = append(history, query)
+			}
+		}
+		history = append(history, s.Text)
+		s.history = history[max(0, len(history)-historyLimit):]
+	}
+	s.historyBack = 0
 	return s
 }
 
@@ -55,6 +83,7 @@ func (s State) Commit() State {
 func (s State) Deactivate() State {
 	s.Origin = Position{}
 	s.Active = false
+	s.historyBack = 0
 	s.Text = ""
 	s.input.SetValue("")
 	s.input.Blur()
@@ -107,30 +136,66 @@ func (s State) Update(msg tea.KeyPressMsg) (State, tea.Cmd) {
 	}
 	s = s.seed()
 	s.input = cloneInput(s.input)
+	if s.recallHistory(msg.String()) {
+		return s, nil
+	}
+	before := s.Text
 	if s.deleteWordForwardAtFinalRune(msg) {
+		s.historyBack = 0
 		return s, nil
 	}
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
+	if s.Text != before {
+		s.historyBack = 0
+	}
 	return s, cmd
 }
 
 // UpdateMsg is like Update but accepts a generic tea.Msg so that non-key
 // messages (e.g. paste results) can reach the underlying textinput.
 func (s State) UpdateMsg(msg tea.Msg) (State, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		return s.Update(key)
+	}
 	if !s.Active {
 		return s, nil
 	}
 	s = s.seed()
 	s.input = cloneInput(s.input)
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && s.deleteWordForwardAtFinalRune(keyMsg) {
-		return s, nil
-	}
+	before := s.Text
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	s.Text = s.input.Value()
+	if s.Text != before {
+		s.historyBack = 0
+	}
 	return s, cmd
+}
+
+func (s *State) recallHistory(key string) bool {
+	if key != "up" && key != "down" {
+		return false
+	}
+	if len(s.history) == 0 || (key == "down" && s.historyBack == 0) {
+		return true
+	}
+	if s.historyBack == 0 {
+		s.draft = s.Text
+	}
+	if key == "up" {
+		s.historyBack = min(s.historyBack+1, len(s.history))
+	} else {
+		s.historyBack--
+	}
+	s.Text = s.draft
+	if s.historyBack > 0 {
+		s.Text = s.history[len(s.history)-s.historyBack]
+	}
+	s.input.SetValue(s.Text)
+	s.input.CursorEnd()
+	return true
 }
 
 func (s *State) deleteWordForwardAtFinalRune(msg tea.KeyPressMsg) bool {

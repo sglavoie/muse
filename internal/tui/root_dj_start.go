@@ -92,7 +92,7 @@ func (m Model) djCanStartFromSelection() bool {
 // third. visibleTracks narrows to the selection whenever one exists, so the
 // selection branch reads it back rather than re-deriving it.
 func (m Model) djRadioSeedForSelection() (string, *radio.SeedTrack, bool) {
-	if m.djHasBulkSelection() {
+	if m.hasBulkSelection() {
 		if tracks, _, found := m.visibleTracks(); found && len(tracks) > 0 {
 			seed := buildMixSeed(tracks, m.trackTags)
 			return "", &seed, true

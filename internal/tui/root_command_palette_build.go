@@ -50,14 +50,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 
 	// Hand-written rather than catalog entries: the palette is the only trigger
 	// (no keybinding), so neither needs an action constant or a registry binding.
-	cmds = append(cmds, palette.PaletteCommand{
-		ID:             "metadata.export.tsv",
-		Name:           "Export visible tracks to TSV",
-		Category:       "lib",
-		Exec:           func() tea.Cmd { return func() tea.Msg { return metadataExportRequestedMsg{} } },
-		Enabled:        func() bool { return m.dataDir != "" },
-		DisabledReason: "Data directory is unavailable",
-	})
+	cmds = append(cmds, m.metadataExportCommand())
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:             "metadata.import",
 		Name:           "Import metadata edits…",
@@ -73,6 +66,15 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Exec:           func() tea.Cmd { return desktop.RevealFile(m.appCtx, metadataExportPath(m.dataDir)) },
 		Enabled:        func() bool { return metadataExportExists(m.dataDir) },
 		DisabledReason: "Export metadata first",
+	})
+
+	cmds = append(cmds, palette.PaletteCommand{
+		ID:             "metadata.export.backup.reveal",
+		Name:           "Reveal previous metadata export backup",
+		Category:       "lib",
+		Exec:           func() tea.Cmd { return desktop.RevealFile(m.appCtx, metadataExportPath(m.dataDir)+".bak") },
+		Enabled:        func() bool { return metadataExportArtifactExists(m.dataDir, ".bak") },
+		DisabledReason: "Re-export metadata to create a backup first",
 	})
 
 	// Stable navigation targets. Library and Browse use explicit mode messages
@@ -330,8 +332,11 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	}
 
 	states := m.paletteCurrentStates()
+	cmds = append(cmds, m.sortPaletteCommands()...)
 	for i := range cmds {
-		cmds[i].CurrentState = states[cmds[i].ID]
+		if state, ok := states[cmds[i].ID]; ok {
+			cmds[i].CurrentState = state
+		}
 		if cmds[i].ID == "app.undo" && m.undo.slot.action != nil {
 			cmds[i].Detail = m.undoDetail()
 		}

@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Metadata export commands show the unique exportable track count and selection
+  scope; the palette can reveal the previous export backup.
+- Direct “Sort by” palette commands offer the current view's supported fields
+  and identify the selected field and direction.
+- Up/Down in view filters recalls the last 20 distinct committed queries across
+  views for the current session and restores unfinished input.
+- Recent Messages shows scroll position and copies its full snapshot with `y`.
+
 - Focused command-palette toggles show their current setting in the existing
   detail line, including the resolved Light/Dark theme and repeat mode.
 - Single-track enqueue confirmations distinguish “Queued next” from

@@ -2,9 +2,8 @@ package tui
 
 import (
 	"github.com/sglavoie/muse/internal/tui/browse"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 )
-
-import "github.com/sglavoie/muse/internal/tui/sorting"
 
 func (m Model) shiftBrowseSortDir(dir sorting.SortDir) (Model, sorting.SortState, bool) {
 	switch m.browse.Mode {
@@ -30,11 +29,9 @@ func (m Model) shiftBrowseSortDir(dir sorting.SortDir) (Model, sorting.SortState
 	return m, sorting.SortState{}, false
 }
 
-func (m Model) cycleBrowseSortField() (Model, sorting.SortState, bool) {
+func (m Model) applyBrowseSortField(next sorting.SortField) (Model, sorting.SortState, bool) {
 	switch m.browse.Mode {
 	case browse.BrowseModeArtists:
-		fields := artistsSortFieldsForLevel(m.browse.Artists.Level)
-		next := sorting.CycleSortField(m.browse.Artists.SortState.Field, fields)
 		m.browse.Artists.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.browse.Artists.SortState.Dir = sorting.SortAsc
@@ -45,8 +42,6 @@ func (m Model) cycleBrowseSortField() (Model, sorting.SortState, bool) {
 		m.browse.Artists.ScrollOffset = 0
 		return m, m.browse.Artists.SortState, true
 	case browse.BrowseModeAlbums:
-		fields := albumsSortFieldsForLevel(m.browse.Albums.Level)
-		next := sorting.CycleSortField(m.browse.Albums.SortState.Field, fields)
 		m.browse.Albums.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.browse.Albums.SortState.Dir = sorting.SortAsc
@@ -57,8 +52,6 @@ func (m Model) cycleBrowseSortField() (Model, sorting.SortState, bool) {
 		m.browse.Albums.ScrollOffset = 0
 		return m, m.browse.Albums.SortState, true
 	case browse.BrowseModeGenres:
-		fields := genresSortFieldsForLevel(m.browse.Genres.Level)
-		next := sorting.CycleSortField(m.browse.Genres.SortState.Field, fields)
 		m.browse.Genres.SortState.Field = next
 		if next == sorting.SortDefault {
 			m.browse.Genres.SortState.Dir = sorting.SortAsc

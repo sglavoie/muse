@@ -40,7 +40,7 @@ func TestRecentMessagesPaletteAndModal(t *testing.T) {
 	if m.library.Cursor != cursor {
 		t.Fatal("history navigation leaked into library")
 	}
-	m = pressKey(m, "y") // historic action hints must never claim live keys
+	m = pressKey(m, "y") // copy keeps the overlay open; pressKey does not execute the clipboard command
 	if m.overlay.messages == nil {
 		t.Fatal("history unexpectedly closed")
 	}

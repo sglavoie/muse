@@ -2,10 +2,12 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 type showRecentMessagesMsg struct{}
+type messagesCopiedMsg struct{ err error }
 
 func (m Model) handleMessagesKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 	if m.overlay.messages == nil {
@@ -17,6 +19,18 @@ func (m Model) handleMessagesKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		return m.markQuitting(), tea.Quit, true
 	case "q", "esc":
 		m.overlay.messages = nil
+	case "y":
+		if m.fixtureSafeCommands {
+			m.statusBar.Notify("Clipboard copy blocked in fixture mode")
+			return m, nil, true
+		}
+		if content := m.overlay.messages.CopyText(); content != "" {
+			copyCmd := desktop.CopyToClipboard(m.appCtx, content)
+			return m, func() tea.Msg {
+				result := copyCmd().(desktop.ClipboardResultMsg)
+				return messagesCopiedMsg{err: result.Err}
+			}, true
+		}
 	default:
 		next := *m.overlay.messages
 		next.Scroll(msg.String(), m.termWidth, max(m.termHeight-3, 1))

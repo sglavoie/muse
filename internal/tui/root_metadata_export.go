@@ -14,6 +14,7 @@ import (
 	"github.com/sglavoie/muse/internal/fsutil"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/metaexport"
+	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
@@ -35,11 +36,64 @@ func metadataExportPath(dataDir string) string {
 // metadataExportExists reports whether an export is on disk and ready to be
 // revealed or re-read.
 func metadataExportExists(dataDir string) bool {
+	return metadataExportArtifactExists(dataDir, "")
+}
+
+func metadataExportArtifactExists(dataDir, suffix string) bool {
 	if dataDir == "" {
 		return false
 	}
-	info, err := os.Stat(metadataExportPath(dataDir))
+	info, err := os.Stat(metadataExportPath(dataDir) + suffix)
 	return err == nil && info.Mode().IsRegular()
+}
+
+func (m Model) metadataExportCommand() palette.PaletteCommand {
+	tracks, label, ok := m.visibleTracks()
+	count, skipped := metadataExportCounts(tracks)
+	scope := "visible "
+	if m.hasBulkSelection() {
+		scope = "selected "
+	} else if m.ActiveView == viewBrowse && !hasFocusedTrack(m) {
+		// At collection level these are the focused collection's tracks.
+		scope = ""
+	}
+	reason := ""
+	switch {
+	case m.dataDir == "":
+		reason = "Data directory is unavailable"
+	case m.metadataExportBusy:
+		reason = "Metadata export already in progress"
+	case !ok:
+		reason = label
+	case count == 0:
+		reason = "No exportable tracks in this scope"
+	}
+	detail := label
+	if skipped > 0 || len(tracks)-skipped > count {
+		detail += fmt.Sprintf(" · %d missing hashes skipped · %d duplicates collapsed", skipped, len(tracks)-skipped-count)
+	}
+	return palette.PaletteCommand{
+		ID:             "metadata.export.tsv",
+		Name:           fmt.Sprintf("Export %d %s%s to TSV", count, scope, text.Pluralize(count, "track", "tracks")),
+		Category:       "lib",
+		Detail:         detail,
+		Exec:           func() tea.Cmd { return func() tea.Msg { return metadataExportRequestedMsg{} } },
+		Enabled:        func() bool { return reason == "" },
+		DisabledReason: reason,
+	}
+}
+
+func metadataExportCounts(tracks []library.Track) (int, int) {
+	seen := make(map[string]struct{}, len(tracks))
+	skipped := 0
+	for _, track := range tracks {
+		if track.Hash == "" {
+			skipped++
+			continue
+		}
+		seen[track.Hash] = struct{}{}
+	}
+	return len(seen), skipped
 }
 
 // metadataExportRequestedMsg asks the root model to export whatever the active

@@ -118,7 +118,11 @@ func (v View) Panel() Panel {
 // the cursor, and recomputes the sorted/filtered caches. It returns the
 // updated view and the new SortState for notification purposes.
 func (v View) CycleSortField(fields []sorting.SortField) (View, sorting.SortState) {
-	next := sorting.CycleSortField(v.SortState.Field, fields)
+	return v.ApplySortField(sorting.CycleSortField(v.SortState.Field, fields))
+}
+
+// ApplySortField selects a field and rebuilds the sorted and filtered rows.
+func (v View) ApplySortField(next sorting.SortField) (View, sorting.SortState) {
 	v.SortState.Field = next
 	if next == sorting.SortDefault {
 		v.SortState.Dir = sorting.SortAsc

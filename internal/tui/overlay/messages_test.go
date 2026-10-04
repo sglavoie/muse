@@ -41,3 +41,25 @@ func TestMessagesScrollWrapAndResize(t *testing.T) {
 		t.Fatal("home failed")
 	}
 }
+
+func TestMessagesPositionAndCopySnapshot(t *testing.T) {
+	long := strings.Repeat("音楽", 80)
+	v := NewMessages([]string{"old", "\x1b[31mnew\x1b[0m " + long})
+	if got := v.CopyText(); got != "new "+long+"\n\nold" {
+		t.Fatalf("copy wrapped or changed order: %q", got)
+	}
+	// Force enough wrapped lines for a position indicator.
+	v = NewMessages([]string{strings.Repeat(long, 6)})
+	top := ansi.Strip(v.Render(60, 12, newTestStyles()))
+	if !strings.Contains(top, "lines 1–10/") {
+		t.Fatal(top)
+	}
+	v.Scroll("G", 60, 12)
+	bottom := ansi.Strip(v.Render(60, 12, newTestStyles()))
+	if strings.Contains(bottom, "lines 1–10/") || !strings.Contains(bottom, "y copy all") {
+		t.Fatal(bottom)
+	}
+	if NewMessages(nil).CopyText() != "" {
+		t.Fatal("empty history copies placeholder")
+	}
+}

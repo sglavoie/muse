@@ -93,9 +93,9 @@ func (m Model) djCurrentSeed(now time.Time) (radio.SeedSnapshot, string) {
 //
 // visibleTracks already narrows its result to the selection whenever one
 // exists, so the selection is read back from it rather than re-derived here;
-// djHasBulkSelection only has to answer whether that narrowing happened.
+// hasBulkSelection only has to answer whether that narrowing happened.
 func (m Model) djSelectionSeed(now time.Time) (radio.SeedSnapshot, string, bool) {
-	if !m.djHasBulkSelection() {
+	if !m.hasBulkSelection() {
 		return radio.SeedSnapshot{}, "", false
 	}
 	tracks, label, ok := m.visibleTracks()
@@ -160,12 +160,12 @@ func (m Model) djSeedFromTracks(label string, tracks []library.Track, now time.T
 	return seed, label
 }
 
-// djHasBulkSelection reports whether the active view holds an explicit bulk
+// hasBulkSelection reports whether the active view holds an explicit bulk
 // selection. Each view records its selection differently — by hash, by display
 // index, by playlist row id, or on the row itself — so there is no single field
 // to read. The views here keep it in one set that is meaningful whenever it is
-// non-empty; the rest are answered by djScopedSelection.
-func (m Model) djHasBulkSelection() bool {
+// non-empty; the rest are answered by hasScopedSelection.
+func (m Model) hasBulkSelection() bool {
 	switch m.ActiveView {
 	case viewLibrary:
 		return len(m.library.SelectedHashes) > 0
@@ -176,31 +176,31 @@ func (m Model) djHasBulkSelection() bool {
 	case viewFavorites:
 		return len(m.favorites.SelectedItems) > 0
 	default:
-		return m.djScopedSelection()
+		return m.hasScopedSelection()
 	}
 }
 
-// djScopedSelection answers djHasBulkSelection for the views whose selection is
+// hasScopedSelection answers hasBulkSelection for the views whose selection is
 // only offered inside a particular level or mode, or is recorded on the rows
 // themselves rather than in a set beside them.
-func (m Model) djScopedSelection() bool {
+func (m Model) hasScopedSelection() bool {
 	switch m.ActiveView {
 	case viewBrowse:
-		return m.djBrowseHasSelection()
+		return m.browseHasSelection()
 	case viewTags:
 		return m.tagsView.Level == tagtui.TrackLevel && len(m.tagsView.SelectedHashes) > 0
 	case viewPlaylists:
 		return m.playlists.Level == pltui.TrackLevel && len(m.playlists.SelectedTrackIDs) > 0
 	case viewQueue:
-		return djQueueHasSelection(m.queue.FilteredEntries())
+		return queueHasSelection(m.queue.FilteredEntries())
 	default:
 		return false
 	}
 }
 
-// djBrowseHasSelection answers djHasBulkSelection for Browse, whose three modes
+// browseHasSelection answers hasBulkSelection for Browse, whose three modes
 // each keep their own selection and only offer one at track level.
-func (m Model) djBrowseHasSelection() bool {
+func (m Model) browseHasSelection() bool {
 	switch m.browse.Mode {
 	case browse.BrowseModeAlbums:
 		return m.browse.Albums.Level == albtui.TrackLevel && len(m.browse.Albums.SelectedHashes) > 0
@@ -211,8 +211,8 @@ func (m Model) djBrowseHasSelection() bool {
 	}
 }
 
-// djQueueHasSelection reports whether any visible queue row is selected.
-func djQueueHasSelection(entries []queue.Entry) bool {
+// queueHasSelection reports whether any visible queue row is selected.
+func queueHasSelection(entries []queue.Entry) bool {
 	for _, e := range entries {
 		if e.Selected {
 			return true

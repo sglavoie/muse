@@ -42,11 +42,12 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 				f.Origin = filter.CapturePosition(m.filterRowKeys(), *cursor, *scrollOffset)
 			}
 			var cmd tea.Cmd
-			*f, cmd = f.Activate()
+			*f, cmd = f.WithHistory(m.filterHistory).Activate()
 			return *m, cmd
 		},
 		commit: func() Model {
 			*f = f.Commit()
+			m.filterHistory = f.History()
 			return *m
 		},
 		deactivate: func() Model {

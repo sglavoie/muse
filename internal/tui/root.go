@@ -404,7 +404,8 @@ type Model struct {
 
 	// paletteUsage tracks command palette usage counts for MRU ranking.
 	// May be nil when persistence is disabled (e.g. headless tests).
-	paletteUsage *palette.UsageStore
+	paletteUsage  *palette.UsageStore
+	filterHistory []string // session-local queries, shared across view filters
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after

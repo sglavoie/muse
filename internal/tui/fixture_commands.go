@@ -1,5 +1,12 @@
 package tui
 
+import (
+	"fmt"
+	"slices"
+
+	"github.com/sglavoie/muse/internal/tui/sorting"
+)
+
 // This file holds the fixture-safe palette command allowlist. It lives in
 // package tui rather than tui/uitest because the production update loop
 // consults it directly (root_update.go gates palette execution on it for
@@ -40,6 +47,15 @@ func safeDirectCommandIDs() map[string]struct{} {
 // IsSafeDirectCommand reports whether the palette command identifier is on the
 // fixture-safe direct-command allowlist.
 func IsSafeDirectCommand(id string) bool {
+	// Sort choices are view-dependent, so they cannot all appear in the
+	// default fixture palette checked by safeDirectCommandIDs.
+	fields := slices.Concat(sorting.LibrarySortFields, sorting.RecentlyAddedSortFields,
+		sorting.HistorySortFields, sorting.QueueSortFields, sorting.PlaylistListSortFields)
+	for _, field := range fields {
+		if id == fmt.Sprintf("sort.field.%d", field) {
+			return true
+		}
+	}
 	_, ok := safeDirectCommandIDs()[id]
 	return ok
 }

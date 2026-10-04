@@ -193,6 +193,109 @@
         "no_layout_issues": true
       },
       "label": "palette-setting-after-resize-no_layout_issues"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Sort by Duration"
+    },
+    {
+      "assert": {
+        "contains": "Sort by Duration"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Sort by Duration"
+    },
+    {
+      "assert": {
+        "contains": "Selected"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "key": "up"
+    },
+    {
+      "assert": {
+        "contains": "No matches"
+      }
+    },
+    {
+      "key": "down"
+    },
+    {
+      "assert": {
+        "not_contains": "No matches"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "command": "messages.show"
+    },
+    {
+      "assert": {
+        "contains": "y copy all"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "y"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "command": "messages.show"
+    },
+    {
+      "assert": {
+        "contains": "Clipboard copy blocked in fixture mode"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
     }
   ]
 }

@@ -97,8 +97,11 @@ reverse and is unavailable when its undo window has expired.
   beginning/end. Long values wrap, and the title shows your position when
   more information is available.
 - **Metadata export / import** — round-trip the visible view's rows through a
-  TSV file in the data directory, for bulk cleanup outside the TUI. Re-exporting
-  keeps the previous file, including any external edits, as `metadata-export.tsv.bak`.
+  TSV file in the data directory, for bulk cleanup outside the TUI. The palette
+  shows the number of unique exportable tracks and whether it uses your selection
+  or visible rows; at Browse collection level, its detail names the focused
+  collection. Re-exporting keeps the previous file, including any external edits, as `metadata-export.tsv.bak`.
+  Use the palette’s _Reveal previous metadata export backup_ command to locate it.
   To recover it, copy that backup over `metadata-export.tsv` before importing.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
@@ -109,8 +112,16 @@ reverse and is unavailable when its undo window has expired.
 - Clearing a text filter with `Esc` or the palette keeps the focused row in view; a search with no matches
   returns to your position before filtering. Library and Queue no-match hints
   distinguish `Esc` to clear a text filter from `ctrl+t` to clear a tag filter.
+- **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
+  committed queries across views. Down past the newest restores your unfinished
+  query. History lasts for the current session; cancelled queries are excluded.
+- **Direct sorting** — search the palette for _Sort by_ to choose a field supported
+  by the current view. The selected field and direction appear in its detail line.
+  The existing sort-cycle and direction shortcuts remain available.
 - **Recent messages** — `:` → _Show recent messages_ reopens the last 50 action
-  results and errors from this session. Long messages wrap; `j`/`k` scroll.
+  results and errors from this session. Long messages wrap; `j`/`k` scroll, with
+  a line position indicator for longer histories. `y` copies the complete snapshot
+  newest first, including timestamps, without display wrapping.
   File-manager errors include the affected path and are retained here too.
   Progress updates are excluded, and past messages do not reactivate their shortcuts.
 
