@@ -133,7 +133,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 105 | 29 | 75 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/overlay` | 106 | 29 | 76 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1024 exported identifiers across 15 packages**: 154 reached from two or more packages, 809 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1025 exported identifiers across 15 packages**: 154 reached from two or more packages, 810 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -618,6 +618,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `QueueSummaryOverlay.Render` | method | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.Sources` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.TotalMs` | field | `internal/tui` | root |
+| `tui/overlay` | `QueueSummaryOverlay.TotalUnknown` | field | `internal/tui` | root |
 | `tui/overlay` | `QueueSummaryOverlay.Tracks` | field | `internal/tui` | root |
 | `tui/overlay` | `RenderCenteredLines` | func | `tui/tags` | peer |
 | `tui/overlay` | `RenderTopLines` | func | `tui/palette`, `tui/settings` | multi |

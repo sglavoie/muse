@@ -19,6 +19,7 @@ type QueueSummaryOverlay struct {
 	RemainUnknown bool  // at least one scheduled track has no known duration
 	RemainN       int   // remaining track count
 	TotalMs       int64 // total queue duration
+	TotalUnknown  bool  // at least one queue row has no known duration
 }
 
 // Render produces a centered overlay string for the queue summary.
@@ -31,14 +32,20 @@ func (q QueueSummaryOverlay) Render(termWidth, termHeight int, s styles.Styles) 
 		remaining = fmt.Sprintf("%s (%d %s)", remaining, q.RemainN, text.Pluralize(q.RemainN, "track", "tracks"))
 	}
 
+	total := text.FormatDurationMs(q.TotalMs)
+	if q.TotalUnknown {
+		total += "+"
+	}
+
+	// Keep timing visible when the box truncates rows in a short terminal.
 	rows := []Row{
+		{Label: "Remaining:", Text: remaining},
+		{Label: "Total:", Text: total},
+		{Blank: true},
 		{Label: "Tracks:", Text: strconv.Itoa(q.Tracks)},
 		{Label: "Artists:", Text: strconv.Itoa(q.Artists)},
 		{Label: "Albums:", Text: strconv.Itoa(q.Albums)},
 		{Label: "Sources:", Text: strconv.Itoa(q.Sources)},
-		{Blank: true},
-		{Label: "Remaining:", Text: remaining},
-		{Label: "Total:", Text: text.FormatDurationMs(q.TotalMs)},
 	}
 
 	box := Box{Title: " Queue Summary ", Rows: rows, Hint: "q or esc to dismiss"}

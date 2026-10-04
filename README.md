@@ -78,6 +78,10 @@ The preview above uses fictional library data from the
   current batch, including shuffle order. Repeat, Auto-DJ, and stop-after modes
   label it as queued time rather than an end time; `+` marks unknown durations.
   The duration yields to filtering and selection details in narrow windows.
+- The queue summary (`q`) updates while open, including track changes and
+  duration corrections. Both remaining and total time use `+` for unknown durations.
+- **Copy now-playing info** — a palette command copies the playing or paused
+  song while you browse elsewhere; its detail line identifies the song.
 - **Gapless playback** via mpv prefetch (`gapless_audio`).
 - **10-band equalizer** with built-in presets (Flat, Bass Boost, Treble Boost,
   Rock, Jazz, Classical, Pop) and user-defined custom presets, plus stereo
@@ -100,7 +104,10 @@ The preview above uses fictional library data from the
 - Saving an unchanged metadata form leaves your previous undo available.
   Editing other fields preserves the precise track duration. Bulk forms label
   differing values as “Multiple values — unchanged”; untouched fields retain
-  each track's original value.
+  each track's original value. In bulk forms, `ctrl+d` explicitly clears the
+  focused field for every selected track; `ctrl+r` restores that field to
+  unchanged. Clear operations show “Will clear for N tracks” before saving
+  and support undo.
 - **Metadata export / import** — round-trip the visible view's rows through a
   TSV file in the data directory, for bulk cleanup outside the TUI. The palette
   shows the number of unique exportable tracks and whether it uses your selection
@@ -131,7 +138,9 @@ The preview above uses fictional library data from the
   an unfiltered track list. `E` still enqueues the entire playlist.
 - **Direct sorting** — search the palette for _Sort by_ to choose a field supported
   by the current view. The selected field and direction appear in its detail line.
-  The existing sort-cycle and direction shortcuts remain available.
+  Sorts survive switching between views during the session; choose
+  _Sort by default order_ to reset a view. The existing sort-cycle and
+  direction shortcuts remain available.
 - Completed library scans replace progress with “Scan complete — N tracks” and
   retain that result in Recent Messages. Canceled and incomplete scans keep their
   distinct messages.

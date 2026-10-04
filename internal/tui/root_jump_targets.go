@@ -41,7 +41,6 @@ func (m Model) jumpToArtist(artistName string) Model {
 		Height:       m.browse.Artists.Height,
 	}
 	m.clearPendingConfirmations()
-	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeArtists
 	m.ActiveView = viewBrowse
@@ -81,7 +80,6 @@ func (m Model) jumpToAlbum(albumName string) Model {
 		Height:       m.browse.Albums.Height,
 	}
 	m.clearPendingConfirmations()
-	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.ActiveView = viewBrowse
@@ -121,7 +119,6 @@ func (m Model) jumpToGenre(genreName string) Model {
 		Height:       m.browse.Genres.Height,
 	}
 	m.clearPendingConfirmations()
-	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeGenres
 	m.ActiveView = viewBrowse
@@ -150,10 +147,8 @@ func (m Model) jumpToPlaylist(playlistName string) Model {
 	m.playlists.Cursor = idx
 	m.playlists.ScrollOffset = scrollOffset
 	m.playlists.Tracks = nil
-	m.playlists.SortedPlaylists = nil
-	m.playlists.SortedTrackOrder = nil
+	m = m.resetPlaylistsSort()
 	m.clearPendingConfirmations()
-	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	m.ActiveView = viewPlaylists
 	return m

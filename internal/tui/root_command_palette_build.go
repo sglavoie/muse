@@ -16,6 +16,7 @@ import (
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // BuildPaletteCommands returns the list of commands available in the palette.
@@ -99,6 +100,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	})
 
 	trackFocused := func() bool { return hasFocusedTrack(m) }
+	cmds = append(cmds, m.copyNowPlayingCommand())
 
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "track.reveal",
@@ -120,12 +122,11 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Name:     "Copy track info",
 		Category: "file",
 		Exec: func() tea.Cmd {
-			_, artist, title, found := m.focusedTrackForPalette()
+			path, artist, title, found := m.focusedTrackForPalette()
 			if !found {
 				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
-			text := fmt.Sprintf("%s \u2013 %s", artist, title)
-			return desktop.CopyToClipboard(m.appCtx, text)
+			return desktop.CopyToClipboard(m.appCtx, text.TrackDisplay(artist, title, path))
 		},
 		Enabled:        trackFocused,
 		DisabledReason: "Focus a track first",

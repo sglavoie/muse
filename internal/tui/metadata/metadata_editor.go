@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -114,7 +113,8 @@ type Editor struct {
 	Fields        [fieldCount]textinput.Model
 	focused       Field
 	initialValues [fieldCount]string // snapshot at open time
-	Dirty         [fieldCount]bool   // true when field differs from initial
+	Dirty         [fieldCount]bool   // changed input or an explicit bulk clear
+	cleared       [fieldCount]bool   // explicit bulk clear, distinct from an untouched empty input
 	mixed         [fieldCount]bool   // distinct opening values in a bulk field
 	mode          Mode
 	renameTitle   string // custom dialog title, e.g. " ✎ Rename Artist "
@@ -273,6 +273,11 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 		return e, ActionSave, nil
 	case "esc":
 		return e, ActionCancel, nil
+	case "ctrl+d", "ctrl+r":
+		if e.IsBulk() {
+			e.setBulkFieldCleared(msg.String() == "ctrl+d")
+			return e, actionNone, nil
+		}
 	case "tab":
 		if e.mode != ModeDefault {
 			return e, actionNone, nil
@@ -292,7 +297,7 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 	// Forward to the focused textinput.
 	var cmd tea.Cmd
 	e.Fields[e.focused], cmd = e.Fields[e.focused].Update(msg)
-	e.Dirty[e.focused] = e.Fields[e.focused].Value() != e.initialValues[e.focused]
+	e.refreshFocusedEdit()
 	return e, actionNone, cmd
 }
 
@@ -301,8 +306,38 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 func (e Editor) ForwardMsg(msg tea.Msg) (Editor, tea.Cmd) {
 	var cmd tea.Cmd
 	e.Fields[e.focused], cmd = e.Fields[e.focused].Update(msg)
-	e.Dirty[e.focused] = e.Fields[e.focused].Value() != e.initialValues[e.focused]
+	e.refreshFocusedEdit()
 	return e, cmd
+}
+
+// setBulkFieldCleared either clears this field or restores its opening value.
+func (e *Editor) setBulkFieldCleared(clearField bool) {
+	value := e.initialValues[e.focused]
+	if clearField {
+		value = ""
+	}
+	e.Fields[e.focused].SetValue(value)
+	e.cleared[e.focused] = clearField
+	e.refreshFocusedEdit()
+}
+
+// refreshFocusedEdit keeps explicit clearing separate from ordinary input edits.
+func (e *Editor) refreshFocusedEdit() {
+	i := e.focused
+	if e.Fields[i].Value() != "" {
+		e.cleared[i] = false
+	}
+	e.Dirty[i] = e.cleared[i] || e.Fields[i].Value() != e.initialValues[i]
+	e.Fields[i].Placeholder = ""
+	if e.cleared[i] {
+		e.Fields[i].Placeholder = e.clearPlaceholder()
+	} else if e.mixed[i] {
+		e.Fields[i].Placeholder = mixedValuePlaceholder
+	}
+}
+
+func (e Editor) clearPlaceholder() string {
+	return fmt.Sprintf("Will clear for %d tracks", e.trackCount())
 }
 
 // Title returns the current title value.
@@ -363,7 +398,7 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
 	// Hint.
-	lines = append(lines, e.hintLine())
+	lines = append(lines, strings.Split(e.hintLine(), "\n")...)
 
 	return centerBoxLines(lines, termWidth, termHeight)
 }
@@ -413,7 +448,7 @@ func (e Editor) renderFieldIndices() []int {
 // continuation-line budget so the box still fits the terminal height.
 func (e Editor) fieldRowLines(renderFields []int, valueWidth, termHeight int, s styles.Styles) []string {
 	labels := e.fieldLabels()
-	remainingContinuationLines := metadataEditorContinuationBudget(termHeight, len(renderFields))
+	remainingContinuationLines := metadataEditorContinuationBudget(termHeight-strings.Count(e.hintLine(), "\n"), len(renderFields))
 
 	var lines []string
 	for _, i := range renderFields {
@@ -424,7 +459,9 @@ func (e Editor) fieldRowLines(renderFields []int, valueWidth, termHeight int, s 
 		}
 		value := e.Fields[i].Value()
 		mixed := e.mixed[i] && !e.Dirty[i] && value == ""
-		if mixed {
+		if e.cleared[i] {
+			value = e.clearPlaceholder()
+		} else if mixed {
 			value = mixedValuePlaceholder
 		}
 		wrapLines := metadataEditorValueLines(value, valueWidth, remainingContinuationLines)
@@ -470,12 +507,12 @@ func valueFieldRows(label string, wrapLines []string, valueWidth int) []string {
 
 // hintLine returns the key hint printed under the box.
 func (e Editor) hintLine() string {
-	if e.mode != ModeDefault {
-		return "  enter save · esc cancel"
-	}
 	hint := "  tab/shift+tab fields · enter save · esc cancel"
-	if e.IsBulk() && slices.Contains(e.Dirty[:], true) {
-		hint += " · * = will be applied"
+	if e.mode != ModeDefault {
+		hint = "  enter save · esc cancel"
+	}
+	if e.IsBulk() {
+		hint += "\n  ctrl+d clear field · ctrl+r reset · * applies"
 	}
 	return hint
 }

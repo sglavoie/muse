@@ -53,8 +53,6 @@ func (m *Model) clearPendingConfirmations() {
 	m.insights.PendingMerge = nil
 }
 
-// switchToView transitions to the given view, clearing pending confirmations,
-// resetting all sort states, and lazily deriving artist/album lists when needed.
 // viewLazyLoadCmd returns the command that populates a view's data on first
 // entry, for the views that load asynchronously. Returns nil for the rest.
 // The pointer receiver matters: the insights loader stamps a generation onto
@@ -69,9 +67,9 @@ func (m *Model) viewLazyLoadCmd(id viewID) tea.Cmd {
 	return nil
 }
 
+// switchToView preserves each view's sort and cursor while loading its data.
 func (m Model) switchToView(id viewID) Model {
 	m.clearPendingConfirmations()
-	m = m.resetAllSorts()
 	m = exitVisualMode(m)
 	if m.queue.SavingAsPlaylist {
 		m.queue = m.queue.CancelSaveAsPlaylist()

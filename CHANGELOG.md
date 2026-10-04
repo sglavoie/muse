@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- View switching preserves each view's sort order and focus; the existing
+  “Sort by default order” palette command resets the current view.
+- Queue summaries update while open and mark unknown total durations with `+`.
+- Bulk metadata editing supports explicit field clearing with `ctrl+d` and
+  restoring the field to unchanged with `ctrl+r`, with a clear preview and undo.
+- “Copy now-playing info” copies the playing or paused song independently of
+  the focused row; track-copy commands handle missing artist/title values.
+
 - Help search matches section headings and includes all controls in a matching section.
 - Seek and volume palette commands show their configured step sizes.
 - Successful library scans replace progress with a completion count retained in

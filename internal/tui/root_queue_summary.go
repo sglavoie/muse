@@ -13,10 +13,12 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 	albums := make(map[string]struct{})
 	sources := make(map[string]struct{})
 	var totalMs int64
+	var totalUnknown bool
 	remainMs, remainN, unknown := m.queueRemaining()
 
 	for _, entry := range m.queue.Entries {
-		totalMs += entry.DurationMs
+		totalMs += max(0, entry.DurationMs)
+		totalUnknown = totalUnknown || entry.DurationMs <= 0
 		if entry.Artist != "" {
 			artists[entry.Artist] = struct{}{}
 		}
@@ -37,6 +39,7 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 		RemainN:       remainN,
 		RemainUnknown: unknown,
 		TotalMs:       totalMs,
+		TotalUnknown:  totalUnknown,
 	}
 }
 
