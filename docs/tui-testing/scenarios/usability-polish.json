@@ -157,6 +157,42 @@
       "assert": {
         "no_layout_issues": true
       }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Toggle queue follow"
+    },
+    {
+      "assert": {
+        "contains": "Current:"
+      },
+      "label": "palette-setting-at-minimum-size-contains"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "palette-setting-at-minimum-size-no_layout_issues"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "contains": "Current:"
+      },
+      "label": "palette-setting-after-resize-contains"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "palette-setting-after-resize-no_layout_issues"
     }
   ]
 }

@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Undoing a queue removal or clear reports database failures without changing
+  the visible queue or playback, and permits retry within the original undo
+  window. Bulk removal undo restores all rows in one transaction.
+
 ### Added
+
+- Focused command-palette toggles show their current setting in the existing
+  detail line, including the resolved Light/Dark theme and repeat mode.
+- Single-track enqueue confirmations distinguish “Queued next” from
+  “Added to queue” while retaining the undo hint.
 
 - Disabled command-palette entries explain how to make the selected action
   available, without increasing the dialog height.

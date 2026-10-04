@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -30,7 +29,7 @@ func (a undoTagToggleAction) description() string {
 	return fmt.Sprintf("Tag removed from %d %s — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
-func (a undoTagToggleAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoTagToggleAction) perform(m Model) (Model, error) {
 	tw := m.tagWriter
 	if tw == nil {
 		return m, nil
@@ -80,7 +79,7 @@ func (a undoDeleteTagAction) description() string {
 	return fmt.Sprintf("Tag %q deleted — press u to undo", a.tag.Name)
 }
 
-func (a undoDeleteTagAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoDeleteTagAction) perform(m Model) (Model, error) {
 	tw := m.tagWriter
 	if tw != nil {
 		if err := tw.UndoDeleteTag(a.tag.ID); err != nil {

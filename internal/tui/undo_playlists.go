@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -21,7 +20,7 @@ func (a undoDeletePlaylistAction) description() string {
 	return "Playlist deleted — press u to undo"
 }
 
-func (a undoDeletePlaylistAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoDeletePlaylistAction) perform(m Model) (Model, error) {
 	if m.playlistDeleter != nil {
 		if err := m.playlistDeleter.UndoDeletePlaylist(a.entry.ID); err != nil {
 			slog.Warn("undo delete playlist failed", "err", err)
@@ -52,7 +51,7 @@ func (a undoRemovePlaylistTrackAction) description() string {
 	return "Track removed — press u to undo"
 }
 
-func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, error) {
 	if m.playlistDeleter != nil {
 		if err := m.playlistDeleter.UndoRemovePlaylistTrack(a.entry.ID); err != nil {
 			slog.Warn("undo remove playlist track failed", "err", err)
@@ -86,7 +85,7 @@ func (a undoBulkRemovePlaylistTracksAction) description() string {
 	return fmt.Sprintf("%d %s removed — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
-func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, error) {
 	if m.playlistDeleter != nil {
 		for _, t := range a.entries {
 			if err := m.playlistDeleter.UndoRemovePlaylistTrack(t.ID); err != nil {

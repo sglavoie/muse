@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
@@ -26,7 +25,7 @@ func (a undoRemoveFavoriteAction) description() string {
 	return fmt.Sprintf("Removed %s from favorites — press u to undo", a.typ)
 }
 
-func (a undoRemoveFavoriteAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoRemoveFavoriteAction) perform(m Model) (Model, error) {
 	if m.favoriteWriter != nil {
 		if err := m.favoriteWriter.AddFavorite(a.typ, a.value); err != nil {
 			slog.Warn("undo remove favorite failed", "err", err)
@@ -109,7 +108,7 @@ func (a undoAddFavoriteAction) description() string {
 	return fmt.Sprintf("Added %s to favorites — press u to undo", a.typ)
 }
 
-func (a undoAddFavoriteAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoAddFavoriteAction) perform(m Model) (Model, error) {
 	if m.favoriteWriter != nil {
 		if err := m.favoriteWriter.RemoveFavorite(a.typ, a.value); err != nil {
 			slog.Warn("undo add favorite failed", "err", err)
@@ -174,7 +173,7 @@ func (a undoBulkAddFavoritesAction) description() string {
 	return fmt.Sprintf("Added %d %ss to favorites — press u to undo", n, a.typ)
 }
 
-func (a undoBulkAddFavoritesAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoBulkAddFavoritesAction) perform(m Model) (Model, error) {
 	if m.favoriteWriter != nil {
 		if err := m.favoriteWriter.RemoveFavoritesByTypeAndValues(a.typ, a.values); err != nil {
 			slog.Warn("undo bulk add favorites failed", "err", err)
@@ -256,7 +255,7 @@ func (a undoBulkRemoveFavoritesAction) description() string {
 	return fmt.Sprintf("Removed %d %ss from favorites — press u to undo", n, a.typ)
 }
 
-func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoBulkRemoveFavoritesAction) perform(m Model) (Model, error) {
 	if m.favoriteWriter != nil {
 		for _, v := range a.values {
 			if err := m.favoriteWriter.AddFavorite(a.typ, v); err != nil {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/queue"
@@ -13,18 +12,23 @@ import (
 
 // undoEnqueueAction reverts a single-track enqueue (undoKindEnqueue).
 type undoEnqueueAction struct {
-	id    int64
-	entry queue.Entry
-	idx   int
+	id       int64
+	entry    queue.Entry
+	idx      int
+	playNext bool
 }
 
 func (a undoEnqueueAction) kind() undoKind { return undoKindEnqueue }
 
 func (a undoEnqueueAction) description() string {
-	return "Added " + a.entry.Display + " — press u to undo"
+	prefix := "Added to queue: "
+	if a.playNext {
+		prefix = "Queued next: "
+	}
+	return prefix + a.entry.Display + " — press u to undo"
 }
 
-func (a undoEnqueueAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoEnqueueAction) perform(m Model) (Model, error) {
 	// Find the enqueued entry by its database ID rather than by positional
 	// index, because the queue may have been reordered since the enqueue.
 	realIdx := -1
@@ -73,10 +77,10 @@ func (a undoDequeueAction) description() string {
 	return "Track removed — press u to undo"
 }
 
-func (a undoDequeueAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoDequeueAction) perform(m Model) (Model, error) {
 	if m.undoer != nil {
 		if err := m.undoer.UndoDequeue(a.id); err != nil {
-			slog.Warn("undo dequeue failed", "err", err)
+			return m, fmt.Errorf("restore removed track: %w", err)
 		}
 	}
 	idx := min(a.idx, len(m.queue.Entries))
@@ -129,10 +133,10 @@ func (a undoClearAction) description() string {
 	return "Queue cleared — press u to undo"
 }
 
-func (a undoClearAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoClearAction) perform(m Model) (Model, error) {
 	if m.undoer != nil {
 		if err := m.undoer.UndoClearQueue(a.ids); err != nil {
-			slog.Warn("undo clear queue failed", "err", err)
+			return m, fmt.Errorf("restore cleared queue: %w", err)
 		}
 	}
 	m.queue.Entries = a.entries
@@ -164,12 +168,12 @@ func (a undoBulkDequeueAction) description() string {
 	return fmt.Sprintf("%d %s removed — press u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
-func (a undoBulkDequeueAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoBulkDequeueAction) perform(m Model) (Model, error) {
 	if m.undoer != nil {
-		for _, id := range a.ids {
-			if err := m.undoer.UndoDequeue(id); err != nil {
-				slog.Warn("undo bulk dequeue failed", "err", err)
-			}
+		// Restore the entire selection in one transaction so a failed row
+		// cannot leave the database partially restored.
+		if err := m.undoer.UndoClearQueue(a.ids); err != nil {
+			return m, fmt.Errorf("restore removed tracks: %w", err)
 		}
 	}
 	for i := range a.indices {
@@ -263,7 +267,7 @@ func (a undoBatchEnqueueAction) description() string {
 		a.count, text.Pluralize(a.count, "track", "tracks"), a.playlistName)
 }
 
-func (a undoBatchEnqueueAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoBatchEnqueueAction) perform(m Model) (Model, error) {
 	m = m.softRemoveQueueEntries(a.ids, "undo batch enqueue: soft-delete failed")
 	n := a.count
 	m.statusBar.Notify(fmt.Sprintf("Undone: removed %d %s", n, text.Pluralize(n, "track", "tracks")))
@@ -284,7 +288,7 @@ func (a undoPasteAction) description() string {
 	return fmt.Sprintf("Pasted %d %s — press u to undo", a.count, text.Pluralize(a.count, "track", "tracks"))
 }
 
-func (a undoPasteAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoPasteAction) perform(m Model) (Model, error) {
 	m = m.softRemoveQueueEntries(a.ids, "undo paste: soft-delete failed")
 	n := a.count
 	m.statusBar.Notify(fmt.Sprintf("Undone: removed %d pasted %s", n, text.Pluralize(n, "track", "tracks")))
@@ -306,7 +310,7 @@ func (a undoCutPasteAction) description() string {
 	return fmt.Sprintf("Moved %d %s — press u to undo", a.count, text.Pluralize(a.count, "track", "tracks"))
 }
 
-func (a undoCutPasteAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoCutPasteAction) perform(m Model) (Model, error) {
 	// 1. Remove the pasted copies (same logic as undoPasteAction).
 	if m.batchEnqueuer != nil {
 		if err := m.batchEnqueuer.DequeueTracksSoft(a.pastedIDs); err != nil {

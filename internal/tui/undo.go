@@ -1,14 +1,11 @@
 package tui
 
-import (
-	tea "charm.land/bubbletea/v2"
-)
-
 // undoAction is the interface implemented by every reversible operation.
 // description() returns the "press u to undo" status-bar notification shown
-// when the action is created. perform() executes the actual undo logic.
+// when the action is created. perform() executes the actual undo logic;
+// a returned error preserves the slot for retry within its original window.
 type undoAction interface {
 	kind() undoKind
-	perform(m Model) (Model, tea.Cmd)
+	perform(m Model) (Model, error)
 	description() string
 }

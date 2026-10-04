@@ -11,7 +11,7 @@ import (
 )
 
 // TestUndoBulkDequeueRestoresEntries verifies that undoing a bulk dequeue
-// restores all removed entries at their original indices and calls UndoDequeue.
+// restores all removed entries at their original indices in one transaction.
 func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	ps := &stubPlayerQueueSyncer{}
@@ -43,11 +43,11 @@ func TestUndoBulkDequeueRestoresEntries(t *testing.T) {
 			t.Errorf("entry[%d].ID = %d, want %d", i, nm.queue.Entries[i].ID, want)
 		}
 	}
-	if len(d.undoDequeueCallIDs) != 2 {
-		t.Fatalf("UndoDequeue calls = %d, want 2", len(d.undoDequeueCallIDs))
+	if len(d.undoClearQueueCalls) != 1 {
+		t.Fatalf("UndoClearQueue calls = %d, want 1", len(d.undoClearQueueCalls))
 	}
-	if d.undoDequeueCallIDs[0] != 20 || d.undoDequeueCallIDs[1] != 40 {
-		t.Fatalf("UndoDequeue IDs = %v, want [20 40]", d.undoDequeueCallIDs)
+	if ids := d.undoClearQueueCalls[0]; len(ids) != 2 || ids[0] != 20 || ids[1] != 40 {
+		t.Fatalf("UndoClearQueue IDs = %v, want [20 40]", ids)
 	}
 	if len(ps.setQueueCalls) == 0 {
 		t.Fatal("expected SetQueue to be called after undo")

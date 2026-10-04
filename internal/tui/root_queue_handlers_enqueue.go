@@ -33,7 +33,8 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 		SourcePlaylist: msg.SourcePlaylist,
 	}
 	var enqueueIdx int
-	if msg.InsertAfter >= 0 && msg.InsertAfter <= len(m.queue.Entries) {
+	playNext := msg.InsertAfter >= 0 && msg.InsertAfter <= len(m.queue.Entries)
+	if playNext {
 		idx := msg.InsertAfter
 		entries := make([]queue.Entry, len(m.queue.Entries)+1)
 		copy(entries, m.queue.Entries[:idx])
@@ -56,9 +57,10 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	}
 	m = m.preserveQueueSort()
 	m.setUndoSlot(undoEnqueueAction{
-		id:    msg.QueueID,
-		entry: m.queue.Entries[enqueueIdx],
-		idx:   enqueueIdx,
+		id:       msg.QueueID,
+		entry:    m.queue.Entries[enqueueIdx],
+		idx:      enqueueIdx,
+		playNext: playNext,
 	}, nil)
 	m.queueDirty = true
 	player.PlaySound(player.SoundEnqueued)

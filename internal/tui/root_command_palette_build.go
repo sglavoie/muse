@@ -329,6 +329,10 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		})
 	}
 
+	states := m.paletteCurrentStates()
+	for i := range cmds {
+		cmds[i].CurrentState = states[cmds[i].ID]
+	}
 	return cmds
 }
 

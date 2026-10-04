@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -23,7 +21,7 @@ func (a undoBulkEditMetadataAction) description() string {
 	return fmt.Sprintf("Updated %d %s · u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
-func (a undoBulkEditMetadataAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoBulkEditMetadataAction) perform(m Model) (Model, error) {
 	mw := m.metadataWriter
 	dw := m.durationWriter
 	for hash, orig := range a.originals {

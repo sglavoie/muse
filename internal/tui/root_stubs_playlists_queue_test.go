@@ -66,6 +66,7 @@ func (s *stubPlaylistAdder) AddTracksToPlaylist(playlistID int64, hashes []strin
 // stubQueueDequeuer records calls to soft-delete, undo, and purge methods for
 // use in undo-slot unit tests.
 type stubQueueDequeuer struct {
+	undoErr               error
 	dequeueTrackSoftCalls []int64
 	undoDequeueCallIDs    []int64
 	clearQueueSoftResult  []int64
@@ -80,7 +81,7 @@ func (s *stubQueueDequeuer) DequeueTrackSoft(id int64) error {
 
 func (s *stubQueueDequeuer) UndoDequeue(id int64) error {
 	s.undoDequeueCallIDs = append(s.undoDequeueCallIDs, id)
-	return nil
+	return s.undoErr
 }
 
 func (s *stubQueueDequeuer) ClearQueueSoft() ([]int64, error) {
@@ -89,7 +90,7 @@ func (s *stubQueueDequeuer) ClearQueueSoft() ([]int64, error) {
 
 func (s *stubQueueDequeuer) UndoClearQueue(ids []int64) error {
 	s.undoClearQueueCalls = append(s.undoClearQueueCalls, ids)
-	return nil
+	return s.undoErr
 }
 
 func (s *stubQueueDequeuer) PurgeDeletedQueueEntries(before int64) error {

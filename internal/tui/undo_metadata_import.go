@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -37,7 +35,7 @@ func (a undoImportMetadataAction) description() string {
 	return fmt.Sprintf("Imported metadata for %d %s · u to undo", n, text.Pluralize(n, "track", "tracks"))
 }
 
-func (a undoImportMetadataAction) perform(m Model) (Model, tea.Cmd) {
+func (a undoImportMetadataAction) perform(m Model) (Model, error) {
 	mw := m.metadataWriter
 	pw := m.trackPositionWriter
 	for hash, orig := range a.originals {

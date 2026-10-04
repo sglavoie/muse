@@ -22,12 +22,24 @@ func (m Model) handleUndo() Model {
 	// Cancel any in-flight purge timer before delegating to perform(). This
 	// must happen first so that undo actions which schedule new purge timers
 	// do not have them immediately cancelled by the post-perform cleanup.
-	if m.undo.slot.cancelPurge != nil {
+	hadPurge := m.undo.slot.cancelPurge != nil
+	if hadPurge {
 		close(m.undo.slot.cancelPurge)
 		m.undo.slot.cancelPurge = nil
 	}
 	slog.Debug("queue undo", "kind", m.undo.slot.action.kind())
-	m, _ = m.undo.slot.action.perform(m) // undo action may fail silently, user can retry
+	var err error
+	m, err = m.undo.slot.action.perform(m)
+	if err != nil {
+		// Keep the original expiry and action so retry cannot extend the
+		// undo window. Re-arm cleanup cancelled before the attempt.
+		if hadPurge && m.undoer != nil {
+			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
+		}
+		slog.Warn("undo failed", "err", err)
+		m.statusBar.Notify("Undo failed: " + err.Error())
+		return m
+	}
 	m = exitVisualMode(m)
 	m = m.resetAllSorts()
 	// Preserve any cancel channel set by perform() (e.g. enqueue undo

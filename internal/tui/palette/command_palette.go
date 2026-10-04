@@ -31,6 +31,7 @@ type PaletteCommand struct {
 	Exec           func() tea.Cmd
 	Enabled        func() bool // nil means always enabled
 	DisabledReason string      // recovery hint shown when the focused command is unavailable
+	CurrentState   string      // setting shown in the detail line when focused
 }
 
 // Key returns the stable key used to identify the command in the usage store.
@@ -247,7 +248,7 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 	}
 	lines = append(lines, cp.commandLines(cpCommandRowBudget(termHeight), m, s)...)
 	lines = append(lines,
-		// Reuse the bottom padding row for an unavailable command’s explanation.
+		// Reuse the bottom padding row for the focused command’s details.
 		cp.reasonLine(m, s),
 		// Bottom border.
 		cpCornerBL+strings.Repeat(cpBorderH, m.innerWidth)+cpCornerBR,
@@ -261,15 +262,22 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 func (cp CommandPalette) reasonLine(m cpBoxMetrics, s styles.Styles) string {
 	reason := ""
 	if cp.cursor >= 0 && cp.cursor < len(cp.Filtered) {
-		cmd := cp.Filtered[cp.cursor]
-		if !cmd.IsEnabled() {
-			reason = cmd.DisabledReason
-			if reason == "" {
-				reason = "Unavailable in this context"
-			}
-		}
+		reason = cp.Filtered[cp.cursor].detailText()
 	}
 	return cpBorderV + "  " + s.Dim.Render(text.Pad(reason, m.contentWidth)) + "  " + cpBorderV
+}
+
+func (c PaletteCommand) detailText() string {
+	if !c.IsEnabled() {
+		if c.DisabledReason != "" {
+			return c.DisabledReason
+		}
+		return "Unavailable in this context"
+	}
+	if c.CurrentState != "" {
+		return "Current: " + c.CurrentState
+	}
+	return ""
 }
 
 // boxMetrics sizes the box from the title and every command's name, shortcut

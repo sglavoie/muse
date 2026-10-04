@@ -9,7 +9,8 @@ TUI: seven primary views, a command palette, an in-app metadata editor, a
 listening-insights dashboard, and a steerable Auto-DJ that keeps picking the
 next track for you. It is keyboard-driven throughout — press `?` at any time for the
 full keybinding reference. Unavailable command-palette entries explain what
-you need to select or open before using them.
+you need to select or open before using them. Focus a toggle command to see its
+current setting in the palette’s detail line.
 
 > **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
 > snapshot harness will print a real rendered screen for you — no config file,
@@ -97,7 +98,10 @@ you need to select or open before using them.
   To recover it, copy that backup over `metadata-export.tsv` before importing.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
-- Undo (`u`) for destructive operations.
+- Undo (`u`) for destructive operations. Queue-restore failures appear in recent
+  messages and can be retried within the original ten-second undo window.
+- Enqueue confirmations distinguish “Queued next” from “Added to queue,” with
+  the same undo shortcut for both.
 - Clearing a text filter with `Esc` or the palette keeps the focused row in view; a search with no matches
   returns to your position before filtering. Library and Queue no-match hints
   distinguish `Esc` to clear a text filter from `ctrl+t` to clear a tag filter.
