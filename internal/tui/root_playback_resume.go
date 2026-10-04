@@ -62,7 +62,7 @@ func (m Model) resumeExtendedQueue(fallbackIndex int) (Model, bool) {
 	idx, err := m.resumeExtendedQueueIndex(fallbackIndex)
 	if err != nil {
 		slog.Warn("queue extension resume failed", "err", err, "fallback_index", fallbackIndex)
-		m.statusBar.Notify("Resume failed: " + err.Error())
+		m.statusBar.NotifyError("Resume failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m, false
 	}

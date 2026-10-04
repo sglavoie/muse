@@ -192,7 +192,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		); err != nil {
 			restored := previous
 			m.overlay.settings = &restored
-			m.statusBar.Notify("Settings cancel failed: " + err.Error())
+			m.statusBar.NotifyError("Settings cancel failed: " + err.Error())
 			return m, cmd, true
 		}
 		m.overlay.settings = nil
@@ -209,7 +209,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if err := applyPlayerStep(m.equalizerApplyStep(prevEnabled, prevBands, nextEnabled, nextBands)); err != nil {
 			restored := previous
 			m.overlay.settings = &restored
-			m.statusBar.Notify("Equalizer preview failed: " + err.Error())
+			m.statusBar.NotifyError("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	case settings.ActionStereoLive:
@@ -218,7 +218,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 		if err := applyPlayerStep(m.stereoWideApplyStep(prevEnabled, prevAmount, nextEnabled, nextAmount)); err != nil {
 			restored := previous
 			m.overlay.settings = &restored
-			m.statusBar.Notify("Stereo widening preview failed: " + err.Error())
+			m.statusBar.NotifyError("Stereo widening preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	case settings.ActionEQSave:
@@ -244,7 +244,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 			restored := previous
 			restored.EQConfirmDel = false
 			m.overlay.settings = &restored
-			m.statusBar.Notify("Equalizer preview failed: " + err.Error())
+			m.statusBar.NotifyError("Equalizer preview failed: " + err.Error())
 		}
 		return m, cmd, true
 	}
@@ -275,7 +275,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 		m.equalizerApplyStep(oldCfg.EQEnabled, oldCfg.EQBands, cfg.EQEnabled, cfg.EQBands),
 		m.stereoWideApplyStep(oldCfg.StereoWideEnabled, oldCfg.StereoWideAmount, cfg.StereoWideEnabled, cfg.StereoWideAmount),
 	); err != nil {
-		m.statusBar.Notify("Settings save failed: " + err.Error())
+		m.statusBar.NotifyError("Settings save failed: " + err.Error())
 		return m, nil
 	}
 	m.cfg = cfg
@@ -309,7 +309,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 // handleSettingsSavedMsg shows a notification after config.Save completes.
 func (m Model) handleSettingsSavedMsg(msg settingsSavedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.Notify("Settings save failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Settings save failed: " + msg.err.Error())
 	} else {
 		m.statusBar.PushMsg("Settings saved", time.Duration(m.cfg.TransientDurationSecs)*time.Second, statusbar.NotifNormal)
 	}

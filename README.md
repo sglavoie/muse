@@ -117,7 +117,8 @@ Palette search also accepts synonyms such as `refresh library`, `EQ`, and
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
 - Undo (`u`) for destructive operations. Queue-restore failures appear in recent
-  messages and can be retried within the original ten-second undo window.
+  messages and can be retried within the original ten-second undo window. The countdown belongs
+  to the active undo prompt; unrelated messages do not inherit it.
 - Enqueue confirmations distinguish “Queued next” from “Added to queue,” with
   the same undo shortcut for both.
 - Clearing a text filter with `Esc` or the palette keeps the focused row in view; a search with no matches
@@ -136,7 +137,8 @@ Palette search also accepts synonyms such as `refresh library`, `EQ`, and
   results and errors from this session. Long messages wrap; `j`/`k` scroll, with
   a line position indicator for longer histories. `y` copies the complete snapshot
   newest first, including timestamps, without display wrapping.
-  File-manager errors include the affected path and are retained here too.
+  Errors use distinct banner styling and retain an `[error]` label in recent
+  messages and copied history. File-manager errors include the affected path.
   Progress updates are excluded, and past messages do not reactivate their shortcuts.
 
 **Supported audio formats**: `.aac`, `.ac3`, `.aif`, `.aifc`, `.aiff`, `.ape`,

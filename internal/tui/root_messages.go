@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
 type showRecentMessagesMsg struct{}
@@ -43,7 +44,11 @@ func (m Model) showRecentMessages() Model {
 	history := m.statusBar.RecentMessages()
 	lines := make([]string, len(history))
 	for i, entry := range history {
-		lines[i] = entry.At.Format("15:04:05") + "  " + entry.Text
+		label := ""
+		if entry.Severity == statusbar.SeverityError {
+			label = "[error] "
+		}
+		lines[i] = entry.At.Format("15:04:05") + "  " + label + entry.Text
 	}
 	m.overlay.messages = overlay.NewMessages(lines)
 	return m

@@ -500,7 +500,7 @@ func (m Model) djFlushTagRefRepairs(retry bool) Model {
 			m.dj.staleRefs = s
 			slog.Warn("dj session: repair merged tag refs", "err", err, "attempt", s.attempts)
 			if !retry || s.exhausted() {
-				m.statusBar.Notify("Auto-DJ filters still name the merged tag: " + err.Error())
+				m.statusBar.NotifyError("Auto-DJ filters still name the merged tag: " + err.Error())
 			}
 			return m
 		}
@@ -569,7 +569,7 @@ func (m Model) djPersistStop() Model {
 // saved is exactly the failure the user finds out about after a restart.
 func (m Model) noteDJWriteRefused(err error, snapshot bool) Model {
 	m.dj.unsaved = djUnsavedWrite{err: err, snapshot: snapshot}
-	m.statusBar.Notify("Auto-DJ not saved: " + err.Error())
+	m.statusBar.NotifyError("Auto-DJ not saved: " + err.Error())
 	return m
 }
 
@@ -617,7 +617,7 @@ func (m Model) djReconcilePersist() Model {
 		m.dj.unsaved = u
 		slog.Warn("dj session: reconcile", "err", err, "attempt", u.attempts)
 		if u.exhausted() {
-			m.statusBar.Notify("Auto-DJ session could not be saved: " + err.Error())
+			m.statusBar.NotifyError("Auto-DJ session could not be saved: " + err.Error())
 		}
 		return m
 	}

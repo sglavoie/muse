@@ -11,6 +11,17 @@ import (
 // TransientNotifyMsg carries a short message to display in the status bar.
 type TransientNotifyMsg string
 
+// TransientErrorMsg carries a failed action back to the update loop.
+type TransientErrorMsg string
+
+// Severity describes presentation independently of notification priority.
+type Severity uint8
+
+const (
+	severityNormal Severity = iota
+	SeverityError
+)
+
 // NotifPriority controls which notification wins when multiple are queued.
 // Higher values win; the queue evicts the lowest-priority entry when full.
 type NotifPriority uint8
@@ -32,20 +43,25 @@ const transientDuration = 5 * time.Second
 // right zone. expiresAt is the time after which the notification should be
 // cleared by the tick handler. A zero expiresAt means no notification is set.
 type TransientNotification struct {
-	Msg       string
-	ExpiresAt time.Time
-	priority  NotifPriority
+	Msg           string
+	ExpiresAt     time.Time
+	priority      NotifPriority
+	Severity      Severity
+	undoExpiresAt time.Time
 }
 
 // PushMsg enqueues a notification with an explicit duration and priority.
 // The queue is capped at 5 entries; when full the lowest-priority oldest entry
 // is evicted. If all existing entries outrank the incoming one it is dropped.
 func (s *StatusBar) PushMsg(msg string, dur time.Duration, priority NotifPriority) {
-	if priority == NotifNormal {
-		s.rememberMessage(msg)
+	s.pushNotification(TransientNotification{Msg: msg, ExpiresAt: time.Now().Add(dur), priority: priority})
+}
+
+func (s *StatusBar) pushNotification(n TransientNotification) {
+	if n.priority == NotifNormal {
+		s.rememberMessage(n.Msg, n.Severity)
 	}
 	const maxQueue = 5
-	n := TransientNotification{Msg: msg, ExpiresAt: time.Now().Add(dur), priority: priority}
 	s.PruneNotifications()
 	if len(s.Notifications) < maxQueue {
 		s.Notifications = append(s.Notifications, n)
@@ -60,7 +76,7 @@ func (s *StatusBar) PushMsg(msg string, dur time.Duration, priority NotifPriorit
 			evictPrio = existing.priority
 		}
 	}
-	if evictIdx >= 0 && evictPrio <= priority {
+	if evictIdx >= 0 && evictPrio <= n.priority {
 		s.Notifications = append(s.Notifications[:evictIdx], s.Notifications[evictIdx+1:]...)
 		s.Notifications = append(s.Notifications, n)
 	}
@@ -120,7 +136,7 @@ func (s *StatusBar) PruneNotifications() {
 func (s StatusBar) TopNotification() TransientNotification {
 	var top TransientNotification
 	for _, notif := range s.Notifications {
-		if notif.isExpired() {
+		if notif.isExpired() || (!notif.undoExpiresAt.IsZero() && !notif.undoExpiresAt.Equal(s.UndoExpiresAt)) {
 			continue
 		}
 		if top.Msg == "" || notif.priority >= top.priority {
@@ -148,6 +164,22 @@ func (s *StatusBar) Notify(msg string) {
 	s.PushMsg(msg, s.NotifyDuration(), NotifNormal)
 }
 
+// NotifyError records an error with the same lifetime and priority as action results.
+func (s *StatusBar) NotifyError(msg string) {
+	s.pushNotification(TransientNotification{
+		Msg: msg, ExpiresAt: time.Now().Add(s.NotifyDuration()),
+		priority: NotifNormal, Severity: SeverityError,
+	})
+}
+
+// NotifyUndo links a prompt to the exact deadline of the current undo action.
+func (s *StatusBar) NotifyUndo(msg string, expiresAt time.Time) {
+	s.UndoExpiresAt = expiresAt
+	s.pushNotification(TransientNotification{
+		Msg: msg, ExpiresAt: expiresAt, priority: NotifNormal, undoExpiresAt: expiresAt,
+	})
+}
+
 // NotifyInfo enqueues a notifInfo notification (scan, sort, volume, mode
 // toggles). These yield to notifNormal when both are queued.
 func (s *StatusBar) NotifyInfo(msg string) {
@@ -171,5 +203,5 @@ func (s *StatusBar) HandleScanProgress(msg library.ScanProgressMsg) {
 // HandleMissingTrack sets the transient notification to an error message
 // indicating that a track could not be found and was skipped.
 func (s *StatusBar) HandleMissingTrack(path string) {
-	s.Notify(fmt.Sprintf("Error: track not found, skipped: %s", path))
+	s.NotifyError(fmt.Sprintf("Error: track not found, skipped: %s", path))
 }

@@ -178,7 +178,7 @@ func (m Model) handleTagPickerCreate(msg tagtui.TagPickerCreateMsg) (Model, tea.
 // the tag picker so the user sees the new tag.
 func (m Model) handleTagCreated(msg tagCreatedMsg) (Model, tea.Cmd) {
 	if msg.err != nil {
-		m.statusBar.Notify("Create tag failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Create tag failed: " + msg.err.Error())
 		return m, nil
 	}
 
@@ -232,7 +232,7 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 			updated := m.overlay.tagPicker.UpdateItemState(msg.tagID, prevState)
 			m.overlay.tagPicker = &updated
 		}
-		m.statusBar.Notify("Tag toggle failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Tag toggle failed: " + msg.err.Error())
 		return m, nil
 	}
 	if msg.autoDeleted {

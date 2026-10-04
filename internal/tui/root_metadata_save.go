@@ -34,7 +34,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	newDuration, err := metadata.ParseDuration(durStr)
 	if err != nil {
-		m.statusBar.Notify(fmt.Sprintf("Invalid duration: %s", err))
+		m.statusBar.NotifyError(fmt.Sprintf("Invalid duration: %s", err))
 		return m, nil
 	}
 
@@ -148,7 +148,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		var err error
 		newDuration, err = metadata.ParseDuration(*dirtyDuration)
 		if err != nil {
-			m.statusBar.Notify(fmt.Sprintf("Invalid duration: %s", err))
+			m.statusBar.NotifyError(fmt.Sprintf("Invalid duration: %s", err))
 			return m, nil
 		}
 	}

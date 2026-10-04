@@ -9,11 +9,12 @@ const messageHistoryLimit = 50
 
 // Message is a past action result, retained independently of banner expiry.
 type Message struct {
-	Text string
-	At   time.Time
+	Text     string
+	At       time.Time
+	Severity Severity
 }
 
-func (s *StatusBar) rememberMessage(msg string) {
+func (s *StatusBar) rememberMessage(msg string, severity Severity) {
 	if msg == "" {
 		return
 	}
@@ -21,7 +22,7 @@ func (s *StatusBar) rememberMessage(msg string) {
 	start := max(0, len(s.history)-messageHistoryLimit+1)
 	next := make([]Message, len(s.history)-start+1)
 	copy(next, s.history[start:])
-	next[len(next)-1] = Message{Text: msg, At: time.Now()}
+	next[len(next)-1] = Message{Text: msg, At: time.Now(), Severity: severity}
 	s.history = next
 }
 

@@ -15,10 +15,13 @@ func (m Model) welcomeVisible() bool {
 }
 
 // handleWelcomeKeyPress consumes any key press while the welcome overlay is
-// shown, dismissing it so the user proceeds to the library view.
-func (m Model) handleWelcomeKeyPress(_ tea.KeyPressMsg) (Model, tea.Cmd, bool) {
+// shown, dismissing it or honoring the global quit shortcut.
+func (m Model) handleWelcomeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 	if !m.welcomeVisible() {
 		return m, nil, false
+	}
+	if msg.String() == "ctrl+c" {
+		return m.markQuitting(), tea.Quit, true
 	}
 	m.welcomeDismissed = true
 	return m, nil, true

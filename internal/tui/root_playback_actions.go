@@ -87,7 +87,7 @@ func (m Model) handlePlaybackControlResultMsg(msg playbackControlResultMsg) (Mod
 		}
 		label := playbackControlLabel(msg.control)
 		slog.Warn(label+" failed", "err", msg.err)
-		m.statusBar.Notify(label + " failed: " + msg.err.Error())
+		m.statusBar.NotifyError(label + " failed: " + msg.err.Error())
 		return m, nil
 	}
 	if msg.control == playbackControlPause {
@@ -232,7 +232,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			// has just asked to end.
 			if err := m.playRequestExclusive(cp.Stop); err != nil {
 				slog.Warn("stop failed", "err", err)
-				m.statusBar.Notify("Stop failed: " + err.Error())
+				m.statusBar.NotifyError("Stop failed: " + err.Error())
 			} else {
 				m = m.endCurrentListen()
 				m.playback.state = playback.StateStopped
@@ -330,7 +330,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			if err := rs.SetShuffle(m.playback.shuffle); err != nil {
 				slog.Warn("set shuffle failed", "err", err)
 				m.playback.shuffle = !m.playback.shuffle
-				m.statusBar.Notify("Shuffle failed: " + err.Error())
+				m.statusBar.NotifyError("Shuffle failed: " + err.Error())
 				return m, nil, true
 			}
 		}
@@ -339,7 +339,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if m.sessionWriter != nil {
 			if err := m.sessionWriter.WriteShuffle(m.playback.shuffle); err != nil {
 				slog.Warn("write shuffle failed", "err", err)
-				m.statusBar.Notify(fmt.Sprintf("Shuffle %s (not saved — won't survive restart)", label))
+				m.statusBar.NotifyError(fmt.Sprintf("Shuffle %s (not saved — won't survive restart)", label))
 				return m, nil, true
 			}
 		}

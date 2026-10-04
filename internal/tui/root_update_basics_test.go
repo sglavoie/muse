@@ -62,10 +62,14 @@ func TestUpdateKeyPressDismissesConfigCreatedNotice(t *testing.T) {
 	nm := next.(Model)
 
 	if nm.configCreated {
-		t.Fatal("keypress should dismiss first-run config notice before routing")
+		t.Fatal("keypress should dismiss first-run config notice")
 	}
+	if nm.helpVisible || !nm.welcomeDismissed {
+		t.Fatal("first keypress should only dismiss the welcome overlay")
+	}
+	nm, _ = updateModel(nm, tea.KeyPressMsg{Code: '?', Text: "?"})
 	if !nm.helpVisible {
-		t.Fatal("keypress should still route normally after dismissing config notice")
+		t.Fatal("subsequent keypress should route normally")
 	}
 }
 

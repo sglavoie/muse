@@ -35,17 +35,17 @@ func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
 func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMsg) (Model, tea.Cmd) {
 	idx := msg.Index
 	if idx < 0 || idx >= len(m.queue.Entries) {
-		m.statusBar.Notify("Cannot play — file is missing")
+		m.statusBar.NotifyError("Cannot play — file is missing")
 		return m, nil
 	}
 	entry := m.queue.Entries[idx]
 	// Guard against a stale index (queue mutated between dispatch and Update).
 	if msg.Path != "" && entry.Path != msg.Path {
-		m.statusBar.Notify("Cannot play — file is missing")
+		m.statusBar.NotifyError("Cannot play — file is missing")
 		return m, nil
 	}
 
-	m.statusBar.Notify("Removed — file missing: " + entry.Display)
+	m.statusBar.NotifyError("Removed — file missing: " + entry.Display)
 	player.PlaySound(player.SoundError)
 
 	m.queue.Entries = append(m.queue.Entries[:idx], m.queue.Entries[idx+1:]...)
@@ -140,7 +140,7 @@ func (m Model) handlePlayFromIndexResultMsg(msg playback.PlayFromIndexResultMsg)
 		// that would supersede that control and its result.
 		m = m.restorePlaybackDisplayFromPlayer()
 	}
-	m.statusBar.Notify(playResultFailureText(msg))
+	m.statusBar.NotifyError(playResultFailureText(msg))
 	player.PlaySound(player.SoundError)
 	return m
 }

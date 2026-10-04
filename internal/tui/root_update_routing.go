@@ -22,12 +22,13 @@ func (m Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) Model {
 }
 
 func (m Model) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	// Dismiss the first-run config notice on any keypress.
-	m.configCreated = false
-
+	// Route before clearing configCreated so the first-run welcome consumes
+	// its dismissal key instead of forwarding it to the underlying view.
 	if model, cmd, ok := m.routeKeyPress(msg); ok {
+		model.configCreated = false
 		return model, cmd
 	}
+	m.configCreated = false
 	return m.handleKeyAction(m.resolveKey(msg.String()))
 }
 

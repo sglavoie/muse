@@ -58,7 +58,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 			if ok && pl.IsSmart {
 				q, err := db.ParseSmartPlaylistQuery(pl.Query)
 				if err != nil {
-					m.statusBar.Notify("Invalid smart playlist query: " + err.Error())
+					m.statusBar.NotifyError("Invalid smart playlist query: " + err.Error())
 					return m, nil, true
 				}
 				editor := smartrules.NewSmartRuleEditorEdit(pl.ID, pl.Name, q)

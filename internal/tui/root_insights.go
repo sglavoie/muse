@@ -225,9 +225,9 @@ func (m Model) handleInsightsLoadedMsg(msg insightsLoadedMsg) Model {
 		m.insights.LoadErr = msg.err
 		m.insights.Stale = true
 		if m.insights.Loaded {
-			m.statusBar.Notify("Insights: refresh failed, showing the last complete figures")
+			m.statusBar.NotifyError("Insights: refresh failed, showing the last complete figures")
 		} else {
-			m.statusBar.Notify("Insights: could not read your listening history")
+			m.statusBar.NotifyError("Insights: could not read your listening history")
 		}
 		return m
 	}

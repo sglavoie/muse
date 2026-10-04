@@ -33,25 +33,25 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 			return m, func() tea.Msg {
 				queryJSON, err := db.MarshalSmartPlaylistQuery(q)
 				if err != nil {
-					return statusbar.TransientNotifyMsg("Smart playlist error: " + err.Error())
+					return statusbar.TransientErrorMsg("Smart playlist error: " + err.Error())
 				}
 				if isEdit {
 					if err := sw.UpdateSmartPlaylistQuery(editID, name, queryJSON); err != nil {
-						return statusbar.TransientNotifyMsg("Update failed: " + err.Error())
+						return statusbar.TransientErrorMsg("Update failed: " + err.Error())
 					}
 					rows, err := sw.ReadPlaylists()
 					if err != nil {
-						return statusbar.TransientNotifyMsg("Refresh failed: " + err.Error())
+						return statusbar.TransientErrorMsg("Refresh failed: " + err.Error())
 					}
 					return smartPlaylistEditedMsg{playlists: rows}
 				}
 				id, err := sw.CreateSmartPlaylist(name, queryJSON)
 				if err != nil {
-					return statusbar.TransientNotifyMsg("Create failed: " + err.Error())
+					return statusbar.TransientErrorMsg("Create failed: " + err.Error())
 				}
 				rows, err := sw.ReadPlaylists()
 				if err != nil {
-					return statusbar.TransientNotifyMsg("Refresh failed: " + err.Error())
+					return statusbar.TransientErrorMsg("Refresh failed: " + err.Error())
 				}
 				return smartPlaylistCreatedMsg{id: id, playlists: rows}
 			}, true

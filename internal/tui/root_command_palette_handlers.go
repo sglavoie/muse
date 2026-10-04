@@ -23,7 +23,7 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	case toggleNormalize:
 		next := !m.cfg.NormalizeVolume
 		if err := applyPlayerStep(m.normalizeApplyStep(m.cfg.NormalizeVolume, next)); err != nil {
-			m.statusBar.Notify("Volume normalization failed: " + err.Error())
+			m.statusBar.NotifyError("Volume normalization failed: " + err.Error())
 			return m, nil
 		}
 		m.cfg.NormalizeVolume = next
@@ -32,7 +32,7 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	case toggleEQ:
 		next := !m.cfg.EQEnabled
 		if err := applyPlayerStep(m.equalizerApplyStep(m.cfg.EQEnabled, m.cfg.EQBands, next, m.cfg.EQBands)); err != nil {
-			m.statusBar.Notify("Equalizer failed: " + err.Error())
+			m.statusBar.NotifyError("Equalizer failed: " + err.Error())
 			return m, nil
 		}
 		m.cfg.EQEnabled = next
@@ -41,7 +41,7 @@ func (m Model) handleConfigToggleMsg(msg configToggleMsg) (Model, tea.Cmd) {
 	case toggleStereoWide:
 		next := !m.cfg.StereoWideEnabled
 		if err := applyPlayerStep(m.stereoWideApplyStep(m.cfg.StereoWideEnabled, m.cfg.StereoWideAmount, next, m.cfg.StereoWideAmount)); err != nil {
-			m.statusBar.Notify("Stereo widening failed: " + err.Error())
+			m.statusBar.NotifyError("Stereo widening failed: " + err.Error())
 			return m, nil
 		}
 		m.cfg.StereoWideEnabled = next

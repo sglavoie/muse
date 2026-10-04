@@ -159,6 +159,7 @@ func (m Model) clearQueueForReplace() Model {
 		close(m.undo.slot.cancelPurge)
 	}
 	m.undo.slot = undoSlot{}
+	m.statusBar.UndoExpiresAt = m.undo.slot.expiresAt
 	m = m.resetQueueState()
 	m = m.resetPlaybackState()
 	if setter, ok := m.player.(playerQueueSetter); ok {
@@ -172,7 +173,7 @@ func (m Model) clearQueueForReplace() Model {
 // and adjusts the playback index.
 func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.Notify("Paste failed: " + msg.Err.Error())
+		m.statusBar.NotifyError("Paste failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}

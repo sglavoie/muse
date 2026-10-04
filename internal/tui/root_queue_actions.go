@@ -36,7 +36,7 @@ func (m Model) handleUndo() Model {
 			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
 		}
 		slog.Warn("undo failed", "err", err)
-		m.statusBar.Notify("Undo failed: " + err.Error())
+		m.statusBar.NotifyError("Undo failed: " + err.Error())
 		return m
 	}
 	m = exitVisualMode(m)
@@ -46,6 +46,7 @@ func (m Model) handleUndo() Model {
 	// destructive action).
 	pendingCancel := m.undo.slot.cancelPurge
 	m.undo.slot = undoSlot{}
+	m.statusBar.UndoExpiresAt = m.undo.slot.expiresAt
 	m.undo.slot.cancelPurge = pendingCancel
 	return m
 }

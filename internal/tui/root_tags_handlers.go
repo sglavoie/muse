@@ -13,7 +13,7 @@ import (
 // Drop the message in those cases and keep the refreshed counts only.
 func (m Model) handleTagViewTracksLoaded(msg tagViewTracksLoadedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.Notify("Load tracks failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Load tracks failed: " + msg.err.Error())
 		return m
 	}
 	if m.ActiveView != viewTags || m.tagsView.Level != tagtui.TagLevel {
@@ -41,7 +41,7 @@ func (m Model) handleTagViewCountsLoaded(msg tagViewCountsLoadedMsg) Model {
 // handleTagRenamed processes tagRenamedMsg: updates the in-memory tag list.
 func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.Notify("Rename failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Rename failed: " + msg.err.Error())
 		return m
 	}
 	for i := range m.tagsView.Tags {
@@ -73,7 +73,7 @@ func (m Model) handleTagDeleted(msg tagDeletedMsg) Model {
 		copy(restored[idx+1:], m.tagsView.Tags[idx:])
 		m.tagsView.Tags = restored
 		m = m.rebuildTagCache(append(m.tags, msg.tag))
-		m.statusBar.Notify("Delete tag failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Delete tag failed: " + msg.err.Error())
 		return m
 	}
 	return m

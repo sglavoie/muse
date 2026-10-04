@@ -134,7 +134,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 105 | 29 | 75 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 54 | 1 | 51 | 2 | `tui`, `queue`, `uitest` |
+| `tui/statusbar` | 61 | 1 | 57 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 50 | 0 | 48 | 2 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1016 exported identifiers across 15 packages**: 153 reached from two or more packages, 803 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1023 exported identifiers across 15 packages**: 153 reached from two or more packages, 809 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -648,10 +648,13 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `LongOpState.Update` | method | `internal/tui` | root |
 | `tui/statusbar` | `Message` | type | — | api |
 | `tui/statusbar` | `Message.At` | field | `internal/tui` | root |
+| `tui/statusbar` | `Message.Severity` | field | `internal/tui` | root |
 | `tui/statusbar` | `Message.Text` | field | `internal/tui` | root |
 | `tui/statusbar` | `NotifInfo` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifNormal` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifPriority` | type | — | api |
+| `tui/statusbar` | `Severity` | type | — | api |
+| `tui/statusbar` | `SeverityError` | const | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar` | type | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Album` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Artist` | field | `internal/tui` | root |
@@ -667,7 +670,9 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.Notifications` | field | `internal/tui†` | root (tests only) |
 | `tui/statusbar` | `StatusBar.Notify` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.NotifyDuration` | method | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.NotifyError` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.NotifyInfo` | method | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.NotifyUndo` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.PlaybackState` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.PlaylistSource` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.PruneNotifications` | method | `internal/tui` | root |
@@ -691,9 +696,11 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.WatchDegraded` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.YankCount` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.YankIsCut` | field | `internal/tui` | root |
+| `tui/statusbar` | `TransientErrorMsg` | type | `internal/tui` | root |
 | `tui/statusbar` | `TransientNotification` | type | `internal/tui†` | root (tests only) |
 | `tui/statusbar` | `TransientNotification.ExpiresAt` | field | `internal/tui†` | root (tests only) |
 | `tui/statusbar` | `TransientNotification.Msg` | field | `internal/tui†` | root (tests only) |
+| `tui/statusbar` | `TransientNotification.Severity` | field | `internal/tui†` | root (tests only) |
 | `tui/statusbar` | `TransientNotifyMsg` | type | `internal/tui`, `tui/queue`, `tui/uitest†` | multi |
 | `tui/settings` | `Action` | type | — | api |
 | `tui/settings` | `ActionCancel` | const | `internal/tui` | root |

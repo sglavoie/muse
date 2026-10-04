@@ -59,7 +59,7 @@ func (m Model) handleTagMergePicked(msg tagtui.TagMergePickedMsg) (Model, tea.Cm
 // handleTagMerged processes tagMergedMsg: refreshes the tag cache and notifies.
 func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 	if msg.err != nil {
-		m.statusBar.Notify("Merge failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Merge failed: " + msg.err.Error())
 		return m, nil
 	}
 

@@ -103,8 +103,7 @@ func TestWelcomeOverlay_NoMusicDirCopyWhenHintEmpty(t *testing.T) {
 	}
 }
 
-// Any key dismisses the overlay even though configCreated is cleared first by
-// handleKeyPressMsg; the hint alone would otherwise keep it on screen forever.
+// Ordinary keys dismiss the overlay even when a missing-directory hint persists.
 func TestWelcomeOverlay_DismissedByAnyKey(t *testing.T) {
 	m := sizedWelcomeModel(t,
 		WithConfigPath(testConfigPath, false),
@@ -117,5 +116,32 @@ func TestWelcomeOverlay_DismissedByAnyKey(t *testing.T) {
 	}
 	if got := ansi.Strip(viewContent(m)); strings.Contains(got, "No music directories found.") {
 		t.Errorf("dismissed overlay still rendered:\n%s", got)
+	}
+}
+
+func TestWelcomeOverlayQuitAndDismissal(t *testing.T) {
+	for _, created := range []bool{false, true} {
+		for _, quit := range []bool{false, true} {
+			opts := []Option{WithConfigPath(testConfigPath, created)}
+			if !created {
+				opts = append(opts, WithMusicDirHint(config.ConfigHint(testConfigPath), false))
+			}
+			m := sizedWelcomeModel(t, opts...)
+			key := tea.KeyPressMsg{Code: '2', Text: "2"}
+			if quit {
+				key = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
+			}
+			m, cmd := updateModel(m, key)
+			if quit {
+				if !m.quitting || cmd == nil {
+					t.Fatal("welcome must quit on the first Ctrl+C")
+				}
+				if _, ok := cmd().(tea.QuitMsg); !ok {
+					t.Fatal("welcome did not return the quit command")
+				}
+			} else if m.welcomeVisible() || m.ActiveView != viewLibrary {
+				t.Fatal("dismissal key leaked through to the underlying view")
+			}
+		}
 	}
 }

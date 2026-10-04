@@ -17,7 +17,7 @@ import (
 // appended to the end.
 func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.Notify("Enqueue track failed: " + msg.Err.Error())
+		m.statusBar.NotifyError("Enqueue track failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -76,7 +76,7 @@ func (m Model) handleTrackEnqueuedMsg(msg libtui.TrackEnqueuedMsg) Model {
 // to the queue and triggers playback if the queue was empty.
 func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 	if msg.Err != nil {
-		m.statusBar.Notify("Enqueue failed: " + msg.Err.Error())
+		m.statusBar.NotifyError("Enqueue failed: " + msg.Err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}
@@ -121,7 +121,7 @@ func (m Model) tryAutoPlay(hash, artist, title, source string) Model {
 	// on top of the row that is starting here.
 	if err := m.playRequestExclusive(func() error { return m.player.PlayFromIndex(0) }); err != nil {
 		m.playback.state = playback.StateIdle
-		m.statusBar.Notify("Play failed: " + err.Error())
+		m.statusBar.NotifyError("Play failed: " + err.Error())
 		player.PlaySound(player.SoundError)
 		return m
 	}

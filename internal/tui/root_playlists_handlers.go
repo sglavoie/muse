@@ -31,7 +31,7 @@ func (m Model) handlePlaylistTracksLoadedMsg(msg playlistTracksLoadedMsg) Model 
 // handlePlaylistTracksLoadErrorMsg shows a transient error notification for
 // a failed playlist track load.
 func (m Model) handlePlaylistTracksLoadErrorMsg(msg playlistTracksLoadErrorMsg) Model {
-	m.statusBar.Notify("Load playlist failed: " + msg.err.Error())
+	m.statusBar.NotifyError("Load playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -66,7 +66,7 @@ func (m Model) handlePlaylistRenamedMsg(msg playlistRenamedMsg) Model {
 // error notification.
 func (m Model) handlePlaylistRenameErrorMsg(msg playlistRenameErrorMsg) Model {
 	m.playlists = m.playlists.CancelRename()
-	m.statusBar.Notify("Rename playlist failed: " + msg.err.Error())
+	m.statusBar.NotifyError("Rename playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -131,7 +131,7 @@ func (m Model) handlePlaylistCreatedMsg(msg playlistCreatedMsg) (Model, tea.Cmd)
 // error notification.
 func (m Model) handlePlaylistCreateErrorMsg(msg playlistCreateErrorMsg) Model {
 	m.playlists = m.playlists.CancelCreate()
-	m.statusBar.Notify("Create playlist failed: " + msg.err.Error())
+	m.statusBar.NotifyError("Create playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
@@ -156,14 +156,14 @@ func (m Model) handleQueueSavedAsPlaylistMsg(msg queueSavedAsPlaylistMsg) Model 
 // an error notification.
 func (m Model) handleQueueSaveAsPlaylistErrorMsg(msg queueSaveAsPlaylistErrorMsg) Model {
 	m.queue = m.queue.CancelSaveAsPlaylist()
-	m.statusBar.Notify("Save queue as playlist failed: " + msg.err.Error())
+	m.statusBar.NotifyError("Save queue as playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }
 
 // handlePlaylistAddErrorMsg shows an error notification for a failed track add.
 func (m Model) handlePlaylistAddErrorMsg(msg playlistAddErrorMsg) Model {
-	m.statusBar.Notify("Add tracks failed: " + msg.err.Error())
+	m.statusBar.NotifyError("Add tracks failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m
 }

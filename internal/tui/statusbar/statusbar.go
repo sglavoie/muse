@@ -15,7 +15,7 @@ type StatusBar struct {
 	history       []Message
 	TransientDur  time.Duration // configurable notification duration
 
-	// UndoExpiresAt is set by renderStatusBar when an undo slot is active.
+	// UndoExpiresAt identifies the active undo prompt; zero hides past prompts.
 	UndoExpiresAt time.Time
 
 	// Persistent left zone fields — set during Update when track/state changes.

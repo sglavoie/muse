@@ -128,7 +128,7 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	truncated := m.scanOutcome.Err()
 	if truncated != nil {
 		slog.Error("rescan incomplete: skipping deletion reconciliation", "err", truncated)
-		m.statusBar.Notify("Rescan incomplete: some files could not be hashed; deletions were not reconciled")
+		m.statusBar.NotifyError("Rescan incomplete: some files could not be hashed; deletions were not reconciled")
 	}
 	// A canceled scan clears rescanPriorPaths before this message lands, and a
 	// normal completion still has m.scanning == true (only this handler flips it

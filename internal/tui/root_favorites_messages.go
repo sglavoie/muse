@@ -11,7 +11,7 @@ import (
 // handleFavoriteToggledMsg processes the result of a favorite toggle operation.
 func (m Model) handleFavoriteToggledMsg(msg favoriteToggledMsg) Model {
 	if msg.err != nil {
-		m.statusBar.Notify("Toggle favorite failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Toggle favorite failed: " + msg.err.Error())
 		return m
 	}
 
@@ -143,7 +143,7 @@ func containsString(values []string, target string) bool {
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.
 func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.Notify("Load favorites failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Load favorites failed: " + msg.err.Error())
 		return m
 	}
 

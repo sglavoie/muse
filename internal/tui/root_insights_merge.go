@@ -198,7 +198,7 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 	lost := msg.failed + superseded
 	switch {
 	case done == 0 && msg.err != nil:
-		m.statusBar.Notify(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
+		m.statusBar.NotifyError(fmt.Sprintf("Genre merge failed, nothing changed: %s", msg.err))
 	case done == 0 && lost > 0:
 		m.statusBar.Notify(fmt.Sprintf("Genre merge stood down: %d %s changed while it ran · m retries",
 			lost, text.Pluralize(lost, "track", "tracks")))

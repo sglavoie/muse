@@ -120,7 +120,7 @@ func (m Model) handleMetadataExportRequest() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.dataDir == "" {
-		m.statusBar.Notify("Cannot export: no data directory configured")
+		m.statusBar.NotifyError("Cannot export: no data directory configured")
 		return m, nil
 	}
 	tracks, label, ok := m.visibleTracks()
@@ -152,7 +152,7 @@ func (e exportPathCopy) armed() bool {
 func (m Model) handleMetadataExportedMsg(msg metadataExportedMsg) Model {
 	m.metadataExportBusy = false
 	if msg.err != nil {
-		m.statusBar.Notify("Export failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Export failed: " + msg.err.Error())
 		return m
 	}
 	notice := fmt.Sprintf("Exported %d %s from %s",

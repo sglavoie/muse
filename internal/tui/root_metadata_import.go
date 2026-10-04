@@ -48,7 +48,7 @@ type metadataImportWrite struct {
 // index because the hashes an import touches are unknown until it is parsed.
 func (m Model) handleMetadataImportRequest() (tea.Model, tea.Cmd) {
 	if m.dataDir == "" {
-		m.statusBar.Notify("Cannot import: no data directory configured")
+		m.statusBar.NotifyError("Cannot import: no data directory configured")
 		return m, nil
 	}
 	if !metadataExportExists(m.dataDir) {
@@ -100,7 +100,7 @@ func readMetadataImportCmd(path string, cur map[string]metaexport.Current) tea.C
 // written until the user confirms there.
 func (m Model) handleMetadataImportParsedMsg(msg metadataImportParsedMsg) Model {
 	if msg.err != nil {
-		m.statusBar.Notify("Import failed: " + msg.err.Error())
+		m.statusBar.NotifyError("Import failed: " + msg.err.Error())
 		return m
 	}
 	// A parse that dropped rows or warned is not a clean no-op: an intended edit
@@ -316,6 +316,10 @@ func (m Model) handleMetadataImportAppliedMsg(msg metadataImportAppliedMsg) Mode
 	if msg.superseded > 0 {
 		text += fmt.Sprintf(" · %d superseded by a later edit", msg.superseded)
 	}
-	m.statusBar.Notify(text)
+	if msg.failed > 0 {
+		m.statusBar.NotifyError(text)
+	} else {
+		m.statusBar.Notify(text)
+	}
 	return m
 }
