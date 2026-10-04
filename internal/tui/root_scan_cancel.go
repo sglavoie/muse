@@ -29,6 +29,7 @@ func (m Model) handleScanCancelKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	// paths it would compute are meaningless. Drop the prior-paths snapshot so
 	// the trailing ScanDoneMsg skips deletion reconciliation entirely.
 	m.rescanPriorPaths = nil
+	m.statusBar.ClearScanProgress()
 	m.statusBar.Notify("Scan canceled")
 	return m, nil, true
 }

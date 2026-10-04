@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Help search matches section headings and includes all controls in a matching section.
+- Seek and volume palette commands show their configured step sizes.
+- Successful library scans replace progress with a completion count retained in
+  Recent Messages; canceled and incomplete scans retain their distinct feedback.
+
 - Bulk metadata fields distinguish mixed values from empty values with a muted
   “Multiple values — unchanged” placeholder.
 - Command-palette search accepts synonyms such as “refresh library”, “EQ”, and

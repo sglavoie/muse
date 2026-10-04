@@ -48,6 +48,7 @@ type TransientNotification struct {
 	priority      NotifPriority
 	Severity      Severity
 	undoExpiresAt time.Time
+	scanProgress  bool
 }
 
 // PushMsg enqueues a notification with an explicit duration and priority.
@@ -187,7 +188,7 @@ func (s *StatusBar) NotifyInfo(msg string) {
 }
 
 // HandleScanProgress sets the transient notification to a formatted progress
-// string with a 5-second expiry. New calls overwrite the previous notification.
+// string with the configured expiry. New calls replace the previous scan update.
 // When msg.Total is known (> 0) the format is "Scanning… X / Y tracks";
 // before the count arrives it falls back to "Scanning… X tracks".
 func (s *StatusBar) HandleScanProgress(msg library.ScanProgressMsg) {
@@ -197,7 +198,22 @@ func (s *StatusBar) HandleScanProgress(msg library.ScanProgressMsg) {
 	} else {
 		notice = fmt.Sprintf("Scanning… %s tracks", text.FormatCount(msg.Scanned))
 	}
-	s.NotifyInfo(notice)
+	s.ClearScanProgress()
+	s.pushNotification(TransientNotification{
+		Msg: notice, ExpiresAt: time.Now().Add(s.NotifyDuration()),
+		priority: NotifInfo, scanProgress: true,
+	})
+}
+
+// ClearScanProgress removes obsolete scan updates without discarding other notices.
+func (s *StatusBar) ClearScanProgress() {
+	kept := s.Notifications[:0]
+	for _, n := range s.Notifications {
+		if !n.scanProgress {
+			kept = append(kept, n)
+		}
+	}
+	s.Notifications = kept
 }
 
 // HandleMissingTrack sets the transient notification to an error message

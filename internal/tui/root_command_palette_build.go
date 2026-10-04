@@ -332,9 +332,13 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	}
 
 	states := m.paletteCurrentStates()
+	playbackDetails := m.palettePlaybackDetails()
 	cmds = append(cmds, m.sortPaletteCommands()...)
 	for i := range cmds {
 		cmds[i] = m.describeQueueCommand(cmds[i])
+		if detail, ok := playbackDetails[cmds[i].ID]; ok {
+			cmds[i].Detail = detail
+		}
 		cmds[i].Aliases = paletteAliases(cmds[i].ID)
 		if state, ok := states[cmds[i].ID]; ok {
 			cmds[i].CurrentState = state

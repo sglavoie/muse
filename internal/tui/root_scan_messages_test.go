@@ -94,64 +94,85 @@ func TestViewStatusBarShowsScanProgress(t *testing.T) {
 	}
 }
 
-// TestViewStatusBarHidesScanProgressWhenDone verifies that the scanning
-// indicator auto-dismisses after the notification expiry is reached and the
-// tick fires. ScanDoneMsg alone does not clear the notification; it stays
-// visible until the 1-second tick sees that expiresAt has passed.
-func TestViewStatusBarHidesScanProgressWhenDone(t *testing.T) {
-	m := New(context.Background())
-	// Set progress — notification gets a 5-second expiry.
-	next, _ := m.Update(library.ScanProgressMsg{Scanned: 100})
-	nm := next.(Model)
-	// ScanDoneMsg stops scanning but does not clear the notification.
-	next, _ = nm.Update(library.ScanDoneMsg{})
-	nm = next.(Model)
-	if nm.statusBar.TopNotification().Msg == "" {
-		t.Fatal("notification must still be set immediately after ScanDoneMsg")
-	}
-	// Manually expire the notification to simulate 5 seconds passing.
-	if len(nm.statusBar.Notifications) > 0 {
-		nm.statusBar.Notifications[0].ExpiresAt = time.Now().Add(-10 * time.Second)
-	}
-	// Tick fires → expiry check clears the notification.
-	next, _ = nm.Update(tickMsg{})
-	nm = next.(Model)
-	v := nm.View()
-	if strings.Contains(v.Content, "Scanning") {
-		t.Fatalf("status bar must not show scan progress after expiry tick; got:\n%s", v.Content)
+// Completion replaces progress immediately, survives in history, and expires
+// without resurrecting old progress or dropping unrelated notifications.
+func TestScanCompletionNotification(t *testing.T) {
+	for _, tc := range []struct {
+		count int
+		want  string
+	}{
+		{0, "Scan complete — 0 tracks"},
+		{1, "Scan complete — 1 track"},
+		{1234, "Scan complete — 1,234 tracks"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			m := New(context.Background(), WithScanChannel(make(chan library.Track)))
+			m.scanned = tc.count
+			m.statusBar.NotifyInfo("Volume: 50%")
+			m.statusBar.HandleScanProgress(library.ScanProgressMsg{Scanned: tc.count})
+			next, _ := m.Update(library.ScanDoneMsg{})
+			m = next.(Model)
+			if got := m.statusBar.TopNotification().Msg; got != tc.want {
+				t.Fatalf("notification = %q, want %q", got, tc.want)
+			}
+			history := m.statusBar.RecentMessages()
+			if len(history) != 1 || history[0].Text != tc.want {
+				t.Fatalf("history = %+v", history)
+			}
+			for i, n := range m.statusBar.Notifications {
+				if strings.Contains(n.Msg, "Scanning") {
+					t.Fatalf("stale progress retained: %q", n.Msg)
+				}
+				if n.Msg == tc.want {
+					m.statusBar.Notifications[i].ExpiresAt = time.Now().Add(-time.Second)
+				}
+			}
+			m.statusBar.PruneNotifications()
+			if got := m.statusBar.TopNotification().Msg; got != "Volume: 50%" {
+				t.Fatalf("unrelated notification lost: %q", got)
+			}
+			if len(m.statusBar.RecentMessages()) != 1 {
+				t.Fatal("completion disappeared from history after expiry")
+			}
+		})
 	}
 }
 
-// TestScanProgressVisibleDuringScanAndAutoDismissed verifies the full lifecycle:
-// progress is shown while scanning, the last message persists past ScanDoneMsg,
-// and the tick clears it once the expiry passes.
-func TestScanProgressVisibleDuringScanAndAutoDismissed(t *testing.T) {
-	m := New(context.Background())
-
-	// Scan progress sets a notification.
-	next, _ := m.Update(library.ScanProgressMsg{Scanned: 42})
-	nm := next.(Model)
-	v := nm.View()
-	if !strings.Contains(v.Content, "Scanning") {
-		t.Fatalf("scan progress must be visible during scan; got:\n%s", v.Content)
-	}
-
-	// ScanDoneMsg stops scanning but notification is still set.
-	next, _ = nm.Update(library.ScanDoneMsg{})
-	nm = next.(Model)
-	if nm.statusBar.TopNotification().Msg == "" {
-		t.Fatal("scan progress notification must persist immediately after ScanDoneMsg")
-	}
-
-	// Expire the notification and fire a tick.
-	if len(nm.statusBar.Notifications) > 0 {
-		nm.statusBar.Notifications[0].ExpiresAt = time.Now().Add(-10 * time.Second)
-	}
-	next, _ = nm.Update(tickMsg{})
-	nm = next.(Model)
-	v = nm.View()
-	if strings.Contains(v.Content, "Scanning") {
-		t.Fatalf("scan progress must be auto-dismissed after expiry tick; got:\n%s", v.Content)
+func TestScanCompletionDoesNotReportCanceledOrIncompleteAsSuccess(t *testing.T) {
+	for _, outcome := range []string{"canceled", "incomplete", "inactive"} {
+		t.Run(outcome, func(t *testing.T) {
+			m := New(context.Background(), WithScanChannel(make(chan library.Track)))
+			m.statusBar.HandleScanProgress(library.ScanProgressMsg{Scanned: 5})
+			switch outcome {
+			case "canceled":
+				m, _, _ = m.handleScanCancelKeyPress(tea.KeyPressMsg{Code: tea.KeyEscape})
+				// A final batch may still drain after cancellation.
+				m, _ = m.handleScanBatchMsg(library.ScanBatchMsg{})
+			case "incomplete":
+				m.scanOutcome = &library.StageOutcome{}
+				m.scanOutcome.Fail(library.ErrHashWorkerPanicked)
+			case "inactive":
+				m.scanning = false
+			}
+			next, _ := m.Update(library.ScanDoneMsg{})
+			m = next.(Model)
+			for _, n := range m.statusBar.Notifications {
+				if strings.Contains(n.Msg, "Scan complete") || strings.Contains(n.Msg, "Scanning") {
+					t.Fatalf("unexpected notification: %q", n.Msg)
+				}
+			}
+			if outcome == "canceled" && m.statusBar.TopNotification().Msg != "Scan canceled" {
+				t.Fatal("cancellation notice was lost")
+			}
+			if outcome == "incomplete" && !strings.Contains(m.statusBar.TopNotification().Msg, "Rescan incomplete") {
+				t.Fatal("incomplete scan notice was lost")
+			}
+			for _, entry := range m.statusBar.RecentMessages() {
+				if strings.Contains(entry.Text, "Scan complete") {
+					t.Fatal("unsuccessful scan recorded as complete")
+				}
+			}
+		})
 	}
 }
 

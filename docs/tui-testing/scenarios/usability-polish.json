@@ -296,6 +296,76 @@
       "assert": {
         "no_layout_issues": true
       }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Raise volume"
+    },
+    {
+      "assert": {
+        "contains": "Raise volume by 5 percentage points"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "contains": "Raise volume by 5 percentage points"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "?"
+    },
+    {
+      "key": "?"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "Auto-DJ panel"
+    },
+    {
+      "assert": {
+        "contains": "Page between Tune, Preview, and Recipes"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
     }
   ]
 }

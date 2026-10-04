@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // rescanEntry holds per-track values snapshotted before a full rescan clears
@@ -120,6 +122,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 // deletion contract the live watcher provides.
 func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	var cmd tea.Cmd
+	m.statusBar.ClearScanProgress()
 	// A hash worker that panicked closes the scan channel exactly like a
 	// finished one, so the ScanDoneMsg alone cannot be trusted as "the whole
 	// library was rescanned". Files it never hashed are absent from the rebuilt
@@ -136,6 +139,9 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	// intact scan.
 	if truncated == nil && m.scanning && len(m.rescanPriorPaths) > 0 {
 		m, cmd = m.reconcileRescanDeletions()
+	}
+	if truncated == nil && m.scanning {
+		m.statusBar.Notify(fmt.Sprintf("Scan complete — %s %s", text.FormatCount(m.scanned), text.Pluralize(m.scanned, "track", "tracks")))
 	}
 	m.scanning = false
 	m.scanCh = nil

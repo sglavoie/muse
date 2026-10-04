@@ -18,7 +18,8 @@ track and explicitly say when a bulk selection will not be used. Replace also
 states that it clears the queue. Commands needing a track are unavailable at
 collection level or when there are no matching tracks.
 Palette search also accepts synonyms such as `refresh library`, `EQ`, and
-`tune radio`; matches against displayed command names rank first.
+`tune radio`; matches against displayed command names rank first. Seek and volume commands show
+their configured step sizes in the detail line.
 
 > **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
 > snapshot harness will print a real rendered screen for you — no config file,
@@ -133,6 +134,9 @@ Palette search also accepts synonyms such as `refresh library`, `EQ`, and
 - **Direct sorting** — search the palette for _Sort by_ to choose a field supported
   by the current view. The selected field and direction appear in its detail line.
   The existing sort-cycle and direction shortcuts remain available.
+- Completed library scans replace progress with “Scan complete — N tracks” and
+  retain that result in Recent Messages. Canceled and incomplete scans keep their
+  distinct messages.
 - **Recent messages** — `:` → _Show recent messages_ reopens the last 50 action
   results and errors from this session. Long messages wrap; `j`/`k` scroll, with
   a line position indicator for longer histories. `y` copies the complete snapshot
@@ -441,6 +445,9 @@ connection hears `hello` first, then the latest `state`:
   socket reaching EOF afterwards means shutdown finished.
 
 ### Core keybindings
+
+Help search matches section headings as well as shortcuts and descriptions; matching
+a heading shows all its controls.
 
 Press `?` inside muse for the complete, searchable list — the table below is
 just enough to get moving.

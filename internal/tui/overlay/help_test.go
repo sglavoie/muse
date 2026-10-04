@@ -502,3 +502,23 @@ func TestMixesHelpListsOnlyBoundKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchHelpSectionsMatchesTitleAndKeepsEntryMatches(t *testing.T) {
+	sections := []HelpSection{
+		{Title: "Auto-DJ panel", entries: []helpEntry{{"tab", "Next tab"}, {"ctrl+s", "Apply settings"}}},
+		{Title: "Global", entries: []helpEntry{{"A", "Toggle Auto-DJ"}, {"s", "Stop"}}},
+		{Title: "Queue", entries: []helpEntry{{"d", "Remove track"}}},
+	}
+	for _, query := range []string{"Auto-DJ", "  AUTO-DJ  "} {
+		got := SearchHelpSections(sections, query)
+		if len(got) != 2 || got[0].Title != "Auto-DJ panel" || !slices.Equal(got[0].entries, sections[0].entries) {
+			t.Fatalf("%q did not include full matching section: %+v", query, got)
+		}
+		if got[1].Title != "Global" || len(got[1].entries) != 1 || got[1].entries[0].key != "A" {
+			t.Fatalf("%q lost or widened entry matches: %+v", query, got)
+		}
+	}
+	if len(sections[1].entries) != 2 {
+		t.Fatal("search changed source entries")
+	}
+}

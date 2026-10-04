@@ -58,3 +58,50 @@ func TestPaletteReportsCurrentSettingsOnReopen(t *testing.T) {
 		}
 	}
 }
+
+func TestPalettePlaybackDetailsRefreshWithConfiguration(t *testing.T) {
+	m := New(context.Background())
+	for _, tc := range []struct {
+		short, long float64
+		volume      int
+		want        map[string]string
+	}{
+		{5, 30, 5, map[string]string{
+			"playback.seek.back":         "Backward 5 seconds",
+			"playback.seek.forward":      "Forward 5 seconds",
+			"playback.seek.back.long":    "Backward 30 seconds",
+			"playback.seek.forward.long": "Forward 30 seconds",
+			"playback.volume.up":         "Raise volume by 5 percentage points",
+			"playback.volume.down":       "Lower volume by 5 percentage points",
+		}},
+		{1, 5, 1, map[string]string{
+			"playback.seek.forward": "Forward 1 second",
+			"playback.volume.up":    "Raise volume by 1 percentage point",
+		}},
+		{2.5, 45.5, 10, map[string]string{
+			"playback.seek.back":         "Backward 2.5 seconds",
+			"playback.seek.forward":      "Forward 2.5 seconds",
+			"playback.seek.back.long":    "Backward 45.5 seconds",
+			"playback.seek.forward.long": "Forward 45.5 seconds",
+			"playback.volume.up":         "Raise volume by 10 percentage points",
+			"playback.volume.down":       "Lower volume by 10 percentage points",
+		}},
+	} {
+		m.cfg.SeekOffsetShort, m.cfg.SeekOffsetLong = tc.short, tc.long
+		m.cfg.VolumeIncrement = tc.volume
+		for _, cmd := range m.BuildPaletteCommands() {
+			if want, ok := tc.want[cmd.ID]; ok {
+				if cmd.Detail != want {
+					t.Errorf("%s detail = %q, want %q", cmd.ID, cmd.Detail, want)
+				}
+				if cmd.ID == "playback.seek.forward" && (cmd.IsEnabled() || cmd.DisabledReason != "Load a track first") {
+					t.Fatal("seek availability changed for empty player")
+				}
+				delete(tc.want, cmd.ID)
+			}
+		}
+		if len(tc.want) != 0 {
+			t.Fatalf("missing commands: %v", tc.want)
+		}
+	}
+}

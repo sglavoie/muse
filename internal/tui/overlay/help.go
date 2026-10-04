@@ -11,7 +11,8 @@ import (
 )
 
 // SearchHelpSections filters help sections by a case-insensitive substring
-// match against both entry key and description. Sections with zero matching
+// match against section titles, entry keys, and descriptions. A matching title
+// includes all entries in that section. Sections with zero matching
 // entries are omitted. An empty or whitespace-only query returns sections
 // unchanged so a stray space typed into the filter does not blank out the
 // overlay.
@@ -23,6 +24,10 @@ func SearchHelpSections(sections []HelpSection, query string) []HelpSection {
 	q := strings.ToLower(query)
 	var result []HelpSection
 	for _, sec := range sections {
+		if strings.Contains(strings.ToLower(sec.Title), q) {
+			result = append(result, sec)
+			continue
+		}
 		var matched []helpEntry
 		for _, e := range sec.entries {
 			if strings.Contains(strings.ToLower(e.key), q) || strings.Contains(strings.ToLower(e.desc), q) {
