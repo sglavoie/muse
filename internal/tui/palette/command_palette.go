@@ -31,6 +31,7 @@ type PaletteCommand struct {
 	Exec           func() tea.Cmd
 	Enabled        func() bool // nil means always enabled
 	DisabledReason string      // recovery hint shown when the focused command is unavailable
+	Detail         string      // explanatory text shown when the command is focused
 	CurrentState   string      // setting shown in the detail line when focused
 }
 
@@ -273,6 +274,9 @@ func (c PaletteCommand) detailText() string {
 			return c.DisabledReason
 		}
 		return "Unavailable in this context"
+	}
+	if c.Detail != "" {
+		return c.Detail
 	}
 	if c.CurrentState != "" {
 		return "Current: " + c.CurrentState

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -232,5 +233,23 @@ func TestTrackInfoYankPath(t *testing.T) {
 	}
 	if nm.statusBar.TopNotification().Msg != "Path copied to clipboard" {
 		t.Fatalf("expected 'Path copied to clipboard' notification, got %q", nm.statusBar.TopNotification().Msg)
+	}
+}
+
+func TestTrackInfoUsesIndexedMetadataAndScrolls(t *testing.T) {
+	m := setupTrackInfoModel(t)
+	m.termWidth, m.termHeight = 60, 15
+	next, _ := m.Update(overlay.TrackInfoMsg{Hash: "h1", Path: "/music/test.flac", Tags: map[string]any{"Title": "Original title", "Comment": strings.Repeat("Comment ", 30)}})
+	m = next.(Model)
+	first := m.View().Content
+	if !strings.Contains(first, "Test Song") {
+		t.Fatal("library title missing")
+	}
+	next, _, handled := m.handleTrackInfoKeyPress(tea.KeyPressMsg{Code: 'G', Text: "G"})
+	if !handled || next.View().Content == first {
+		t.Fatal("scroll key did not reach overlay")
+	}
+	if m.View().Content != first {
+		t.Fatal("scroll mutated previous model")
 	}
 }

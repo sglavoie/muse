@@ -129,7 +129,7 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionSortDesc, id: "sort.descending", name: "Sort descending", category: "sort", ctx: keys.ContextGlobal},
 
 	{act: keys.ActionSettings, id: "settings.open", name: "Open settings", category: "app", ctx: keys.ContextGlobal},
-	{act: keys.ActionUndo, id: "app.undo", name: "Undo last change", category: "app", ctx: keys.ContextGlobal},
+	{act: keys.ActionUndo, id: "app.undo", name: "Undo last change", category: "app", ctx: keys.ContextGlobal, disabledReason: "Nothing to undo", enabled: Model.canUndo},
 	{act: keys.ActionRescan, id: "library.rescan", name: "Rescan library", category: "lib", ctx: keys.ContextGlobal},
 	{act: keys.ActionFilterBar, id: "view.filter", name: "Filter current view", category: "view", ctx: keys.ContextGlobal},
 

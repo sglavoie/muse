@@ -10,7 +10,8 @@ listening-insights dashboard, and a steerable Auto-DJ that keeps picking the
 next track for you. It is keyboard-driven throughout — press `?` at any time for the
 full keybinding reference. Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its
-current setting in the palette’s detail line.
+current setting in the palette’s detail line. Undo describes the change it will
+reverse and is unavailable when its undo window has expired.
 
 > **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
 > snapshot harness will print a real rendered screen for you — no config file,
@@ -90,8 +91,11 @@ current setting in the palette’s detail line.
 
 - **Metadata editor** (`M`) — fix title, artist, album, and genre on the
   focused track. Edits are stored in muse's database, so your audio files are
-  never modified. `i` shows the raw tags read from the file by whichever
-  metadata backend is active (ExifTool or ffprobe).
+  never modified. `i` shows the library values first and labels differing original
+  file tags, followed by audio and file details from ExifTool or ffprobe.
+  Use `j`/`k`, arrow keys, or Page Up/Down to scroll; `g`/`G` jumps to the
+  beginning/end. Long values wrap, and the title shows your position when
+  more information is available.
 - **Metadata export / import** — round-trip the visible view's rows through a
   TSV file in the data directory, for bulk cleanup outside the TUI. Re-exporting
   keeps the previous file, including any external edits, as `metadata-export.tsv.bak`.

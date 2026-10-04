@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"log/slog"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
@@ -15,7 +14,7 @@ import (
 // handleUndo processes the UndoMsg by reversing the most recent destructive
 // action stored in the undo slot, if one exists and has not expired.
 func (m Model) handleUndo() Model {
-	if m.undo.slot.action == nil || !time.Now().Before(m.undo.slot.expiresAt) {
+	if !m.canUndo() {
 		m.statusBar.Notify("Nothing to undo")
 		return m
 	}

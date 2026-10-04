@@ -332,6 +332,9 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	states := m.paletteCurrentStates()
 	for i := range cmds {
 		cmds[i].CurrentState = states[cmds[i].ID]
+		if cmds[i].ID == "app.undo" && m.undo.slot.action != nil {
+			cmds[i].Detail = m.undoDetail()
+		}
 	}
 	return cmds
 }

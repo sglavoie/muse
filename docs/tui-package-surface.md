@@ -133,7 +133,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 25 | 25 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 153 | 41 | 110 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 102 | 29 | 72 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/overlay` | 104 | 29 | 74 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 54 | 1 | 51 | 2 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1010 exported identifiers across 15 packages**: 153 reached from two or more packages, 797 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1012 exported identifiers across 15 packages**: 153 reached from two or more packages, 799 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -636,6 +636,8 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `TrackInfoOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `TrackInfoOverlay.Path` | field | `internal/tui` | root |
 | `tui/overlay` | `TrackInfoOverlay.Render` | method | `internal/tui` | root |
+| `tui/overlay` | `TrackInfoOverlay.Scroll` | method | `internal/tui` | root |
+| `tui/overlay` | `TrackInfoOverlay.WithLibraryMetadata` | method | `internal/tui` | root |
 | `tui/overlay` | `WelcomeRow` | func | `internal/tui` | root |
 | `tui/statusbar` | `LongOpState` | type | `internal/tui` | root |
 | `tui/statusbar` | `LongOpState.Active` | field | `internal/tui` | root |

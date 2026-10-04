@@ -21,6 +21,9 @@ func (m Model) handleTrackInfoKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 		m.statusBar.Notify("Path copied to clipboard")
 		return m, tea.SetClipboard(m.overlay.trackInfo.Path), true
 	default:
+		next := *m.overlay.trackInfo
+		next.Scroll(msg.String(), m.termWidth, max(m.termHeight-3, 1))
+		m.overlay.trackInfo = &next
 		return m, nil, true
 	}
 }

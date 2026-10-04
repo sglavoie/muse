@@ -31,16 +31,28 @@ func TrackInfoCmd(ctx context.Context, path, hash string, playCount int) tea.Cmd
 
 // TrackInfoOverlay renders a centered overlay showing detailed file metadata.
 type TrackInfoOverlay struct {
-	Path string
-	rows []Row
+	Path   string
+	rows   []Row
+	offset int
 }
 
 // Render produces a centered overlay string for the track info.
 func (t TrackInfoOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
+	rows := t.wrappedRows(termWidth)
+	visible := max(1, termHeight-7)
+	start := max(0, min(t.offset, len(rows)-visible))
+	end := min(len(rows), start+visible)
+	title := " ℹ Track Info "
+	if len(rows) > visible {
+		title = fmt.Sprintf(" ℹ Track Info · %d–%d/%d ", start+1, end, len(rows))
+		if end < len(rows) {
+			title += "↓ "
+		}
+	}
 	box := Box{
-		Title:         " ℹ Track Info ",
-		Rows:          t.rows,
-		Hint:          "y to copy path · i or esc to dismiss",
+		Title:         title,
+		Rows:          rows[start:end],
+		Hint:          "j/k scroll · y to copy path · i or esc to dismiss",
 		MaxInnerWidth: termWidth - 10,
 	}
 	return box.Render(termWidth, termHeight, s)

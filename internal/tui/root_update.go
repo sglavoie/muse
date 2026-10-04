@@ -158,8 +158,11 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.tagReader != nil && msg.Hash != "" {
 				userTags, _ = m.tagReader.ReadTagsForTrack(msg.Hash)
 			}
-			overlay := overlay.NewTrackInfoOverlay(msg.Path, msg.Tags, msg.PlayCount, userTags)
-			m.overlay.trackInfo = &overlay
+			info := overlay.NewTrackInfoOverlay(msg.Path, msg.Tags, msg.PlayCount, userTags)
+			if track, ok := m.library.Index.FindByHash(msg.Hash); ok {
+				info = info.WithLibraryMetadata(track)
+			}
+			m.overlay.trackInfo = &info
 		}
 
 	case playback.TrackChangedMsg:

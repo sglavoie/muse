@@ -1,6 +1,7 @@
 package palette
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"strings"
 	"testing"
 
@@ -31,5 +32,22 @@ func TestPaletteStateUsesDetailLine(t *testing.T) {
 		if strings.Count(out, "\n") != strings.Count(disabled, "\n") {
 			t.Fatal("state changed the dialog height")
 		}
+	}
+}
+
+func TestPaletteUndoDetailExpiresWhileOpen(t *testing.T) {
+	enabled := true
+	cmd := PaletteCommand{ID: "app.undo", Name: "Undo last change", Detail: "Revert: Queue cleared", DisabledReason: "Nothing to undo", Enabled: func() bool { return enabled }}
+	cp, _ := NewCommandPalette([]PaletteCommand{cmd}, nil)
+	if out := ansi.Strip(cp.Render(60, 15, styles.NewStyles(true))); !strings.Contains(out, cmd.Detail) {
+		t.Fatal("missing undo detail")
+	}
+	enabled = false
+	if out := ansi.Strip(cp.Render(60, 15, styles.NewStyles(true))); !strings.Contains(out, cmd.DisabledReason) || strings.Contains(out, cmd.Detail) {
+		t.Fatal("stale detail after expiry")
+	}
+	_, action := cp.HandleKey("enter", tea.KeyPressMsg{Code: tea.KeyEnter})
+	if action != nil {
+		t.Fatal("disabled undo must not dispatch")
 	}
 }
