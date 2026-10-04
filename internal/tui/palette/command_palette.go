@@ -25,8 +25,9 @@ const (
 type PaletteCommand struct {
 	ID             string // stable identifier for usage tracking; falls back to Name when empty
 	Name           string
-	Category       string // short tag rendered dim before Name, from paletteCategories; empty for pins / uncategorized
-	Shortcut       string // optional keyboard shortcut shown right-aligned in the palette
+	Aliases        []string // search-only synonyms; display-name matches rank first
+	Category       string   // short tag rendered dim before Name, from paletteCategories; empty for pins / uncategorized
+	Shortcut       string   // optional keyboard shortcut shown right-aligned in the palette
 	Pinned         PalettePin
 	Exec           func() tea.Cmd
 	Enabled        func() bool // nil means always enabled
@@ -162,7 +163,7 @@ func (cp *CommandPalette) Refilter() {
 			body = append(body, c)
 		}
 	}
-	body = Rank(body, query, paletteCommandID, paletteCommandName, cp.usage)
+	body = rank(body, query, paletteCommandID, paletteCommandName, func(c PaletteCommand) []string { return c.Aliases }, cp.usage)
 
 	cp.topPins = len(topPins)
 	cp.bottomPin = len(bottomPins)

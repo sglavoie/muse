@@ -12,6 +12,8 @@ full keybinding reference. Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its
 current setting in the palette’s detail line. Undo describes the change it will
 reverse and is unavailable when its undo window has expired.
+Palette search also accepts synonyms such as `refresh library`, `EQ`, and
+`tune radio`; matches against displayed command names rank first.
 
 > **Screenshot / cast:** no terminal cast is recorded yet. Until one is, the
 > snapshot harness will print a real rendered screen for you — no config file,
@@ -96,6 +98,10 @@ reverse and is unavailable when its undo window has expired.
   Use `j`/`k`, arrow keys, or Page Up/Down to scroll; `g`/`G` jumps to the
   beginning/end. Long values wrap, and the title shows your position when
   more information is available.
+- Saving an unchanged metadata form leaves your previous undo available.
+  Editing other fields preserves the precise track duration. Bulk forms label
+  differing values as “Multiple values — unchanged”; untouched fields retain
+  each track's original value.
 - **Metadata export / import** — round-trip the visible view's rows through a
   TSV file in the data directory, for bulk cleanup outside the TUI. The palette
   shows the number of unique exportable tracks and whether it uses your selection

@@ -1,0 +1,20 @@
+{
+  "name": "metadata-editor-mixed",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {"key": "x"}, {"key": "j"}, {"key": "x"}, {"key": "M"},
+    {"assert": {"overlay": "metadata_editor"}},
+    {"assert": {"contains": "Multiple values — unchanged"}, "label": "mixed-values-explained"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "Multiple values — unchanged"}},
+    {"assert": {"no_layout_issues": true}, "label": "mixed-editor-fits-minimum"},
+    {"key": "tab"},
+    {"assert": {"contains": "Multiple values — unchanged"}, "label": "unfocused-placeholder"},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "enter"},
+    {"assert": {"contains": "No changes"}, "label": "mixed-save-is-unchanged"},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

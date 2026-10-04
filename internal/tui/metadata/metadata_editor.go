@@ -115,6 +115,7 @@ type Editor struct {
 	focused       Field
 	initialValues [fieldCount]string // snapshot at open time
 	Dirty         [fieldCount]bool   // true when field differs from initial
+	mixed         [fieldCount]bool   // distinct opening values in a bulk field
 	mode          Mode
 	renameTitle   string // custom dialog title, e.g. " ✎ Rename Artist "
 }
@@ -164,6 +165,27 @@ func NewBulkEditor(hashes []string, commonTitle, commonArtist, commonAlbum, comm
 			newField(commonDuration, false),
 		},
 	}
+}
+
+const mixedValuePlaceholder = "Multiple values — unchanged"
+
+// WithMixedValues marks bulk fields whose original values differ. Values are
+// ordered title, artist, album, genre, duration, just like NewBulkEditor.
+// The placeholder never becomes an input value or an edit to persist.
+func (e Editor) WithMixedValues(values ...[]string) Editor {
+	for i, group := range values {
+		if i >= int(fieldCount) || len(group) == 0 {
+			continue
+		}
+		for _, value := range group[1:] {
+			if value != group[0] {
+				e.mixed[i] = true
+				e.Fields[i].Placeholder = mixedValuePlaceholder
+				break
+			}
+		}
+	}
+	return e
 }
 
 // NewArtistRenameEditor returns a MetadataEditor that shows only the Artist
@@ -298,6 +320,12 @@ func (e Editor) Genre() string { return e.Fields[fieldGenre].Value() }
 // Duration returns the current duration string value (e.g. "3:45").
 func (e Editor) Duration() string { return e.Fields[FieldDuration].Value() }
 
+// DurationChanged compares the displayed input to its opening value so an
+// untouched whole-second display never overwrites a more precise duration.
+func (e Editor) DurationChanged() bool {
+	return strings.TrimSpace(e.Duration()) != e.initialValues[FieldDuration]
+}
+
 // Hash returns the track hash this editor was opened for.
 func (e Editor) Hash() string { return e.hash }
 
@@ -394,8 +422,18 @@ func (e Editor) fieldRowLines(renderFields []int, valueWidth, termHeight int, s 
 			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 			continue
 		}
-		wrapLines := metadataEditorValueLines(e.Fields[i].Value(), valueWidth, remainingContinuationLines)
+		value := e.Fields[i].Value()
+		mixed := e.mixed[i] && !e.Dirty[i] && value == ""
+		if mixed {
+			value = mixedValuePlaceholder
+		}
+		wrapLines := metadataEditorValueLines(value, valueWidth, remainingContinuationLines)
 		remainingContinuationLines -= max(len(wrapLines)-1, 0)
+		if mixed {
+			for j := range wrapLines {
+				wrapLines[j] = s.Dim.Render(wrapLines[j])
+			}
+		}
 		lines = append(lines, valueFieldRows(labels[i], wrapLines, valueWidth)...)
 	}
 	return lines

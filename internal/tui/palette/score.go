@@ -106,10 +106,16 @@ func isWordStart(prev rune) bool {
 // name as a stable tie-break. Items whose fuzzy match fails are dropped from
 // the result.
 func Rank[T any](items []T, query string, id func(T) string, name func(T) string, usage *UsageStore) []T {
+	return rank(items, query, id, name, nil, usage)
+}
+
+// rank optionally searches aliases. Alias-only hits form a second tier, while
+// synonyms can improve an existing name hit without beating exact name hits.
+func rank[T any](items []T, query string, id func(T) string, name func(T) string, aliases func(T) []string, usage *UsageStore) []T {
 	q := strings.TrimSpace(query)
 	out := make([]scoredItem[T], 0, len(items))
 	for _, it := range items {
-		if sc, ok := scoreItem(it, q, id, name, usage); ok {
+		if sc, ok := scoreItem(it, q, id, name, aliases, usage); ok {
 			out = append(out, sc)
 		}
 	}
@@ -126,24 +132,28 @@ func Rank[T any](items []T, query string, id func(T) string, name func(T) string
 // scoredItem is one ranked candidate together with the tie-break inputs Rank
 // orders on.
 type scoredItem[T any] struct {
-	item     T
-	score    int
-	count    int
-	lastUsed time.Time
-	name     string
+	item      T
+	score     int
+	count     int
+	lastUsed  time.Time
+	name      string
+	aliasOnly bool
 }
 
 // scoreItem combines a candidate's fuzzy match score with its usage bonus.
-// Reports false when a non-empty query fails to match the candidate's name, so
-// the caller can drop it.
-func scoreItem[T any](it T, q string, id func(T) string, name func(T) string, usage *UsageStore) (scoredItem[T], bool) {
+// Reports false when a non-empty query matches neither the name nor an alias.
+func scoreItem[T any](it T, q string, id func(T) string, name func(T) string, aliases func(T) []string, usage *UsageStore) (scoredItem[T], bool) {
 	nm := name(it)
-	matchScore := 0
-	if q != "" {
-		var ok bool
-		if matchScore, ok = Match(q, nm); !ok {
-			return scoredItem[T]{}, false
+	matchScore, nameMatch := Match(q, nm)
+	if q != "" && aliases != nil {
+		aliasScore := bestAliasScore(q, aliases(it))
+		if nameMatch {
+			aliasScore = min(aliasScore, maxNonExactMatchScore())
 		}
+		matchScore = max(matchScore, aliasScore)
+	}
+	if !nameMatch && matchScore == 0 {
+		return scoredItem[T]{}, false
 	}
 	var count int
 	var lastUsed time.Time
@@ -153,18 +163,32 @@ func scoreItem[T any](it T, q string, id func(T) string, name func(T) string, us
 		lastUsed = rec.LastUsed
 	}
 	return scoredItem[T]{
-		item:     it,
-		score:    matchScore + usageBonus(q, count, lastUsed),
-		count:    count,
-		lastUsed: lastUsed,
-		name:     nm,
+		item:      it,
+		score:     matchScore + usageBonus(q, count, lastUsed),
+		count:     count,
+		lastUsed:  lastUsed,
+		name:      nm,
+		aliasOnly: !nameMatch,
 	}, true
+}
+
+func bestAliasScore(query string, aliases []string) int {
+	best := 0
+	for _, alias := range aliases {
+		if score, ok := Match(query, alias); ok {
+			best = max(best, score)
+		}
+	}
+	return best
 }
 
 // lessScored orders two candidates by score, then by usage frequency, recency
 // and finally name. An empty query skips the score comparison entirely so the
 // ordering is pure MRU+frequency.
 func lessScored[T any](a, b scoredItem[T], emptyQuery bool) bool {
+	if a.aliasOnly != b.aliasOnly {
+		return !a.aliasOnly
+	}
 	if !emptyQuery && a.score != b.score {
 		return a.score > b.score
 	}

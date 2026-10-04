@@ -7,6 +7,18 @@
     {"assert": {"no_layout_issues": true}, "label": "palette-fits-120x50"},
     {"text": "toggle"}, {"assert": {"contains": "Toggle"}, "label": "search-filters-to-toggles"},
     {"assert": {"no_layout_issues": true}, "label": "filtered-palette-fits"},
-    {"key": "esc"}, {"assert": {"view": "Library"}, "label": "palette-dismissed"}
+    {"key": "esc"}, {"assert": {"view": "Library"}, "label": "palette-dismissed"},
+    {"key": ":"}, {"text": "refresh library"},
+    {"assert": {"contains": "Rescan library"}, "label": "rescan-synonym"},
+    {"assert": {"no_layout_issues": true}, "label": "synonym-fits"},
+    {"resize": "60x15"},
+    {"assert": {"contains": "Rescan library"}, "label": "synonym-visible-at-minimum"},
+    {"assert": {"no_layout_issues": true}, "label": "synonym-fits-minimum"},
+    {"key": "esc"}, {"key": ":"}, {"text": "eq"},
+    {"assert": {"contains": "Toggle equalizer"}, "label": "eq-synonym"},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "esc"}, {"key": ":"}, {"text": "tune radio"},
+    {"assert": {"contains": "Tune Auto-DJ"}, "label": "radio-synonym"},
+    {"assert": {"no_layout_issues": true}}
   ]
 }

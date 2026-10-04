@@ -334,6 +334,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	states := m.paletteCurrentStates()
 	cmds = append(cmds, m.sortPaletteCommands()...)
 	for i := range cmds {
+		cmds[i].Aliases = paletteAliases(cmds[i].ID)
 		if state, ok := states[cmds[i].ID]; ok {
 			cmds[i].CurrentState = state
 		}

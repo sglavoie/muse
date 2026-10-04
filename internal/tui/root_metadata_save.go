@@ -38,8 +38,6 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.overlay.metadataEditor = nil
-
 	var origTitle, origArtist, origAlbum, origGenre string
 	var origDuration float64
 	var trackNumber, discNumber int
@@ -51,6 +49,17 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		origDuration = t.Duration
 		trackNumber = t.TrackNumber
 		discNumber = t.DiscNumber
+	}
+	// The editor displays whole seconds. Keep the precise library duration
+	// unless the user actually changed the displayed duration.
+	durationChanged := ed.DurationChanged()
+	if !durationChanged {
+		newDuration = origDuration
+	}
+	m.overlay.metadataEditor = nil
+	if title == origTitle && artist == origArtist && album == origAlbum && genre == origGenre && !durationChanged {
+		m.statusBar.Notify("No changes")
+		return m, nil
 	}
 
 	m.library.Index.UpdateMetadata(hash, title, artist, album, genre)
@@ -74,6 +83,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
 		originals: map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, metadata.FormatDuration(origDuration)}},
+		durations: map[string]float64{hash: origDuration},
 	}, nil)
 
 	m = m.refreshDerivedViews()
@@ -109,7 +119,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 				firstErr = err
 			}
 		}
-		if dw != nil {
+		if dw != nil && durationChanged {
 			if err := dw.UpdateTrackDuration(hash, newDurationMs); err != nil {
 				slog.Warn("metadata edit: duration DB write failed", "hash", hash, "err", err)
 				if firstErr == nil {
@@ -145,6 +155,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	m.overlay.metadataEditor = nil
 
 	originals := make(map[string][5]string, len(ed.Hashes()))
+	durations := make(map[string]float64, len(ed.Hashes()))
 
 	type update struct {
 		hash, title, artist, album, genre string
@@ -160,6 +171,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 			continue
 		}
 		originals[h] = [5]string{t.Title, t.Artist, t.Album, t.Genre, metadata.FormatDuration(t.Duration)}
+		durations[h] = t.Duration
 
 		newTitle, newArtist, newAlbum, newGenre := t.Title, t.Artist, t.Album, t.Genre
 		trackDuration := t.Duration
@@ -209,6 +221,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
 		originals: originals,
+		durations: durations,
 	}, nil)
 
 	m = m.refreshDerivedViews()

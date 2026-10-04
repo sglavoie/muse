@@ -77,7 +77,7 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 }
 
 // bulkEditorForHashes seeds a bulk editor from the tracks behind the hashes,
-// leaving a field blank wherever they disagree.
+// marking mixed fields with a display-only placeholder.
 func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 	var titles, artists, albums, genres, durations []string
 	for _, h := range hashes {
@@ -91,7 +91,8 @@ func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 		genres = append(genres, t.Genre)
 		durations = append(durations, metadata.FormatDuration(t.Duration))
 	}
-	return metadata.NewBulkEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations))
+	return metadata.NewBulkEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations)).
+		WithMixedValues(titles, artists, albums, genres, durations)
 }
 
 // renameEditorForFocusedEntity returns a rename MetadataEditor when the active

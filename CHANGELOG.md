@@ -9,12 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Saving unchanged single-track metadata preserves the previous undo action.
+  Metadata edits preserve fractional durations unless the duration is edited;
+  editor undo also restores the precise original duration.
 - Undoing a queue removal or clear reports database failures without changing
   the visible queue or playback, and permits retry within the original undo
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
 
+- Bulk metadata fields distinguish mixed values from empty values with a muted
+  “Multiple values — unchanged” placeholder.
+- Command-palette search accepts synonyms such as “refresh library”, “EQ”, and
+  “tune radio”, with displayed-name matches ranked first.
 - Metadata export commands show the unique exportable track count and selection
   scope; the palette can reveal the previous export backup.
 - Direct “Sort by” palette commands offer the current view's supported fields

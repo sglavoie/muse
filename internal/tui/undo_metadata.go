@@ -12,6 +12,15 @@ import (
 // originals maps track hash → {title, artist, album, genre, duration (M:SS or "")}.
 type undoBulkEditMetadataAction struct {
 	originals map[string][5]string
+	durations map[string]float64 // precise seconds, when captured by the editor
+}
+
+func (a undoBulkEditMetadataAction) originalDuration(hash string) float64 {
+	if duration, ok := a.durations[hash]; ok {
+		return duration
+	}
+	duration, _ := metadata.ParseDuration(a.originals[hash][4])
+	return duration
 }
 
 func (a undoBulkEditMetadataAction) kind() undoKind { return undoKindBulkEditMetadata }
@@ -26,7 +35,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, error) {
 	dw := m.durationWriter
 	for hash, orig := range a.originals {
 		m.library.Index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
-		origDur, _ := metadata.ParseDuration(orig[4])
+		origDur := a.originalDuration(hash)
 		m.library.Index.UpdateDuration(hash, origDur)
 		display := text.TrackDisplay(orig[1], orig[0], "")
 		origDurMs := int64(origDur * 1000)
@@ -73,7 +82,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, error) {
 					}
 				}
 				if dw != nil {
-					origDur, _ := metadata.ParseDuration(orig[4])
+					origDur := a.originalDuration(h)
 					origDurMs := int64(origDur * 1000)
 					if err := dw.UpdateTrackDuration(h, origDurMs); err != nil {
 						slog.Warn("undo bulk metadata edit: duration DB write failed", "hash", h, "err", err)
