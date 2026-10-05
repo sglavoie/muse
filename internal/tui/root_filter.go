@@ -186,7 +186,7 @@ func (m Model) handleFilterKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) 
 		return m.markQuitting(), tea.Quit, true
 	case "esc":
 		m = ops.deactivate()
-	case "enter", "/":
+	case "enter":
 		m = ops.commit()
 	default:
 		var cmd tea.Cmd

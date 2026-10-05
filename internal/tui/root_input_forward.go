@@ -10,6 +10,7 @@ var orderedInputForwarders = []inputMsgForwarder{
 	Model.forwardMetadataEditorMsg,
 	Model.forwardSmartRuleEditorMsg,
 	Model.forwardCommandPaletteMsg,
+	Model.forwardDestinationPickerMsg,
 	Model.forwardFilterMsg,
 	Model.forwardPlaylistCreateMsg,
 	Model.forwardPlaylistRenameMsg,
@@ -136,4 +137,13 @@ func (m Model) forwardTagRenameMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return m, cmd, true
 	}
 	return m, nil, false
+}
+
+func (m Model) forwardDestinationPickerMsg(msg tea.Msg) (Model, tea.Cmd, bool) {
+	if m.overlay.destPicker == nil {
+		return m, nil, false
+	}
+	updated, cmd := m.overlay.destPicker.ForwardMsg(msg)
+	m.overlay.destPicker = &updated
+	return m, cmd, true
 }

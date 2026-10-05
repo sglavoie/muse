@@ -1,11 +1,13 @@
 package playlists
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -37,17 +39,18 @@ type DestinationPickedMsg struct {
 type DestinationPickerDismissedMsg struct{}
 
 // DestinationPickerCreateMsg is dispatched when the user selects the
-// "New playlist…" entry that is shown when no playlists exist.
+// "New playlist…" entry.
 type DestinationPickerCreateMsg struct{}
 
 // DestinationPickerModal is a focused overlay sub-model for choosing where to
 // append tracks. It lists the play queue as the first entry followed by all
-// saved playlists in alphabetical order. When no playlists exist, a "New
-// playlist..." entry is shown as an inline create-playlist prompt so the user
-// can initiate playlist creation without leaving the modal.
+// saved playlists in alphabetical order and a "New playlist…" action.
+// Searching filters playlist names while keeping both actions available.
 type DestinationPickerModal struct {
 	playlists []db.PlaylistRow
 	cursor    int
+	height    int
+	search    filter.State
 }
 
 // NewDestinationPicker returns a DestinationPickerModal populated with the
@@ -63,8 +66,8 @@ func NewDestinationPicker(playlists []db.PlaylistRow) DestinationPickerModal {
 func (m DestinationPickerModal) destinations() []string {
 	labels := make([]string, 0, 1+len(m.playlists)+1)
 	labels = append(labels, queueLabel)
-	for _, p := range m.playlists {
-		labels = append(labels, p.Name)
+	for _, i := range m.matchingPlaylists() {
+		labels = append(labels, m.playlists[i].Name)
 	}
 	labels = append(labels, createLabel)
 	return labels
@@ -80,6 +83,24 @@ func (m DestinationPickerModal) destinations() []string {
 func (m DestinationPickerModal) HandleKey(key string) (DestinationPickerModal, tea.Cmd) {
 	n := len(m.destinations())
 	m.cursor = clamp(m.cursor, 0, n-1)
+	m = m.navigate(key, n)
+	switch key {
+	case "/":
+		var cmd tea.Cmd
+		m.search, cmd = m.search.Activate()
+		return m, cmd
+	case "enter":
+		return m, m.confirmCmd()
+	case "esc":
+		if m.search.Active || m.search.Text != "" {
+			return m.clearSearch(), nil
+		}
+		return m, func() tea.Msg { return DestinationPickerDismissedMsg{} }
+	}
+	return m, nil
+}
+
+func (m DestinationPickerModal) navigate(key string, n int) DestinationPickerModal {
 	switch key {
 	case "j", "down":
 		if m.cursor < n-1 {
@@ -89,25 +110,30 @@ func (m DestinationPickerModal) HandleKey(key string) (DestinationPickerModal, t
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "enter":
-		return m, m.confirmCmd()
-	case "esc":
-		return m, func() tea.Msg { return DestinationPickerDismissedMsg{} }
+	case "pgdown", "ctrl+d":
+		m.cursor = min(n-1, m.cursor+m.visibleRows())
+	case "pgup", "ctrl+u":
+		m.cursor = max(0, m.cursor-m.visibleRows())
+	case "g", "home":
+		m.cursor = 0
+	case "G", "end":
+		m.cursor = n - 1
 	}
-	return m, nil
+	return m
 }
 
 // confirmCmd builds the Cmd that confirms the current selection.
 func (m DestinationPickerModal) confirmCmd() tea.Cmd {
-	cursor := clamp(m.cursor, 0, len(m.playlists)+1)
+	matches := m.matchingPlaylists()
+	cursor := clamp(m.cursor, 0, len(matches)+1)
 	// Last entry is always "New playlist…".
-	if cursor == len(m.playlists)+1 {
+	if cursor == len(matches)+1 {
 		return func() tea.Msg { return DestinationPickerCreateMsg{} }
 	}
 	if cursor == 0 {
 		return func() tea.Msg { return DestinationPickedMsg{IsQueue: true} }
 	}
-	name := m.playlists[cursor-1].Name
+	name := m.playlists[matches[cursor-1]].Name
 	return func() tea.Msg { return DestinationPickedMsg{PlaylistName: name} }
 }
 
@@ -126,6 +152,7 @@ func clamp(v, lo, hi int) int {
 // of the screen. When termWidth or termHeight is zero the box is rendered
 // without any centering offset.
 func (m DestinationPickerModal) Render(termWidth, termHeight int, s styles.Styles) string {
+	m.height = termHeight
 	boxLines := m.buildBoxLines(termWidth, s)
 
 	// Determine the display width of the box (first line = top border, all
@@ -147,8 +174,12 @@ func (m DestinationPickerModal) Render(termWidth, termHeight int, s styles.Style
 	for range topPad {
 		b.WriteByte('\n')
 	}
-	for _, line := range boxLines {
-		b.WriteString(prefix + line + "\n")
+	for i, line := range boxLines {
+		pad := prefix
+		if i == len(boxLines)-1 && termWidth > 0 {
+			pad = strings.Repeat(" ", max(0, (termWidth-ansi.StringWidth(line))/2))
+		}
+		b.WriteString(pad + line + "\n")
 	}
 	return b.String()
 }
@@ -160,28 +191,11 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	labels := m.destinations()
 	focusCursor := clamp(m.cursor, 0, len(labels)-1)
 
-	// Compute inner width: the number of characters between the │ borders.
-	// Row format: │ + " " + label_padded + " " + │
-	// The two non-label characters between the borders: " " + " " = 2.
-	// So innerWidth = 2 + contentWidth, where contentWidth = label display width.
-	// Mirrors tui.OverlayMinInnerWidth (cannot import due to circular dep).
-	const minInner = 24
-	innerWidth := minInner
-	const modalTitle = " Destination "
-	if ansi.StringWidth(modalTitle)+2 > innerWidth {
-		innerWidth = ansi.StringWidth(modalTitle) + 2
+	modalTitle := " Destination "
+	if len(labels) > m.visibleRows() {
+		modalTitle = fmt.Sprintf(" Destination %d/%d ", focusCursor+1, len(labels))
 	}
-	for _, l := range labels {
-		if ansi.StringWidth(l)+2 > innerWidth {
-			innerWidth = ansi.StringWidth(l) + 2
-		}
-	}
-	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
-		innerWidth = maxInner
-	}
-	if innerWidth < 1 {
-		innerWidth = 1
-	}
+	innerWidth := m.innerWidth(termWidth, labels, modalTitle)
 	contentWidth := innerWidth - 2 // characters available for the label inside a row
 	contentWidth = max(contentWidth, 0)
 
@@ -199,8 +213,15 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	// Separator.
 	lines = append(lines, crossL+strings.Repeat(borderH, innerWidth)+crossR)
 
-	// Destination rows.
-	for i, label := range labels {
+	if m.search.Active || m.search.Text != "" {
+		lines = append(lines, borderV+" "+text.Pad(m.searchLabel(), contentWidth)+" "+borderV)
+	}
+
+	// Keep the focused row visible, including after a terminal resize.
+	rows := min(len(labels), m.visibleRows())
+	start := clamp(focusCursor-rows/2, 0, len(labels)-rows)
+	for i := start; i < start+rows; i++ {
+		label := labels[i]
 		// Truncate and pad using display-width-aware helpers so that
 		// multi-byte characters (CJK, emoji) are handled correctly.
 		display := text.Pad(label, contentWidth)
@@ -216,8 +237,52 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	// Bottom border.
 	lines = append(lines, cornerBL+strings.Repeat(borderH, innerWidth)+cornerBR)
 
-	// Keybinding hint outside the box.
-	lines = append(lines, "  j/k navigate · enter confirm · esc dismiss")
+	lines = append(lines, m.keyHint(termWidth))
 
 	return lines
+}
+
+func (m DestinationPickerModal) innerWidth(termWidth int, labels []string, modalTitle string) int {
+	// Compute inner width: the number of characters between the │ borders.
+	// Row format: │ + " " + label_padded + " " + │
+	// The two non-label characters between the borders: " " + " " = 2.
+	// So innerWidth = 2 + contentWidth, where contentWidth = label display width.
+	// Mirrors tui.OverlayMinInnerWidth (cannot import due to circular dep).
+	const minInner = 24
+	innerWidth := minInner
+	if ansi.StringWidth(modalTitle)+2 > innerWidth {
+		innerWidth = ansi.StringWidth(modalTitle) + 2
+	}
+	for _, l := range labels {
+		if ansi.StringWidth(l)+2 > innerWidth {
+			innerWidth = ansi.StringWidth(l) + 2
+		}
+	}
+	if m.search.Active || m.search.Text != "" {
+		innerWidth = max(innerWidth, ansi.StringWidth(m.searchLabel())+2)
+	}
+	if maxInner := termWidth - 4; termWidth > 0 && innerWidth > maxInner {
+		innerWidth = maxInner
+	}
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
+	return innerWidth
+}
+
+func (m DestinationPickerModal) keyHint(termWidth int) string {
+	// Keybinding hint outside the box.
+	hint := "  / search · j/k · PgUp/Dn · enter choose"
+	switch {
+	case m.search.Active:
+		hint = "  enter apply · esc clear"
+	case m.search.Text != "":
+		hint = "  / edit · esc clear · j/k move · enter choose"
+	default:
+		hint += " · esc close"
+	}
+	if termWidth > 0 {
+		hint = text.Truncate(hint, max(0, termWidth-2))
+	}
+	return hint
 }

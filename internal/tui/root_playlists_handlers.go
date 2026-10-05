@@ -270,7 +270,9 @@ func (m Model) handleDestPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	if msg.String() == "ctrl+c" {
 		return m.markQuitting(), tea.Quit, true
 	}
-	updated, cmd := m.overlay.destPicker.HandleKey(msg.String())
+	picker := *m.overlay.destPicker
+	picker.SetHeight(m.termHeight)
+	updated, cmd := picker.HandleKeyPress(msg)
 	m.overlay.destPicker = &updated
 	return m, cmd, true
 }

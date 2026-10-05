@@ -141,7 +141,8 @@ matching release, and each release can then be unfavorited independently.
   returns to your position before filtering. Library and Queue no-match hints
   distinguish `Esc` to clear a text filter from `ctrl+t` to clear a tag filter.
 - While editing a filter, the footer shows `Enter` to apply, `Esc` to clear,
-  and Up/Down to recall history. Empty field prefixes such as `a:` leave tracks
+  and Up/Down to recall history. `/` is literal text while editing, so names
+  such as `AC/DC` can be typed normally. Empty field prefixes such as `a:` leave tracks
   visible while you type; other populated terms still apply.
   When space allows, Library, Mixes, Insights track lists, and Queue also show
   how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
@@ -150,6 +151,11 @@ matching release, and each release can then be unfavorited independently.
   committed queries across views. Down past the newest restores your unfinished
   query. History survives restarts in `filter_history.json` in the data directory;
   cancelled queries are excluded, and startup does not apply a saved filter.
+- The playlist destination picker supports `/` search, Page Up/Down, and
+  `g`/`G` to jump to the first/last destination. Long lists scroll to fit the
+  terminal. Search matches playlist names and keeps Play Queue and New playlist
+  available. Enter applies the search, then confirms a destination; Esc clears
+  the search before dismissing the picker.
 - Playlist filters preserve individual rows when the same song appears more than
   once. `Esc` clears the track filter before returning to the playlist list, where
   the previous name filter is restored. Reordering and shuffle-in-place require

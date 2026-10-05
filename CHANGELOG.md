@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Typing `/` in an active view filter inserts a slash instead of committing
+  the query, allowing names such as `AC/DC` to be entered normally.
+
 - Saving unchanged single-track metadata preserves the previous undo action.
   Metadata edits preserve fractional durations unless the duration is edited;
   editor undo also restores the precise original duration.
@@ -17,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- The playlist destination picker supports searching playlist names, page and
+  first/last navigation, and scrolling within the terminal height. Search keeps
+  Play Queue and New playlist available, and Esc clears it before dismissing.
 
 - “Browse now-playing…” opens library destinations for the playing or paused
   song, independently of the focused row.
