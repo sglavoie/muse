@@ -27,6 +27,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/queue"
 	"github.com/sglavoie/muse/internal/tui/settings"
 	"github.com/sglavoie/muse/internal/tui/smartrules"
+	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -405,8 +406,9 @@ type Model struct {
 
 	// paletteUsage tracks command palette usage counts for MRU ranking.
 	// May be nil when persistence is disabled (e.g. headless tests).
-	paletteUsage  *palette.UsageStore
-	filterHistory []string // recent committed queries, shared across view filters
+	paletteUsage    *palette.UsageStore
+	filterHistory   []string // recent committed queries, shared across view filters
+	sortPreferences map[string]sorting.SortState
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after
@@ -482,6 +484,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		m.library = m.library.SwitchMode(libtui.LibraryModeRecent)
 	}
 	m = m.syncRecentlyAddedFromLibrary()
+	m = m.loadSortPreferences().restoreSortPreference()
 	// Footer hint strip default is taken from config (defaults to true).
 	m.showFooterHints = m.cfg.ShowFooterHints
 	// Queue follow-now-playing default is taken from config (defaults to true).

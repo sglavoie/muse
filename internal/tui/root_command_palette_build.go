@@ -101,6 +101,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 
 	trackFocused := func() bool { return hasFocusedTrack(m) }
 	cmds = append(cmds, m.copyNowPlayingCommand())
+	cmds = append(cmds, m.browseNowPlayingCommand())
 
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "track.reveal",

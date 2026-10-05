@@ -237,6 +237,7 @@ func (m Model) handleMixLoadedMsg(msg mixLoadedMsg) Model {
 		if len(m.mixes.TrackView.SourceTracks) == 0 {
 			// Initial population: no user state to preserve.
 			m.mixes.OpenMix(msg.mixID)
+			m = m.restoreSortPreference()
 		} else {
 			// Re-load while user is already browsing: update tracks
 			// in place to preserve cursor, sort, and filter state.

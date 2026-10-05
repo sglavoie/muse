@@ -24,6 +24,11 @@ func (m Model) handleWelcomeKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool)
 		return m.markQuitting(), tea.Quit, true
 	}
 	m.welcomeDismissed = true
+	if msg.String() == "ctrl+," {
+		// Settings opens on its Library tab, where directories can be added.
+		next, cmd := m.handleSettingsOpen()
+		return next.(Model), cmd, true
+	}
 	return m, nil, true
 }
 
@@ -44,6 +49,7 @@ func (m Model) renderWelcomeOverlay() string {
 		}
 	}
 	rows = append(rows,
+		overlay.WelcomeRow("ctrl+,", "Set music directories"),
 		overlay.WelcomeRow("j / k  or  ↑ / ↓", "Navigate"),
 		overlay.WelcomeRow("Enter", "Add to queue"),
 		overlay.WelcomeRow("Space", "Play / Pause"),
@@ -55,7 +61,7 @@ func (m Model) renderWelcomeOverlay() string {
 	o := overlay.Box{
 		Title:         " Welcome to Muse ",
 		Rows:          rows,
-		Hint:          "  Press any key to start  ",
+		Hint:          "  ctrl+, settings · any other key to start  ",
 		MaxInnerWidth: maxInner,
 	}
 	return o.Render(m.termWidth, m.termHeight, *m.styles)

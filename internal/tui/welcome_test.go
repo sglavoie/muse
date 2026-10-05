@@ -12,6 +12,26 @@ import (
 
 const testConfigPath = "/home/user/.config/muse/config.toml"
 
+func TestWelcomeOpensLibrarySettings(t *testing.T) {
+	m := sizedWelcomeModel(t, WithConfigPath(testConfigPath, true))
+	if !strings.Contains(ansi.Strip(viewContent(m)), "Set music directories") {
+		t.Fatal("welcome does not advertise directory setup")
+	}
+	m, _ = updateModel(m, tea.KeyPressMsg{Code: ',', Mod: tea.ModCtrl})
+	if m.welcomeVisible() || m.overlay.settings == nil {
+		t.Fatal("settings shortcut only dismissed welcome")
+	}
+	// 'a' opens the directory input only on the Library tab.
+	m = pressKey(m, "a")
+	if m.overlay.settings.LibDirInput == nil {
+		t.Fatal("settings did not open on Library")
+	}
+	m = pressEsc(pressEsc(m))
+	if m.welcomeVisible() || m.overlay.settings != nil {
+		t.Fatal("canceling settings should return to the library")
+	}
+}
+
 func sizedWelcomeModel(t *testing.T, opts ...Option) Model {
 	t.Helper()
 	m := New(context.Background(), opts...)

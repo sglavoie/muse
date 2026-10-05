@@ -38,6 +38,10 @@ func (m Model) handleSortCycle() (tea.Model, tea.Cmd, bool) {
 
 // applySortField shares cache rebuilds and cursor resets with keyboard cycling.
 func (m Model) applySortField(next sorting.SortField) (tea.Model, tea.Cmd, bool) {
+	return rememberSortResult(m.applySortFieldInView(next))
+}
+
+func (m Model) applySortFieldInView(next sorting.SortField) (tea.Model, tea.Cmd, bool) {
 	var ss sorting.SortState
 	switch m.ActiveView {
 	case viewLibrary:
@@ -143,6 +147,10 @@ func (m Model) applySortField(next sorting.SortField) (tea.Model, tea.Cmd, bool)
 // handleSortDir sets the sort direction for the active view, preserving the
 // focused item at its new position after re-sort.
 func (m Model) handleSortDir(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
+	return rememberSortResult(m.applySortDirInView(dir))
+}
+
+func (m Model) applySortDirInView(dir sorting.SortDir) (tea.Model, tea.Cmd, bool) {
 	switch m.ActiveView {
 	case viewLibrary:
 		var ss sorting.SortState

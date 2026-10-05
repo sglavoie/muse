@@ -19,12 +19,14 @@ full keybinding reference.
    for Linux commands.
 2. Install muse: `go install github.com/sglavoie/muse@latest`.
    If your shell cannot find `muse`, see the [PATH setup](#install).
-3. Run `muse` once to create its config, then quit with `ctrl+c`.
-   Edit `~/.config/muse/config.toml` (or `$XDG_CONFIG_HOME/muse/config.toml`)
-   and set `music_directories = ["/path/to/your/music"]`.
-4. Run `muse check`, then `muse`. Select a track and press `Enter` to enqueue
+3. Run `muse`, then press `ctrl+,` on the welcome screen to open Library
+   settings. Press `a` to add a music directory, `Enter` to accept it, and
+   `ctrl+s` to save and scan. You can also edit `music_directories` in
+   `~/.config/muse/config.toml` (or `$XDG_CONFIG_HOME/muse/config.toml`).
+4. Select a track and press `Enter` to enqueue
    it; the first queued track starts playback. Use `Space` to pause, `/` to
-   filter, `3` to see the queue, and `?` for help.
+   filter, `3` to see the queue, and `?` for help. To diagnose setup problems,
+   run `muse check` from a terminal.
 
 The preview above uses fictional library data from the
 [fixture harness](docs/tui-testing/README.md); it needs no music files or mpv.
@@ -82,6 +84,10 @@ The preview above uses fictional library data from the
   duration corrections. Both remaining and total time use `+` for unknown durations.
 - **Copy now-playing info** — a palette command copies the playing or paused
   song while you browse elsewhere; its detail line identifies the song.
+- **Browse now-playing…** — a palette command opens artist, album, and genre
+  destinations for the playing or paused song, independently of the focused row.
+  Its detail line identifies the song; selecting it keeps that target even if
+  playback advances while the palette is open.
 - **Gapless playback** via mpv prefetch (`gapless_audio`).
 - **10-band equalizer** with built-in presets (Flat, Bass Boost, Treble Boost,
   Rock, Jazz, Classical, Pop) and user-defined custom presets, plus stereo
@@ -102,6 +108,8 @@ The preview above uses fictional library data from the
   beginning/end. Long values wrap, and the title shows your position when
   more information is available.
 - Saving an unchanged metadata form leaves your previous undo available.
+  Changed fields are marked with `*` in single-track and bulk forms, with a
+  changed-field count below the editor. Restoring an original value removes its marker.
   Editing other fields preserves the precise track duration. Bulk forms label
   differing values as “Multiple values — unchanged”; untouched fields retain
   each track's original value. In bulk forms, `ctrl+d` explicitly clears the
@@ -128,6 +136,9 @@ The preview above uses fictional library data from the
 - While editing a filter, the footer shows `Enter` to apply, `Esc` to clear,
   and Up/Down to recall history. Empty field prefixes such as `a:` leave tracks
   visible while you type; other populated terms still apply.
+  When space allows, Library, Mixes, Insights track lists, and Queue also show
+  how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
+  Queue labels genre terms as ignored, matching its existing filtering behavior.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished
   query. History survives restarts in `filter_history.json` in the data directory;
@@ -138,7 +149,9 @@ The preview above uses fictional library data from the
   an unfiltered track list. `E` still enqueues the entire playlist.
 - **Direct sorting** — search the palette for _Sort by_ to choose a field supported
   by the current view. The selected field and direction appear in its detail line.
-  Sorts survive switching between views during the session; choose
+  Sort fields and directions survive restarts in `sort_preferences.json` in the
+  data directory. Library modes and collection/track levels remember separate
+  preferences; cursors and filters are not saved by this feature. Choose
   _Sort by default order_ to reset a view. The existing sort-cycle and
   direction shortcuts remain available.
 - Completed library scans replace progress with “Scan complete — N tracks” and

@@ -403,13 +403,10 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	return centerBoxLines(lines, termWidth, termHeight)
 }
 
-// fieldLabels returns the field labels, marking every bulk-edit field that
+// fieldLabels returns the field labels, marking every edited field that
 // differs from its opening value with a leading "*".
 func (e Editor) fieldLabels() [fieldCount]string {
 	labels := [fieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
-	if !e.IsBulk() {
-		return labels
-	}
 	for i := range fieldCount {
 		if e.Dirty[i] {
 			labels[i] = "*" + labels[i]
@@ -513,6 +510,17 @@ func (e Editor) hintLine() string {
 	}
 	if e.IsBulk() {
 		hint += "\n  ctrl+d clear field · ctrl+r reset · * applies"
+	}
+	changed := 0
+	for _, i := range e.renderFieldIndices() {
+		if e.Dirty[i] {
+			changed++
+		}
+	}
+	if changed == 1 {
+		hint += "\n  * 1 field changed"
+	} else if changed > 1 {
+		hint += fmt.Sprintf("\n  * %d fields changed", changed)
 	}
 	return hint
 }

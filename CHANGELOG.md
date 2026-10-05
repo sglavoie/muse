@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- “Browse now-playing…” opens library destinations for the playing or paused
+  song, independently of the focused row.
+- Sort preferences survive restarts, separately for Library modes and list
+  levels, with failures to save reported in Recent Messages.
+- The welcome screen opens Library settings with `ctrl+,` for directory setup.
+- Single-track metadata edits show changed-field markers; single and bulk
+  forms show a count that updates as fields are edited or restored.
+- Field-aware filter editors show a compact interpretation alongside their
+  key hints when space permits, without changing matching behavior.
+
 - View switching preserves each view's sort order and focus; the existing
   “Sort by default order” palette command resets the current view.
 - Queue summaries update while open and mark unknown total durations with `+`.

@@ -230,5 +230,13 @@ func (m Model) renderFooterHint() string {
 	case m.ActiveView == viewMixes && m.mixes.Level == 1:
 		mode = keys.HintModeTracks
 	}
-	return keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
+	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
+	if mode == keys.HintModeFilter {
+		summary := m.filterQuerySummary()
+		room := m.termWidth - ansi.StringWidth(hint) - 3
+		if summary != "" && room >= 16 {
+			hint += m.styles.Dim.Render(" · " + ansi.Truncate(summary, room, "…"))
+		}
+	}
+	return hint
 }

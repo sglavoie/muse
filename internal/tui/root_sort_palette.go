@@ -98,8 +98,13 @@ func (m Model) sortPaletteCommands() []palette.PaletteCommand {
 
 func (m Model) selectSortField(field sorting.SortField) (tea.Model, tea.Cmd) {
 	fields, state := m.activeSortFields()
-	if !slices.Contains(fields, field) || state.Field == field {
+	if !slices.Contains(fields, field) {
 		return m, nil
+	}
+	if state.Field == field {
+		// A queue edit can temporarily reset the display order. Explicitly
+		// choosing that order must also replace the saved preference.
+		return m.rememberSortPreference(), nil
 	}
 	m = exitVisualMode(m)
 	next, cmd, _ := m.applySortField(field)

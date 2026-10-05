@@ -27,6 +27,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.updateInner(msg)
 	// Every branch of updateInner returns this Model.
 	updated := next.(Model)
+	if m.sortPreferenceKey() != updated.sortPreferenceKey() {
+		updated = updated.restoreSortPreference()
+	}
 	updated, flushCmd := updated.drainListenFlushes()
 	updated = updated.publishControlState()
 	if flushCmd == nil {
@@ -39,6 +42,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Ctrl+C quits. Escape-style navigation remains delegated to the active view.
 func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case browseNowPlayingMsg:
+		return m.browseNowPlaying(msg.hash), nil
 	case selectSortFieldMsg:
 		return m.selectSortField(msg.field)
 	case showRecentMessagesMsg:

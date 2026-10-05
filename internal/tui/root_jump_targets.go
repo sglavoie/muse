@@ -44,7 +44,7 @@ func (m Model) jumpToArtist(artistName string) Model {
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeArtists
 	m.ActiveView = viewBrowse
-	return m
+	return m.restoreSortPreference()
 }
 
 // jumpToAlbum switches to the Albums view with the cursor pre-positioned on
@@ -83,7 +83,7 @@ func (m Model) jumpToAlbum(albumName string) Model {
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeAlbums
 	m.ActiveView = viewBrowse
-	return m
+	return m.restoreSortPreference()
 }
 
 // jumpToGenre switches to the Genres view with the cursor pre-positioned on
@@ -122,7 +122,7 @@ func (m Model) jumpToGenre(genreName string) Model {
 	m = exitVisualMode(m)
 	m.browse.Mode = browse.BrowseModeGenres
 	m.ActiveView = viewBrowse
-	return m
+	return m.restoreSortPreference()
 }
 
 // jumpToPlaylist switches to the Playlists view with the cursor
@@ -151,5 +151,5 @@ func (m Model) jumpToPlaylist(playlistName string) Model {
 	m.clearPendingConfirmations()
 	m = exitVisualMode(m)
 	m.ActiveView = viewPlaylists
-	return m
+	return m.restoreSortPreference()
 }
