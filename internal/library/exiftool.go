@@ -37,14 +37,15 @@ var _ MetadataExtractor = (*ExifToolExtractor)(nil)
 // so that a single unusual file does not fail json.Unmarshal for the entire
 // batch and trigger expensive binary-retry subdivision.
 type exifRecord struct {
-	SourceFile string
-	Artist     string
-	Title      string
-	Album      string
-	Genre      string
-	Duration   float64
-	Track      string
-	DiscNumber string
+	SourceFile  string
+	Artist      string
+	Title       string
+	Album       string
+	AlbumArtist string
+	Genre       string
+	Duration    float64
+	Track       string
+	DiscNumber  string
 }
 
 // UnmarshalJSON decodes an exiftool JSON record, coercing fields that may
@@ -61,6 +62,7 @@ func (r *exifRecord) UnmarshalJSON(data []byte) error {
 	r.Artist = coerceString(raw["Artist"])
 	r.Title = coerceString(raw["Title"])
 	r.Album = coerceString(raw["Album"])
+	r.AlbumArtist = exifAlbumArtist(raw)
 	r.Genre = coerceString(raw["Genre"])
 	r.Duration = coerceFloat(raw["Duration"])
 	r.Track = coerceString(raw["Track"])
@@ -227,7 +229,7 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 	}
 
 	args := make([]string, 0, 8+len(paths))
-	args = append(args, "-json", "-Artist", "-Title", "-Album", "-Genre", "-Duration#", "-Track", "-DiscNumber")
+	args = append(args, "-json", "-Artist", "-Title", "-Album", "-AlbumArtist", "-Band", "-Genre", "-Duration#", "-Track", "-DiscNumber")
 	args = append(args, paths...)
 
 	ctx, cancel := context.WithTimeout(ctx, extractTimeout)
@@ -264,6 +266,7 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 			Artist:      r.Artist,
 			Title:       r.Title,
 			Album:       r.Album,
+			AlbumArtist: r.AlbumArtist,
 			Genre:       r.Genre,
 			Duration:    r.Duration,
 			ModTime:     hf.ModTime,

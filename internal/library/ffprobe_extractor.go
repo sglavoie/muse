@@ -177,6 +177,7 @@ func probeFile(ctx context.Context, f HashedFile) Track {
 		Artist:      lookupTag(tags, "artist"),
 		Title:       lookupTag(tags, "title"),
 		Album:       lookupTag(tags, "album"),
+		AlbumArtist: lookupTag(tags, "album_artist", "albumartist", "album artist"),
 		Genre:       lookupTag(tags, "genre"),
 		Duration:    sanitizeDuration(parseDurationString(coerceString(out.Format.Duration))),
 		ModTime:     f.ModTime,

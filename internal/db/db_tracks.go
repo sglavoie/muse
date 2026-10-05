@@ -15,6 +15,7 @@ type TrackRow struct {
 	Title        string
 	Artist       string
 	Album        string
+	AlbumArtist  string
 	Genre        string
 	DurationMs   int64
 	CreatedAt    int64
@@ -49,7 +50,7 @@ type UnverifiedTrack struct {
 // empty slice (not an error) when the table is empty.
 func (d *DB) ReadTracks() ([]TrackRow, error) {
 	rows, err := d.Query(`
-		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at, track_number, disc_number
+		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at, track_number, disc_number, album_artist
 		FROM tracks WHERE missing = 0
 	`)
 	if err != nil {
@@ -60,7 +61,7 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 	var result []TrackRow
 	for rows.Next() {
 		var row TrackRow
-		if err := rows.Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt, &row.TrackNumber, &row.DiscNumber); err != nil {
+		if err := rows.Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt, &row.TrackNumber, &row.DiscNumber, &row.AlbumArtist); err != nil {
 			return nil, fmt.Errorf("db: read track row: %w", err)
 		}
 		result = append(result, row)
@@ -76,9 +77,9 @@ func (d *DB) ReadTracks() ([]TrackRow, error) {
 func (d *DB) ReadTrackByPath(path string) (TrackRow, bool, error) {
 	var row TrackRow
 	err := d.QueryRow(`
-		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at, track_number, disc_number
+		SELECT hash, path, title, artist, album, genre, duration_ms, created_at, size_bytes, mod_time, play_count, last_played_at, track_number, disc_number, album_artist
 		FROM tracks WHERE path = ? LIMIT 1
-	`, path).Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt, &row.TrackNumber, &row.DiscNumber)
+	`, path).Scan(&row.Hash, &row.Path, &row.Title, &row.Artist, &row.Album, &row.Genre, &row.DurationMs, &row.CreatedAt, &row.SizeBytes, &row.ModTime, &row.PlayCount, &row.LastPlayedAt, &row.TrackNumber, &row.DiscNumber, &row.AlbumArtist)
 	if err == sql.ErrNoRows {
 		return TrackRow{}, false, nil
 	}
@@ -145,7 +146,7 @@ func (d *DB) ReadPlayHistory(limit int) ([]library.Track, error) {
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, ph.played_at, t.track_number, t.disc_number
+		       t.play_count, ph.played_at, t.track_number, t.disc_number, t.album_artist
 		FROM play_history ph
 		JOIN tracks t ON ph.track_hash = t.hash
 		ORDER BY ph.played_at DESC

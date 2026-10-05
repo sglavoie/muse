@@ -46,7 +46,7 @@ func (d *DB) ReadRediscoverMix(minPlays, ageDays, limit int) ([]library.Track, e
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at, t.track_number, t.disc_number
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number, t.album_artist
 		FROM tracks t
 		WHERE t.missing = 0 AND t.play_count >= ? AND t.last_played_at < ? AND t.last_played_at > 0
 		ORDER BY t.play_count DESC
@@ -97,7 +97,7 @@ func (d *DB) ReadHiddenGemsMix(maxPlays, topArtists, topGenres, limit int) ([]li
 	query := `
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at, t.track_number, t.disc_number
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number, t.album_artist
 		FROM tracks t
 		WHERE t.missing = 0 AND t.play_count BETWEEN 1 AND ? AND (` + strings.Join(conditions, " OR ") + `)
 		ORDER BY RANDOM()
@@ -118,7 +118,7 @@ func (d *DB) ReadOnRepeatMix(minPlays, windowDays, limit int) ([]library.Track, 
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at, t.track_number, t.disc_number,
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number, t.album_artist,
 		       COUNT(*) AS recent_count
 		FROM tracks t
 		JOIN play_history ph ON ph.track_hash = t.hash
@@ -156,7 +156,7 @@ func (d *DB) ReadDeepCutsMix(minPlays, maxPlays int, minCompletion float64, limi
 	rows, err := d.Query(`
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at, t.track_number, t.disc_number
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number, t.album_artist
 		FROM tracks t
 		JOIN play_events pe ON pe.track_hash = t.hash
 		WHERE t.missing = 0 AND t.play_count BETWEEN ? AND ?
@@ -204,7 +204,7 @@ func (d *DB) ReadNeverPlayedMix(limit int) ([]library.Track, error) {
 		)
 		SELECT t.path, t.hash, t.artist, t.title, t.album, t.genre,
 		       t.duration_ms, t.created_at, t.mod_time, t.size_bytes,
-		       t.play_count, t.last_played_at, t.track_number, t.disc_number,
+		       t.play_count, t.last_played_at, t.track_number, t.disc_number, t.album_artist,
 		       COALESCE(ap.cnt, 0) + COALESCE(SUM(gp.cnt), 0) AS affinity
 		FROM tracks t
 		LEFT JOIN artist_plays ap ON ap.artist = t.artist
@@ -377,7 +377,7 @@ func inPlaceholders(n int) string {
 	return strings.Repeat("?,", n-1) + "?"
 }
 
-// scanTrackRows scans the standard 12-column track SELECT result set.
+// scanTrackRows scans the standard 15-column track SELECT result set.
 func scanTrackRows(rows rowScanner) ([]library.Track, error) {
 	var result []library.Track
 	for rows.Next() {
@@ -386,7 +386,7 @@ func scanTrackRows(rows rowScanner) ([]library.Track, error) {
 		if err := rows.Scan(
 			&track.Path, &track.Hash, &track.Artist, &track.Title, &track.Album, &track.Genre,
 			&durationMs, &track.CreatedAt, &track.ModTime, &track.SizeBytes,
-			&track.PlayCount, &track.LastPlayedAt, &track.TrackNumber, &track.DiscNumber,
+			&track.PlayCount, &track.LastPlayedAt, &track.TrackNumber, &track.DiscNumber, &track.AlbumArtist,
 		); err != nil {
 			return nil, fmt.Errorf("db: scan track row: %w", err)
 		}
@@ -396,7 +396,7 @@ func scanTrackRows(rows rowScanner) ([]library.Track, error) {
 	return result, rows.Err()
 }
 
-// scanTrackRowsWithExtra scans the standard 12-column track result set followed
+// scanTrackRowsWithExtra scans the standard 15-column track result set followed
 // by extraCols additional columns that are read and discarded.
 func scanTrackRowsWithExtra(rows rowScanner, extraCols int) ([]library.Track, error) {
 	extra := make([]any, extraCols)
@@ -411,7 +411,7 @@ func scanTrackRowsWithExtra(rows rowScanner, extraCols int) ([]library.Track, er
 		dest := []any{
 			&track.Path, &track.Hash, &track.Artist, &track.Title, &track.Album, &track.Genre,
 			&durationMs, &track.CreatedAt, &track.ModTime, &track.SizeBytes,
-			&track.PlayCount, &track.LastPlayedAt, &track.TrackNumber, &track.DiscNumber,
+			&track.PlayCount, &track.LastPlayedAt, &track.TrackNumber, &track.DiscNumber, &track.AlbumArtist,
 		}
 		dest = append(dest, extra...)
 		if err := rows.Scan(dest...); err != nil {

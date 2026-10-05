@@ -7,6 +7,7 @@ type Track struct {
 	Artist       string
 	Title        string
 	Album        string
+	AlbumArtist  string // release artist; distinct from a compilation track's performer
 	Genre        string
 	Duration     float64 // seconds
 	CreatedAt    int64   // Unix timestamp when the track was first added to the library

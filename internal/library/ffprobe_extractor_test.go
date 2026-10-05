@@ -48,13 +48,14 @@ func requireExifTool(t *testing.T) {
 // exiftool path produces when it joins an array-valued tag, so both backends
 // must emit a byte-identical string.
 const (
-	fixtureArtist   = "Differential Artist"
-	fixtureTitle    = "Differential Title"
-	fixtureAlbum    = "Differential Album"
-	fixtureGenre    = "Rock; Pop"
-	fixtureTrack    = 3
-	fixtureDisc     = 1
-	fixtureDuration = 2.0
+	fixtureArtist      = "Differential Artist"
+	fixtureTitle       = "Differential Title"
+	fixtureAlbum       = "Differential Album"
+	fixtureAlbumArtist = "Various Artists"
+	fixtureGenre       = "Rock; Pop"
+	fixtureTrack       = 3
+	fixtureDisc        = 1
+	fixtureDuration    = 2.0
 )
 
 // ffFixture describes one generated audio file and how strictly its duration
@@ -93,6 +94,7 @@ func writeTaggedFixture(t *testing.T, path string) HashedFile {
 		"-metadata", "artist="+fixtureArtist,
 		"-metadata", "title="+fixtureTitle,
 		"-metadata", "album="+fixtureAlbum,
+		"-metadata", "album_artist="+fixtureAlbumArtist,
 		"-metadata", "genre="+fixtureGenre,
 		"-metadata", fmt.Sprintf("track=%d/12", fixtureTrack),
 		"-metadata", fmt.Sprintf("disc=%d/2", fixtureDisc),
@@ -179,6 +181,9 @@ func TestFFProbeExtractor_Differential(t *testing.T) {
 			if got.Album != fixtureAlbum {
 				t.Errorf("Album = %q, want %q", got.Album, fixtureAlbum)
 			}
+			if got.AlbumArtist != fixtureAlbumArtist {
+				t.Errorf("AlbumArtist = %q, want %q", got.AlbumArtist, fixtureAlbumArtist)
+			}
 			if got.Genre != fixtureGenre {
 				t.Errorf("Genre = %q, want %q", got.Genre, fixtureGenre)
 			}
@@ -205,6 +210,9 @@ func TestFFProbeExtractor_Differential(t *testing.T) {
 			}
 			if got.Album != want.Album {
 				t.Errorf("Album: ffprobe %q, exiftool %q", got.Album, want.Album)
+			}
+			if got.AlbumArtist != want.AlbumArtist {
+				t.Errorf("AlbumArtist: ffprobe %q, exiftool %q", got.AlbumArtist, want.AlbumArtist)
 			}
 			if got.Genre != want.Genre {
 				t.Errorf("Genre: ffprobe %q, exiftool %q", got.Genre, want.Genre)

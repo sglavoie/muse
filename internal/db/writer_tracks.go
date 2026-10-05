@@ -186,10 +186,11 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 				createdAt = now
 			}
 			_, err := tx.Exec(`
-INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at, track_number, disc_number)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at, track_number, disc_number, album_artist)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(hash) DO UPDATE SET
 path         = excluded.path,
+album_artist = excluded.album_artist,
 title        = CASE WHEN tracks.user_edited = 0 THEN excluded.title ELSE tracks.title END,
 artist       = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
 album        = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
@@ -202,7 +203,7 @@ mod_time     = excluded.mod_time,
 missing            = 0,
 duration_verified  = 0,
 updated_at         = excluded.updated_at`,
-				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now, t.TrackNumber, t.DiscNumber,
+				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now, t.TrackNumber, t.DiscNumber, t.AlbumArtist,
 			)
 			if err != nil {
 				return err
