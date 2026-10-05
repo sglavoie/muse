@@ -22,10 +22,11 @@ type stripLayout struct {
 	selection *SelectionChunk
 	hint      string
 
-	sortPlain      string
-	filterValue    string
-	countsPlain    string
-	selectionPlain string
+	sortPlain         string
+	filterValue       string
+	countsPlain       string
+	selectionPlain    string
+	selectionDuration string
 
 	sepW          int
 	chevronW      int
@@ -74,6 +75,10 @@ func newStripLayout(
 	layout.countsPlain = buildCountsPlain(counts)
 	if layout.includeSelection {
 		layout.selectionPlain = fmt.Sprintf("◉ %d selected", selection.Count)
+		layout.selectionDuration = plainLine(selection.Duration)
+		if layout.selectionDuration != "" {
+			layout.selectionPlain += Separator + layout.selectionDuration
+		}
 	}
 
 	layout.sepW = ansi.StringWidth(Separator)
@@ -186,11 +191,11 @@ func (l *stripLayout) gap() int {
 }
 
 // applyOverflow surrenders chunks until the strip fits, in the order the hint
-// is least missed and the breadcrumb most: hint, counts, sort, filter (which
+// is least missed and the breadcrumb most: selection duration, hint, counts, sort, filter (which
 // truncates before it disappears), then selection. The breadcrumb is never
 // dropped, only truncated, and only once nothing else is left to give.
 func (l *stripLayout) applyOverflow() {
-	l.dropUntilFits(l.dropHint, l.dropCounts, l.dropSort, l.fitFilter, l.dropSelection)
+	l.dropUntilFits(l.dropSelectionDuration, l.dropHint, l.dropCounts, l.dropSort, l.fitFilter, l.dropSelection)
 	if l.totalWidth() > l.width {
 		l.fitBreadcrumb()
 	}
@@ -211,6 +216,15 @@ func (l *stripLayout) dropUntilFits(steps ...func()) {
 func (l *stripLayout) dropHint() {
 	l.includeHint = false
 	l.hintW = 0
+}
+
+func (l *stripLayout) dropSelectionDuration() {
+	if l.selectionDuration == "" {
+		return
+	}
+	l.selectionDuration = ""
+	l.selectionPlain = fmt.Sprintf("◉ %d selected", l.selection.Count)
+	l.selectionW = ansi.StringWidth(l.selectionPlain)
 }
 
 func (l *stripLayout) dropCounts() {

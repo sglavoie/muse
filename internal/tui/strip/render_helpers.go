@@ -1,7 +1,6 @@
 package strip
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -36,7 +35,7 @@ func renderLeftZone(layout *stripLayout, s styles.Styles) string {
 	b.WriteString(renderBreadcrumb(layout.breadcrumb, s))
 	if layout.includeSelection {
 		b.WriteString(divider)
-		b.WriteString(renderSelectionChip(layout.selection.Count, s))
+		b.WriteString(renderSelectionChip(layout.selectionPlain, s))
 	}
 	if layout.includeSort {
 		b.WriteString(divider)
@@ -80,9 +79,9 @@ func renderBreadcrumb(breadcrumb []string, s styles.Styles) string {
 	return b.String()
 }
 
-func renderSelectionChip(count int, s styles.Styles) string {
+func renderSelectionChip(label string, s styles.Styles) string {
 	chipStyle := s.Accent.Foreground(s.TextPrimary.GetForeground())
-	return chipStyle.Render(fmt.Sprintf("◉ %d selected", count))
+	return chipStyle.Render(label)
 }
 
 func renderRightZone(layout *stripLayout, s styles.Styles) string {

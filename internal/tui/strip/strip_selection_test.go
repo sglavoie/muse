@@ -52,6 +52,27 @@ func TestRender_SelectionChunkSuppressedWhenZero(t *testing.T) {
 	}
 }
 
+func TestRenderSelectionDurationYieldsBeforeOtherDetails(t *testing.T) {
+	sel := &SelectionChunk{Count: 2, Duration: "7:08+"}
+	for _, width := range []int{100, 60, 45, 28, 15} {
+		got := Render(width, []string{"Library"}, SortChunk{Label: "Artist"},
+			FilterChunk{Text: "alice"}, CountsChunk{Total: 7}, sel, "", newTestStyles())
+		plain := requireRenderWidth(t, got, width)
+		if width == 100 && !strings.Contains(plain, "2 selected · 7:08+") {
+			t.Fatalf("wide strip missing duration: %q", plain)
+		}
+		if width == 60 && (strings.Contains(plain, "7:08+") || !strings.Contains(plain, `filter "alice"`) || !strings.Contains(plain, "sort Artist")) {
+			t.Fatalf("duration should yield before sort/filter: %q", plain)
+		}
+		if width == 28 && !strings.Contains(plain, "2 selected") {
+			t.Fatalf("selection count should survive duration: %q", plain)
+		}
+	}
+	if sel.Duration != "7:08+" {
+		t.Fatal("render mutated caller's selection")
+	}
+}
+
 func TestRender_SelectionChunkSurvivesLongerThanFilter(t *testing.T) {
 	s := newTestStyles()
 	// Width tight enough that filter must drop entirely but the chip survives.

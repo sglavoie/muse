@@ -81,6 +81,27 @@
       "key": "x"
     },
     {
+      "assert": {
+        "contains": "2 selected \u00b7 7:08"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "assert": {
+        "contains": "2 selected \u00b7 7:08"
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
       "key": ":"
     },
     {

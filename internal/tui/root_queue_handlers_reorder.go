@@ -129,6 +129,15 @@ func (m Model) handleQueueShuffleMsg() (Model, tea.Cmd) {
 	return m, nil
 }
 
+// queueDuplicateCount uses the same hash identity as handleQueueDedupMsg.
+func (m Model) queueDuplicateCount() int {
+	seen := make(map[string]struct{}, len(m.queue.Entries))
+	for _, entry := range m.queue.Entries {
+		seen[entry.Hash] = struct{}{}
+	}
+	return len(m.queue.Entries) - len(seen)
+}
+
 // handleQueueDedupMsg removes duplicate queue entries, keeping the first
 // occurrence of each track hash. Removed entries are soft-deleted with undo
 // support.

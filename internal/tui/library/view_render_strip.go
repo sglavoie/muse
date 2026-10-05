@@ -1,11 +1,13 @@
 package library
 
 import (
+	"math"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/tui/strip"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // renderStateStrip builds the unified single-line state strip carrying
@@ -33,9 +35,40 @@ func (v Panel) renderStateStrip(total, filtered int) string {
 	}
 	var sel *strip.SelectionChunk
 	if n := len(v.SelectedHashes); n > 0 {
-		sel = &strip.SelectionChunk{Count: n}
+		sel = &strip.SelectionChunk{Count: n, Duration: v.selectedDuration()}
 	}
 	return strip.Render(v.Width, []string{label}, sort, f, counts, sel, "", v.Styles)
+}
+
+// selectedDuration includes selections hidden by filters, just like bulk actions.
+func (v Panel) selectedDuration() string {
+	// Embedded track lists (for example Insights) may have no library index.
+	var overrides map[string]float64
+	if v.Index.Len() == 0 {
+		overrides = make(map[string]float64, len(v.OverrideTracks))
+		for _, track := range v.OverrideTracks {
+			overrides[track.Hash] = track.Duration
+		}
+	}
+	var seconds float64
+	unknown := false
+	for hash := range v.SelectedHashes {
+		track, ok := v.Index.FindByHash(hash)
+		duration := track.Duration
+		if !ok {
+			duration = overrides[hash]
+		}
+		if duration <= 0 || math.IsNaN(duration) || math.IsInf(duration, 0) {
+			unknown = true
+			continue
+		}
+		seconds += duration
+	}
+	duration := text.FormatPositionSecs(seconds)
+	if unknown {
+		duration += "+"
+	}
+	return duration
 }
 
 // renderDivider returns a single divider line spanning the visible content

@@ -246,15 +246,17 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		Enabled:        queueHasTracks,
 		DisabledReason: "Queue needs at least two tracks",
 	})
+	duplicates := m.queueDuplicateCount()
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:       "queue.dedup",
 		Name:     "Remove queue duplicates",
 		Category: "play",
+		Detail:   fmt.Sprintf("Remove %d repeated %s; keep first occurrences", duplicates, text.Pluralize(duplicates, "entry", "entries")),
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return queueDedupMsg{} }
 		},
-		Enabled:        queueHasTracks,
-		DisabledReason: "Queue needs at least two tracks",
+		Enabled:        func() bool { return duplicates > 0 },
+		DisabledReason: "No duplicates in queue",
 	})
 
 	cmds = append(cmds, palette.PaletteCommand{

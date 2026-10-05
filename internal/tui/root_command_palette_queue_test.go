@@ -8,7 +8,43 @@ import (
 	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/palette"
+	"github.com/sglavoie/muse/internal/tui/queue"
 )
+
+func TestQueueDuplicatePalettePreview(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		hashes  []string
+		want    string
+		enabled bool
+	}{
+		{"empty", nil, "Remove 0 repeated entries; keep first occurrences", false},
+		{"single", []string{"a"}, "Remove 0 repeated entries; keep first occurrences", false},
+		{"unique", []string{"a", "b"}, "Remove 0 repeated entries; keep first occurrences", false},
+		{"one duplicate", []string{"a", "b", "a"}, "Remove 1 repeated entry; keep first occurrences", true},
+		{"multiple", []string{"a", "a", "b", "a", "b"}, "Remove 3 repeated entries; keep first occurrences", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New(t.Context())
+			for i, hash := range tc.hashes {
+				m.queue.Entries = append(m.queue.Entries, queue.Entry{ID: int64(i + 1), Hash: hash, Title: "Same title"})
+			}
+			// The operation covers the entire queue, including hidden rows.
+			m.queue.Filter = filter.State{Text: "no matches"}
+			cmd := queuePaletteCommand(t, m, "queue.dedup")
+			if cmd.IsEnabled() != tc.enabled || cmd.Detail != tc.want {
+				t.Fatalf("enabled=%v detail=%q, want %v %q", cmd.IsEnabled(), cmd.Detail, tc.enabled, tc.want)
+			}
+			if !tc.enabled && cmd.DisabledReason != "No duplicates in queue" {
+				t.Fatalf("disabled reason = %q", cmd.DisabledReason)
+			}
+			m, _ = m.handleQueueDedupMsg()
+			if queuePaletteCommand(t, m, "queue.dedup").IsEnabled() {
+				t.Fatal("reopened palette should reflect deduplication")
+			}
+		})
+	}
+}
 
 func queuePaletteCommand(t *testing.T, m Model, id string) palette.PaletteCommand {
 	t.Helper()

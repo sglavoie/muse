@@ -134,6 +134,12 @@ matching release, and each release can then be unfavorited independently.
   To recover it, copy that backup over `metadata-export.tsv` before importing.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
+- Library selections show their total duration beside the count, including
+  selected tracks hidden by filters. `+` marks unknown durations; the duration
+  yields to other details in narrow windows.
+- The palette's _Remove queue duplicates_ command previews how many repeated
+  entries it will remove, keeping first occurrences. It is unavailable when
+  the queue has no duplicates.
 - Undo (`u`) for destructive operations. Queue-restore failures appear in recent
   messages and can be retried within the original ten-second undo window. The countdown belongs
   to the active undo prompt; unrelated messages do not inherit it.

@@ -57,6 +57,8 @@ type CountsChunk struct {
 // pointer to mean "no selection chip".
 type SelectionChunk struct {
 	Count int
+	// Duration is an optional formatted total, dropped first under width pressure.
+	Duration string
 }
 
 // Render assembles the single-line state strip and returns a string
@@ -69,8 +71,8 @@ type SelectionChunk struct {
 // (labels in TextSecondary). An empty slice or zero width returns "".
 //
 // hint is an optional right-edge affordance (e.g. "esc ←") rendered
-// dimmed after counts. It is the first chunk dropped under width
-// pressure; remaining drops occur in order counts → sort → filter
+// dimmed after counts. Under width pressure, selection duration drops first,
+// followed by hint → counts → sort → filter
 // (truncated, then dropped) → selection (dropped last) → breadcrumb
 // (last crumb truncated).
 func Render(
