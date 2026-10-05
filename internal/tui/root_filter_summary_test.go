@@ -40,8 +40,8 @@ func TestFilterSummaryDescribesParserWithoutChangingMatches(t *testing.T) {
 	}
 	m.ActiveView = viewQueue
 	m.queue.Filter.Text = "g:Jazz"
-	if !strings.Contains(m.filterQuerySummary(), "ignored in Queue") {
-		t.Fatal("queue summary promised unsupported genre filtering")
+	if m.filterQuerySummary() != "Genre: Jazz" {
+		t.Fatal("queue summary should describe genre filtering")
 	}
 	m.ActiveView = viewPlaylists
 	m.playlists.Filter.Text = "a:Alice"

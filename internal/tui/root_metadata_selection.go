@@ -235,5 +235,12 @@ func (m Model) refreshDerivedViews() Model {
 		m.insights.TrackView = m.insights.TrackView.RefreshView().ClampCursor()
 	}
 
+	// Queue genre filters must see edits, imports, undo, and data-health merges.
+	for i := range m.queue.Entries {
+		if track, ok := m.library.Index.FindByHash(m.queue.Entries[i].Hash); ok {
+			m.queue.Entries[i].Genre = track.Genre
+		}
+	}
+	m.clampQueueCursorAndScroll()
 	return m
 }

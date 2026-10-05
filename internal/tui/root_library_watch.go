@@ -86,7 +86,7 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 				continue
 			}
 			if e.Path != t.Path || e.Title != t.Title || e.Artist != t.Artist ||
-				e.Album != t.Album || e.DurationMs != durationMs ||
+				e.Album != t.Album || e.Genre != t.Genre || e.DurationMs != durationMs ||
 				e.Display != display || e.Missing {
 				queueDirty = true
 			}
@@ -94,6 +94,7 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 			e.Title = t.Title
 			e.Artist = t.Artist
 			e.Album = t.Album
+			e.Genre = t.Genre
 			e.AlbumArtist = t.AlbumArtist
 			e.DurationMs = durationMs
 			e.Display = display
@@ -107,6 +108,7 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 	if queueDirty {
 		m.syncPlayerQueue()
 		m = m.preserveQueueSort()
+		m.clampQueueCursorAndScroll()
 	}
 	return m
 }

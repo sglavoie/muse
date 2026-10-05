@@ -18,6 +18,7 @@ type QueueRow struct {
 	Artist         string
 	Title          string
 	Album          string
+	Genre          string
 	AlbumArtist    string
 	Missing        bool
 	DurationMs     int64
@@ -61,7 +62,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 		SELECT q.id, t.hash, t.path, t.artist, t.title, t.album,
 		       CASE WHEN q.missing != 0 OR t.missing != 0 THEN 1 ELSE 0 END,
 		       t.duration_ms, q.position, q.source_playlist, t.track_number, t.disc_number,
-		       q.dj_owned, q.dj_reasons, t.album_artist
+		       q.dj_owned, q.dj_reasons, t.album_artist, t.genre
 		FROM queue q
 		JOIN tracks t ON q.track_hash = t.hash
 		WHERE q.deleted_at IS NULL
@@ -78,7 +79,7 @@ func (d *DB) ReadQueue() ([]QueueRow, error) {
 		var missing int
 		var djOwned int
 		var djReasons string
-		if err := rows.Scan(&row.ID, &row.Hash, &row.Path, &row.Artist, &row.Title, &row.Album, &missing, &row.DurationMs, &row.Position, &row.SourcePlaylist, &row.TrackNumber, &row.DiscNumber, &djOwned, &djReasons, &row.AlbumArtist); err != nil {
+		if err := rows.Scan(&row.ID, &row.Hash, &row.Path, &row.Artist, &row.Title, &row.Album, &missing, &row.DurationMs, &row.Position, &row.SourcePlaylist, &row.TrackNumber, &row.DiscNumber, &djOwned, &djReasons, &row.AlbumArtist, &row.Genre); err != nil {
 			return nil, fmt.Errorf("db: read queue row: %w", err)
 		}
 		row.Missing = missing != 0

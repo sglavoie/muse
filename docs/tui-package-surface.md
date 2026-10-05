@@ -138,7 +138,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
 | `tui/metadata` | 50 | 0 | 48 | 2 | `tui` |
-| `tui/queue` | 78 | 17 | 60 | 1 | `tui`, `internal/app` |
+| `tui/queue` | 79 | 18 | 60 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1026 exported identifiers across 15 packages**: 155 reached from two or more packages, 810 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1027 exported identifiers across 15 packages**: 156 reached from two or more packages, 810 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -815,6 +815,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `Entry.DiscNumber` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.Display` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.DurationMs` | field | `internal/app`, `internal/tui` | multi |
+| `tui/queue` | `Entry.Genre` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.Hash` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.ID` | field | `internal/app`, `internal/tui` | multi |
 | `tui/queue` | `Entry.Missing` | field | `internal/app`, `internal/tui` | multi |

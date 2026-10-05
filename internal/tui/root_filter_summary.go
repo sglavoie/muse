@@ -30,14 +30,10 @@ func (m Model) filterQuerySummary() string {
 	if !fq.IsFieldSpecific() && fq.General == strings.TrimSpace(raw) {
 		return ""
 	}
-	genreLabel := "Genre"
-	if m.ActiveView == viewQueue {
-		genreLabel = "Genre (ignored in Queue)"
-	}
 	parts := []string{}
 	for _, field := range []struct{ label, value string }{
 		{"Text", fq.General}, {"Artist", fq.Artist}, {"Title", fq.Title},
-		{"Album", fq.Album}, {genreLabel, fq.Genre},
+		{"Album", fq.Album}, {"Genre", fq.Genre},
 	} {
 		if field.value != "" {
 			value := strings.Join(strings.Fields(ansi.Strip(field.value)), " ")

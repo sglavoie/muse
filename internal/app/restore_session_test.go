@@ -40,11 +40,19 @@ func TestRestoreSessionReadableFiles(t *testing.T) {
 	audioPath := harness.writeAudioFile("track.mp3")
 	harness.insertTrackAndQueue("hash-aaa", audioPath, "Artist A", "Song A", 1000)
 
+	if _, err := harness.database.Exec(`UPDATE tracks SET genre='Jazz' WHERE hash='hash-aaa'`); err != nil {
+		t.Fatal(err)
+	}
+
 	restored := harness.restore()
 	if len(restored.QueueEntries) != 1 {
 		t.Fatalf("QueueEntries: want 1, got %d", len(restored.QueueEntries))
 	}
 	e := restored.QueueEntries[0]
+	if e.Genre != "Jazz" {
+		t.Fatalf("restored genre = %q, want Jazz", e.Genre)
+	}
+
 	if e.Missing {
 		t.Error("QueueEntry.Missing: want false for readable file")
 	}

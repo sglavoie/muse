@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Queue filters support `g:` / `genre:`, including restored queues and live
+  metadata changes, while preserving duplicate rows and playback order.
+- Single-track metadata forms support `ctrl+r` to reset the focused field to
+  its opening value, leaving other edits intact.
+
 - The playlist destination picker supports searching playlist names, page and
   first/last navigation, and scrolling within the terminal height. Search keeps
   Play Queue and New playlist available, and Esc clears it before dismissing.

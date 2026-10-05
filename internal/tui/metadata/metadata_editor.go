@@ -273,9 +273,12 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 		return e, ActionSave, nil
 	case "esc":
 		return e, ActionCancel, nil
-	case "ctrl+d", "ctrl+r":
+	case "ctrl+r":
+		e.setFieldCleared(false)
+		return e, actionNone, nil
+	case "ctrl+d":
 		if e.IsBulk() {
-			e.setBulkFieldCleared(msg.String() == "ctrl+d")
+			e.setFieldCleared(true)
 			return e, actionNone, nil
 		}
 	case "tab":
@@ -310,8 +313,8 @@ func (e Editor) ForwardMsg(msg tea.Msg) (Editor, tea.Cmd) {
 	return e, cmd
 }
 
-// setBulkFieldCleared either clears this field or restores its opening value.
-func (e *Editor) setBulkFieldCleared(clearField bool) {
+// setFieldCleared either explicitly clears a bulk field or restores its opening value.
+func (e *Editor) setFieldCleared(clearField bool) {
 	value := e.initialValues[e.focused]
 	if clearField {
 		value = ""
@@ -510,6 +513,8 @@ func (e Editor) hintLine() string {
 	}
 	if e.IsBulk() {
 		hint += "\n  ctrl+d clear field · ctrl+r reset · * applies"
+	} else {
+		hint += "\n  ctrl+r reset field"
 	}
 	changed := 0
 	for _, i := range e.renderFieldIndices() {

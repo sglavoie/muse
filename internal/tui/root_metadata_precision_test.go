@@ -56,7 +56,7 @@ func TestBulkMixedMetadataOnlySavesEditedFields(t *testing.T) {
 }
 
 func TestUnchangedMetadataSavePreservesUndoAndDuration(t *testing.T) {
-	for _, revert := range []bool{false, true} {
+	for _, revert := range []string{"none", "backspace", "reset"} {
 		m := precisionMetadataModel()
 		writer := newImportWriterSpy()
 		durations := &stubDurationWriter{}
@@ -64,9 +64,14 @@ func TestUnchangedMetadataSavePreservesUndoAndDuration(t *testing.T) {
 		previous := &undoBulkEditMetadataAction{originals: map[string][5]string{"prior": {"Old"}}}
 		m.setUndoSlot(previous, nil)
 		expires := m.undo.slot.expiresAt
-		if revert {
+		if revert != "none" {
 			m = typeIntoEditor(m, "x")
-			m = backspaceInEditor(m, 1)
+			if revert == "reset" {
+				next, _ := m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+				m = next.(Model)
+			} else {
+				m = backspaceInEditor(m, 1)
+			}
 		}
 		result, cmd := m.handleMetadataSave()
 		nm := result.(Model)

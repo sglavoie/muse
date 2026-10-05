@@ -117,6 +117,8 @@ matching release, and each release can then be unfavorited independently.
 - Saving an unchanged metadata form leaves your previous undo available.
   Changed fields are marked with `*` in single-track and bulk forms, with a
   changed-field count below the editor. Restoring an original value removes its marker.
+  In single-track forms, `ctrl+r` restores the focused field to its opening
+  value without changing other edits.
   Editing other fields preserves the precise track duration. Bulk forms label
   differing values as “Multiple values — unchanged”; untouched fields retain
   each track's original value. In bulk forms, `ctrl+d` explicitly clears the
@@ -146,7 +148,7 @@ matching release, and each release can then be unfavorited independently.
   visible while you type; other populated terms still apply.
   When space allows, Library, Mixes, Insights track lists, and Queue also show
   how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
-  Queue labels genre terms as ignored, matching its existing filtering behavior.
+  Queue supports the same field prefixes, including `g:` / `genre:`.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished
   query. History survives restarts in `filter_history.json` in the data directory;

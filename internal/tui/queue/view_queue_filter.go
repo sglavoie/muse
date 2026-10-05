@@ -95,7 +95,7 @@ func fieldMatcher(fq library.FilterQuery) func(Entry) bool {
 		title := strings.ToLower(e.Title)
 		artist := strings.ToLower(e.Artist)
 		album := strings.ToLower(e.Album)
-		if !fieldMatches(title, fq.Title) || !fieldMatches(artist, fq.Artist) || !fieldMatches(album, fq.Album) {
+		if !fieldMatches(title, fq.Title) || !fieldMatches(artist, fq.Artist) || !fieldMatches(album, fq.Album) || !fieldMatches(strings.ToLower(e.Genre), fq.Genre) {
 			return false
 		}
 		if fq.General == "" {

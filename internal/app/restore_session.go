@@ -120,6 +120,7 @@ func queueEntryFromRow(row db.QueueRow, missing bool) queue.Entry {
 		Artist:         row.Artist,
 		Title:          row.Title,
 		Album:          row.Album,
+		Genre:          row.Genre,
 		AlbumArtist:    row.AlbumArtist,
 		DurationMs:     row.DurationMs,
 		Position:       row.Position,
