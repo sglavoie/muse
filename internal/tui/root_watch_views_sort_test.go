@@ -174,7 +174,7 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortAsc}
 	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
 
-	if m.browse.Albums.Albums[0] != "Alpha" {
+	if library.AlbumTitle(m.browse.Albums.Albums[0]) != "Alpha" {
 		t.Fatalf("setup: expected first album=%q after sort, got %q", "Alpha", m.browse.Albums.Albums[0])
 	}
 
@@ -191,10 +191,10 @@ func TestWatchBatchPreservesAlbumLevelSort(t *testing.T) {
 	if len(nm.browse.Albums.Albums) != 3 {
 		t.Fatalf("expected 3 albums, got %d", len(nm.browse.Albums.Albums))
 	}
-	if nm.browse.Albums.Albums[0] != "Alpha" {
+	if library.AlbumTitle(nm.browse.Albums.Albums[0]) != "Alpha" {
 		t.Errorf("expected first album=%q, got %q", "Alpha", nm.browse.Albums.Albums[0])
 	}
-	if nm.browse.Albums.Albums[1] != "Beta" {
+	if library.AlbumTitle(nm.browse.Albums.Albums[1]) != "Beta" {
 		t.Errorf("expected second album=%q, got %q", "Beta", nm.browse.Albums.Albums[1])
 	}
 }

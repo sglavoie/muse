@@ -1,8 +1,6 @@
 package albums
 
 import (
-	"sort"
-
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/layout"
@@ -302,59 +300,27 @@ func (v View) clampRestoredCursor() View {
 
 // ---------- Data derivation (pure functions) ----------
 
-// DeriveAllAlbums extracts unique album names from a track slice, sorted
-// alphabetically. This collects albums across all artists.
-func DeriveAllAlbums(tracks []library.Track) []string {
-	seen := make(map[string]struct{})
-	var albums []string
-	for _, t := range tracks {
-		album := t.Album
-		if album == "" {
-			album = arttui.UnknownAlbum
-		}
-		if _, ok := seen[album]; !ok {
-			seen[album] = struct{}{}
-			albums = append(albums, album)
-		}
-	}
-	sort.Slice(albums, func(i, j int) bool {
-		if albums[i] == arttui.UnknownAlbum {
-			return false
-		}
-		if albums[j] == arttui.UnknownAlbum {
-			return true
-		}
-		return albums[i] < albums[j]
-	})
-	return albums
-}
+// DeriveAllAlbums returns release identities, not bare titles.
+func DeriveAllAlbums(tracks []library.Track) []string { return library.AlbumKeys(tracks) }
 
-// DeriveAllAlbumCounts maps each album name to its track count across the
-// entire catalog. Tracks with an empty Album field count under the
-// arttui.UnknownAlbum display sentinel, which also collapses any literal
-// sentinel-valued album into the same rendered row.
+// DeriveAllAlbumCounts counts each release independently.
 func DeriveAllAlbumCounts(tracks []library.Track) map[string]int {
 	if len(tracks) == 0 {
 		return nil
 	}
 	counts := make(map[string]int)
 	for _, t := range tracks {
-		album := t.Album
-		if album == "" {
-			album = arttui.UnknownAlbum
-		}
-		counts[album]++
+		counts[library.AlbumKey(t)]++
 	}
 	return counts
 }
 
-// DeriveAlbumTracks returns all tracks matching the given album name,
-// regardless of artist.
+// DeriveAlbumTracks returns tracks from one release. Legacy title-only
+// references remain readable for old favorites and callers.
 func DeriveAlbumTracks(tracks []library.Track, album string) []library.Track {
-	rawAlbum := arttui.RawName(album)
 	var result []library.Track
 	for _, t := range tracks {
-		if arttui.AlbumMatches(t.Album, rawAlbum) {
+		if library.AlbumMatches(t, album) {
 			result = append(result, t)
 		}
 	}

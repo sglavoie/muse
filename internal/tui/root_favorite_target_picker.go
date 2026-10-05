@@ -135,14 +135,16 @@ func (m Model) favoritePickerTracks() []library.Track {
 func queueEntryAsTrack(entry queue.Entry) library.Track {
 	return library.Track{
 		Hash: entry.Hash, Path: entry.Path, Artist: entry.Artist, Title: entry.Title,
-		Album: entry.Album, Duration: float64(entry.DurationMs) / 1000,
+		Album:       entry.Album,
+		AlbumArtist: entry.AlbumArtist, Duration: float64(entry.DurationMs) / 1000,
 	}
 }
 
 func playlistTrackAsTrack(row db.PlaylistTrackRow) library.Track {
 	return library.Track{
 		Hash: row.Hash, Path: row.Path, Artist: row.Artist, Title: row.Title,
-		Album: row.Album, Duration: float64(row.DurationMs) / 1000,
+		Album:       row.Album,
+		AlbumArtist: row.AlbumArtist, Duration: float64(row.DurationMs) / 1000,
 	}
 }
 

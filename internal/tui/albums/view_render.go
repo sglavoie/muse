@@ -59,7 +59,7 @@ func (v View) renderAlbumRow(name string, absIdx, width int) string {
 	_, isFav := v.FavoriteAlbums[name]
 	isOdd := absIdx%2 == 1
 	labelW, countStr := text.RowLabelWidthAndCount(width, v.AlbumCounts, name)
-	label := text.FavPrefix(name, labelW, isFav)
+	label := text.FavPrefix(library.AlbumLabel(name), labelW, isFav)
 	switch {
 	case absIdx == v.Cursor:
 		a := v.Styles.Accent
@@ -231,7 +231,7 @@ func (v View) renderStateStrip(total, filtered int) string {
 	}
 	breadcrumb := []string{root}
 	if v.Level == TrackLevel && v.SelectedAlbum != "" {
-		breadcrumb = append(breadcrumb, v.SelectedAlbum)
+		breadcrumb = append(breadcrumb, library.AlbumLabel(v.SelectedAlbum))
 	}
 	hint := ""
 	if len(breadcrumb) > 1 {

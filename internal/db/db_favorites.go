@@ -1,6 +1,10 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/sglavoie/muse/internal/library"
+)
 
 // FavoriteRow holds a single row from the favorites table.
 type FavoriteRow struct {
@@ -11,7 +15,8 @@ type FavoriteRow struct {
 }
 
 // ReadFavoritesByType returns all favorites of the given type ordered by
-// created_at DESC. Returns an empty slice (not an error) when none exist.
+// created_at DESC. Album values are release identities; legacy title favorites
+// expand to matching releases. Returns an empty slice when none exist.
 func (d *DB) ReadFavoritesByType(typ string) ([]FavoriteRow, error) {
 	rows, err := d.Query(`
 		SELECT id, type, value, created_at
@@ -31,7 +36,17 @@ func (d *DB) ReadFavoritesByType(typ string) ([]FavoriteRow, error) {
 		}
 		result = append(result, row)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// Release the query before resolving legacy album titles.
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if typ == "album" {
+		return expandAlbumFavorites(d, result)
+	}
+	return result, nil
 }
 
 // ReadFavoriteCounts returns the number of favorites per type.
@@ -57,11 +72,30 @@ func (d *DB) ReadFavoriteCounts() (artists, albums, tracks int, err error) {
 			tracks = count
 		}
 	}
-	return artists, albums, tracks, rows.Err()
+	if err := rows.Err(); err != nil {
+		return 0, 0, 0, err
+	}
+	if err := rows.Close(); err != nil {
+		return 0, 0, 0, err
+	}
+	albumRows, err := d.ReadFavoritesByType("album")
+	return artists, len(albumRows), tracks, err
 }
 
 // IsFavorite reports whether a favorite with the given type and value exists.
 func (d *DB) IsFavorite(typ, value string) (bool, error) {
+	if _, ok := library.ParseAlbumKey(value); typ == "album" && ok {
+		rows, err := d.ReadFavoritesByType(typ)
+		if err != nil {
+			return false, err
+		}
+		for _, row := range rows {
+			if row.Value == value {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
 	var count int
 	err := d.QueryRow(`SELECT COUNT(*) FROM favorites WHERE type = ? AND value = ?`, typ, value).Scan(&count)
 	if err != nil {

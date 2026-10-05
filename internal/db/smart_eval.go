@@ -13,7 +13,7 @@ func (d *DB) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error)
 	var args []any
 
 	sb.WriteString(`
-		SELECT 0, 0, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number
+		SELECT 0, 0, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number, t.album_artist
 		FROM tracks t
 		WHERE t.missing = 0`)
 

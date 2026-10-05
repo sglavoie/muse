@@ -149,7 +149,7 @@ func TestScanBatchPreservesAlbumLevelSort(t *testing.T) {
 		t.Fatalf("expected at least 3 albums, got %d", len(nm.browse.Albums.Albums))
 	}
 	// Ascending: Alpha, Middle, Zebra.
-	if nm.browse.Albums.Albums[0] != "Alpha" || nm.browse.Albums.Albums[1] != "Middle" || nm.browse.Albums.Albums[2] != "Zebra" {
+	if library.AlbumTitle(nm.browse.Albums.Albums[0]) != "Alpha" || library.AlbumTitle(nm.browse.Albums.Albums[1]) != "Middle" || library.AlbumTitle(nm.browse.Albums.Albums[2]) != "Zebra" {
 		t.Errorf("unexpected album order: %v", nm.browse.Albums.Albums)
 	}
 }

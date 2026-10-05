@@ -85,7 +85,7 @@ func (v View) renderAlbums() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
-		display := text.FavPrefix(name, v.Width, isFav)
+		display := text.FavPrefix(library.AlbumLabel(name), v.Width, isFav)
 		isOdd := absIdx%2 == 1
 		switch {
 		case absIdx == v.Cursor && isFav:
@@ -295,7 +295,7 @@ func (v View) breadcrumb() []string {
 			breadcrumb = append(breadcrumb, v.SelectedArtist)
 		}
 		if v.SelectedAlbum != "" {
-			breadcrumb = append(breadcrumb, v.SelectedAlbum)
+			breadcrumb = append(breadcrumb, library.AlbumLabel(v.SelectedAlbum))
 		}
 	}
 	return breadcrumb

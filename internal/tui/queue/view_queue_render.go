@@ -2,6 +2,7 @@ package queue
 
 import (
 	"fmt"
+	"github.com/sglavoie/muse/internal/library"
 	"image/color"
 	"strings"
 
@@ -236,7 +237,8 @@ func (r *queueRowRenderer) cells(e Entry, absIdx int, isFocused, isNowPlaying bo
 	npIcon, _ := NowPlayingIndicator(r.s, r.playbackState)
 	_, trackFav := r.favHashes[e.Hash]
 	_, artistFav := r.favArtists[e.Artist]
-	_, albumFav := r.favAlbums[e.Album]
+	_, albumFav := r.favAlbums[library.AlbumKey(library.Track{Album: e.Album,
+		AlbumArtist: e.AlbumArtist, Artist: e.Artist, Path: e.Path})]
 	return queueRow{
 		marker:    text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon),
 		pos:       text.PadLeft(fmt.Sprintf("%d", absIdx+1), r.cols.Position),

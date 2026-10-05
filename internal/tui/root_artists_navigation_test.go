@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"github.com/sglavoie/muse/internal/library"
 	"strings"
 	"testing"
 
@@ -45,7 +46,7 @@ func TestArtistsDrillDownToAlbums(t *testing.T) {
 	if m.browse.Artists.SelectedArtist != "Bob" {
 		t.Errorf("expected selectedArtist='Bob', got %q", m.browse.Artists.SelectedArtist)
 	}
-	if len(m.browse.Artists.Albums) != 1 || m.browse.Artists.Albums[0] != "Gamma" {
+	if len(m.browse.Artists.Albums) != 1 || library.AlbumTitle(m.browse.Artists.Albums[0]) != "Gamma" {
 		t.Errorf("expected albums=[Gamma], got %v", m.browse.Artists.Albums)
 	}
 }
@@ -68,7 +69,7 @@ func TestArtistsDrillDownToTracks(t *testing.T) {
 	if m.browse.Artists.Level != arttui.TrackLevel {
 		t.Fatalf("expected TrackLevel, got %v", m.browse.Artists.Level)
 	}
-	if m.browse.Artists.SelectedAlbum != "Alpha" {
+	if library.AlbumTitle(m.browse.Artists.SelectedAlbum) != "Alpha" {
 		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.Artists.SelectedAlbum)
 	}
 	if len(m.browse.Artists.Tracks) != 2 {

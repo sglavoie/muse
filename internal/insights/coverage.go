@@ -1,6 +1,10 @@
 package insights
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/sglavoie/muse/internal/library"
+)
 
 // dustyShelfTopN is how many unheard artist/album shelves Coverage surfaces.
 const dustyShelfTopN = 10
@@ -28,7 +32,10 @@ func computeCoverage(rows []CoverageRow, timeline []TimelineRow, trends Trends) 
 			c.HeardTracks++
 		}
 		shelve(artists, row.Artist, unheard, secs)
-		shelve(albums, row.Album, unheard, secs)
+		if row.Album != "" {
+			shelve(albums, library.AlbumKey(library.Track{Album: row.Album,
+				AlbumArtist: row.AlbumArtist, Artist: row.Artist, Path: row.Path}), unheard, secs)
+		}
 	}
 
 	for _, row := range timeline {

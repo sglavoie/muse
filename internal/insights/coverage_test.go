@@ -120,3 +120,19 @@ func TestCoverageEmptyIsZero(t *testing.T) {
 		t.Errorf("computeCoverage(nil, nil) = %+v, want zero Coverage", got)
 	}
 }
+
+func TestCoverageSeparatesAlbumReleases(t *testing.T) {
+	rows := []CoverageRow{
+		{Hash: "a", Album: "Hits", AlbumArtist: "A", DurationSecs: 10},
+		{Hash: "b", Album: "Hits", AlbumArtist: "B", DurationSecs: 20},
+	}
+	coverage := computeCoverage(rows, nil, Trends{})
+	if len(coverage.DustyAlbums) != 2 {
+		t.Fatalf("same-title releases merged: %+v", coverage.DustyAlbums)
+	}
+	rows[1].AlbumArtist = "A"
+	coverage = computeCoverage(rows, nil, Trends{})
+	if len(coverage.DustyAlbums) != 1 || coverage.DustyAlbums[0].Tracks != 2 {
+		t.Fatalf("shared release split: %+v", coverage.DustyAlbums)
+	}
+}

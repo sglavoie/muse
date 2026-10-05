@@ -16,7 +16,7 @@ func FilterStrings(items []string, query string) []string {
 	q := strings.ToLower(query)
 	var out []string
 	for _, s := range items {
-		if strings.Contains(strings.ToLower(s), q) {
+		if strings.Contains(strings.ToLower(library.AlbumLabel(s)), q) {
 			out = append(out, s)
 		}
 	}

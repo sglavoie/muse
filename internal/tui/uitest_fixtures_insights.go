@@ -156,6 +156,8 @@ func (r *uitestInsights) ReadInsightCoverage() ([]insights.CoverageRow, error) {
 	for _, t := range r.tracks {
 		out = append(out, insights.CoverageRow{
 			Hash:         t.Hash,
+			Path:         t.Path,
+			AlbumArtist:  t.AlbumArtist,
 			Artist:       t.Artist,
 			Album:        t.Album,
 			DurationSecs: t.Duration,

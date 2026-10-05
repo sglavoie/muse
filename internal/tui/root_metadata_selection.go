@@ -112,6 +112,7 @@ func (m Model) syncStatusBarMetadata(hash, artist, title string) Model {
 // artists, albums, or titles. Also rebuilds the library sort/filter caches so
 // that active sort orders and filter matches reflect the updated metadata.
 func (m Model) refreshDerivedViews() Model {
+	m = m.followChangedAlbums()
 	tracks := m.library.Index.Tracks()
 
 	m.library = m.library.RefreshView()
@@ -166,6 +167,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.playlists.Tracks[i].Title = t.Title
 				m.playlists.Tracks[i].Artist = t.Artist
 				m.playlists.Tracks[i].Album = t.Album
+				m.playlists.Tracks[i].AlbumArtist = t.AlbumArtist
 				m.playlists.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
@@ -178,6 +180,7 @@ func (m Model) refreshDerivedViews() Model {
 				ts[i].Title = t.Title
 				ts[i].Artist = t.Artist
 				ts[i].Album = t.Album
+				ts[i].AlbumArtist = t.AlbumArtist
 				ts[i].Genre = t.Genre
 				ts[i].Duration = t.Duration
 				ts[i].TrackNumber = t.TrackNumber
@@ -197,6 +200,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.tagsView.Tracks[i].Title = t.Title
 				m.tagsView.Tracks[i].Artist = t.Artist
 				m.tagsView.Tracks[i].Album = t.Album
+				m.tagsView.Tracks[i].AlbumArtist = t.AlbumArtist
 				m.tagsView.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}

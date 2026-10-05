@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/browse"
@@ -130,7 +131,7 @@ func (m Model) renameEditorForFocusedEntity() (metadata.Editor, bool) {
 			for _, t := range matching {
 				hashes = append(hashes, t.Hash)
 			}
-			return metadata.NewAlbumRenameEditor(hashes, displayName), true
+			return metadata.NewAlbumRenameEditor(hashes, library.AlbumTitle(displayName)), true
 		}
 
 	case browse.BrowseModeAlbums:
@@ -145,7 +146,7 @@ func (m Model) renameEditorForFocusedEntity() (metadata.Editor, bool) {
 			for _, t := range matching {
 				hashes = append(hashes, t.Hash)
 			}
-			return metadata.NewAlbumRenameEditor(hashes, displayName), true
+			return metadata.NewAlbumRenameEditor(hashes, library.AlbumTitle(displayName)), true
 		}
 	}
 	return metadata.Editor{}, false
@@ -172,6 +173,11 @@ func (m Model) metadataSaveNotification(mode metadata.Mode, hashes []string, dir
 	case metadata.ModeRenameAlbum:
 		if dirtyAlbum != nil {
 			newName := *dirtyAlbum
+			if len(hashes) > 0 {
+				if t, ok := m.library.Index.FindByHash(hashes[0]); ok {
+					newName = library.AlbumKey(t)
+				}
+			}
 			if newName == "" {
 				newName = arttui.UnknownAlbum
 			}

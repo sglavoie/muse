@@ -368,12 +368,13 @@ func (a undoCutPasteAction) perform(m Model) (Model, error) {
 		// Re-append to DB to get a fresh ID.
 		if m.queueWriter != nil {
 			track := library.Track{
-				Path:     entry.Path,
-				Hash:     entry.Hash,
-				Artist:   entry.Artist,
-				Title:    entry.Title,
-				Album:    entry.Album,
-				Duration: float64(entry.DurationMs) / 1000,
+				Path:        entry.Path,
+				Hash:        entry.Hash,
+				Artist:      entry.Artist,
+				Title:       entry.Title,
+				Album:       entry.Album,
+				AlbumArtist: entry.AlbumArtist,
+				Duration:    float64(entry.DurationMs) / 1000,
 			}
 			if id, err := m.queueWriter.AppendTrack(track, entry.SourcePlaylist); err == nil {
 				entry.ID = id

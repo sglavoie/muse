@@ -93,7 +93,7 @@ func newRichFixture() Model {
 	tracks := richLibraryTracks()
 	favorites := newUITestFavorites(map[string][]string{
 		"artist": {"Alice", "Bob"},
-		"album":  {"Alpha"},
+		"album":  {library.AlbumKey(tracks[0])},
 		"track":  {tracks[0].Hash},
 	})
 	tags := richTags()

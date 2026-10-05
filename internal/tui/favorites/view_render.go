@@ -126,7 +126,7 @@ func (v View) renderItemRow(name string, absIdx int, st listStyling) string {
 	_, selected := v.SelectedItems[absIdx]
 	isOdd := absIdx%2 == 1
 
-	display := text.FavPrefix(name, v.Width-2, isFav)
+	display := text.FavPrefix(library.AlbumLabel(name), v.Width-2, isFav)
 	line := text.RowMarker(selected, isFocused, false, "") + display
 	switch {
 	case isFocused && isFav:
@@ -168,7 +168,7 @@ func (v View) renderTrackList() string {
 }
 
 func (v View) renderTracks() string {
-	heading := v.Styles.Heading.Render(v.DrilldownName)
+	heading := v.Styles.Heading.Render(library.AlbumLabel(v.DrilldownName))
 
 	items := v.EffectiveTracks()
 	if len(v.DrilldownTracks) == 0 {
@@ -252,7 +252,7 @@ func (v View) renderTrackRow(t library.Track, cols TrackColumns, absIdx int, sho
 	}
 	_, isTrackFav := v.FavoriteHashes[t.Hash]
 	_, isArtistFav := v.FavoriteArtists[artist]
-	_, isAlbumFav := v.FavoriteAlbums[album]
+	_, isAlbumFav := v.FavoriteAlbums[library.AlbumKey(t)]
 
 	r := trackRow{
 		marker:    text.RowMarker(selected, isFocused, isNowPlaying, v.NowPlayingIcon),

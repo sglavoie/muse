@@ -11,7 +11,8 @@ import (
 func TestAlbumArtistSurvivesStorageAndHistory(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := newWriter(t, d)
-	track := library.Track{Hash: "album-artist", Path: "/compilation/song.flac", Title: "Original", Artist: "Guest", Album: "Compilation", AlbumArtist: "Various Artists", Duration: 180}
+	track := library.Track{Hash: "album-artist", Path: "/compilation/song.flac", Title: "Original", Artist: "Guest", Album: "Compilation",
+ AlbumArtist: "Various Artists", Duration: 180}
 	if err := w.UpsertBatch([]library.Track{track}); err != nil {
 		t.Fatal(err)
 	}

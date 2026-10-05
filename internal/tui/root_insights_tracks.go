@@ -107,7 +107,7 @@ func (m Model) insightsDrillTracks(row instui.Row) []library.Track {
 		case instui.DrillUnheardArtist:
 			return t.Artist == row.Key
 		case instui.DrillUnheardAlbum:
-			return t.Album == row.Key
+			return library.AlbumMatches(t, row.Key)
 		case instui.DrillUnheardGenre:
 			for _, g := range library.SplitGenres(t.Genre) {
 				if strings.EqualFold(g, row.Key) {

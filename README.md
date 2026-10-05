@@ -46,6 +46,13 @@ The preview above uses fictional library data from the
 | **Mixes** (`7`) | Generated recommendation mixes — Rediscover, Hidden Gems, On Repeat, Deep Cuts — tuned by thresholds in `config.toml`. |
 | **Insights** (`8`) | Listening statistics: sessions, momentum, discovery, and a data-health panel that surfaces colliding genre spellings, blank fields, and unverified durations. |
 
+Albums are grouped by title and **Album Artist**. When Album Artist is missing,
+muse uses the containing folder, keeping untagged compilations together. Album
+rows show the artist or folder to distinguish releases with the same title.
+Untagged discs in separate folders remain separate; a shared Album Artist tag
+groups them across folders. Existing title-only album favorites apply to every
+matching release, and each release can then be unfavorited independently.
+
 **Playback**
 
 - **Radio mode / Auto-DJ** (`A`) — muse keeps the queue fed by scoring
@@ -187,8 +194,8 @@ Fedora: dnf install mpv
 
 ### A metadata backend — one of ExifTool or ffprobe is required
 
-Track metadata (title, artist, album, genre, duration, track and disc numbers)
-is read during library scans by an external tool. muse picks one at startup and
+Track metadata (title, artist, album, album artist, genre, duration, track and
+disc numbers) is read during library scans by an external tool. muse picks one at startup and
 logs which; `muse check` reports it too. Startup only fails if neither is
 usable.
 

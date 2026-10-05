@@ -16,12 +16,18 @@ import (
 // handleWatchBatchMsg processes filesystem watcher events, removing deleted
 // tracks and upserting changed ones.
 func (m Model) handleWatchBatchMsg(msg watchBatchMsg) (Model, tea.Cmd) {
+	m = m.rememberRemovedAlbums(msg.deleted)
+	oldAlbums := m.changedAlbumKeys(msg.tracks)
 	m = m.watchApplyDeletes(msg.deleted)
 	m, msg.tracks = m.watchUpsertTracks(msg.tracks)
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.reconcileTrackCaches(msg.tracks)
 	m = m.watchRecomputeLibrary()
 	m = m.refreshBrowseDerivedViews()
+	m = m.rekeyAlbumFavorites(oldAlbums, msg.tracks)
+	for _, t := range msg.tracks {
+		delete(m.watchedAlbumKeys, t.Hash)
+	}
 	// Deletes and upserts both change the candidate set Auto-DJ plans from, so
 	// one bump after the whole batch covers this fan-out.
 	m.djInvalidate()
@@ -88,6 +94,7 @@ func (m Model) watchSyncQueueMetadata(tracks []library.Track) Model {
 			e.Title = t.Title
 			e.Artist = t.Artist
 			e.Album = t.Album
+			e.AlbumArtist = t.AlbumArtist
 			e.DurationMs = durationMs
 			e.Display = display
 			e.Missing = false
@@ -117,6 +124,7 @@ func (m Model) watchSyncHistoryMetadata(tracks []library.Track) Model {
 				m.library.SourceTracks[i].Title = t.Title
 				m.library.SourceTracks[i].Artist = t.Artist
 				m.library.SourceTracks[i].Album = t.Album
+				m.library.SourceTracks[i].AlbumArtist = t.AlbumArtist
 				m.library.SourceTracks[i].Genre = t.Genre
 				m.library.SourceTracks[i].Duration = t.Duration
 				m.library.SourceTracks[i].TrackNumber = t.TrackNumber
@@ -141,6 +149,7 @@ func (m Model) watchSyncPlaylistMetadata(tracks []library.Track) Model {
 				m.playlists.Tracks[i].Title = t.Title
 				m.playlists.Tracks[i].Artist = t.Artist
 				m.playlists.Tracks[i].Album = t.Album
+				m.playlists.Tracks[i].AlbumArtist = t.AlbumArtist
 				m.playlists.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
@@ -161,6 +170,7 @@ func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
 					m.favorites.Tracks[i].Title = t.Title
 					m.favorites.Tracks[i].Artist = t.Artist
 					m.favorites.Tracks[i].Album = t.Album
+					m.favorites.Tracks[i].AlbumArtist = t.AlbumArtist
 					m.favorites.Tracks[i].Genre = t.Genre
 					m.favorites.Tracks[i].Duration = t.Duration
 				}
@@ -176,6 +186,7 @@ func (m Model) watchSyncFavoritesMetadata(tracks []library.Track) Model {
 					m.favorites.DrilldownTracks[i].Title = t.Title
 					m.favorites.DrilldownTracks[i].Artist = t.Artist
 					m.favorites.DrilldownTracks[i].Album = t.Album
+					m.favorites.DrilldownTracks[i].AlbumArtist = t.AlbumArtist
 					m.favorites.DrilldownTracks[i].Genre = t.Genre
 					m.favorites.DrilldownTracks[i].Duration = t.Duration
 				}
@@ -199,6 +210,7 @@ func (m Model) watchSyncTagsMetadata(tracks []library.Track) Model {
 				m.tagsView.Tracks[i].Title = t.Title
 				m.tagsView.Tracks[i].Artist = t.Artist
 				m.tagsView.Tracks[i].Album = t.Album
+				m.tagsView.Tracks[i].AlbumArtist = t.AlbumArtist
 				m.tagsView.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}
@@ -227,6 +239,7 @@ func (m Model) watchSyncMixesMetadata(tracks []library.Track) Model {
 					cached[i].Title = t.Title
 					cached[i].Artist = t.Artist
 					cached[i].Album = t.Album
+					cached[i].AlbumArtist = t.AlbumArtist
 					cached[i].Genre = t.Genre
 					cached[i].Duration = t.Duration
 					changed = true
@@ -265,6 +278,7 @@ func (m Model) watchSyncInsightsMetadata(tracks []library.Track) Model {
 			src[i].Title = t.Title
 			src[i].Artist = t.Artist
 			src[i].Album = t.Album
+			src[i].AlbumArtist = t.AlbumArtist
 			src[i].Genre = t.Genre
 			src[i].Duration = t.Duration
 			src[i].TrackNumber = t.TrackNumber
@@ -327,6 +341,7 @@ func (m Model) watchRecomputeLibrary() Model {
 // refreshBrowseDerivedViews re-derives and re-sorts artist, album, and genre
 // data at the current drill-down level from the live library index.
 func (m Model) refreshBrowseDerivedViews() Model {
+	m = m.followChangedAlbums()
 	allTracks := m.library.Index.Tracks()
 	switch m.browse.Artists.Level {
 	case arttui.ArtistLevel:

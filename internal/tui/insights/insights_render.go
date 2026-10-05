@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	insightsdata "github.com/sglavoie/muse/internal/insights"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -43,7 +44,7 @@ func (v View) coverageRows() []Row {
 		for _, s := range shelves {
 			rows = append(rows, Row{
 				Section:  section,
-				Label:    s.Name,
+				Label:    library.AlbumLabel(s.Name),
 				note:     fmt.Sprintf("%d/%d unheard", s.Unheard, s.Tracks),
 				fraction: shelfFraction(s),
 				Drill:    kind,

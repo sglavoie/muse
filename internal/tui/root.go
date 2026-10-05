@@ -200,10 +200,12 @@ type Model struct {
 	// Built at startup and before rescan; consulted when inserting
 	// scanned/watched tracks into the in-memory index.
 	userEditedOverlay map[string]db.UserEditedRow
-	// rescanSnapshot caches created_at and duration for every track in the
+	// rescanSnapshot caches album identity and playback metadata for every track in the
 	// library index just before a full rescan clears it. Consulted by
 	// preserveTrackMetadata so in-memory values survive the rescan.
 	rescanSnapshot map[string]rescanEntry
+	// watchedAlbumKeys retains referenced album identities across separate delete/add move events.
+	watchedAlbumKeys map[string]string
 	// rescanPriorPaths maps every path present in the library index just before
 	// a full rescan clears it to that track's hash. Consulted at rescan
 	// completion to compute files that vanished from disk (present before,
@@ -270,7 +272,7 @@ type Model struct {
 	favoriteWriter      favoriteWriter               // may be nil; set via WithFavoriteWriter
 	favoriteHashes      map[string]struct{}          // set of favorited track hashes for highlight
 	favoriteArtists     map[string]struct{}          // set of favorited artist names for highlight
-	favoriteAlbums      map[string]struct{}          // set of favorited album names for highlight
+	favoriteAlbums      map[string]struct{}          // set of library.AlbumKey values for highlight
 	smartEval           smartPlaylistEvaluator       // may be nil; set via WithSmartPlaylistEvaluator
 	smartPlaylistWriter smartPlaylistWriter          // may be nil; set via WithSmartPlaylistWriter
 	playCountWriter     playCountIncrementer         // may be nil; set via WithPlayCountWriter

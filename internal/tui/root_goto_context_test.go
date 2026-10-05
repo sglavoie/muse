@@ -21,7 +21,7 @@ func TestFocusedGoToContext_Library(t *testing.T) {
 	if ctx.artist != "Alice" {
 		t.Errorf("artist: want Alice, got %q", ctx.artist)
 	}
-	if ctx.album != "Alpha" {
+	if library.AlbumTitle(ctx.album) != "Alpha" {
 		t.Errorf("album: want Alpha, got %q", ctx.album)
 	}
 	if ctx.genre != "Rock" {
@@ -118,7 +118,7 @@ func TestFocusedGoToContext_Tags(t *testing.T) {
 	if ctx.artist != "Alice" {
 		t.Errorf("artist: want Alice, got %q", ctx.artist)
 	}
-	if ctx.album != "Alpha" {
+	if library.AlbumTitle(ctx.album) != "Alpha" {
 		t.Errorf("album: want Alpha, got %q", ctx.album)
 	}
 	if ctx.genre != "Rock" {

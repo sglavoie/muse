@@ -280,12 +280,13 @@ func (v TagsView) FocusedTrackAsLibTrack() (musiclib.Track, bool) {
 		return musiclib.Track{}, false
 	}
 	return musiclib.Track{
-		Hash:     t.Hash,
-		Path:     t.Path,
-		Artist:   t.Artist,
-		Title:    t.Title,
-		Album:    t.Album,
-		Duration: float64(t.DurationMs) / 1000,
+		Hash:        t.Hash,
+		Path:        t.Path,
+		Artist:      t.Artist,
+		Title:       t.Title,
+		Album:       t.Album,
+		AlbumArtist: t.AlbumArtist,
+		Duration:    float64(t.DurationMs) / 1000,
 	}, true
 }
 

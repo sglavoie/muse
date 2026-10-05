@@ -99,11 +99,18 @@ func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) e
 			return err
 		}
 		defer rollback(tx)
+		oldAlbumKey, err := prepareAlbumFavoriteUpdate(tx, hash)
+		if err != nil {
+			return err
+		}
 
 		if _, err := tx.Exec(
 			`UPDATE tracks SET title=?, artist=?, album=?, genre=?, user_edited=1, updated_at=? WHERE hash=?`,
 			title, artist, album, genre, time.Now().Unix(), hash,
 		); err != nil {
+			return err
+		}
+		if err := finishAlbumFavoriteUpdate(tx, oldAlbumKey, hash); err != nil {
 			return err
 		}
 		if hash != "" {
@@ -180,12 +187,16 @@ func (w *Writer) UpsertBatch(tracks []library.Track) error {
 
 		now := time.Now().Unix()
 		for _, t := range tracks {
+			oldAlbumKey, err := prepareAlbumFavoriteUpdate(tx, t.Hash)
+			if err != nil {
+				return err
+			}
 			durationMs := int64(t.Duration * 1000)
 			createdAt := t.CreatedAt
 			if createdAt == 0 {
 				createdAt = now
 			}
-			_, err := tx.Exec(`
+			_, err = tx.Exec(`
 INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_bytes, mod_time, created_at, updated_at, track_number, disc_number, album_artist)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(hash) DO UPDATE SET
@@ -206,6 +217,9 @@ updated_at         = excluded.updated_at`,
 				t.Hash, t.Path, t.Title, t.Artist, t.Album, t.Genre, durationMs, t.SizeBytes, t.ModTime, createdAt, now, t.TrackNumber, t.DiscNumber, t.AlbumArtist,
 			)
 			if err != nil {
+				return err
+			}
+			if err := finishAlbumFavoriteUpdate(tx, oldAlbumKey, t.Hash); err != nil {
 				return err
 			}
 			// Clear the durable queue.missing flag for every queued instance

@@ -301,6 +301,7 @@ func playlistRowsToLibTracks(rows []db.PlaylistTrackRow) []musiclib.Track {
 			Artist:      r.Artist,
 			Title:       r.Title,
 			Album:       r.Album,
+			AlbumArtist: r.AlbumArtist,
 			Duration:    float64(r.DurationMs) / 1000,
 			TrackNumber: r.TrackNumber,
 			DiscNumber:  r.DiscNumber,

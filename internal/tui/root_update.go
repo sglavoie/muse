@@ -299,6 +299,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleFavoritesLoadedMsg(msg)
 
 	case metadataEditedMsg:
+		m = m.refreshAlbumFavorites()
 		if msg.err != nil {
 			m.statusBar.NotifyError("Metadata save failed: " + msg.err.Error())
 		}

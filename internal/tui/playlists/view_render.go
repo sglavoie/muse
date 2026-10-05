@@ -2,6 +2,7 @@ package playlists
 
 import (
 	"fmt"
+	"github.com/sglavoie/muse/internal/library"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -194,7 +195,8 @@ func (v View) renderTrackRow(t db.PlaylistTrackRow, cols TrackColumns, absIdx in
 	// Per-cell favorite lookups.
 	_, isTrackFav := v.FavoriteHashes[t.Hash]
 	_, isArtistFav := v.FavoriteArtists[t.Artist]
-	_, isAlbumFav := v.FavoriteAlbums[t.Album]
+	_, isAlbumFav := v.FavoriteAlbums[library.AlbumKey(library.Track{Album: t.Album,
+		AlbumArtist: t.AlbumArtist, Artist: t.Artist, Path: t.Path})]
 
 	r := trackRow{
 		// When the row is focused, omit the inner accent/reset from the marker

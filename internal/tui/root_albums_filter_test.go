@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/library"
 	"strings"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestAlbumsFilterActivateAndType(t *testing.T) {
 
 	// focusedAlbum should be Gamma.
 	album, ok := m.browse.Albums.FocusedAlbum()
-	if !ok || album != "Gamma" {
+	if !ok || library.AlbumTitle(album) != "Gamma" {
 		t.Errorf("expected focused album='Gamma', got %q (ok=%v)", album, ok)
 	}
 }
@@ -85,7 +86,7 @@ func TestAlbumsFilterDrillDownClearsFilter(t *testing.T) {
 	if m.browse.Albums.Level != albtui.TrackLevel {
 		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
-	if m.browse.Albums.SelectedAlbum != "Alpha" {
+	if library.AlbumTitle(m.browse.Albums.SelectedAlbum) != "Alpha" {
 		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.Albums.SelectedAlbum)
 	}
 	// Filter should be cleared on drill-down.

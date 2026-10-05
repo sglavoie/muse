@@ -109,7 +109,7 @@ func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	m.browse.Albums.Level = albtui.AlbumLevel
 	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortName, Dir: sorting.SortDesc}
 	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
-	if len(m.browse.Albums.Albums) < 3 || m.browse.Albums.Albums[0] != "Zen" {
+	if len(m.browse.Albums.Albums) < 3 || library.AlbumTitle(m.browse.Albums.Albums[0]) != "Zen" {
 		t.Fatalf("pre-check: expected descending [Zen, Mid, Apex], got %v", m.browse.Albums.Albums)
 	}
 
@@ -118,7 +118,7 @@ func TestRefreshDerivedViewsResortsAlbumsAfterEdit(t *testing.T) {
 	if len(m.browse.Albums.Albums) != 3 {
 		t.Fatalf("after refresh: expected 3 albums, got %d", len(m.browse.Albums.Albums))
 	}
-	if m.browse.Albums.Albums[0] != "Zen" || m.browse.Albums.Albums[1] != "Mid" || m.browse.Albums.Albums[2] != "Apex" {
+	if library.AlbumTitle(m.browse.Albums.Albums[0]) != "Zen" || library.AlbumTitle(m.browse.Albums.Albums[1]) != "Mid" || library.AlbumTitle(m.browse.Albums.Albums[2]) != "Apex" {
 		t.Errorf("after refresh: expected descending [Zen, Mid, Apex], got %v", m.browse.Albums.Albums)
 	}
 }

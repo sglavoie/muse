@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/browse"
@@ -47,9 +48,8 @@ func (m Model) jumpToArtist(artistName string) Model {
 	return m.restoreSortPreference()
 }
 
-// jumpToAlbum switches to the Albums view with the cursor pre-positioned on
-// albumName. albumName may be an empty string, in which case it is matched
-// against the UnknownAlbum sentinel in the derived list.
+// jumpToAlbum focuses a release identity in the Albums view. Legacy titles
+// (including an empty title) are accepted only when they identify one release.
 func (m Model) jumpToAlbum(albumName string) Model {
 	albums := albtui.DeriveAllAlbums(m.library.Index.Tracks())
 
@@ -60,9 +60,12 @@ func (m Model) jumpToAlbum(albumName string) Model {
 
 	idx := -1
 	for i, album := range albums {
-		if album == target {
+		_, canonical := library.ParseAlbumKey(target)
+		if album == target || (!canonical && library.AlbumTitle(album) == library.AlbumTitle(target)) {
+			if idx >= 0 {
+				return m
+			}
 			idx = i
-			break
 		}
 	}
 	if idx < 0 {

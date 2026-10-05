@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -58,7 +60,11 @@ type GoToOption struct {
 // displayLabel returns the formatted label shown in the popup row.
 // Format: "a  Artist: Bob"
 func (o GoToOption) displayLabel() string {
-	return o.Kind.shortcutKey() + "  " + o.Kind.label() + ": " + o.Value
+	value := o.Value
+	if o.Kind == GoToAlbum {
+		value = library.AlbumLabel(value)
+	}
+	return o.Kind.shortcutKey() + "  " + o.Kind.label() + ": " + value
 }
 
 // GoToPickedMsg is dispatched when the user confirms a Go To selection.

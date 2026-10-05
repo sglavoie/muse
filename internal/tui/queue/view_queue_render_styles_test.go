@@ -2,6 +2,7 @@ package queue
 
 import (
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"strings"
@@ -129,7 +130,7 @@ func TestQueueRenderAllThreeFavoritesStyle(t *testing.T) {
 	v.Cursor = 1
 	favHashes := map[string]struct{}{"favhash": {}}
 	favArtists := map[string]struct{}{"FavArtist": {}}
-	favAlbums := map[string]struct{}{"FavAlbum": {}}
+	favAlbums := map[string]struct{}{library.AlbumKey(library.Track{Album: "FavAlbum", Artist: "FavArtist"}): {}}
 	s := styles.NewStyles(true)
 	out := v.Render(s, -1, playback.StateIdle, favHashes, favArtists, favAlbums)
 

@@ -132,7 +132,7 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 
 	found := false
 	for _, a := range m.browse.Artists.Albums {
-		if a == "AlphaRenamed" {
+		if library.AlbumTitle(a) == "AlphaRenamed" {
 			found = true
 		}
 	}
@@ -143,7 +143,7 @@ func TestRenameAlbumFromArtistsView(t *testing.T) {
 	if m.browse.Artists.Cursor < 0 || m.browse.Artists.Cursor >= len(m.browse.Artists.Albums) {
 		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.Artists.Cursor, len(m.browse.Artists.Albums))
 	}
-	if m.browse.Artists.Albums[m.browse.Artists.Cursor] != "AlphaRenamed" {
+	if library.AlbumTitle(m.browse.Artists.Albums[m.browse.Artists.Cursor]) != "AlphaRenamed" {
 		t.Errorf("expected cursor on 'AlphaRenamed', got %q", m.browse.Artists.Albums[m.browse.Artists.Cursor])
 	}
 }
@@ -194,7 +194,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 
 	found := false
 	for _, a := range m.browse.Albums.Albums {
-		if a == "AlphaPrime" {
+		if library.AlbumTitle(a) == "AlphaPrime" {
 			found = true
 		}
 		if a == "Alpha" {
@@ -208,7 +208,7 @@ func TestRenameAlbumFromAlbumsView(t *testing.T) {
 	if m.browse.Albums.Cursor < 0 || m.browse.Albums.Cursor >= len(m.browse.Albums.Albums) {
 		t.Fatalf("cursor out of bounds: %d (len=%d)", m.browse.Albums.Cursor, len(m.browse.Albums.Albums))
 	}
-	if m.browse.Albums.Albums[m.browse.Albums.Cursor] != "AlphaPrime" {
+	if library.AlbumTitle(m.browse.Albums.Albums[m.browse.Albums.Cursor]) != "AlphaPrime" {
 		t.Errorf("expected cursor on 'AlphaPrime', got %q", m.browse.Albums.Albums[m.browse.Albums.Cursor])
 	}
 }

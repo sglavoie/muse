@@ -16,6 +16,7 @@ import (
 // the in-memory library index. Used to restore created_at, duration, and
 // play stats when the scanner cannot provide them.
 type rescanEntry struct {
+	AlbumKey     string
 	CreatedAt    int64
 	Duration     float64
 	PlayCount    int
@@ -121,6 +122,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 // absent from the rebuilt index) so the upsert-only scan path still honors the
 // deletion contract the live watcher provides.
 func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
+	m = m.refreshAlbumFavorites()
 	var cmd tea.Cmd
 	m.statusBar.ClearScanProgress()
 	// A hash worker that panicked closes the scan channel exactly like a

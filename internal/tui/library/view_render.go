@@ -273,7 +273,7 @@ func (v Panel) rowStateFor(dt displayTrack, absIdx int, run rowRun) rowState {
 	}
 	_, st.isTrackFav = v.FavoriteHashes[t.Hash]
 	_, st.isArtistFav = v.FavoriteArtists[t.Artist]
-	_, st.isAlbumFav = v.FavoriteAlbums[t.Album]
+	_, st.isAlbumFav = v.FavoriteAlbums[musiclib.AlbumKey(t)]
 	return st
 }
 

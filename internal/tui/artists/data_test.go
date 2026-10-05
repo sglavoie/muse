@@ -111,7 +111,7 @@ func TestDeriveAlbumsForArtist(t *testing.T) {
 		t.Fatalf("DeriveAlbums: expected %d albums, got %d", len(want), len(albums))
 	}
 	for i, w := range want {
-		if albums[i] != w {
+		if library.AlbumTitle(albums[i]) != w {
 			t.Errorf("DeriveAlbums[%d]: expected %q, got %q", i, w, albums[i])
 		}
 	}
@@ -136,7 +136,7 @@ func TestDeriveAlbumsForUnknownArtistIncludesLibrarySentinel(t *testing.T) {
 		t.Fatalf("DeriveAlbums: expected %d albums, got %d: %v", len(want), len(albums), albums)
 	}
 	for i, w := range want {
-		if albums[i] != w {
+		if library.AlbumTitle(albums[i]) != w {
 			t.Errorf("DeriveAlbums[%d]: expected %q, got %q", i, w, albums[i])
 		}
 	}
@@ -152,7 +152,7 @@ func TestDeriveAlbumsForArtistNamedUnknownAlbum(t *testing.T) {
 	if len(albums) != 1 {
 		t.Fatalf("DeriveAlbums: expected one album for literal artist name, got %d: %v", len(albums), albums)
 	}
-	if albums[0] != "Literal" {
+	if library.AlbumTitle(albums[0]) != "Literal" {
 		t.Fatalf("DeriveAlbums: expected Literal, got %q", albums[0])
 	}
 }

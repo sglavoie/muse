@@ -184,12 +184,13 @@ func (m Model) handleEnqueueByTag(msg enqueueByTagMsg) (Model, tea.Cmd) {
 		libTracks := make([]library.Track, len(rows))
 		for i, r := range rows {
 			libTracks[i] = library.Track{
-				Hash:     r.Hash,
-				Path:     r.Path,
-				Artist:   r.Artist,
-				Title:    r.Title,
-				Album:    r.Album,
-				Duration: float64(r.DurationMs) / 1000,
+				Hash:        r.Hash,
+				Path:        r.Path,
+				Artist:      r.Artist,
+				Title:       r.Title,
+				Album:       r.Album,
+				AlbumArtist: r.AlbumArtist,
+				Duration:    float64(r.DurationMs) / 1000,
 			}
 		}
 		ids, err := be.AppendTracks(libTracks, name)

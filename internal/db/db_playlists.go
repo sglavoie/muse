@@ -2,14 +2,14 @@ package db
 
 import "fmt"
 
-// scanPlaylistTrackRows scans the standard 10-column PlaylistTrackRow SELECT
+// scanPlaylistTrackRows scans the standard 11-column PlaylistTrackRow SELECT
 // result set (id, position, title, artist, album, duration_ms, hash, path,
-// track_number, disc_number) into a slice, returning any scan or iteration error.
+// track_number, disc_number, album_artist) into a slice, returning any scan or iteration error.
 func scanPlaylistTrackRows(rows rowScanner, errContext string) ([]PlaylistTrackRow, error) {
 	var result []PlaylistTrackRow
 	for rows.Next() {
 		var row PlaylistTrackRow
-		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path, &row.TrackNumber, &row.DiscNumber); err != nil {
+		if err := rows.Scan(&row.ID, &row.Position, &row.Title, &row.Artist, &row.Album, &row.DurationMs, &row.Hash, &row.Path, &row.TrackNumber, &row.DiscNumber, &row.AlbumArtist); err != nil {
 			return nil, fmt.Errorf("%s: %w", errContext, err)
 		}
 		result = append(result, row)
@@ -39,6 +39,7 @@ type PlaylistTrackRow struct {
 	Title       string
 	Artist      string
 	Album       string
+	AlbumArtist string
 	DurationMs  int64
 	Hash        string // BLAKE3 content hash; required for enqueue operations
 	Path        string // file path; required for enqueue operations
@@ -87,7 +88,7 @@ func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 // an error) when the playlist has no tracks.
 func (d *DB) ReadPlaylistTracks(playlistID int64) ([]PlaylistTrackRow, error) {
 	rows, err := d.Query(`
-		SELECT pt.id, pt.position, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number
+		SELECT pt.id, pt.position, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number, t.album_artist
 		FROM playlist_tracks pt
 		JOIN tracks t ON pt.track_hash = t.hash
 		WHERE pt.playlist_id = ? AND pt.deleted_at IS NULL AND t.missing = 0

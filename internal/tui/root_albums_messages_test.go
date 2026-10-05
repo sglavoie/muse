@@ -50,7 +50,7 @@ func TestWatchBatchRefreshesAlbumList(t *testing.T) {
 	if len(m.browse.Albums.Albums) != 1 {
 		t.Fatalf("expected 1 album after watch batch, got %d", len(m.browse.Albums.Albums))
 	}
-	if m.browse.Albums.Albums[0] != "Alpha" {
+	if library.AlbumTitle(m.browse.Albums.Albums[0]) != "Alpha" {
 		t.Errorf("expected remaining album='Alpha', got %q", m.browse.Albums.Albums[0])
 	}
 }

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"github.com/sglavoie/muse/internal/library"
 	"strings"
 	"testing"
 
@@ -31,7 +32,7 @@ func TestKey5SwitchesToAlbumsView(t *testing.T) {
 	}
 	want := []string{"Alpha", "Beta", "Delta", "Gamma"}
 	for i, w := range want {
-		if m.browse.Albums.Albums[i] != w {
+		if library.AlbumTitle(m.browse.Albums.Albums[i]) != w {
 			t.Errorf("albums[%d]: expected %q, got %q", i, w, m.browse.Albums.Albums[i])
 		}
 	}
@@ -49,7 +50,7 @@ func TestAlbumsDrillDownToTracks(t *testing.T) {
 	if m.browse.Albums.Level != albtui.TrackLevel {
 		t.Fatalf("expected TrackLevel, got %v", m.browse.Albums.Level)
 	}
-	if m.browse.Albums.SelectedAlbum != "Alpha" {
+	if library.AlbumTitle(m.browse.Albums.SelectedAlbum) != "Alpha" {
 		t.Errorf("expected selectedAlbum='Alpha', got %q", m.browse.Albums.SelectedAlbum)
 	}
 	if len(m.browse.Albums.Tracks) != 2 {

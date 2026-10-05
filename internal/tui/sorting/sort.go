@@ -224,7 +224,8 @@ func SortStrings(items []string, dir SortDir) []string {
 	sorted := make([]string, len(items))
 	copy(sorted, items)
 	sort.SliceStable(sorted, func(i, j int) bool {
-		return CompareStringsUnknownLast(sorted[i], sorted[j], dir)
+		a, b := albumSortLabel(sorted[i]), albumSortLabel(sorted[j])
+		return CompareStringsUnknownLast(a, b, dir)
 	})
 	return sorted
 }
@@ -337,4 +338,11 @@ func CompareStringsUnknownLast(a, b string, dir SortDir) bool {
 		return aLower < bLower
 	}
 	return aLower > bLower
+}
+
+func albumSortLabel(value string) string {
+	if library.AlbumTitle(value) == "" {
+		return ""
+	}
+	return library.AlbumLabel(value)
 }

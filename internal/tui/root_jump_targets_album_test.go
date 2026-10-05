@@ -33,7 +33,7 @@ func TestJumpToAlbum(t *testing.T) {
 	if len(m.browse.Albums.Albums) != 4 {
 		t.Errorf("albums list: want 4, got %d", len(m.browse.Albums.Albums))
 	}
-	if m.browse.Albums.Albums[3] != "Gamma" {
+	if library.AlbumTitle(m.browse.Albums.Albums[3]) != "Gamma" {
 		t.Errorf("albums[3]: want %q, got %q", "Gamma", m.browse.Albums.Albums[3])
 	}
 }
@@ -80,7 +80,7 @@ func TestJumpToAlbum_UnknownAlbum(t *testing.T) {
 	if m.browse.Albums.Cursor != 1 {
 		t.Errorf("cursor: want 1 (%s), got %d", arttui.UnknownAlbum, m.browse.Albums.Cursor)
 	}
-	if len(m.browse.Albums.Albums) < 2 || m.browse.Albums.Albums[1] != arttui.UnknownAlbum {
+	if len(m.browse.Albums.Albums) < 2 || library.AlbumTitle(m.browse.Albums.Albums[1]) != "" {
 		t.Errorf("albums[1]: want %q, got %q", arttui.UnknownAlbum, m.browse.Albums.Albums[1])
 	}
 }
@@ -129,7 +129,7 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	if !ctx.found {
 		t.Fatal("expected focused track to be found")
 	}
-	if ctx.album != "" {
+	if library.AlbumTitle(ctx.album) != "" {
 		t.Fatalf("expected empty album, got %q", ctx.album)
 	}
 	m = m.jumpToAlbum(ctx.album)
@@ -140,7 +140,7 @@ func TestJumpToAlbum_EmptyAlbumViaAction(t *testing.T) {
 	if m.browse.Mode != browse.BrowseModeAlbums {
 		t.Errorf("browse.mode: want BrowseModeAlbums, got %v", m.browse.Mode)
 	}
-	if m.browse.Albums.Albums[m.browse.Albums.Cursor] != arttui.UnknownAlbum {
+	if library.AlbumTitle(m.browse.Albums.Albums[m.browse.Albums.Cursor]) != "" {
 		t.Errorf("cursor on %q, want %q", m.browse.Albums.Albums[m.browse.Albums.Cursor], arttui.UnknownAlbum)
 	}
 }

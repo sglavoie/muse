@@ -38,6 +38,8 @@ type GenreRow struct {
 // unfiltered by the active window, because "never played" only means anything
 // against the whole history.
 type CoverageRow struct {
+	Path         string
+	AlbumArtist  string
 	Hash         string
 	Artist       string
 	Album        string

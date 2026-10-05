@@ -18,6 +18,7 @@ type Entry struct {
 	Artist         string // track artist, used by the status bar persistent left zone
 	Title          string // track title, used by the status bar persistent left zone
 	Album          string // track album name
+	AlbumArtist    string
 	Selected       bool   // true when the entry is part of a bulk selection
 	DurationMs     int64  // track duration in milliseconds from the database
 	Position       int64  // gapped-integer queue position from the database

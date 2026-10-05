@@ -124,7 +124,7 @@ func describeFavoriteTarget(target favoriteTarget, tracks []library.Track) (favo
 		return row, rawValues
 	case favoriteTargetAlbum:
 		row.typ, row.label, row.hotkey = "album", "Album", "l"
-		rawValues := collectMetadataValues(&row, tracks, func(t library.Track) string { return t.Album })
+		rawValues := collectMetadataValues(&row, tracks, library.AlbumKey)
 		return row, rawValues
 	}
 	return row, nil
@@ -144,6 +144,9 @@ func collectMetadataValues(row *favoriteTargetRow, tracks []library.Track, field
 	}
 	if len(tracks) == 1 {
 		row.displayValue = field(tracks[0])
+		if row.typ == "album" {
+			row.displayValue = library.AlbumLabel(row.displayValue)
+		}
 	}
 	return rawValues
 }
@@ -175,6 +178,9 @@ func applyFavoriteState(row favoriteTargetRow, favorites map[string]struct{}) fa
 }
 
 func usableFavoriteMetadata(value, typ string) bool {
+	if typ == "album" {
+		value = library.AlbumTitle(value)
+	}
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	if normalized == "" {
 		return false

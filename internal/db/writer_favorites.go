@@ -8,13 +8,7 @@ import (
 // AddFavorite inserts a favorite with the given type and value. The operation
 // is idempotent: if the (type, value) pair already exists the insert is ignored.
 func (w *Writer) AddFavorite(typ, value string) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
-			`INSERT OR IGNORE INTO favorites (type, value, created_at) VALUES (?, ?, ?)`,
-			typ, value, time.Now().Unix(),
-		)
-		return err
-	})
+	return w.AddFavoritesByTypeAndValues(typ, []string{value})
 }
 
 // AddFavoritesByTypeAndValues inserts all favorites identified by typ and
@@ -32,6 +26,11 @@ func (w *Writer) AddFavoritesByTypeAndValues(typ string, values []string) error 
 		defer rollback(tx)
 
 		for _, v := range values {
+			if typ == "album" {
+				if err := materializeAlbumFavorite(tx, v); err != nil {
+					return err
+				}
+			}
 			if _, err := tx.Exec(
 				`INSERT OR IGNORE INTO favorites (type, value, created_at) VALUES (?, ?, ?)`,
 				typ, v, time.Now().Unix(),
@@ -46,10 +45,7 @@ func (w *Writer) AddFavoritesByTypeAndValues(typ string, values []string) error 
 // RemoveFavorite deletes the favorite identified by (type, value). It is a
 // no-op when no matching row exists.
 func (w *Writer) RemoveFavorite(typ, value string) error {
-	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(`DELETE FROM favorites WHERE type = ? AND value = ?`, typ, value)
-		return err
-	})
+	return w.RemoveFavoritesByTypeAndValues(typ, []string{value})
 }
 
 // RemoveFavoritesByTypeAndValues deletes all favorites of the given type whose
@@ -67,6 +63,11 @@ func (w *Writer) RemoveFavoritesByTypeAndValues(typ string, values []string) err
 		defer rollback(tx)
 
 		for _, v := range values {
+			if typ == "album" {
+				if err := materializeAlbumFavorite(tx, v); err != nil {
+					return err
+				}
+			}
 			if _, err := tx.Exec(`DELETE FROM favorites WHERE type = ? AND value = ?`, typ, v); err != nil {
 				return err
 			}

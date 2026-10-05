@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
 	"github.com/sglavoie/muse/internal/tui/playback"
@@ -20,7 +21,7 @@ func (m Model) nowPlayingBrowseOptions(hash string) []overlay.GoToOption {
 	contextModel := m
 	contextModel.ActiveView = viewLibrary
 	return contextModel.buildGoToOptions(goToContext{
-		artist: track.Artist, album: track.Album, genre: track.Genre, found: true,
+		artist: track.Artist, album: library.AlbumKey(track), genre: track.Genre, found: true,
 	})
 }
 

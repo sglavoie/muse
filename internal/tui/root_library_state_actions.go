@@ -57,7 +57,7 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 			snap := make(map[string]rescanEntry, len(tracks))
 			prior := make(map[string]string, len(tracks))
 			for _, t := range tracks {
-				snap[t.Hash] = rescanEntry{CreatedAt: t.CreatedAt, Duration: t.Duration, PlayCount: t.PlayCount, LastPlayedAt: t.LastPlayedAt}
+				snap[t.Hash] = rescanEntry{AlbumKey: library.AlbumKey(t), CreatedAt: t.CreatedAt, Duration: t.Duration, PlayCount: t.PlayCount, LastPlayedAt: t.LastPlayedAt}
 				prior[t.Path] = t.Hash
 			}
 			m.rescanSnapshot = snap

@@ -37,13 +37,17 @@ func TestFavoriteTargetPickerSingleRowsAndHotkeys(t *testing.T) {
 func TestFavoriteTargetPickerBulkCountsAndNormalize(t *testing.T) {
 	p := NewTargetPicker(
 		[]library.Track{
-			{Hash: "h1", Title: "One", Artist: "A", Album: "Shared"},
-			{Hash: "h2", Title: "Two", Artist: "B", Album: "Shared"},
-			{Hash: "h3", Title: "Three", Artist: "B", Album: "Shared"},
+			{Hash: "h1", Title: "One", Artist: "A", Album: "Shared",
+				AlbumArtist: "Various Artists"},
+			{Hash: "h2", Title: "Two", Artist: "B", Album: "Shared",
+				AlbumArtist: "Various Artists"},
+			{Hash: "h3", Title: "Three", Artist: "B", Album: "Shared",
+				AlbumArtist: "Various Artists"},
 		},
 		map[string]struct{}{"h1": {}},
 		map[string]struct{}{"A": {}, "B": {}},
-		map[string]struct{}{"Shared": {}},
+		map[string]struct{}{library.AlbumKey(library.Track{Album: "Shared",
+			AlbumArtist: "Various Artists"}): {}},
 		true,
 		PickerOrigin{},
 	)

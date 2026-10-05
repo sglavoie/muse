@@ -99,12 +99,13 @@ func (m Model) focusedTrackForPreview() (library.Track, bool) {
 				return library.Track{}, false
 			}
 			track := library.Track{
-				Hash:     e.Hash,
-				Path:     e.Path,
-				Artist:   e.Artist,
-				Title:    e.Title,
-				Album:    e.Album,
-				Duration: float64(e.DurationMs) / 1000,
+				Hash:        e.Hash,
+				Path:        e.Path,
+				Artist:      e.Artist,
+				Title:       e.Title,
+				Album:       e.Album,
+				AlbumArtist: e.AlbumArtist,
+				Duration:    float64(e.DurationMs) / 1000,
 			}
 			if t, ok := m.library.Index.FindByHash(e.Hash); ok {
 				track.PlayCount = t.PlayCount

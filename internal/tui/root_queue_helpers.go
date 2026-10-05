@@ -47,6 +47,7 @@ func newQueueEntries(tracks []library.Track, ids []int64, source string) []queue
 			Artist:         t.Artist,
 			Title:          t.Title,
 			Album:          t.Album,
+			AlbumArtist:    t.AlbumArtist,
 			DurationMs:     int64(t.Duration * 1000),
 			SourcePlaylist: source,
 			TrackNumber:    t.TrackNumber,

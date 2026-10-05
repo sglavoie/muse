@@ -117,12 +117,13 @@ func (m Model) queuePasteCmd(insertPos int, entries []queue.Entry, cutIDs []int6
 		pastedEntries := make([]queue.Entry, 0, len(entries))
 		for _, entry := range entries {
 			track := library.Track{
-				Path:     entry.Path,
-				Hash:     entry.Hash,
-				Artist:   entry.Artist,
-				Title:    entry.Title,
-				Album:    entry.Album,
-				Duration: float64(entry.DurationMs) / 1000,
+				Path:        entry.Path,
+				Hash:        entry.Hash,
+				Artist:      entry.Artist,
+				Title:       entry.Title,
+				Album:       entry.Album,
+				AlbumArtist: entry.AlbumArtist,
+				Duration:    float64(entry.DurationMs) / 1000,
 			}
 			id, err := writer.AppendTrack(track, entry.SourcePlaylist)
 			if err != nil {

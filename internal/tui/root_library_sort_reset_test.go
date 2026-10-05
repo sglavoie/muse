@@ -97,20 +97,20 @@ func TestResetAlbumsSortRederivesData(t *testing.T) {
 	m.browse.Albums.Level = albtui.AlbumLevel
 	m.browse.Albums.Albums = albtui.DeriveAllAlbums(m.library.Index.Tracks())
 	// DeriveAllAlbums sorts alphabetically: Alpha, Zebra.
-	if m.browse.Albums.Albums[0] != "Alpha" {
+	if library.AlbumTitle(m.browse.Albums.Albums[0]) != "Alpha" {
 		t.Fatalf("precondition: first album should be Alpha, got %q", m.browse.Albums.Albums[0])
 	}
 
 	// Sort descending: Zebra, Alpha.
 	m.browse.Albums.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortDesc}
 	m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
-	if m.browse.Albums.Albums[0] != "Zebra" {
+	if library.AlbumTitle(m.browse.Albums.Albums[0]) != "Zebra" {
 		t.Fatalf("after sort desc: first album should be Zebra, got %q", m.browse.Albums.Albums[0])
 	}
 
 	// Reset should restore default alphabetical order.
 	m = m.resetAlbumsSort()
-	if m.browse.Albums.Albums[0] != "Alpha" {
+	if library.AlbumTitle(m.browse.Albums.Albums[0]) != "Alpha" {
 		t.Errorf("after reset: first album should be Alpha (original order), got %q", m.browse.Albums.Albums[0])
 	}
 }

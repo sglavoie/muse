@@ -24,7 +24,7 @@ func TestDeriveAllAlbumsUniqueSorted(t *testing.T) {
 		t.Fatalf("got %d albums, want %d: %v", len(albums), len(want), albums)
 	}
 	for i, album := range albums {
-		if album != want[i] {
+		if library.AlbumTitle(album) != want[i] {
 			t.Errorf("albums[%d] = %q, want %q", i, album, want[i])
 		}
 	}
@@ -43,8 +43,10 @@ func TestDeriveAllAlbumCounts(t *testing.T) {
 	if len(counts) != len(want) {
 		t.Fatalf("DeriveAllAlbumCounts: expected %d entries, got %d (%v)", len(want), len(counts), counts)
 	}
-	for name, wantCount := range want {
-		if got := counts[name]; got != wantCount {
+	for key, got := range counts {
+		name := library.AlbumTitle(key)
+		wantCount := want[name]
+		if got != wantCount {
 			t.Errorf("DeriveAllAlbumCounts[%q]: expected %d, got %d", name, wantCount, got)
 		}
 	}
@@ -60,8 +62,8 @@ func TestDeriveAllAlbumCountsEmptyAndUnknown(t *testing.T) {
 		{Album: ""},
 		{Album: ""},
 	})
-	if counts["(unknown album)"] != 2 {
-		t.Errorf("expected unknown-album count = 2, got %d", counts["(unknown album)"])
+	if counts[library.AlbumKey(library.Track{})] != 2 {
+		t.Errorf("expected unknown-album count = 2, got %d", counts[library.AlbumKey(library.Track{})])
 	}
 }
 

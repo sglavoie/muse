@@ -1,8 +1,6 @@
 package artists
 
 import (
-	"sort"
-
 	"github.com/sglavoie/muse/internal/library"
 )
 
@@ -90,35 +88,10 @@ func DeriveArtistCounts(tracks []library.Track) map[string]int {
 	return counts
 }
 
-// DeriveAlbums returns unique album names for the given artist, sorted
-// alphabetically.
+// DeriveAlbums returns release identities for the given track artist, sorted
+// by their display labels. Use library.AlbumLabel for display.
 func DeriveAlbums(tracks []library.Track, artist string) []string {
-	artist = rawArtistName(artist)
-	seen := make(map[string]struct{})
-	var albums []string
-	for _, track := range tracks {
-		if !ArtistMatches(track.Artist, artist) {
-			continue
-		}
-		album := track.Album
-		if album == "" {
-			album = UnknownAlbum
-		}
-		if _, ok := seen[album]; !ok {
-			seen[album] = struct{}{}
-			albums = append(albums, album)
-		}
-	}
-	sort.Slice(albums, func(i, j int) bool {
-		if albums[i] == UnknownAlbum {
-			return false
-		}
-		if albums[j] == UnknownAlbum {
-			return true
-		}
-		return albums[i] < albums[j]
-	})
-	return albums
+	return library.AlbumKeys(DeriveArtistTracks(tracks, artist))
 }
 
 // DeriveTracks returns all tracks matching the given artist and album.
@@ -127,7 +100,7 @@ func DeriveTracks(tracks []library.Track, artist, album string) []library.Track 
 	album = rawAlbumName(album)
 	var result []library.Track
 	for _, track := range tracks {
-		if ArtistMatches(track.Artist, artist) && AlbumMatches(track.Album, album) {
+		if ArtistMatches(track.Artist, artist) && library.AlbumMatches(track, album) {
 			result = append(result, track)
 		}
 	}

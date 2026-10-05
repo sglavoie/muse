@@ -195,12 +195,13 @@ func (m Model) bulkTagTracks() []library.Track {
 		for _, t := range items {
 			if _, ok := m.tagsView.SelectedHashes[t.Hash]; ok {
 				tracks = append(tracks, library.Track{
-					Hash:     t.Hash,
-					Path:     t.Path,
-					Artist:   t.Artist,
-					Title:    t.Title,
-					Album:    t.Album,
-					Duration: float64(t.DurationMs) / 1000,
+					Hash:        t.Hash,
+					Path:        t.Path,
+					Artist:      t.Artist,
+					Title:       t.Title,
+					Album:       t.Album,
+					AlbumArtist: t.AlbumArtist,
+					Duration:    float64(t.DurationMs) / 1000,
 				})
 			}
 		}
@@ -208,12 +209,13 @@ func (m Model) bulkTagTracks() []library.Track {
 	}
 	if t, ok := m.tagsView.FocusedTrack(); ok {
 		return []library.Track{{
-			Hash:     t.Hash,
-			Path:     t.Path,
-			Artist:   t.Artist,
-			Title:    t.Title,
-			Album:    t.Album,
-			Duration: float64(t.DurationMs) / 1000,
+			Hash:        t.Hash,
+			Path:        t.Path,
+			Artist:      t.Artist,
+			Title:       t.Title,
+			Album:       t.Album,
+			AlbumArtist: t.AlbumArtist,
+			Duration:    float64(t.DurationMs) / 1000,
 		}}
 	}
 	return nil

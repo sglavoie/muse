@@ -139,7 +139,7 @@ func (d *DB) ReadInsightSessions(sinceUnix int64) ([]insights.SessionRow, error)
 func (d *DB) ReadInsightCoverage() ([]insights.CoverageRow, error) {
 	rows, err := d.Query(`
 		SELECT hash, artist, album, duration_ms / 1000.0, play_count,
-		       created_at, COALESCE(last_played_at, 0)
+		       created_at, COALESCE(last_played_at, 0), path, album_artist
 		FROM tracks
 		WHERE missing = 0`)
 	if err != nil {
@@ -151,7 +151,7 @@ func (d *DB) ReadInsightCoverage() ([]insights.CoverageRow, error) {
 	for rows.Next() {
 		var c insights.CoverageRow
 		if err := rows.Scan(&c.Hash, &c.Artist, &c.Album, &c.DurationSecs,
-			&c.PlayCount, &c.AddedAt, &c.LastPlayedAt); err != nil {
+			&c.PlayCount, &c.AddedAt, &c.LastPlayedAt, &c.Path, &c.AlbumArtist); err != nil {
 			return nil, fmt.Errorf("db: scan insight coverage: %w", err)
 		}
 		out = append(out, c)

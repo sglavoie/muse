@@ -111,14 +111,14 @@ func (m Model) browseArtistsVisibleTracks() ([]library.Track, string, bool) {
 		if len(v.SelectedHashes) > 0 {
 			rows = collectSelectedTracks(rows, v.SelectedHashes)
 		}
-		return rows, "Browse ▸ Artists ▸ " + v.SelectedArtist + " ▸ " + v.SelectedAlbum, true
+		return rows, "Browse ▸ Artists ▸ " + v.SelectedArtist + " ▸ " + library.AlbumLabel(v.SelectedAlbum), true
 	case arttui.AlbumLevel:
 		album, ok := v.FocusedAlbum()
 		if !ok {
 			return nil, "No album focused", false
 		}
 		rows := arttui.DeriveTracks(m.library.Index.Tracks(), v.SelectedArtist, album)
-		return rows, "Browse ▸ Artists ▸ " + v.SelectedArtist + " ▸ " + album, true
+		return rows, "Browse ▸ Artists ▸ " + v.SelectedArtist + " ▸ " + library.AlbumLabel(album), true
 	default:
 		artist, ok := v.FocusedArtist()
 		if !ok {
@@ -136,13 +136,13 @@ func (m Model) browseAlbumsVisibleTracks() ([]library.Track, string, bool) {
 		if len(v.SelectedHashes) > 0 {
 			rows = collectSelectedTracks(rows, v.SelectedHashes)
 		}
-		return rows, "Browse ▸ Albums ▸ " + v.SelectedAlbum, true
+		return rows, "Browse ▸ Albums ▸ " + library.AlbumLabel(v.SelectedAlbum), true
 	}
 	album, ok := v.FocusedAlbum()
 	if !ok {
 		return nil, "No album focused", false
 	}
-	return albtui.DeriveAlbumTracks(m.library.Index.Tracks(), album), "Browse ▸ Albums ▸ " + album, true
+	return albtui.DeriveAlbumTracks(m.library.Index.Tracks(), album), "Browse ▸ Albums ▸ " + library.AlbumLabel(album), true
 }
 
 func (m Model) browseGenresVisibleTracks() ([]library.Track, string, bool) {
@@ -178,7 +178,7 @@ func (m Model) favoritesVisibleTracks() ([]library.Track, string, bool) {
 		return rows, "Favorites ▸ Tracks", true
 	case v.Level == favtui.TrackLevel:
 		rows := selectedByIndex(arttui.FilterTracks(v.DrilldownTracks, v.Filter.Text), v.SelectedItems)
-		return rows, "Favorites ▸ " + v.DrilldownName, true
+		return rows, "Favorites ▸ " + library.AlbumLabel(v.DrilldownName), true
 	default:
 		return nil, "Favorites shows no track list at this level", false
 	}
@@ -244,6 +244,7 @@ func (m Model) queueVisibleTracks() ([]library.Track, string, bool) {
 			Artist:      e.Artist,
 			Title:       e.Title,
 			Album:       e.Album,
+			AlbumArtist: e.AlbumArtist,
 			Duration:    float64(e.DurationMs) / 1000,
 			TrackNumber: e.TrackNumber,
 			DiscNumber:  e.DiscNumber,
@@ -298,6 +299,7 @@ func trackFromPlaylistRow(r db.PlaylistTrackRow) library.Track {
 		Artist:      r.Artist,
 		Title:       r.Title,
 		Album:       r.Album,
+		AlbumArtist: r.AlbumArtist,
 		Duration:    float64(r.DurationMs) / 1000,
 		TrackNumber: r.TrackNumber,
 		DiscNumber:  r.DiscNumber,
