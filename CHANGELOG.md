@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Queue summaries count separate album releases using Album Artist or folder,
+  matching Browse instead of combining releases with the same title.
+
 - The metadata palette command supports the same targets as `M`, including
   Browse artist/album renaming and Data Health findings, and describes its target.
 - Queue's empty filter hint now includes the supported `g:` genre prefix.
@@ -24,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- Palette copy and reveal commands identify the focused song or file path.
+- Palette search accepts “errors” for Recent Messages, “restart song” for
+  seeking to the start, and “locate file” for revealing the focused track.
 
 - Open playlists accept the same artist, title, album, and genre filter prefixes
   as Library and Queue, including smart playlists and live metadata corrections.

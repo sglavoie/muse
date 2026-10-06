@@ -3,6 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
@@ -23,7 +24,9 @@ func (m Model) buildQueueSummary() *overlay.QueueSummaryOverlay {
 			artists[entry.Artist] = struct{}{}
 		}
 		if entry.Album != "" {
-			albums[entry.Album] = struct{}{}
+			key := library.AlbumKey(library.Track{Album: entry.Album,
+				AlbumArtist: entry.AlbumArtist, Artist: entry.Artist, Path: entry.Path})
+			albums[key] = struct{}{}
 		}
 		if entry.SourcePlaylist != "" {
 			sources[entry.SourcePlaylist] = struct{}{}

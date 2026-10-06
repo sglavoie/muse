@@ -99,7 +99,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		DisabledReason: "Mixes are unavailable",
 	})
 
-	trackFocused := func() bool { return hasFocusedTrack(m) }
+	path, artist, title, found := m.focusedTrackForPalette()
+	trackFocused := func() bool { return found }
 	cmds = append(cmds, m.seekTimeCommand(), m.refreshSmartPlaylistCommand())
 	cmds = append(cmds, m.copyNowPlayingCommand())
 	cmds = append(cmds, m.browseNowPlayingCommand())
@@ -108,8 +109,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		ID:       "track.reveal",
 		Name:     revealFilePaletteName(runtime.GOOS),
 		Category: "file",
+		Detail:   path,
 		Exec: func() tea.Cmd {
-			path, _, _, found := m.focusedTrackForPalette()
 			if !found {
 				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
@@ -123,8 +124,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		ID:       "track.copy.info",
 		Name:     "Copy track info",
 		Category: "file",
+		Detail:   text.TrackDisplay(artist, title, path),
 		Exec: func() tea.Cmd {
-			path, artist, title, found := m.focusedTrackForPalette()
 			if !found {
 				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}
@@ -138,8 +139,8 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		ID:       "track.copy.path",
 		Name:     "Copy file path",
 		Category: "file",
+		Detail:   path,
 		Exec: func() tea.Cmd {
-			path, _, _, found := m.focusedTrackForPalette()
 			if !found {
 				return func() tea.Msg { return statusbar.TransientNotifyMsg("No track focused") }
 			}

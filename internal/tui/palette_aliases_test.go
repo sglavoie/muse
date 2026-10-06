@@ -15,6 +15,9 @@ func TestPaletteSearchSynonyms(t *testing.T) {
 		{"auto dj", "radio.toggle"},
 		{"autodj", "radio.toggle"},
 		{"tune radio", "autodj.tune"},
+		{"errors", "messages.show"},
+		{"restart song", "playback.seek.start"},
+		{"locate file", "track.reveal"},
 	} {
 		t.Run(tc.query, func(t *testing.T) {
 			cp, _ := palette.NewCommandPalette(m.BuildPaletteCommands(), nil)

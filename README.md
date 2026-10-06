@@ -89,8 +89,12 @@ matching release, and each release can then be unfavorited independently.
   The duration yields to filtering and selection details in narrow windows.
 - The queue summary (`q`) updates while open, including track changes and
   duration corrections. Both remaining and total time use `+` for unknown durations.
+  Album counts distinguish releases by Album Artist or folder, as Browse does.
 - **Copy now-playing info** — a palette command copies the playing or paused
   song while you browse elsewhere; its detail line identifies the song.
+- Focused-track copy and reveal commands identify their song or file path in
+  the palette detail line. Search synonyms include “locate file,” “restart song,”
+  and “errors” (Recent Messages).
 - **Browse now-playing…** — a palette command opens artist, album, and genre
   destinations for the playing or paused song, independently of the focused row.
   Its detail line identifies the song; selecting it keeps that target even if
