@@ -1,6 +1,7 @@
 package library
 
 import (
+	"maps"
 	"math"
 	"strings"
 
@@ -35,9 +36,18 @@ func (v Panel) renderStateStrip(total, filtered int) string {
 	}
 	var sel *strip.SelectionChunk
 	if n := len(v.SelectedHashes); n > 0 {
-		sel = &strip.SelectionChunk{Count: n, Duration: v.selectedDuration()}
+		sel = &strip.SelectionChunk{Count: n, Hidden: v.hiddenSelectionCount(), Duration: v.selectedDuration()}
 	}
 	return strip.Render(v.Width, []string{label}, sort, f, counts, sel, "", v.Styles)
+}
+
+// Count unique selected tracks outside the filtered list, not outside the viewport.
+func (v Panel) hiddenSelectionCount() int {
+	hidden := maps.Clone(v.SelectedHashes)
+	for _, track := range v.VisibleTracks() {
+		delete(hidden, track.Hash)
+	}
+	return len(hidden)
 }
 
 // selectedDuration includes selections hidden by filters, just like bulk actions.

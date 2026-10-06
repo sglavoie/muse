@@ -142,7 +142,8 @@ var paletteCatalog = []paletteEntry{
 
 	{act: keys.ActionPreview, id: "track.preview", name: "Preview focused track", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
 	{act: keys.ActionTrackInfo, id: "track.info", name: "Show track info", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
-	{act: keys.ActionEditMetadata, id: "track.metadata.edit", name: "Edit track metadata", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
+	// Metadata availability and detail share the keyboard's target resolver.
+	{act: keys.ActionEditMetadata, id: "track.metadata.edit", name: "Edit track metadata", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track, artist, album, or Data Health finding"},
 	{act: keys.ActionToggleFavorite, id: "track.favorite.toggle", name: "Toggle favorite", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
 
 	// Collection-targeting view-local actions: they operate on a whole

@@ -448,7 +448,7 @@ func (m Model) paletteCommandFor(e paletteEntry) palette.PaletteCommand {
 		// the row is rendered before the switch happens.
 		cmd.Enabled = func() bool { return e.enabled(m) }
 	}
-	return cmd
+	return m.describeMetadataCommand(cmd)
 }
 
 // paletteShortcutFor returns the key to advertise for a catalog entry:

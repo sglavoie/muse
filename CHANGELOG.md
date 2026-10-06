@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The metadata palette command supports the same targets as `M`, including
+  Browse artist/album renaming and Data Health findings, and describes its target.
+- Queue's empty filter hint now includes the supported `g:` genre prefix.
+
 - Typing `/` in an active view filter inserts a slash instead of committing
   the query, allowing names such as `AC/DC` to be entered normally.
 
@@ -20,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- Library selection headers show how many selected tracks are hidden from the
+  current list, including text and tag filters, while retaining the full selection.
 
 - Queue filters support `g:` / `genre:`, including restored queues and live
   metadata changes, while preserving duplicate rows and playback order.

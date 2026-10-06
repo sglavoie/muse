@@ -41,30 +41,34 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 	if a != keys.ActionEditMetadata {
 		return m, nil, false
 	}
-
-	if hashes := m.bulkSelectedHashes(); len(hashes) >= 2 {
-		ed := m.bulkEditorForHashes(hashes)
-		m.overlay.metadataEditor = &ed
+	ed, ok := m.metadataEditorForContext()
+	if !ok {
+		m.statusBar.Notify("No track to edit")
 		return m, nil, true
+	}
+	m.overlay.metadataEditor = &ed
+	return m, nil, true
+}
+
+// metadataEditorForContext resolves the same target for the keyboard and palette.
+func (m Model) metadataEditorForContext() (metadata.Editor, bool) {
+	if hashes := m.bulkSelectedHashes(); len(hashes) >= 2 {
+		return m.bulkEditorForHashes(hashes), true
 	}
 
 	// A Data Health finding names a whole set of tracks, not a focused one, so
 	// editing from it opens the bulk editor over everything the row counted.
-	if row := m.insights.FocusedHealthRow(); row != nil && len(row.Hashes) > 0 {
-		ed := m.bulkEditorForHashes(row.Hashes)
-		m.overlay.metadataEditor = &ed
-		return m, nil, true
+	if row := m.insights.FocusedHealthRow(); m.ActiveView == viewInsights && row != nil && len(row.Hashes) > 0 {
+		return m.bulkEditorForHashes(row.Hashes), true
 	}
 
 	if ed, ok := m.renameEditorForFocusedEntity(); ok {
-		m.overlay.metadataEditor = &ed
-		return m, nil, true
+		return ed, true
 	}
 
 	track, ok := m.focusedTrackForPreview()
 	if !ok {
-		m.statusBar.Notify("No track to edit")
-		return m, nil, true
+		return metadata.Editor{}, false
 	}
 	if full, found := m.library.Index.FindByHash(track.Hash); found {
 		if track.Album == "" {
@@ -72,9 +76,7 @@ func (m Model) handleMetadataKeyAction(a keys.Action) (Model, tea.Cmd, bool) {
 		}
 		track.Genre = full.Genre
 	}
-	ed := metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration)
-	m.overlay.metadataEditor = &ed
-	return m, nil, true
+	return metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration), true
 }
 
 // bulkEditorForHashes seeds a bulk editor from the tracks behind the hashes,

@@ -29,10 +29,11 @@ func TestSelectionDuration(t *testing.T) {
 				{Hash: "c", Title: "C", Duration: 999},
 			})
 			v.SelectedHashes = map[string]struct{}{"a": {}, "b": {}}
+			v.Fuzzy = musiclib.FakeFuzzySearcher{}
 			// Filtering to an unselected row must not change the selection total.
 			v = activateFilterQuery(v, "C")
 			line := ansi.Strip(v.renderStateStrip(3, 1))
-			if !strings.Contains(line, "2 selected · "+tc.want) {
+			if !strings.Contains(line, "2 selected · 2 hidden · "+tc.want) {
 				t.Fatalf("selection total = %q, want %s", line, tc.want)
 			}
 		})

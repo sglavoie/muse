@@ -57,6 +57,8 @@ type CountsChunk struct {
 // pointer to mean "no selection chip".
 type SelectionChunk struct {
 	Count int
+	// Hidden counts selected tracks outside the current filtered list.
+	Hidden int
 	// Duration is an optional formatted total, dropped first under width pressure.
 	Duration string
 }

@@ -366,6 +366,117 @@
       "assert": {
         "no_layout_issues": true
       }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "command": "nav.library.all"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "zzzz-no-track"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "2 selected \u00b7 2 hidden"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "2 selected \u00b7 2 hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "not_contains": "hidden"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "command": "nav.browse.artists"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "Edit track metadata"
+    },
+    {
+      "assert": {
+        "contains": "Rename artist across"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "M"
+    },
+    {
+      "assert": {
+        "overlay": "metadata_editor"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "key": "3"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "assert": {
+        "contains": "g: genre"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
     }
   ]
 }

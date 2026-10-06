@@ -88,3 +88,18 @@ func TestRender_SelectionChunkSurvivesLongerThanFilter(t *testing.T) {
 		t.Errorf("filter should drop before selection chip at narrow width: %q", plain)
 	}
 }
+
+func TestHiddenSelectionSurvivesDurationAndFilter(t *testing.T) {
+	sel := &SelectionChunk{Count: 8, Hidden: 3, Duration: "27:08"}
+	for _, width := range []int{100, 60, 40, 15} {
+		got := Render(width, []string{"Library"}, SortChunk{Label: "Artist"},
+			FilterChunk{Text: "alice"}, CountsChunk{Total: 20}, sel, "", newTestStyles())
+		plain := requireRenderWidth(t, got, width)
+		if width >= 40 && !strings.Contains(plain, "8 selected · 3 hidden") {
+			t.Fatalf("hidden count lost before optional details: %q", plain)
+		}
+		if width == 100 && !strings.Contains(plain, "3 hidden · 27:08") {
+			t.Fatalf("wide selection missing duration: %q", plain)
+		}
+	}
+}

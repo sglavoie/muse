@@ -135,7 +135,9 @@ matching release, and each release can then be unfavorited independently.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
 - Library selections show their total duration beside the count, including
-  selected tracks hidden by filters. `+` marks unknown durations; the duration
+  selected tracks hidden by filters. A separate hidden count shows how many
+  selected tracks are outside the current list; scrolling alone does not change it.
+  `+` marks unknown durations; the duration
   yields to other details in narrow windows.
 - The palette's _Remove queue duplicates_ command previews how many repeated
   entries it will remove, keeping first occurrences. It is unavailable when
@@ -429,6 +431,9 @@ reports the selected-track count; Play next and Replace queue identify the focus
 track and explicitly say when a bulk selection will not be used. Replace also
 states that it clears the queue. Commands needing a track are unavailable at
 collection level or when there are no matching tracks.
+The metadata command follows the same targets as `M`, including artist and album
+renaming in Browse, bulk selections, and Data Health findings. Its detail line
+identifies the track or shows the affected track count.
 Palette search also accepts synonyms such as `refresh library`, `EQ`, and
 `tune radio`; matches against displayed command names rank first. Seek and volume commands show
 their configured step sizes in the detail line.

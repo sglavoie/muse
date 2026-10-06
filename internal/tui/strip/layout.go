@@ -74,7 +74,7 @@ func newStripLayout(
 	layout.filterValue = buildFilterValue(filter)
 	layout.countsPlain = buildCountsPlain(counts)
 	if layout.includeSelection {
-		layout.selectionPlain = fmt.Sprintf("◉ %d selected", selection.Count)
+		layout.selectionPlain = selectionLabel(selection)
 		layout.selectionDuration = plainLine(selection.Duration)
 		if layout.selectionDuration != "" {
 			layout.selectionPlain += Separator + layout.selectionDuration
@@ -223,8 +223,16 @@ func (l *stripLayout) dropSelectionDuration() {
 		return
 	}
 	l.selectionDuration = ""
-	l.selectionPlain = fmt.Sprintf("◉ %d selected", l.selection.Count)
+	l.selectionPlain = selectionLabel(l.selection)
 	l.selectionW = ansi.StringWidth(l.selectionPlain)
+}
+
+func selectionLabel(selection *SelectionChunk) string {
+	label := fmt.Sprintf("◉ %d selected", selection.Count)
+	if selection.Hidden > 0 {
+		label += fmt.Sprintf("%s%d hidden", Separator, selection.Hidden)
+	}
+	return label
 }
 
 func (l *stripLayout) dropCounts() {
