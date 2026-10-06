@@ -66,8 +66,9 @@ type View struct {
 
 	SortIndicator string
 
-	// SelectedItems tracks bulk-selected items at ListLevel/TrackLevel.
-	SelectedItems   map[int]struct{}
+	// SelectedItems holds artist names, album keys, or track hashes (path fallback)
+	// at ListLevel/TrackLevel, independently of filtering and sorting.
+	SelectedItems   map[string]struct{}
 	FavoriteHashes  map[string]struct{}
 	FavoriteArtists map[string]struct{}
 	FavoriteAlbums  map[string]struct{}

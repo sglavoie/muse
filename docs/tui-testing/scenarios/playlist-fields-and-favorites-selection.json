@@ -1,0 +1,160 @@
+{
+  "name": "playlist-fields-and-favorites-selection",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {
+      "key": "2"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "a:Alice g:Ambient"
+    },
+    {
+      "assert": {
+        "contains": "Artist: Alice · Genre: Ambient"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Track A1"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Track D1"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "5"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "Bob"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "1 selected · 1 hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "2 selected · 1 hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "2 selected"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "ctrl+s"
+    },
+    {
+      "key": "shift+down"
+    },
+    {
+      "assert": {
+        "contains": "2 selected"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "no matches"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "2 selected · 2 hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "contains": "2 selected · 2 hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

@@ -3,7 +3,6 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/library"
-	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
 
@@ -122,49 +121,26 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		switch m.favorites.Category {
 		case favtui.CategoryArtists:
 			typ = "artist"
-			items := arttui.FilterStrings(m.favorites.Artists, m.favorites.Filter.Text)
-			for idx := range m.favorites.SelectedItems {
-				if idx >= 0 && idx < len(items) {
-					val := items[idx]
-					values = append(values, val)
-					for i, a := range m.favorites.Artists {
-						if a == val {
-							removedIndices = append(removedIndices, i)
-							break
-						}
-					}
+			for i, value := range m.favorites.Artists {
+				if _, ok := m.favorites.SelectedItems[value]; ok {
+					values = append(values, value)
+					removedIndices = append(removedIndices, i)
 				}
 			}
 		case favtui.CategoryAlbums:
 			typ = "album"
-			items := arttui.FilterStrings(m.favorites.Albums, m.favorites.Filter.Text)
-			for idx := range m.favorites.SelectedItems {
-				if idx >= 0 && idx < len(items) {
-					val := items[idx]
-					values = append(values, val)
-					for i, a := range m.favorites.Albums {
-						if a == val {
-							removedIndices = append(removedIndices, i)
-							break
-						}
-					}
+			for i, value := range m.favorites.Albums {
+				if _, ok := m.favorites.SelectedItems[value]; ok {
+					values = append(values, value)
+					removedIndices = append(removedIndices, i)
 				}
 			}
 		case favtui.CategoryTracks:
 			typ = "track"
-			items := arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
-			for idx := range m.favorites.SelectedItems {
-				if idx >= 0 && idx < len(items) {
-					t := items[idx]
-					values = append(values, t.Hash)
-					removedTracks = append(removedTracks, t)
-					for i, tr := range m.favorites.Tracks {
-						if tr.Hash == t.Hash {
-							removedIndices = append(removedIndices, i)
-							break
-						}
-					}
-				}
+			for _, track := range m.favorites.SelectedTracks() {
+				values = append(values, track.Hash)
+				removedTracks = append(removedTracks, track)
+				removedIndices = append(removedIndices, indexOfTrackByHash(m.favorites.Tracks, track.Hash))
 			}
 		}
 		if len(values) == 0 {
@@ -189,22 +165,13 @@ func (m Model) handleFavoritesBulkAction() (Model, tea.Cmd, bool) {
 		}, true
 
 	case favtui.TrackLevel:
-		items := arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
 		var hashes []string
 		var removedTracks []library.Track
 		var removedIndices []int
-		for idx := range m.favorites.SelectedItems {
-			if idx >= 0 && idx < len(items) {
-				t := items[idx]
-				hashes = append(hashes, t.Hash)
-				removedTracks = append(removedTracks, t)
-				for i, tr := range m.favorites.DrilldownTracks {
-					if tr.Hash == t.Hash {
-						removedIndices = append(removedIndices, i)
-						break
-					}
-				}
-			}
+		for _, track := range m.favorites.SelectedTracks() {
+			hashes = append(hashes, track.Hash)
+			removedTracks = append(removedTracks, track)
+			removedIndices = append(removedIndices, indexOfTrackByHash(m.favorites.DrilldownTracks, track.Hash))
 		}
 		if len(hashes) == 0 {
 			return m, nil, true

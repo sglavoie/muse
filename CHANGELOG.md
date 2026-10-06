@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Open playlists accept the same artist, title, album, and genre filter prefixes
+  as Library and Queue, including smart playlists and live metadata corrections.
+- Favorites retains selections through filtering and sorting, shows hidden
+  selection counts, and includes hidden selections in bulk actions.
+- Filter-history save failures appear in Recent Messages once per failure period;
+  query recall continues in memory and persistence retries on changed history.
+
 - A **Seek to time…** palette command accepts seconds, `m:ss`, or `h:mm:ss`
   for the loaded track. It preserves pause, validates known duration bounds,
   and refuses a target whose track changed while the prompt was open.
@@ -81,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Direct “Sort by” palette commands offer the current view's supported fields
   and identify the selected field and direction.
 - Up/Down in view filters recalls the last 20 distinct committed queries across
-  views for the current session and restores unfinished input.
+  views, including after restart, and restores unfinished input.
 - Recent Messages shows scroll position and copies its full snapshot with `y`.
 
 - Focused command-palette toggles show their current setting in the existing

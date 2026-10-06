@@ -53,7 +53,7 @@ func TestOpenList_ClearsStaleSelection(t *testing.T) {
 	v := View{
 		Level:         CategoryLevel,
 		Cursor:        0,
-		SelectedItems: map[int]struct{}{1: {}},
+		SelectedItems: map[string]struct{}{"stale": {}},
 	}
 	v2 := v.OpenList()
 	if v2.SelectedItems != nil {
@@ -137,7 +137,7 @@ func TestBack_FromListLevel(t *testing.T) {
 		Category:       CategoryArtists,
 		Artists:        []string{"A", "B"},
 		CategoryCursor: 0,
-		SelectedItems:  map[int]struct{}{0: {}},
+		SelectedItems:  map[string]struct{}{"stale": {}},
 	}
 	v2 := v.Back()
 	if v2.Level != CategoryLevel {
@@ -190,7 +190,7 @@ func TestBack_FromTrackLevel(t *testing.T) {
 		DrilldownTracks:  sampleTracks(2),
 		ListCursor:       3,
 		ListScrollOffset: 1,
-		SelectedItems:    map[int]struct{}{1: {}},
+		SelectedItems:    map[string]struct{}{"stale": {}},
 	}
 	v2 := v.Back()
 	if v2.Level != ListLevel {

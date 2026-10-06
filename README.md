@@ -38,7 +38,7 @@ The preview above uses fictional library data from the
 | View | What it does |
 | --- | --- |
 | **Library** (`1`) | The whole collection, with sub-modes for All / Recently Added / History. Filter with prefixes (`a:` artist, `t:` title, `l:` album, `g:` genre). |
-| **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). `/` filters playlist names or the open playlist’s title, artist, and album fields. |
+| **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). `/` filters playlist names; open playlists also support `a:`, `t:`, `l:`, and `g:` field prefixes. |
 | **Queue** (`3`) | The live play queue: reorder, remove, yank/cut/paste rows, save the queue as a playlist. |
 | **Browse** (`4`) | Hierarchical browsing by Artists ↔ Albums ↔ Genres, drilling down to tracks. |
 | **Favorites** (`5`) | Favorited tracks, albums, and artists, grouped by category. |
@@ -144,6 +144,9 @@ matching release, and each release can then be unfavorited independently.
   shows the visible range.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
+- Favorites selections survive filtering and sorting. Headings show selected and
+  hidden counts; bulk actions include hidden selections. Navigating to another
+  Favorites list clears the selection.
 - Library and Queue selections show their total duration beside the count,
   including selected tracks hidden by filters. Queue counts each selected entry,
   including repeated songs. A separate hidden count shows how many
@@ -168,10 +171,12 @@ matching release, and each release can then be unfavorited independently.
   prefixes such as `a:` leave tracks visible while you type; other populated terms still apply.
   When space allows, Library, Mixes, Insights track lists, and Queue also show
   how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
-  Queue supports the same field prefixes, including `g:` / `genre:`.
+  Queue and open playlists support the same field prefixes, including `g:` / `genre:`.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished
-  query. History survives restarts in `filter_history.json` in the data directory;
+  query. If saving history fails, Recent Messages reports it once until saving
+  recovers; queries remain available for the current session. History survives
+  restarts in `filter_history.json` in the data directory;
   cancelled queries are excluded, and startup does not apply a saved filter.
 - The playlist destination picker supports `/` search, Page Up/Down, and
   `g`/`G` to jump to the first/last destination. Long lists scroll to fit the

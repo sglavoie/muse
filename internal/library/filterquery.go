@@ -129,3 +129,18 @@ func isFilterBoundary(s string, pos int) bool {
 	r, _ := utf8.DecodeLastRuneInString(s[:pos])
 	return unicode.IsSpace(r)
 }
+
+// MatchesMetadata applies field constraints and matches the general term against
+// title, artist, or album. Empty prefixes impose no constraint.
+func (fq FilterQuery) MatchesMetadata(title, artist, album, genre string) bool {
+	title, artist, album, genre = strings.ToLower(title), strings.ToLower(artist), strings.ToLower(album), strings.ToLower(genre)
+	for _, field := range []struct{ value, term string }{
+		{title, fq.Title}, {artist, fq.Artist}, {album, fq.Album}, {genre, fq.Genre},
+	} {
+		if !strings.Contains(field.value, strings.ToLower(field.term)) {
+			return false
+		}
+	}
+	general := strings.ToLower(fq.General)
+	return strings.Contains(title, general) || strings.Contains(artist, general) || strings.Contains(album, general)
+}

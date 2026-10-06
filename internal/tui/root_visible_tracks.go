@@ -174,10 +174,16 @@ func (m Model) favoritesVisibleTracks() ([]library.Track, string, bool) {
 	v := m.favorites
 	switch {
 	case v.Level == favtui.ListLevel && v.Category == favtui.CategoryTracks:
-		rows := selectedByIndex(arttui.FilterTracks(v.Tracks, v.Filter.Text), v.SelectedItems)
+		rows := arttui.FilterTracks(v.Tracks, v.Filter.Text)
+		if v.HasSelection() {
+			rows = v.SelectedTracks()
+		}
 		return rows, "Favorites ▸ Tracks", true
 	case v.Level == favtui.TrackLevel:
-		rows := selectedByIndex(arttui.FilterTracks(v.DrilldownTracks, v.Filter.Text), v.SelectedItems)
+		rows := arttui.FilterTracks(v.DrilldownTracks, v.Filter.Text)
+		if v.HasSelection() {
+			rows = v.SelectedTracks()
+		}
 		return rows, "Favorites ▸ " + library.AlbumLabel(v.DrilldownName), true
 	default:
 		return nil, "Favorites shows no track list at this level", false
@@ -274,24 +280,7 @@ func (m Model) hydrateTrack(row library.Track) library.Track {
 	return live
 }
 
-// selectedByIndex narrows rows to the display indices in selected, which is how
-// Favorites records a bulk selection. An empty selection keeps every row.
-func selectedByIndex(rows []library.Track, selected map[int]struct{}) []library.Track {
-	if len(selected) == 0 {
-		return rows
-	}
-	out := make([]library.Track, 0, len(selected))
-	for _, idx := range sortedIntSetKeys(selected) {
-		if idx >= 0 && idx < len(rows) {
-			out = append(out, rows[idx])
-		}
-	}
-	return out
-}
-
-// trackFromPlaylistRow adapts the row type Playlists and Tags hold. The result
-// carries no Genre because db.PlaylistTrackRow has no such column; callers pass
-// it through Model.hydrateTrack to recover the full track.
+// trackFromPlaylistRow adapts the row type Playlists and Tags hold.
 func trackFromPlaylistRow(r db.PlaylistTrackRow) library.Track {
 	return library.Track{
 		Path:        r.Path,
@@ -300,6 +289,7 @@ func trackFromPlaylistRow(r db.PlaylistTrackRow) library.Track {
 		Title:       r.Title,
 		Album:       r.Album,
 		AlbumArtist: r.AlbumArtist,
+		Genre:       r.Genre,
 		Duration:    float64(r.DurationMs) / 1000,
 		TrackNumber: r.TrackNumber,
 		DiscNumber:  r.DiscNumber,

@@ -21,7 +21,7 @@ func TestEvalSmartPlaylist_HasTagEquals(t *testing.T) {
 		Root: db.SmartRule{Field: db.FieldTag, Operator: db.OpEquals, Value: "workout"},
 	}
 	rows := evalQuery(t, d, q)
-	if len(rows) != 1 || rows[0].Hash != "h1" {
+	if len(rows) != 1 || rows[0].Hash != "h1" || rows[0].Genre != "rock" {
 		t.Errorf("got %v, want [h1]", hashes(rows))
 	}
 }

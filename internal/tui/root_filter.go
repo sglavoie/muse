@@ -55,6 +55,12 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 				m.filterHistory = history
 				if err := filter.SaveHistory(m.dataDir, history); err != nil {
 					slog.Warn("filter history: save failed", "err", err)
+					if !m.filterHistorySaveFailed {
+						m.statusBar.NotifyError("Filter history not saved — new queries won't survive restart")
+					}
+					m.filterHistorySaveFailed = true
+				} else {
+					m.filterHistorySaveFailed = false
 				}
 			}
 			return *m
@@ -125,7 +131,7 @@ func (m Model) allFilterOps() *filterOps {
 		return makeFilterOps(&m, &m.queue.Filter, &m.queue.Cursor, &m.queue.ScrollOffset, nil)
 	case viewFavorites:
 		return makeFilterOps(&m, &m.favorites.Filter, &m.favorites.Cursor, &m.favorites.ScrollOffset,
-			func() { m.favorites.SelectedItems = nil })
+			nil)
 	case viewTags:
 		return makeFilterOps(&m, &m.tagsView.Filter, &m.tagsView.Cursor, &m.tagsView.ScrollOffset, nil)
 	case viewMixes:

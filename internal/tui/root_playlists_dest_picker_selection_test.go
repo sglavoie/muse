@@ -69,7 +69,7 @@ func TestDestPickerClearsTagsSelection(t *testing.T) {
 // selection (selectedItems).
 func TestDestPickerClearsFavoritesSelection(t *testing.T) {
 	m := New(context.Background())
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites.SelectedItems = map[string]struct{}{"first": {}, "third": {}}
 
 	t.Run("dismissed", func(t *testing.T) {
 		got := m.handleDestinationPickerDismissedMsg()

@@ -256,13 +256,13 @@ func richPlaylists() []db.PlaylistRow {
 func richPlaylistTracks() map[int64][]db.PlaylistTrackRow {
 	return map[int64][]db.PlaylistTrackRow{
 		1: {
-			{ID: 11, Position: 1, Title: "Track A1", Artist: "Alice", Album: "Alpha", DurationMs: 183000, Hash: "rh1", Path: "/music/alice/alpha/a1.flac"},
-			{ID: 12, Position: 2, Title: "Track B1", Artist: "Alice", Album: "Beta", DurationMs: 300000, Hash: "rh3", Path: "/music/alice/beta/b1.flac"},
-			{ID: 13, Position: 3, Title: "Track D1", Artist: "Charlie", Album: "Delta", DurationMs: 3661000, Hash: "rh6", Path: "/music/charlie/delta/d1.flac"},
+			{ID: 11, Position: 1, Title: "Track A1", Artist: "Alice", Album: "Alpha", Genre: "Ambient", DurationMs: 183000, Hash: "rh1", Path: "/music/alice/alpha/a1.flac"},
+			{ID: 12, Position: 2, Title: "Track B1", Artist: "Alice", Album: "Beta", Genre: "Ambient", DurationMs: 300000, Hash: "rh3", Path: "/music/alice/beta/b1.flac"},
+			{ID: 13, Position: 3, Title: "Track D1", Artist: "Charlie", Album: "Delta", Genre: "Jazz", DurationMs: 3661000, Hash: "rh6", Path: "/music/charlie/delta/d1.flac"},
 		},
 		2: {
-			{ID: 21, Position: 1, Title: "Track G1", Artist: "Bob", Album: "Gamma", DurationMs: 120000, Hash: "rh4", Path: "/music/bob/gamma/g1.flac"},
-			{ID: 22, Position: 2, Title: "Track G2", Artist: "Bob", Album: "Gamma", DurationMs: 60000, Hash: "rh5", Path: "/music/bob/gamma/g2.flac"},
+			{ID: 21, Position: 1, Title: "Track G1", Artist: "Bob", Album: "Gamma", Genre: "Techno", DurationMs: 120000, Hash: "rh4", Path: "/music/bob/gamma/g1.flac"},
+			{ID: 22, Position: 2, Title: "Track G2", Artist: "Bob", Album: "Gamma", Genre: "Techno", DurationMs: 60000, Hash: "rh5", Path: "/music/bob/gamma/g2.flac"},
 		},
 	}
 }

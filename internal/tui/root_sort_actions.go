@@ -99,7 +99,6 @@ func (m Model) applySortFieldInView(next sorting.SortField) (tea.Model, tea.Cmd,
 		m.favorites = m.favorites.RecomputeFavoritesSort()
 		m.favorites.Cursor = 0
 		m.favorites.ScrollOffset = 0
-		m.favorites.SelectedItems = nil
 		m.statusBar.NotifyInfo(sortNotification(m.favorites.SortState))
 		return m, nil, true
 

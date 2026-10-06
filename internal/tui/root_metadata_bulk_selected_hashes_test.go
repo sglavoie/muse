@@ -21,7 +21,7 @@ func TestBulkSelectedHashesFavoritesListLevelTracks(t *testing.T) {
 		{Hash: "h2", Artist: "Alice", Title: "Track A2"},
 		{Hash: "h3", Artist: "Alice", Title: "Track B1"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(2)
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 2 {
@@ -49,7 +49,7 @@ func TestBulkSelectedHashesFavoritesTrackLevel(t *testing.T) {
 		{Hash: "h4", Artist: "Bob", Title: "Track G1"},
 		{Hash: "h5", Artist: "Bob", Title: "Track G2"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(1)
 
 	hashes := m.bulkSelectedHashes()
 	if len(hashes) != 1 {
@@ -68,7 +68,7 @@ func TestBulkSelectedHashesFavoritesArtistLevelReturnsNil(t *testing.T) {
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alice", "Bob"}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0)
 
 	if hashes := m.bulkSelectedHashes(); hashes != nil {
 		t.Errorf("expected nil for artist level, got %v", hashes)

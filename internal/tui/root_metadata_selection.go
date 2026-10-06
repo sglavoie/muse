@@ -43,26 +43,9 @@ func (m Model) bulkSelectedHashes() []string {
 		}
 		return nil
 	case viewFavorites:
-		if len(m.favorites.SelectedItems) == 0 {
-			return nil
-		}
-		var items []musiclib.Track
-		switch {
-		case m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks:
-			items = arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
-		case m.favorites.Level == favtui.TrackLevel:
-			items = arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
-		default:
-			return nil
-		}
 		var hashes []string
-		for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
-			if idx >= 0 && idx < len(items) {
-				hashes = append(hashes, items[idx].Hash)
-			}
-		}
-		if len(hashes) == 0 {
-			return nil
+		for _, track := range m.favorites.SelectedTracks() {
+			hashes = append(hashes, track.Hash)
 		}
 		return hashes
 	case viewTags:
@@ -168,6 +151,7 @@ func (m Model) refreshDerivedViews() Model {
 				m.playlists.Tracks[i].Artist = t.Artist
 				m.playlists.Tracks[i].Album = t.Album
 				m.playlists.Tracks[i].AlbumArtist = t.AlbumArtist
+				m.playlists.Tracks[i].Genre = t.Genre
 				m.playlists.Tracks[i].DurationMs = int64(t.Duration * 1000)
 			}
 		}

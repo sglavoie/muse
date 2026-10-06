@@ -2,6 +2,7 @@ package favorites
 
 import (
 	"fmt"
+	"maps"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -48,7 +49,7 @@ type FavoritesView struct {
 
 	Filter        filter.State
 	SortState     sorting.SortState
-	SelectedItems map[int]struct{}
+	SelectedItems map[string]struct{}
 }
 
 func (v *FavoritesView) SetSize(w, h int) { v.Width = w; v.Height = h }
@@ -318,15 +319,71 @@ func (v FavoritesView) ClearSelection() FavoritesView {
 	return v
 }
 
-// ToggleSelection toggles bulk-selection on the item at the given index.
+// ToggleSelection toggles the stable key at the given visible row.
 func (v FavoritesView) ToggleSelection(idx int) FavoritesView {
-	if v.SelectedItems == nil {
-		v.SelectedItems = make(map[int]struct{})
+	keys := v.SelectionKeys()
+	if idx < 0 || idx >= len(keys) || keys[idx] == "" {
+		return v
 	}
-	if _, ok := v.SelectedItems[idx]; ok {
-		delete(v.SelectedItems, idx)
+	v.SelectedItems = maps.Clone(v.SelectedItems)
+	if v.SelectedItems == nil {
+		v.SelectedItems = make(map[string]struct{})
+	}
+	key := keys[idx]
+	if _, ok := v.SelectedItems[key]; ok {
+		delete(v.SelectedItems, key)
 	} else {
-		v.SelectedItems[idx] = struct{}{}
+		v.SelectedItems[key] = struct{}{}
 	}
 	return v
+}
+
+// SelectionKeys returns visible identities in display order. Selections are
+// scoped to the current level and cleared when navigating into another list.
+func (v FavoritesView) SelectionKeys() []string {
+	switch {
+	case v.Level == CategoryLevel:
+		return nil
+	case v.Level == ListLevel && v.Category == CategoryArtists:
+		return arttui.FilterStrings(v.Artists, v.Filter.Text)
+	case v.Level == ListLevel && v.Category == CategoryAlbums:
+		return arttui.FilterStrings(v.Albums, v.Filter.Text)
+	}
+	tracks := v.Tracks
+	if v.Level == TrackLevel {
+		tracks = v.DrilldownTracks
+	}
+	tracks = arttui.FilterTracks(tracks, v.Filter.Text)
+	keys := make([]string, len(tracks))
+	for i, track := range tracks {
+		keys[i] = trackSelectionKey(track)
+	}
+	return keys
+}
+
+func trackSelectionKey(track musiclib.Track) string {
+	if track.Hash != "" {
+		return track.Hash
+	}
+	return track.Path
+}
+
+// SelectedTracks includes hidden selections, following the unfiltered sort order.
+func (v FavoritesView) SelectedTracks() []musiclib.Track {
+	var tracks []musiclib.Track
+	switch {
+	case v.Level == TrackLevel:
+		tracks = v.DrilldownTracks
+	case v.Level == ListLevel && v.Category == CategoryTracks:
+		tracks = v.Tracks
+	default:
+		return nil
+	}
+	var selected []musiclib.Track
+	for _, track := range tracks {
+		if _, ok := v.SelectedItems[trackSelectionKey(track)]; ok {
+			selected = append(selected, track)
+		}
+	}
+	return selected
 }

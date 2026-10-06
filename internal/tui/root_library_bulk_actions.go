@@ -6,7 +6,6 @@ import (
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/browse"
-	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
@@ -157,35 +156,11 @@ func (m Model) bulkGenreTracks() []library.Track {
 }
 
 func (m Model) bulkFavoriteTracks() []library.Track {
-	switch {
-	case m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks:
-		if len(m.favorites.SelectedItems) > 0 {
-			items := arttui.FilterTracks(m.favorites.Tracks, m.favorites.Filter.Text)
-			var tracks []library.Track
-			for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
-				if idx >= 0 && idx < len(items) {
-					tracks = append(tracks, items[idx])
-				}
-			}
-			return tracks
-		}
-		if track, ok := m.favorites.FocusedTrack(); ok {
-			return []library.Track{track}
-		}
-	case m.favorites.Level == favtui.TrackLevel:
-		if len(m.favorites.SelectedItems) > 0 {
-			items := arttui.FilterTracks(m.favorites.DrilldownTracks, m.favorites.Filter.Text)
-			var tracks []library.Track
-			for _, idx := range sortedIntSetKeys(m.favorites.SelectedItems) {
-				if idx >= 0 && idx < len(items) {
-					tracks = append(tracks, items[idx])
-				}
-			}
-			return tracks
-		}
-		if track, ok := m.favorites.FocusedTrack(); ok {
-			return []library.Track{track}
-		}
+	if m.favorites.HasSelection() {
+		return m.favorites.SelectedTracks()
+	}
+	if track, ok := m.favorites.FocusedTrack(); ok {
+		return []library.Track{track}
 	}
 	return nil
 }

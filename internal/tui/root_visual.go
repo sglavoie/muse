@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"sort"
-
 	"github.com/sglavoie/muse/internal/library"
 	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -26,10 +24,10 @@ type visualState struct {
 // selectionSnapshot captures the selection state before visual mode was entered
 // so it can be restored on each cursor move to compute the new visual range.
 type selectionSnapshot struct {
-	hashes    map[string]struct{} // Library, RecentlyAdded, Artists, Albums, Genres, Insights
-	queueSel  map[int]bool        // Queue: entries index → was selected
-	trackIDs  map[int64]struct{}  // Playlists: track row IDs
-	favIdxSet map[int]struct{}    // Favorites: selected item indices
+	hashes   map[string]struct{} // Library, RecentlyAdded, Artists, Albums, Genres, Insights
+	queueSel map[int]bool        // Queue: entries index → was selected
+	trackIDs map[int64]struct{}  // Playlists: track row IDs
+	favKeys  map[string]struct{} // Favorites: stable item keys
 }
 
 // activeViewCursor returns the cursor position for the currently active view.
@@ -224,7 +222,7 @@ func takeSnapshot(m Model) selectionSnapshot {
 			snap.hashes = cloneStringSet(m.browse.Genres.SelectedHashes)
 		}
 	case viewFavorites:
-		snap.favIdxSet = cloneIntSet(m.favorites.SelectedItems)
+		snap.favKeys = cloneStringSet(m.favorites.SelectedItems)
 	case viewTags:
 		snap.hashes = cloneStringSet(m.tagsView.SelectedHashes)
 	case viewInsights:
@@ -254,7 +252,7 @@ func restoreSnapshot(m Model) Model {
 			m.browse.Genres.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 		}
 	case viewFavorites:
-		m.favorites.SelectedItems = cloneIntSet(m.visual.snapshot.favIdxSet)
+		m.favorites.SelectedItems = cloneStringSet(m.visual.snapshot.favKeys)
 	case viewTags:
 		m.tagsView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewInsights:
@@ -308,17 +306,16 @@ func selectRange(m Model, lo, hi int) Model {
 			}
 		}
 	case viewFavorites:
-		if m.favorites.Level != favtui.CategoryLevel {
-			n := visualListLen(m)
-			for i := lo; i <= hi; i++ {
-				if i < 0 || (n > 0 && i >= n) {
-					continue
-				}
-				if m.favorites.SelectedItems == nil {
-					m.favorites.SelectedItems = make(map[int]struct{})
-				}
-				m.favorites.SelectedItems[i] = struct{}{}
+		rows := m.favorites.SelectionKeys()
+		m.favorites.SelectedItems = cloneStringSet(m.favorites.SelectedItems)
+		for i := max(0, lo); i <= hi && i < len(rows); i++ {
+			if rows[i] == "" {
+				continue
 			}
+			if m.favorites.SelectedItems == nil {
+				m.favorites.SelectedItems = make(map[string]struct{})
+			}
+			m.favorites.SelectedItems[rows[i]] = struct{}{}
 		}
 	case viewInsights:
 		if m.insights.AtTracks() {
@@ -421,26 +418,4 @@ func cloneInt64Set(s map[int64]struct{}) map[int64]struct{} {
 		out[k] = struct{}{}
 	}
 	return out
-}
-
-// cloneIntSet returns a deep copy of a map[int]struct{}, or nil if empty.
-func cloneIntSet(s map[int]struct{}) map[int]struct{} {
-	if len(s) == 0 {
-		return nil
-	}
-	out := make(map[int]struct{}, len(s))
-	for k := range s {
-		out[k] = struct{}{}
-	}
-	return out
-}
-
-// sortedIntSetKeys returns the keys of an int set in ascending order.
-func sortedIntSetKeys(s map[int]struct{}) []int {
-	keys := make([]int, 0, len(s))
-	for k := range s {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	return keys
 }

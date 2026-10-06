@@ -141,7 +141,6 @@ func (m Model) preserveFavoritesCursorOnDirChange(dir sorting.SortDir) Model {
 		}
 		m.favorites.Cursor = sorting.FindTrackHashPosition(tracks, focusedHash)
 	}
-	m.favorites.SelectedItems = nil
 	reserve := favoritesVisibleReserve(m.favorites)
 	m.favorites.ScrollOffset = sorting.AdjustScroll(m.favorites.Cursor, m.favorites.ScrollOffset, layout.VisibleRows(m.favorites.Height, reserve))
 	return m

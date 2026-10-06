@@ -155,7 +155,7 @@ in error messages:
 
 | Field | Meaning |
 | ----- | ------- |
-| `key` | Dispatch one key press. Supports printable runes (`"a"`, `"/"`, `"?"`), named keys (`"enter"`, `"esc"`, `"tab"`, `"space"`, arrows, `"home"`/`"end"`/`"pgup"`/`"pgdown"`), and modifier combos (`"ctrl+g"`, `"shift+tab"`). View switches: `1`–`7`; `]`/`[` cycle views. |
+| `key` | Dispatch one key press. Supports printable runes (`"a"`, `"/"`, `"?"`), named keys (`"enter"`, `"esc"`, `"tab"`, `"space"`, arrows, `"home"`/`"end"`/`"pgup"`/`"pgdown"`), and modifier combos (`"ctrl+g"`, `"shift+tab"`). View switches: `1`–`8`; `]`/`[` cycle views. |
 | `text` | Type a literal string, one printable key press per rune (e.g. into the command palette or a filter). |
 | `resize` | Apply a new terminal size `WxH`. |
 | `wait` | Drain pending async commands, optionally for a duration string (e.g. `"100ms"`). |

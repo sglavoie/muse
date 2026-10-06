@@ -28,27 +28,6 @@ func TestBulkSelectionToggleExitsVisualMode(t *testing.T) {
 	assertSelectedHashesExact(t, m.library.SelectedHashes, "h0")
 }
 
-func TestSortedIntSetKeysOrder(t *testing.T) {
-	s := map[int]struct{}{5: {}, 1: {}, 3: {}, 0: {}, 9: {}}
-	keys := sortedIntSetKeys(s)
-	want := []int{0, 1, 3, 5, 9}
-	if len(keys) != len(want) {
-		t.Fatalf("len = %d, want %d", len(keys), len(want))
-	}
-	for i, k := range keys {
-		if k != want[i] {
-			t.Errorf("keys[%d] = %d, want %d", i, k, want[i])
-		}
-	}
-}
-
-func TestSortedIntSetKeysEmpty(t *testing.T) {
-	keys := sortedIntSetKeys(nil)
-	if len(keys) != 0 {
-		t.Fatalf("expected empty slice, got %v", keys)
-	}
-}
-
 func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewFavorites
@@ -61,7 +40,7 @@ func TestBulkFavoriteTracksReturnsDeterministicOrder(t *testing.T) {
 		{Hash: "h3", Title: "T3", Artist: "A"},
 		{Hash: "h4", Title: "T4", Artist: "A"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{4: {}, 1: {}, 3: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(4).ToggleSelection(1).ToggleSelection(3)
 
 	for i := 0; i < 50; i++ {
 		tracks := m.bulkFavoriteTracks()
@@ -141,11 +120,12 @@ func TestVisualSelectRangeFavoritesBoundsClamp(t *testing.T) {
 
 	m = selectRange(m, 0, 10)
 
-	for idx := range m.favorites.SelectedItems {
-		if idx < 0 || idx >= len(m.favorites.Tracks) {
-			t.Fatalf("selectedItems contains out-of-range index %d (list len=%d)", idx, len(m.favorites.Tracks))
+	for key := range m.favorites.SelectedItems {
+		if key != "h0" && key != "h1" {
+			t.Fatalf("unexpected selected key %q", key)
 		}
 	}
+
 	if len(m.favorites.SelectedItems) != len(m.favorites.Tracks) {
 		t.Fatalf("expected exactly %d clamped selections, got %d", len(m.favorites.Tracks), len(m.favorites.SelectedItems))
 	}

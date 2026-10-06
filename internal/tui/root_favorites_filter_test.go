@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -144,16 +145,16 @@ func TestFavoritesRemoveWithFilter_AlbumUsesRawIndex(t *testing.T) {
 	}
 }
 
-// TestFavoritesFilterChangeClearsSelection verifies that changing the filter
-// text in the Favorites view clears the selectedItems map so that stale
-// display indices cannot refer to wrong items after the filtered list changes.
-func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
+// TestFavoritesFilterChangePreservesSelection verifies that changing the filter
+// text in the Favorites view preserves stable selection keys.
+func TestFavoritesFilterChangePreservesSelection(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Alpha", "Beta", "Gamma"}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(2)
+	wantSelection := maps.Clone(m.favorites.SelectedItems)
 
 	m, _ = m.handleFilterBarMsg()
 	if !m.favorites.Filter.Active {
@@ -165,14 +166,14 @@ func TestFavoritesFilterChangeClearsSelection(t *testing.T) {
 		t.Fatal("expected active filter ops for favorites")
 	}
 	m, _ = ops.update(tea.KeyPressMsg{Text: "a"})
-	if m.favorites.SelectedItems != nil {
-		t.Fatal("selectedItems should be nil after filter text change")
+	if !maps.Equal(m.favorites.SelectedItems, wantSelection) {
+		t.Fatalf("selection changed: %v", m.favorites.SelectedItems)
 	}
 }
 
-// TestFavoritesFilterDeactivateClearsSelection verifies that deactivating the
-// filter (Esc) clears the selectedItems map.
-func TestFavoritesFilterDeactivateClearsSelection(t *testing.T) {
+// TestFavoritesFilterDeactivatePreservesSelection verifies that deactivating the
+// filter (Esc) preserves the selectedItems map.
+func TestFavoritesFilterDeactivatePreservesSelection(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
@@ -183,21 +184,22 @@ func TestFavoritesFilterDeactivateClearsSelection(t *testing.T) {
 	}
 	m.favorites.Filter.Active = true
 	m.favorites.Filter.Text = "al"
-	m.favorites.SelectedItems = map[int]struct{}{0: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0)
+	wantSelection := maps.Clone(m.favorites.SelectedItems)
 
 	ops := m.activeFilterOps()
 	if ops == nil {
 		t.Fatal("expected active filter ops")
 	}
 	m = ops.deactivate()
-	if m.favorites.SelectedItems != nil {
-		t.Fatal("selectedItems should be nil after filter deactivation")
+	if !maps.Equal(m.favorites.SelectedItems, wantSelection) {
+		t.Fatalf("selection changed: %v", m.favorites.SelectedItems)
 	}
 }
 
-// TestFavoritesFilterBackspaceClearsSelection verifies that pressing backspace
-// in the filter clears the selectedItems map when the text changes.
-func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
+// TestFavoritesFilterBackspacePreservesSelection verifies that pressing backspace
+// in the filter preserves the selectedItems map when the text changes.
+func TestFavoritesFilterBackspacePreservesSelection(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
@@ -206,43 +208,44 @@ func TestFavoritesFilterBackspaceClearsSelection(t *testing.T) {
 	m.favorites.Filter.Active = true
 	m.favorites.Filter.Text = "ba"
 	m.favorites.Filter, _ = m.favorites.Filter.Activate()
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(1)
+	wantSelection := maps.Clone(m.favorites.SelectedItems)
 
 	ops := m.activeFilterOps()
 	if ops == nil {
 		t.Fatal("expected active filter ops")
 	}
 	m, _ = ops.update(tea.KeyPressMsg{Code: tea.KeyBackspace})
-	if m.favorites.SelectedItems != nil {
-		t.Fatal("selectedItems should be nil after filter backspace")
+	if !maps.Equal(m.favorites.SelectedItems, wantSelection) {
+		t.Fatalf("selection changed: %v", m.favorites.SelectedItems)
 	}
 }
 
-// TestFavoritesSortCycleClearsSelection verifies that cycling the sort field
-// in the Favorites view clears the selectedItems map so that stale display
-// indices cannot refer to wrong items after the list is re-sorted.
-func TestFavoritesSortCycleClearsSelection(t *testing.T) {
+// TestFavoritesSortCyclePreservesSelection verifies that cycling the sort field
+// in the Favorites view preserves the selectedItems map.
+func TestFavoritesSortCyclePreservesSelection(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryArtists
 	m.favorites.Artists = []string{"Charlie", "Alpha", "Bravo"}
 	m.favorites.Height = 20
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(2)
+	wantSelection := maps.Clone(m.favorites.SelectedItems)
 
 	result, _, handled := m.handleSortCycle()
 	if !handled {
 		t.Fatal("handleSortCycle should handle favorites view")
 	}
 	rm := result.(Model)
-	if rm.favorites.SelectedItems != nil {
-		t.Fatal("selectedItems should be nil after sort cycle")
+	if !maps.Equal(rm.favorites.SelectedItems, wantSelection) {
+		t.Fatalf("selection changed: %v", rm.favorites.SelectedItems)
 	}
 }
 
-// TestFavoritesSortDirChangeClearsSelection verifies that changing the sort
-// direction (asc/desc) in the Favorites view clears the selectedItems map.
-func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
+// TestFavoritesSortDirChangePreservesSelection verifies that changing the sort
+// direction (asc/desc) in the Favorites view preserves the selectedItems map.
+func TestFavoritesSortDirChangePreservesSelection(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewFavorites
 	m.favorites.Level = favtui.ListLevel
@@ -250,24 +253,26 @@ func TestFavoritesSortDirChangeClearsSelection(t *testing.T) {
 	m.favorites.Albums = []string{"Zulu", "Mike", "Alpha"}
 	m.favorites.Height = 20
 	m.favorites.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-	m.favorites.SelectedItems = map[int]struct{}{1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(1)
+	wantSelection := maps.Clone(m.favorites.SelectedItems)
 
 	result, _, handled := m.handleSortDir(sorting.SortAsc)
 	if !handled {
 		t.Fatal("handleSortDir(SortAsc) should handle favorites view with active sort")
 	}
 	rm := result.(Model)
-	if rm.favorites.SelectedItems != nil {
-		t.Fatal("selectedItems should be nil after sort asc")
+	if !maps.Equal(rm.favorites.SelectedItems, wantSelection) {
+		t.Fatalf("selection changed: %v", rm.favorites.SelectedItems)
 	}
 
-	rm.favorites.SelectedItems = map[int]struct{}{0: {}}
+	rm.favorites = rm.favorites.ClearSelection().ToggleSelection(0)
+	wantSelection = maps.Clone(rm.favorites.SelectedItems)
 	result2, _, handled2 := rm.handleSortDir(sorting.SortDesc)
 	if !handled2 {
 		t.Fatal("handleSortDir(SortDesc) should handle favorites view with active sort")
 	}
 	rm2 := result2.(Model)
-	if rm2.favorites.SelectedItems != nil {
-		t.Fatal("selectedItems should be nil after sort desc")
+	if !maps.Equal(rm2.favorites.SelectedItems, wantSelection) {
+		t.Fatalf("selection changed: %v", rm2.favorites.SelectedItems)
 	}
 }

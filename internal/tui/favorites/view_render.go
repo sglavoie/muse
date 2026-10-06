@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
@@ -51,7 +52,7 @@ func (v View) renderList() string {
 		return v.renderTrackList()
 	}
 
-	heading := v.Styles.Heading.Render(v.categoryHeading())
+	heading := v.selectionHeading(v.categoryHeading())
 	items := v.EffectiveItems()
 	if len(v.categoryItems()) == 0 {
 		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No favorites yet", []styles.EmptyAction{
@@ -123,7 +124,7 @@ func (v View) categoryStyling() listStyling {
 func (v View) renderItemRow(name string, absIdx int, st listStyling) string {
 	isFocused := absIdx == v.Cursor
 	_, isFav := st.favMap[name]
-	_, selected := v.SelectedItems[absIdx]
+	_, selected := v.SelectedItems[name]
 	isOdd := absIdx%2 == 1
 
 	display := text.FavPrefix(library.AlbumLabel(name), v.Width-2, isFav)
@@ -150,7 +151,7 @@ func (v View) renderItemRow(name string, absIdx int, st listStyling) string {
 }
 
 func (v View) renderTrackList() string {
-	heading := v.Styles.Heading.Render("Favorite Tracks")
+	heading := v.selectionHeading("Favorite Tracks")
 	items := v.EffectiveTracks()
 	if len(v.Tracks) == 0 {
 		card := v.Styles.RenderEmptyCard(v.Width, v.visibleRows(), "No favorites yet", []styles.EmptyAction{
@@ -168,7 +169,7 @@ func (v View) renderTrackList() string {
 }
 
 func (v View) renderTracks() string {
-	heading := v.Styles.Heading.Render(library.AlbumLabel(v.DrilldownName))
+	heading := v.selectionHeading(library.AlbumLabel(v.DrilldownName))
 
 	items := v.EffectiveTracks()
 	if len(v.DrilldownTracks) == 0 {
@@ -239,7 +240,7 @@ type trackRow struct {
 func (v View) renderTrackRow(t library.Track, cols TrackColumns, absIdx int, showDisc bool) string {
 	isFocused := absIdx == v.Cursor
 	isNowPlaying := v.NowPlayingHash != "" && t.Hash == v.NowPlayingHash
-	_, selected := v.SelectedItems[absIdx]
+	_, selected := v.SelectedItems[trackSelectionKey(t)]
 
 	rawPos := text.FormatTrackPosSimple(t.TrackNumber, absIdx+1)
 	if showDisc {
@@ -362,4 +363,27 @@ func (v View) renderPlainTrackRow(r trackRow) string {
 // filterSeparator returns the line between the heading and the item list.
 func (v View) filterSeparator() string {
 	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, v.Styles.Dim.Render(v.FilterHint), v.Width, true)
+}
+
+// Keep selection feedback on the existing heading line, including when every
+// selected row is hidden. Scrolling does not change the hidden count.
+func (v View) selectionHeading(title string) string {
+	suffix := ""
+	if len(v.SelectedItems) > 0 {
+		visible := FavoritesView{Level: v.Level, Category: v.Category, Artists: v.Artists,
+			Albums: v.Albums, Tracks: v.Tracks, DrilldownTracks: v.DrilldownTracks}
+		visible.Filter.Text = v.FilterText
+		keys := visible.SelectionKeys()
+		shown := make(map[string]struct{})
+		for _, key := range keys {
+			if _, ok := v.SelectedItems[key]; ok {
+				shown[key] = struct{}{}
+			}
+		}
+		suffix = fmt.Sprintf(" · %d selected", len(v.SelectedItems))
+		if hidden := len(v.SelectedItems) - len(shown); hidden > 0 {
+			suffix += fmt.Sprintf(" · %d hidden", hidden)
+		}
+	}
+	return v.Styles.Heading.Render(text.Truncate(title, max(0, v.Width-ansi.StringWidth(suffix))) + text.Truncate(suffix, v.Width))
 }

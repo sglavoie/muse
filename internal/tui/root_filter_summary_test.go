@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 )
 
 func TestFilterSummaryDescribesParserWithoutChangingMatches(t *testing.T) {
@@ -47,5 +48,15 @@ func TestFilterSummaryDescribesParserWithoutChangingMatches(t *testing.T) {
 	m.playlists.Filter.Text = "a:Alice"
 	if m.filterQuerySummary() != "" {
 		t.Fatal("literal filters should not advertise field filtering")
+	}
+}
+
+func TestOpenPlaylistFilterSummary(t *testing.T) {
+	m := newRichFixture()
+	m.ActiveView = viewPlaylists
+	m.playlists.Level = pltui.TrackLevel
+	m.playlists.Filter.Text = "a:Alice g:Ambient"
+	if got := m.filterQuerySummary(); got != "Artist: Alice · Genre: Ambient" {
+		t.Fatal(got)
 	}
 }

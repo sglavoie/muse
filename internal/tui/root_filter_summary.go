@@ -7,7 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 )
 
-// Only the Library-based track panels and Queue interpret field prefixes.
+// Library-based track panels, Queue, and open playlists interpret field prefixes.
 // Other lists perform literal substring matching and must not advertise a
 // field constraint they do not actually apply.
 func (m Model) fieldFilterText() string {
@@ -18,6 +18,10 @@ func (m Model) fieldFilterText() string {
 		return m.mixes.TrackView.Filter.Text
 	case viewInsights:
 		return m.insights.TrackView.Filter.Text
+	case viewPlaylists:
+		if !m.playlists.AtListLevel() {
+			return m.playlists.Filter.Text
+		}
 	case viewQueue:
 		return m.queue.Filter.Text
 	}

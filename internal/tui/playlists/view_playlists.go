@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 )
@@ -72,13 +73,11 @@ func (v PlaylistsView) displayTrackIndices() []int {
 	if v.Filter.Text == "" {
 		return order
 	}
-	query := strings.ToLower(v.Filter.Text)
+	query := library.ParseFilterQuery(v.Filter.Text)
 	filtered := make([]int, 0, len(order))
 	for _, idx := range order {
 		row := v.Tracks[idx]
-		if strings.Contains(strings.ToLower(row.Title), query) ||
-			strings.Contains(strings.ToLower(row.Artist), query) ||
-			strings.Contains(strings.ToLower(row.Album), query) {
+		if query.MatchesMetadata(row.Title, row.Artist, row.Album, row.Genre) {
 			filtered = append(filtered, idx)
 		}
 	}

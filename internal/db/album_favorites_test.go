@@ -117,7 +117,7 @@ func TestLegacyUnknownAlbumFavoriteCanBeRemoved(t *testing.T) {
 func TestAlbumArtistInQueuePlaylistTagAndCoverageReads(t *testing.T) {
 	d := openMigratedTestDB(t)
 	w := newWriter(t, d)
-	track := library.Track{Hash: "a", Path: "/mix/a.flac", Album: "Mix", Artist: "Guest", AlbumArtist: "Various Artists"}
+	track := library.Track{Hash: "a", Path: "/mix/a.flac", Album: "Mix", Artist: "Guest", AlbumArtist: "Various Artists", Genre: "Jazz"}
 	if err := w.UpsertBatch([]library.Track{track}); err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestAlbumArtistInQueuePlaylistTagAndCoverageReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows, err := d.ReadPlaylistTracks(playlist)
-	if err != nil || len(rows) != 1 || rows[0].AlbumArtist != track.AlbumArtist {
+	if err != nil || len(rows) != 1 || (rows[0].AlbumArtist != track.AlbumArtist || rows[0].Genre != track.Genre) {
 		t.Fatalf("playlist: %+v, %v", rows, err)
 	}
 	tag, err := w.CreateTag("Tag", "")
@@ -147,7 +147,7 @@ func TestAlbumArtistInQueuePlaylistTagAndCoverageReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows, err = d.ReadTracksByTag(tag)
-	if err != nil || len(rows) != 1 || rows[0].AlbumArtist != track.AlbumArtist {
+	if err != nil || len(rows) != 1 || (rows[0].AlbumArtist != track.AlbumArtist || rows[0].Genre != track.Genre) {
 		t.Fatalf("tag: %+v, %v", rows, err)
 	}
 	coverage, err := d.ReadInsightCoverage()

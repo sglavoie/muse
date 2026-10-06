@@ -108,7 +108,7 @@ func TestSingleFavoriteRemoval_TrackLevelPreservesDrilldownTrack(t *testing.T) {
 		{Hash: "h3", Title: "T3"},
 	}
 	m.favoriteHashes = map[string]struct{}{"h1": {}, "h2": {}, "h3": {}}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0)
 
 	msg := favoriteToggledMsg{
 		typ:         "track",
@@ -243,7 +243,7 @@ func TestSingleFavoriteRemoval_ClearsSelectedItems(t *testing.T) {
 		{Hash: "h3", Title: "T3"},
 	}
 	m.favorites.TrackCount = 3
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(2)
 
 	msg := favoriteToggledMsg{
 		typ:         "track",
@@ -274,7 +274,7 @@ func TestBulkFavoriteRemoval_ClearsSelectedItems_TrackLevel(t *testing.T) {
 		{Hash: "h2", Title: "T2"},
 		{Hash: "h3", Title: "T3"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(1)
 
 	msg := favoriteToggledMsg{
 		typ:           "track",

@@ -219,7 +219,7 @@ func TestSelectedTrackHashes_FavoritesTrackLevel(t *testing.T) {
 		{Hash: "hf1", Title: "Fav A"},
 		{Hash: "hf2", Title: "Fav B"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(1)
 
 	got := m.selectedTrackHashes()
 	if len(got) != 2 {
@@ -236,7 +236,7 @@ func TestSelectedTrackHashes_FavoritesListLevelTracks(t *testing.T) {
 		{Hash: "hf1", Title: "Fav A"},
 		{Hash: "hf2", Title: "Fav B"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(1)
 
 	got := m.selectedTrackHashes()
 	if len(got) != 1 {

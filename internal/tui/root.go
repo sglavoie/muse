@@ -411,9 +411,10 @@ type Model struct {
 
 	// paletteUsage tracks command palette usage counts for MRU ranking.
 	// May be nil when persistence is disabled (e.g. headless tests).
-	paletteUsage    *palette.UsageStore
-	filterHistory   []string // recent committed queries, shared across view filters
-	sortPreferences map[string]sorting.SortState
+	paletteUsage            *palette.UsageStore
+	filterHistorySaveFailed bool     // suppress repeated save warnings until recovery
+	filterHistory           []string // recent committed queries, shared across view filters
+	sortPreferences         map[string]sorting.SortState
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after

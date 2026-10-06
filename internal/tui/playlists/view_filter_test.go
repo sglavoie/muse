@@ -1,6 +1,7 @@
 package playlists
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -52,5 +53,38 @@ func TestPlaylistFilterDrilldownRestoresList(t *testing.T) {
 	row, ok := v.FocusedPlaylist()
 	if !ok || row.ID != 3 || v.Filter.Text != "jazz" {
 		t.Fatal(row, v.Filter.Text)
+	}
+}
+
+func TestPlaylistFieldFiltersPreserveDuplicateRows(t *testing.T) {
+	v := PlaylistsView{Level: TrackLevel, Tracks: []db.PlaylistTrackRow{
+		{ID: 1, Hash: "a", Title: "Live One", Artist: "Alice", Album: "Alpha", Genre: "Ambient"},
+		{ID: 2, Hash: "b", Title: "Two", Artist: "Bob", Album: "Beta", Genre: "Jazz"},
+		{ID: 3, Hash: "a", Title: "Live One", Artist: "Alice", Album: "Alpha", Genre: "Ambient"},
+	}}
+	for _, tc := range []struct {
+		query string
+		ids   []int64
+	}{
+		{"a:ALICE", []int64{1, 3}}, {"artist:Bob", []int64{2}},
+		{"live a:alice l:alpha g:ambient", []int64{1, 3}},
+		{"title:two genre:jazz", []int64{2}}, {"album:beta", []int64{2}},
+		{"g:", []int64{1, 2, 3}}, {"a:alice g:jazz", nil},
+		{"Beta", []int64{2}}, {"ambient", nil},
+	} {
+		v.Filter.Text = tc.query
+		var ids []int64
+		for _, row := range v.DisplayTracks() {
+			ids = append(ids, row.ID)
+		}
+		if !slices.Equal(ids, tc.ids) {
+			t.Errorf("%q: %v, want %v", tc.query, ids, tc.ids)
+		}
+	}
+	v.Level = ListLevel
+	v.Playlists = []db.PlaylistRow{{Name: "a:Alice"}, {Name: "Alice"}}
+	v.Filter.Text = "a:Alice"
+	if rows := v.EffectivePlaylists(); len(rows) != 1 || rows[0].Name != "a:Alice" {
+		t.Fatal(rows)
 	}
 }

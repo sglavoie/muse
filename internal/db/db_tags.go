@@ -120,7 +120,7 @@ func (d *DB) ReadTrackHashesByTag(tagID int64) ([]string, error) {
 // tag ID, ordered by artist then title. Returns an empty slice when none exist.
 func (d *DB) ReadTracksByTag(tagID int64) ([]PlaylistTrackRow, error) {
 	rows, err := d.Query(`
-		SELECT 0, 0, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number, t.album_artist
+		SELECT 0, 0, t.title, t.artist, t.album, t.duration_ms, t.hash, t.path, t.track_number, t.disc_number, t.album_artist, t.genre
 		FROM track_tags tt
 		JOIN tracks t ON tt.track_hash = t.hash
 		JOIN tags tg ON tt.tag_id = tg.id

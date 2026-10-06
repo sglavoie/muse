@@ -163,7 +163,7 @@ func TestBulkMetadataSaveClearsFavoritesSelection(t *testing.T) {
 		{Hash: "h1", Artist: "Alice", Title: "Track A1"},
 		{Hash: "h2", Artist: "Alice", Title: "Track A2"},
 	}
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 1: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(1)
 
 	ed := metadata.NewBulkEditor([]string{"h1", "h2"}, "", "Alice", "", "", "")
 	m.overlay.metadataEditor = &ed

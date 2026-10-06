@@ -105,7 +105,7 @@ func TestBulkActionFavoritesListLevelTracks(t *testing.T) {
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Category = favtui.CategoryTracks
 	m.favorites.Tracks = tracks[:3]
-	m.favorites.SelectedItems = map[int]struct{}{0: {}, 2: {}}
+	m.favorites = m.favorites.ClearSelection().ToggleSelection(0).ToggleSelection(2)
 	m.favorites.Width = 80
 	m.favorites.Height = 40
 
