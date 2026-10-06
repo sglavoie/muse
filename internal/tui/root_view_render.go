@@ -162,6 +162,8 @@ func (m Model) renderOverlayBody() (string, bool) {
 		return m.overlay.destPicker.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.goTo != nil:
 		return m.overlay.goTo.Render(m.termWidth, overlayHeight, *m.styles), true
+	case m.overlay.seekTime != nil:
+		return m.overlay.seekTime.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.commandPalette != nil:
 		return m.overlay.commandPalette.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.smartRuleEditor != nil:

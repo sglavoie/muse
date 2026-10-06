@@ -1,0 +1,20 @@
+{
+  "name": "seek-to-time",
+  "fixture": "playback",
+  "size": "100x24",
+  "actions": [
+    {"command": "playback.seek.time"},
+    {"assert": {"overlay": "seek_time"}},
+    {"assert": {"contains": "Seek to time"}},
+    {"assert": {"no_layout_issues": true}},
+    {"text": "1:99"},
+    {"key": "enter"},
+    {"assert": {"contains": "below 60"}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "below 60"}},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "esc"},
+    {"assert": {"view": "Library"}},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

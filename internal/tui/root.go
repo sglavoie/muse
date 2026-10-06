@@ -52,6 +52,7 @@ type overlayInfo struct {
 	goTo                  *overlay.GoToModal
 	settings              *settings.SettingsOverlay
 	smartRuleEditor       *smartrules.SmartRuleEditor
+	seekTime              *seekTimeState
 	commandPalette        *palette.CommandPalette
 	tagPicker             *tagtui.TagPicker
 	tagMergePicker        *tagtui.TagMergePicker

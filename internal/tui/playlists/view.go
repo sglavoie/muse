@@ -23,6 +23,7 @@ var _ styles.Styles = View{}.Styles
 // View is the pure render struct for the playlists panel. All fields are set
 // by the caller (PlaylistsView in the tui package) before each Render call.
 type View struct {
+	allTracks        []db.PlaylistTrackRow // canonical rows, including rows hidden by a filter
 	FilterVisible    bool
 	Level            Level
 	Cursor           int

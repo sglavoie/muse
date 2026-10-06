@@ -99,6 +99,16 @@ func (m Model) handleCommandPaletteAction(act keys.Action, target viewID) (tea.M
 		return m, nil
 	}
 
+	for _, entry := range paletteCatalog {
+		if entry.act == act && (entry.id == "playlist.rename" || entry.id == "playlist.smart.edit" || entry.id == "playlist.enqueue_all") {
+			cmd := m.describePlaylistCommand(m.paletteCommandFor(entry))
+			if !cmd.IsEnabled() {
+				m.statusBar.Notify(cmd.DisabledReason)
+				return m, nil
+			}
+		}
+	}
+
 	switchAction, ok := viewSwitchActions[target]
 	if !ok || m.ActiveView == target {
 		return m.atCollectionLevelFor(act).handleKeyAction(act)

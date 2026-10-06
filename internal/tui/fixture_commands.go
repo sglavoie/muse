@@ -20,6 +20,7 @@ import (
 // otherwise silently unlist a fixture-safe command.
 func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
+		"playback.seek.time":     {},
 		"messages.show":          {},
 		"help.show":              {},
 		"help.modes_legend":      {},

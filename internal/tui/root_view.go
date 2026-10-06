@@ -36,6 +36,7 @@ func (m Model) hasActiveOverlay() bool {
 		m.overlay.goTo != nil ||
 		m.overlay.smartRuleEditor != nil ||
 		m.overlay.commandPalette != nil ||
+		m.overlay.seekTime != nil ||
 		m.overlay.tagPicker != nil ||
 		m.overlay.tagMergePicker != nil ||
 		m.overlay.tagFilterPicker != nil ||

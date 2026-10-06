@@ -100,6 +100,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	})
 
 	trackFocused := func() bool { return hasFocusedTrack(m) }
+	cmds = append(cmds, m.seekTimeCommand(), m.refreshSmartPlaylistCommand())
 	cmds = append(cmds, m.copyNowPlayingCommand())
 	cmds = append(cmds, m.browseNowPlayingCommand())
 
@@ -340,6 +341,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	cmds = append(cmds, m.sortPaletteCommands()...)
 	for i := range cmds {
 		cmds[i] = m.describeQueueCommand(cmds[i])
+		cmds[i] = m.describePlaylistCommand(cmds[i])
 		if detail, ok := playbackDetails[cmds[i].ID]; ok {
 			cmds[i].Detail = detail
 		}

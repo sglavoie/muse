@@ -104,6 +104,8 @@ func (m Model) ActiveOverlayName() string {
 		return "goto"
 	case m.overlay.smartRuleEditor != nil:
 		return "smart_rule_editor"
+	case m.overlay.seekTime != nil:
+		return "seek_time"
 	case m.overlay.commandPalette != nil:
 		return "command_palette"
 	case m.overlay.tagPicker != nil:

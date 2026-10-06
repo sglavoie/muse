@@ -10,6 +10,7 @@ import (
 func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	pv := View{
 		Level:            v.Level,
+		allTracks:        v.Tracks,
 		Cursor:           v.Cursor,
 		ScrollOffset:     v.ScrollOffset,
 		Playlists:        v.EffectivePlaylists(),
@@ -37,7 +38,10 @@ func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums 
 	pv.NowPlayingIcon = nowPlayingIcon
 	body := pv.Render()
 	if v.Filter.Text != "" && ((v.AtListLevel() && len(pv.Playlists) == 0) || (!v.AtListLevel() && len(pv.Tracks) == 0)) {
-		body = filter.NoMatchesMessage(true, false)
+		body = ansi.Truncate(filter.NoMatchesMessage(true, false), v.Width, "…")
+		if !v.AtListLevel() {
+			body = pv.renderTrackHeading() + "\n" + pv.renderTrackSummary() + "\n" + body
+		}
 	}
 	if pv.FilterVisible {
 		return ansi.Truncate("Filter: "+v.Filter.View(), v.Width, "…") + "\n" + body

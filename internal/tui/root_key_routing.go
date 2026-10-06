@@ -19,6 +19,7 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handleMetadataEditorKeyPress,
 	Model.handleMetadataImportKeyPress,
 	Model.handleSmartRuleEditorKeyPress,
+	Model.handleSeekTimeKeyPress,
 	Model.handleFilterKeyPress,
 	Model.handlePlaylistCreateInput,
 	Model.handlePlaylistRenameInput,

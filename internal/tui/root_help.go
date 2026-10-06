@@ -23,7 +23,7 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 			m.helpSearchFilter = m.helpSearchFilter.Deactivate()
 			m.refreshHelpViewport()
 			return m, nil, true
-		case "enter", "/":
+		case "enter":
 			m.helpSearchFilter = m.helpSearchFilter.Commit()
 			m.refreshHelpViewport()
 			return m, nil, true

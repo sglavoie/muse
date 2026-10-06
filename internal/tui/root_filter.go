@@ -106,8 +106,8 @@ func makeFilterOps(m *Model, f *filter.State, cursor *int, scrollOffset *int, re
 func (m Model) allFilterOps() *filterOps {
 	switch m.ActiveView {
 	case viewPlaylists:
-		return makeFilterOps(&m, &m.playlists.Filter, &m.playlists.Cursor, &m.playlists.ScrollOffset,
-			func() { m.playlists.SelectedTrackIDs = nil })
+		// Playlist selections use stable entry IDs, so filtering can retain hidden rows.
+		return makeFilterOps(&m, &m.playlists.Filter, &m.playlists.Cursor, &m.playlists.ScrollOffset, nil)
 	case viewLibrary:
 		return makeFilterOps(&m, &m.library.Filter, &m.library.Cursor, &m.library.ScrollOffset,
 			func() { m.library = m.library.RebuildFilterCache() })

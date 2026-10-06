@@ -58,7 +58,19 @@ func notificationStyle(severity Severity, fading bool, notif, notifErr lipgloss.
 func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string {
 	stateIcon, stateIconWidth := s.playbackStateIcon(ctx)
 	cluster, clusterWidth := s.renderModeCluster(ctx)
+	if ctx.width > 0 && s.PlaylistSource != "" {
+		available := max(0, ctx.width-ansi.StringWidth(right)-2)
+		s.PlaylistSource = text.Truncate(s.PlaylistSource, max(0, available/3-clusterWidth-6))
+	}
 	suffix, suffixWidth := s.renderSuffix(ctx, cluster, clusterWidth)
+	if ctx.width > 0 {
+		available := max(0, ctx.width-ansi.StringWidth(right)-2)
+		if suffixWidth > available/3 {
+			suffix = ansi.Truncate(suffix, available/3, "…")
+			suffixWidth = ansi.StringWidth(suffix)
+		}
+		s = s.fitArtist(ctx, stateIcon, stateIconWidth, available-suffixWidth)
+	}
 	prefix, prefixWidth, sep, sepWidth := s.renderPrefix(ctx, stateIcon, stateIconWidth)
 	title := s.Title
 	if ctx.width > 0 && s.Title != "" {
@@ -182,4 +194,18 @@ func (s StatusBar) renderPrefix(ctx statusBarRenderContext, stateIcon string, st
 		sepWidth = 0
 	}
 	return prefix, prefixWidth, sep, sepWidth
+}
+
+// Keep a recognizable title even when artist metadata is unusually long.
+func (s StatusBar) fitArtist(ctx statusBarRenderContext, icon string, iconWidth, budget int) StatusBar {
+	_, prefixWidth, _, sepWidth := s.renderPrefix(ctx, icon, iconWidth)
+	artistWidth := ansi.StringWidth(s.Artist)
+	titleWidth := ansi.StringWidth(s.Title)
+	if artistWidth <= 12 || prefixWidth+sepWidth+titleWidth <= budget {
+		return s
+	}
+	fixed := prefixWidth - artistWidth + sepWidth
+	artistBudget := max(0, budget-fixed-min(titleWidth, max(12, (budget-fixed)/2)))
+	s.Artist = text.Truncate(s.Artist, artistBudget)
+	return s
 }

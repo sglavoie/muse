@@ -25,6 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **Seek to time…** palette command accepts seconds, `m:ss`, or `h:mm:ss`
+  for the loaded track. It preserves pause, validates known duration bounds,
+  and refuses a target whose track changed while the prompt was open.
+- Open playlists show total and selected duration, counting repeated entries
+  and preserving selections hidden by filters; unknown durations use `+`.
+- Playlist commands identify their targets and only offer rename and smart-rule
+  editing at the appropriate list level. **Refresh smart playlist** is a
+  separate command for an open smart playlist.
+- Narrow playback status bars preserve room for the title and playback clock
+  when artist, album, or playlist names are long.
+- Help search accepts literal `/` while typing, matching other text filters.
+
 - Library selection headers show how many selected tracks are hidden from the
   current list, including text and tag filters, while retaining the full selection.
 

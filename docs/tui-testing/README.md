@@ -171,7 +171,7 @@ An `assert` object sets exactly one expectation:
 | `contains` | The plain screen contains the substring. |
 | `not_contains` | The plain screen omits the substring. |
 | `view` | The active **primary** view matches (case-insensitive): `Library`, `Playlists`, `Queue`, `Browse`, `Favorites`, `Tags`, `Mixes`. |
-| `overlay` | The active overlay matches (case-insensitive), e.g. `help`, `command_palette`, `queue_summary`, `debug`, `now_playing`, `autodj_tune`, `autodj_preview`, `autodj_recipes`. There is no "no overlay" assertion; assert a `view` instead. |
+| `overlay` | The active overlay matches (case-insensitive), e.g. `help`, `command_palette`, `queue_summary`, `debug`, `now_playing`, `seek_time`, `autodj_tune`, `autodj_preview`, `autodj_recipes`. There is no "no overlay" assertion; assert a `view` instead. |
 | `status_contains` | The status line contains the substring. |
 | `no_layout_issues` | The observation reports zero layout issues. Must be `true`. |
 

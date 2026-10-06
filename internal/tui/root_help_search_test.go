@@ -146,7 +146,7 @@ func TestHelpSearchFilterEscWithCommittedTextClearsThenCloses(t *testing.T) {
 	}
 }
 
-func TestHelpSearchFilterSlashCommits(t *testing.T) {
+func TestHelpSearchFilterSlashIsLiteral(t *testing.T) {
 	m := New(context.Background())
 	m.termWidth = 80
 	m.termHeight = 100
@@ -160,15 +160,15 @@ func TestHelpSearchFilterSlashCommits(t *testing.T) {
 		next, _ = nm.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
 		nm = next.(Model)
 	}
-	// Press / again to commit.
+	// Press / again to search for a literal slash.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
 	nm = next.(Model)
 
-	if nm.helpSearchFilter.Active {
-		t.Fatal("expected helpSearchFilter.Active==false after / commit")
+	if !nm.helpSearchFilter.Active {
+		t.Fatal("slash should keep help search active")
 	}
-	if nm.helpSearchFilter.Text != "seek" {
-		t.Fatalf("expected helpSearchFilter.Text==\"seek\", got %q", nm.helpSearchFilter.Text)
+	if nm.helpSearchFilter.Text != "seek/" {
+		t.Fatalf("expected literal slash, got %q", nm.helpSearchFilter.Text)
 	}
 }
 

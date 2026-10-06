@@ -469,6 +469,12 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case mixUndismissErrorMsg:
 		m.statusBar.NotifyError("Undismiss failed: " + msg.err.Error())
 
+	case refreshSmartPlaylistMsg:
+		return m.handleRefreshSmartPlaylist()
+
+	case openSeekTimeMsg:
+		return m.openSeekTime()
+
 	case commandPaletteActionMsg:
 		return m.handleCommandPaletteAction(msg.action, msg.view)
 

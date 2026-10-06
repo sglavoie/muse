@@ -11,6 +11,7 @@ var orderedInputForwarders = []inputMsgForwarder{
 	Model.forwardSmartRuleEditorMsg,
 	Model.forwardCommandPaletteMsg,
 	Model.forwardDestinationPickerMsg,
+	Model.forwardSeekTimeMsg,
 	Model.forwardFilterMsg,
 	Model.forwardPlaylistCreateMsg,
 	Model.forwardPlaylistRenameMsg,

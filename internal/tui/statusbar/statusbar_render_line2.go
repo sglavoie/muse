@@ -31,6 +31,11 @@ func (s StatusBar) renderLine2(ctx statusBarRenderContext) string {
 
 func (s StatusBar) renderPlaybackLine(ctx statusBarRenderContext, targetWidth int) string {
 	const line2Pad = 1
+	if targetWidth > 0 {
+		// Reserve the clock and a small progress bar before fitting the album.
+		timeWidth := len(s.Elapsed) + 3 + len(s.Total)
+		s.Album = text.Truncate(s.Album, max(0, targetWidth-timeWidth-14))
+	}
 	albumPart := ""
 	albumWidth := 0
 	if s.Album != "" {

@@ -119,19 +119,9 @@ func (v View) renderRenameInputRow(cols Columns) string {
 }
 
 func (v View) renderTracks() string {
-	title := "Playlists"
-	if v.playlistName != "" {
-		title += " — " + v.playlistName
-	}
-	if v.Width > 0 {
-		title = text.Truncate(title, v.Width)
-	}
-	heading := v.Styles.Heading.Render(title)
-	if v.IsSmartPlaylist {
-		heading += "  " + v.Styles.Dim.Render("(smart playlist — read-only)")
-	}
+	heading := v.renderTrackHeading() + "\n" + v.renderTrackSummary()
 	if len(v.Tracks) == 0 {
-		return heading + "\n\n(no tracks)"
+		return heading + "\n(no tracks)"
 	}
 
 	cols := ComputeTrack(v.Width)
@@ -145,7 +135,7 @@ func (v View) renderTracks() string {
 		absIdx := start + i
 		lines[i] = v.renderTrackRow(t, cols, absIdx, absIdx == focusCursor)
 	}
-	return heading + "\n\n" + header + "\n" + strings.Join(lines, "\n")
+	return heading + "\n" + header + "\n" + strings.Join(lines, "\n")
 }
 
 // renderTrackHeader builds the column header row, appending the sort direction

@@ -95,6 +95,9 @@ matching release, and each release can then be unfavorited independently.
   destinations for the playing or paused song, independently of the focused row.
   Its detail line identifies the song; selecting it keeps that target even if
   playback advances while the palette is open.
+- **Seek to time…** in the command palette jumps to seconds (`90`), `m:ss`
+  (`12:30`), or `h:mm:ss` (`1:02:03`) in the loaded track, preserving pause.
+  Invalid times stay open for correction; changing tracks cancels the target.
 - **Gapless playback** via mpv prefetch (`gapless_audio`).
 - **10-band equalizer** with built-in presets (Flat, Bass Boost, Treble Boost,
   Rock, Jazz, Classical, Pop) and user-defined custom presets, plus stereo
@@ -153,8 +156,9 @@ matching release, and each release can then be unfavorited independently.
   distinguish `Esc` to clear a text filter from `ctrl+t` to clear a tag filter.
 - While editing a filter, the footer shows `Enter` to apply, `Esc` to clear,
   and Up/Down to recall history. `/` is literal text while editing, so names
-  such as `AC/DC` can be typed normally. Empty field prefixes such as `a:` leave tracks
-  visible while you type; other populated terms still apply.
+  such as `AC/DC` can be typed normally. Help search also treats `/` as literal
+  text while typing; `Enter` applies the search and `Esc` clears it. Empty field
+  prefixes such as `a:` leave tracks visible while you type; other populated terms still apply.
   When space allows, Library, Mixes, Insights track lists, and Queue also show
   how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
   Queue supports the same field prefixes, including `g:` / `genre:`.
@@ -169,6 +173,12 @@ matching release, and each release can then be unfavorited independently.
   the search before dismissing the picker.
   The heading shows the count and total duration of the tracks being added,
   including hidden selections; `+` marks unknown durations.
+- Open playlists show their total entry count and duration, including repeated
+  songs. Filtering preserves selected entries, which have their own duration
+  and hidden-selection count;
+  `+` marks unknown durations. Playlist palette commands identify their target;
+  rename and rule editing apply at list level, while **Refresh smart playlist**
+  re-evaluates the open smart playlist.
 - Playlist filters preserve individual rows when the same song appears more than
   once. `Esc` clears the track filter before returning to the playlist list, where
   the previous name filter is restored. Reordering and shuffle-in-place require

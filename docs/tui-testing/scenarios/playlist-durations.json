@@ -1,0 +1,20 @@
+{
+  "name": "playlist-durations",
+  "fixture": "rich",
+  "size": "100x24",
+  "actions": [
+    {"key": "2"}, {"key": "enter"},
+    {"assert": {"contains": "3 tracks"}},
+    {"assert": {"contains": "1:09:04"}},
+    {"key": "x"}, {"key": "j"}, {"key": "x"},
+    {"assert": {"contains": "8:03"}},
+    {"key": "/"}, {"text": "D1"}, {"key": "enter"},
+    {"assert": {"contains": "2 selected"}},
+    {"assert": {"contains": "2 hidden"}},
+    {"assert": {"contains": "8:03"}},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "2 selected"}},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}
