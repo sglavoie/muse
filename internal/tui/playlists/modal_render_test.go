@@ -232,3 +232,28 @@ func TestBuildBoxLines_CJKLabelsAligned(t *testing.T) {
 		}
 	}
 }
+
+func TestDestinationSummarySurvivesSearchAndPaging(t *testing.T) {
+	m := NewDestinationPicker(fakePlaylistRows("Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta")).WithTrackSummary(8, "32:14+")
+	m.SetHeight(15)
+	for _, width := range []int{60, 80, 120} {
+		out := m.Render(width, 15, styles.NewStyles(true))
+		if !strings.Contains(ansi.Strip(out), "Add 8 tracks · 32:14+") {
+			t.Fatalf("missing summary: %s", out)
+		}
+		for _, line := range strings.Split(out, "\n") {
+			if ansi.StringWidth(line) > width {
+				t.Fatalf("overflow: %s", line)
+			}
+		}
+	}
+	m, _ = m.HandleKey("G")
+	m.search.Text = "Alpha"
+	if out := m.Render(60, 15, styles.NewStyles(true)); !strings.Contains(ansi.Strip(out), "Add 8 tracks · 32:14+") {
+		t.Fatal("search changed summary")
+	}
+	m = m.WithTrackSummary(1, "3:00")
+	if out := m.Render(60, 15, styles.NewStyles(true)); !strings.Contains(ansi.Strip(out), "Add 1 track · 3:00") {
+		t.Fatal("missing singular summary")
+	}
+}

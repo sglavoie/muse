@@ -243,6 +243,8 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case playlistTracksLoadedMsg:
 		m = m.handlePlaylistTracksLoadedMsg(msg)
+	case playlistOrderSavedMsg:
+		m = m.handlePlaylistOrderSaved(msg)
 
 	case playlistTracksLoadErrorMsg:
 		m = m.handlePlaylistTracksLoadErrorMsg(msg)

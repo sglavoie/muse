@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"log/slog"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -24,6 +24,10 @@ func (m Model) handlePlaylistMoveTrackDown() (Model, tea.Cmd) {
 // shiftPlaylistTrack moves the focused track one position in the given
 // direction (-1 = up, +1 = down) and persists the swap asynchronously.
 func (m Model) shiftPlaylistTrack(dir int) (Model, tea.Cmd) {
+	if m.playlistOrderPending {
+		m.statusBar.Notify("Saving playlist order — try again shortly")
+		return m, nil
+	}
 	if m.playlists.AtListLevel() || m.playlists.SmartQuery != nil {
 		return m, nil
 	}
@@ -36,6 +40,11 @@ func (m Model) shiftPlaylistTrack(dir int) (Model, tea.Cmd) {
 
 	idx := m.playlists.Cursor
 	n := len(m.playlists.Tracks)
+	if idx < 0 || idx >= n {
+		return m, nil
+	}
+	before := playlistOrderIDs(m.playlists.Tracks)
+	m.playlists.Tracks = slices.Clone(m.playlists.Tracks)
 
 	if dir < 0 {
 		if idx <= 0 || n < 2 {
@@ -67,11 +76,13 @@ func (m Model) shiftPlaylistTrack(dir int) (Model, tea.Cmd) {
 	playlistID := m.playlists.PendingLoadID
 	if reorderer, ok := m.playlistDeleter.(playlistTrackReorderer); ok && playlistID != 0 {
 		id := entry.ID
+		after := playlistOrderIDs(m.playlists.Tracks)
+		m.playlistOrderPending = true
 		return m, func() tea.Msg {
 			if err := reorderer.ReorderPlaylistTrack(playlistID, id, dir); err != nil {
-				slog.Error("reorder playlist track failed", "id", id, "err", err)
+				return playlistOrderSavedMsg{playlistID: playlistID, order: before, err: err}
 			}
-			return nil
+			return playlistOrderSavedMsg{playlistID: playlistID, order: after}
 		}
 	}
 	return m, nil

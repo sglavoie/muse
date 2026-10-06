@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // renderStateStrip builds the unified single-line state strip carrying
@@ -36,11 +37,30 @@ func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineAct
 		Total:     total,
 		Filtering: v.Filter.Text != "",
 	}
-	var sel *strip.SelectionChunk
-	if n := len(v.SelectedHashes()); n > 0 {
-		sel = &strip.SelectionChunk{Count: n}
-	}
+	sel := v.selectionSummary()
 	return strip.Render(v.Width, []string{queueStripLabel(v.SortState.Field, timelineActive)}, sortChunk, f, counts, sel, v.RemainingLabel, s)
+}
+
+func (v View) selectionSummary() *strip.SelectionChunk {
+	var summary strip.SelectionChunk
+	var duration text.DurationTotal
+	for _, entry := range v.Entries {
+		if entry.Selected {
+			summary.Count++
+			duration.Add(float64(entry.DurationMs) / 1000)
+		}
+	}
+	if summary.Count == 0 {
+		return nil
+	}
+	summary.Hidden = summary.Count
+	for _, entry := range v.FilteredEntries() {
+		if entry.Selected {
+			summary.Hidden--
+		}
+	}
+	summary.Duration = duration.String()
+	return &summary
 }
 
 // queueStripLabel names the view, appending the shuffle-order mode when the

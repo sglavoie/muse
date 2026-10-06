@@ -158,6 +158,8 @@ type Model struct {
 	// pressing enter. It is never set for production models.
 	fixtureSafeCommands bool
 
+	playlistOrderPending bool // serialize order writes so failure recovery cannot undo a newer move
+
 	library    libtui.View
 	playlists  pltui.PlaylistsView
 	queue      queue.View

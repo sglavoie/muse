@@ -2,7 +2,6 @@ package library
 
 import (
 	"maps"
-	"math"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -60,25 +59,16 @@ func (v Panel) selectedDuration() string {
 			overrides[track.Hash] = track.Duration
 		}
 	}
-	var seconds float64
-	unknown := false
+	var total text.DurationTotal
 	for hash := range v.SelectedHashes {
 		track, ok := v.Index.FindByHash(hash)
 		duration := track.Duration
 		if !ok {
 			duration = overrides[hash]
 		}
-		if duration <= 0 || math.IsNaN(duration) || math.IsInf(duration, 0) {
-			unknown = true
-			continue
-		}
-		seconds += duration
+		total.Add(duration)
 	}
-	duration := text.FormatPositionSecs(seconds)
-	if unknown {
-		duration += "+"
-	}
-	return duration
+	return total.String()
 }
 
 // renderDivider returns a single divider line spanning the visible content

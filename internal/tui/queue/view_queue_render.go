@@ -75,6 +75,9 @@ func (v View) renderEmpty(s styles.Styles) string {
 		for i, line := range lines {
 			lines[i] = clampQueueLine(line, v.Width)
 		}
+		if stripLine := v.renderStateStrip(s, len(v.Entries), 0, v.timelineActive(v.traversalSnapshot())); stripLine != "" {
+			lines = append([]string{stripLine}, lines...)
+		}
 		return strings.Join(lines, "\n")
 	}
 	return s.RenderEmptyCard(v.Width, v.VisibleRows(), "Queue is empty", []styles.EmptyAction{

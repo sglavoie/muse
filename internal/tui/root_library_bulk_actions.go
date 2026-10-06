@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/tui/keys"
 	pltui "github.com/sglavoie/muse/internal/tui/playlists"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 func (m Model) handleLibraryBulkAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
@@ -24,7 +25,11 @@ func (m Model) handleLibraryBulkAction(action keys.Action) (tea.Model, tea.Cmd, 
 
 	tracks := m.bulkActionTracks()
 	if len(tracks) > 0 {
-		modal := pltui.NewDestinationPicker(m.playlists.Playlists)
+		var duration text.DurationTotal
+		for _, track := range tracks {
+			duration.Add(track.Duration)
+		}
+		modal := pltui.NewDestinationPicker(m.playlists.Playlists).WithTrackSummary(len(tracks), duration.String())
 		m.overlay.destPicker = &modal
 		m.overlay.destPickerTracks = tracks
 	}

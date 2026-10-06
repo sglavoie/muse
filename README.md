@@ -134,8 +134,9 @@ matching release, and each release can then be unfavorited independently.
   To recover it, copy that backup over `metadata-export.tsv` before importing.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
-- Library selections show their total duration beside the count, including
-  selected tracks hidden by filters. A separate hidden count shows how many
+- Library and Queue selections show their total duration beside the count,
+  including selected tracks hidden by filters. Queue counts each selected entry,
+  including repeated songs. A separate hidden count shows how many
   selected tracks are outside the current list; scrolling alone does not change it.
   `+` marks unknown durations; the duration
   yields to other details in narrow windows.
@@ -166,10 +167,15 @@ matching release, and each release can then be unfavorited independently.
   terminal. Search matches playlist names and keeps Play Queue and New playlist
   available. Enter applies the search, then confirms a destination; Esc clears
   the search before dismissing the picker.
+  The heading shows the count and total duration of the tracks being added,
+  including hidden selections; `+` marks unknown durations.
 - Playlist filters preserve individual rows when the same song appears more than
   once. `Esc` clears the track filter before returning to the playlist list, where
   the previous name filter is restored. Reordering and shuffle-in-place require
   an unfiltered track list. `E` still enqueues the entire playlist.
+  Failed order saves restore the previous order and appear in Recent Messages;
+  shuffle confirms success after saving. Further order changes wait until the
+  current save finishes.
 - **Direct sorting** — search the palette for _Sort by_ to choose a field supported
   by the current view. The selected field and direction appear in its detail line.
   Sort fields and directions survive restarts in `sort_preferences.json` in the

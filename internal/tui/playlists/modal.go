@@ -47,10 +47,18 @@ type DestinationPickerCreateMsg struct{}
 // saved playlists in alphabetical order and a "New playlist…" action.
 // Searching filters playlist names while keeping both actions available.
 type DestinationPickerModal struct {
-	playlists []db.PlaylistRow
-	cursor    int
-	height    int
-	search    filter.State
+	playlists  []db.PlaylistRow
+	cursor     int
+	height     int
+	search     filter.State
+	trackCount int
+	duration   string
+}
+
+// WithTrackSummary describes the captured tracks the picker will add.
+func (m DestinationPickerModal) WithTrackSummary(count int, duration string) DestinationPickerModal {
+	m.trackCount, m.duration = count, duration
+	return m
 }
 
 // NewDestinationPicker returns a DestinationPickerModal populated with the
@@ -195,7 +203,14 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 	if len(labels) > m.visibleRows() {
 		modalTitle = fmt.Sprintf(" Destination %d/%d ", focusCursor+1, len(labels))
 	}
+	if m.trackCount > 0 {
+		modalTitle = fmt.Sprintf(" Add %d %s · %s ", m.trackCount, text.Pluralize(m.trackCount, "track", "tracks"), m.duration)
+		if len(labels) > m.visibleRows() {
+			modalTitle += fmt.Sprintf("· %d/%d ", focusCursor+1, len(labels))
+		}
+	}
 	innerWidth := m.innerWidth(termWidth, labels, modalTitle)
+	modalTitle = text.Truncate(modalTitle, innerWidth)
 	contentWidth := innerWidth - 2 // characters available for the label inside a row
 	contentWidth = max(contentWidth, 0)
 

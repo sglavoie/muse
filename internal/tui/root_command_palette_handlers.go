@@ -11,7 +11,6 @@ import (
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
-	"github.com/sglavoie/muse/internal/tui/statusbar"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
@@ -271,6 +270,10 @@ func (m Model) handleJumpToNowPlayingMsg() (Model, tea.Cmd) {
 // playlist's tracks, either in-memory (TrackLevel) or via background load
 // (ListLevel), and persists the new order when a playlistShuffler is available.
 func (m Model) handlePlaylistShuffleMsg() (Model, tea.Cmd) {
+	if m.playlistOrderPending {
+		m.statusBar.Notify("Saving playlist order — try again shortly")
+		return m, nil
+	}
 	if m.ActiveView != viewPlaylists {
 		m.statusBar.Notify("No playlist focused")
 		return m, nil
@@ -295,6 +298,7 @@ func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	before := playlistOrderIDs(m.playlists.Tracks)
 	tracks := make([]db.PlaylistTrackRow, len(m.playlists.Tracks))
 	copy(tracks, m.playlists.Tracks)
 	for i := len(tracks) - 1; i > 0; i-- {
@@ -304,24 +308,19 @@ func (m Model) shufflePlaylistFromTracks() (Model, tea.Cmd) {
 	m.playlists.Tracks = tracks
 	m = m.resetPlaylistsSort()
 
-	n := len(tracks)
-	m.statusBar.Notify(fmt.Sprintf("Playlist shuffled (%d tracks)", n))
-
-	var playlistID int64
-	if m.playlists.ListCursor >= 0 && m.playlists.ListCursor < len(m.playlists.Playlists) {
-		playlistID = m.playlists.Playlists[m.playlists.ListCursor].ID
-	}
-
-	if playlistID > 0 {
-		if shuffler, ok := m.playlistDeleter.(playlistShuffler); ok {
-			ids := make([]int64, n)
-			for i, t := range tracks {
-				ids[i] = t.ID
+	note := fmt.Sprintf("Playlist shuffled (%d tracks)", len(tracks))
+	playlistID := m.playlists.PendingLoadID
+	if shuffler, ok := m.playlistDeleter.(playlistShuffler); ok && playlistID > 0 {
+		ids := playlistOrderIDs(tracks)
+		m.playlistOrderPending = true
+		return m, func() tea.Msg {
+			if err := shuffler.SetPlaylistOrder(playlistID, ids); err != nil {
+				return playlistOrderSavedMsg{playlistID: playlistID, order: before, err: err}
 			}
-			pid := playlistID
-			return m, func() tea.Msg { _ = shuffler.SetPlaylistOrder(pid, ids); return nil }
+			return playlistOrderSavedMsg{playlistID: playlistID, order: ids, success: note}
 		}
 	}
+	m.statusBar.Notify(note)
 
 	return m, nil
 }
@@ -351,23 +350,28 @@ func (m Model) shufflePlaylistFromList() (Model, tea.Cmd) {
 	}
 	pid := pl.ID
 	name := pl.Name
+	m.playlistOrderPending = true
 
 	return m, func() tea.Msg {
 		tracks, err := reader.ReadPlaylistTracks(pid)
-		if err != nil || len(tracks) <= 1 {
-			return statusbar.TransientNotifyMsg("Playlist too small to shuffle")
+		if err != nil {
+			return playlistOrderSavedMsg{playlistID: pid, err: fmt.Errorf("load playlist: %w", err)}
 		}
+		if len(tracks) <= 1 {
+			return playlistOrderSavedMsg{playlistID: pid, success: "Playlist too small to shuffle"}
+		}
+		before := playlistOrderIDs(tracks)
 		for i := len(tracks) - 1; i > 0; i-- {
 			j := rand.IntN(i + 1) //nolint:gosec // non-security random for playlist shuffle
 			tracks[i], tracks[j] = tracks[j], tracks[i]
 		}
-		if shuffler != nil {
-			ids := make([]int64, len(tracks))
-			for i, t := range tracks {
-				ids[i] = t.ID
-			}
-			_ = shuffler.SetPlaylistOrder(pid, ids)
+		ids := playlistOrderIDs(tracks)
+		if shuffler == nil {
+			return playlistOrderSavedMsg{playlistID: pid, err: fmt.Errorf("playlist ordering is unavailable")}
 		}
-		return statusbar.TransientNotifyMsg(fmt.Sprintf("Shuffled %q (%d tracks)", name, len(tracks)))
+		if err := shuffler.SetPlaylistOrder(pid, ids); err != nil {
+			return playlistOrderSavedMsg{playlistID: pid, order: before, err: err}
+		}
+		return playlistOrderSavedMsg{playlistID: pid, order: ids, success: fmt.Sprintf("Shuffled %q (%d tracks)", name, len(tracks))}
 	}
 }
