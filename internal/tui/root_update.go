@@ -81,6 +81,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case library.DurationAuditDoneMsg:
 		return m.handleDurationAuditDoneMsg(msg)
 
+	case scanFinishedMsg:
+		return m.handleScanFinishedMsg(msg), nil
+
 	case library.ScanDoneMsg:
 		return m.handleScanDoneMsg()
 

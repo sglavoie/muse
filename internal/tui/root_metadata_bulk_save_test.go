@@ -135,6 +135,7 @@ func TestBulkMetadataSaveClearsGenresSelection(t *testing.T) {
 	ed, _, _ = ed.HandleKey(genreMsg)
 	ed, _, _ = ed.HandleKey(genreMsg)
 	ed, _, _ = ed.HandleKey(genreMsg)
+	ed, _, _ = ed.HandleKey(genreMsg)
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyBackspace})

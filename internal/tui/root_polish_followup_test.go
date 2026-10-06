@@ -90,7 +90,7 @@ func TestAlbumArtistEditorSaveUndoAndScan(t *testing.T) {
 	}
 	m.queue.Entries = []queue.Entry{{ID: 1, Hash: "a", AlbumArtist: "First"}}
 	ed := m.bulkEditorForHashes([]string{"a", "b"})
-	for range 5 {
+	for range 2 {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	}
 	for _, r := range "Various Artists" {

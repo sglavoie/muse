@@ -133,11 +133,11 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 114 | 29 | 84 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/overlay` | 114 | 30 | 83 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
-| `tui/metadata` | 54 | 0 | 52 | 2 | `tui` |
+| `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
 | `tui/queue` | 79 | 18 | 60 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1039 exported identifiers across 15 packages**: 156 reached from two or more packages, 822 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1040 exported identifiers across 15 packages**: 157 reached from two or more packages, 822 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -600,7 +600,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay.TagsLine` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Title` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Total` | field | `internal/tui` | root |
-| `tui/overlay` | `ParseSeekTime` | func | `internal/tui` | root |
+| `tui/overlay` | `ParseSeekTime` | func | `internal/tui`, `tui/metadata` | multi |
 | `tui/overlay` | `PreviewOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `PreviewOverlay.Album` | field | `internal/tui` | root |
 | `tui/overlay` | `PreviewOverlay.Artist` | field | `internal/tui` | root |
@@ -783,6 +783,7 @@ export must either earn a justification, be recorded in
 | `tui/metadata` | `Editor.Title` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.WithAlbumArtists` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.WithMixedValues` | method | `internal/tui` | root |
+| `tui/metadata` | `Editor.WithPath` | method | `internal/tui` | root |
 | `tui/metadata` | `Field` | type | — | api |
 | `tui/metadata` | `FieldAlbumArtist` | const | `internal/tui†` | root (tests only) |
 | `tui/metadata` | `FieldDuration` | const | `internal/tui†` | root (tests only) |

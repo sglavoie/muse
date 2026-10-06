@@ -2,7 +2,8 @@ package metadata
 
 import (
 	"fmt"
-	"strconv"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -61,55 +62,19 @@ func FormatDuration(secs float64) string {
 	return fmt.Sprintf("%d:%02d", m, s)
 }
 
-// ParseDuration parses "M:SS", "H:MM:SS", or "" back to seconds.
-// Returns 0, nil for an empty string. Returns an error for invalid input.
+// ParseDuration accepts the same time formats as seeking, plus an empty value
+// for unknown duration.
 func ParseDuration(s string) (float64, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
+	if strings.TrimSpace(s) == "" {
 		return 0, nil
 	}
-	parts := strings.Split(s, ":")
-	// Seconds-per-unit for each field, most significant first: "M:SS" is
-	// minutes and seconds; "H:MM:SS" adds hours in front.
-	var multipliers []int
-	switch len(parts) {
-	case 2:
-		multipliers = []int{60, 1}
-	case 3:
-		multipliers = []int{3600, 60, 1}
-	default:
-		return 0, fmt.Errorf("invalid duration %q", s)
-	}
-
-	total := 0
-	for i, part := range parts {
-		// Only the leading field is unbounded; the rest must stay below the
-		// unit above them.
-		n, ok := parseDurationField(part, i > 0)
-		if !ok {
-			return 0, fmt.Errorf("invalid duration %q", s)
-		}
-		total += n * multipliers[i]
-	}
-	return float64(total), nil
-}
-
-// parseDurationField parses one colon-separated duration field. It must be a
-// non-negative integer, and at most 59 when bounded.
-func parseDurationField(part string, bounded bool) (int, bool) {
-	n, err := strconv.Atoi(part)
-	if err != nil || n < 0 {
-		return 0, false
-	}
-	if bounded && n > 59 {
-		return 0, false
-	}
-	return n, true
+	return overlay.ParseSeekTime(s)
 }
 
 // Editor is a fullscreen overlay for editing track metadata.
 type Editor struct {
 	hash          string
+	filename      string   // opening filename, independent of edits to the title
 	hashes        []string // nil for single-track, populated for bulk
 	Fields        [fieldCount]textinput.Model
 	focused       Field
@@ -151,6 +116,14 @@ func NewEditor(hash, title, artist, album, genre string, duration float64) Edito
 			newField("", false),
 		},
 	}
+}
+
+// WithPath adds the original filename as read-only context for a single track.
+func (e Editor) WithPath(path string) Editor {
+	if path != "" {
+		e.filename = filepath.Base(path)
+	}
+	return e
 }
 
 // NewBulkEditor returns a MetadataEditor for editing multiple tracks.
@@ -289,14 +262,16 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 			return e, actionNone, nil
 		}
 		e.Fields[e.focused].Blur()
-		e.focused = (e.focused + 1) % fieldCount
+		fields := e.renderFieldIndices()
+		e.focused = Field(fields[(slices.Index(fields, int(e.focused))+1)%len(fields)])
 		return e, actionNone, e.Fields[e.focused].Focus()
 	case "shift+tab":
 		if e.mode != ModeDefault {
 			return e, actionNone, nil
 		}
 		e.Fields[e.focused].Blur()
-		e.focused = (e.focused + fieldCount - 1) % fieldCount
+		fields := e.renderFieldIndices()
+		e.focused = Field(fields[(slices.Index(fields, int(e.focused))+len(fields)-1)%len(fields)])
 		return e, actionNone, e.Fields[e.focused].Focus()
 	}
 
@@ -394,11 +369,18 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	rightTP := titlePad - leftTP
 	lines = append(lines, overlay.BorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+overlay.BorderV)
 
+	// Keep the filename visible while editing metadata when there is a spare row.
+	contextRows := 0
+	if e.filename != "" && termHeight >= len(renderFields)+5+len(strings.Split(e.hintLine(), "\n")) {
+		lines = append(lines, overlay.BorderV+s.Dim.Render(text.Pad("  File: "+e.filename, boxInner))+overlay.BorderV)
+		contextRows = 1
+	}
+
 	// Separator.
 	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Field rows.
-	lines = append(lines, e.fieldRowLines(renderFields, valueWidth, termHeight, s)...)
+	lines = append(lines, e.fieldRowLines(renderFields, valueWidth, termHeight-contextRows, s)...)
 
 	// Bottom border.
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
@@ -415,6 +397,9 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 		hints = []string{"  tab fields · enter save · esc cancel", fmt.Sprintf("  ctrl+r reset · %d changed", changed)}
 		if e.IsBulk() {
 			hints[1] += " · ctrl+d clear"
+		}
+		if e.focused == FieldDuration {
+			hints[1] = fmt.Sprintf("  s/m:ss/h:mm:ss · %d changed · ctrl+r reset", changed)
 		}
 	}
 	lines = append(lines, hints...)
@@ -455,7 +440,7 @@ func (e Editor) renderFieldIndices() []int {
 	case ModeRenameAlbum:
 		return []int{int(fieldAlbum)}
 	default:
-		return []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration), int(FieldAlbumArtist)}
+		return []int{int(fieldTitle), int(fieldArtist), int(FieldAlbumArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration)}
 	}
 }
 
@@ -531,6 +516,13 @@ func (e Editor) hintLine() string {
 		hint += "\n  ctrl+d clear field · ctrl+r reset · * applies"
 	} else {
 		hint += "\n  ctrl+r reset field"
+	}
+	if e.focused == FieldDuration {
+		if e.IsBulk() {
+			hint = "  tab/shift+tab fields · enter save · esc cancel\n  ctrl+d clear · ctrl+r reset · s/m:ss/h:mm:ss"
+		} else {
+			hint += " · s/m:ss/h:mm:ss"
+		}
 	}
 	changed := 0
 	for _, i := range e.renderFieldIndices() {

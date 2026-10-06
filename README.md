@@ -125,6 +125,10 @@ matching release, and each release can then be unfavorited independently.
   Use `j`/`k`, arrow keys, or Page Up/Down to scroll; `g`/`G` jumps to the
   beginning/end. Long values wrap, and the title shows your position when
   more information is available.
+- The metadata form places Album Artist beside Artist and shows the original
+  filename when there is room. Duration accepts seconds (`90`), `m:ss` (`1:30`),
+  or `h:mm:ss`, matching Seek to time; its format hint appears while focused.
+  An empty duration remains unknown.
 - Saving an unchanged metadata form leaves your previous undo available.
   Changed fields are marked with `*` in single-track and bulk forms, with a
   changed-field count below the editor. Restoring an original value removes its marker.
@@ -227,7 +231,11 @@ matching release, and each release can then be unfavorited independently.
   _Sort by default order_ to reset a view. The existing sort-cycle and
   direction shortcuts remain available.
 - Completed library scans replace progress with “Scan complete — N tracks” and
-  retain that result in Recent Messages. Canceled and incomplete scans keep their
+  retain that result in Recent Messages. Manual rescans also report added and
+  missing track counts compared with the library before the scan; moving a file
+  with unchanged content does not count as an addition or a disappearance.
+  Rescan results wait for database writes, and save failures appear as errors
+  with a retry hint in Recent Messages. Canceled and incomplete scans keep their
   distinct messages.
 - **Recent messages** — `:` → _Show recent messages_ reopens the last 50 action
   results and errors from this session. Long messages wrap; `j`/`k` scroll, with

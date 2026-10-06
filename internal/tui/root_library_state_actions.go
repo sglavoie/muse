@@ -36,7 +36,7 @@ func (m Model) syncRecentlyAddedFromLibrary() Model {
 func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
 	switch action {
 	case keys.ActionRescan:
-		if len(m.libraryRoots) > 0 && m.extractor != nil && !m.scanning {
+		if len(m.libraryRoots) > 0 && m.extractor != nil && !m.scanning && m.scanCh == nil {
 			if m.userEditedReader != nil {
 				rows, err := m.userEditedReader.ReadUserEditedTracks()
 				switch {
@@ -65,7 +65,8 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 
 			scanCtx, cancel := context.WithCancel(m.appCtx)
 			rawCh, scanOutcome := library.Scan(scanCtx, m.libraryRoots, m.cfg.ExcludedPaths, m.extractor)
-			ch := m.bridgeScanChannel(rawCh)
+			ch, writeOutcome := m.bridgeScanChannel(rawCh)
+			m.scanWriteOutcome = writeOutcome
 			m.scanOutcome = scanOutcome
 			m.scanCancel = cancel
 			m.library.Index = library.LibraryIndex{}

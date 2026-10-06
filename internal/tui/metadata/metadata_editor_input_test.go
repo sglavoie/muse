@@ -32,7 +32,7 @@ func TestDefaultEditorTabCyclesSixFields(t *testing.T) {
 	if ed.focused != fieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
-	expectedCycle := []Field{fieldArtist, fieldAlbum, fieldGenre, FieldDuration, FieldAlbumArtist, fieldTitle}
+	expectedCycle := []Field{fieldArtist, FieldAlbumArtist, fieldAlbum, fieldGenre, FieldDuration, fieldTitle}
 	for i, want := range expectedCycle {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 		if ed.focused != want {
@@ -46,7 +46,7 @@ func TestDefaultEditorTabCyclesSixFields(t *testing.T) {
 func TestDurationDirtyFieldReturnsPointer(t *testing.T) {
 	ed := NewEditor("h1", "T", "A", "B", "G", 0)
 
-	for range 4 {
+	for range 5 {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 	}
 	if ed.focused != FieldDuration {

@@ -272,6 +272,7 @@ func TestSingleTrackMetadataSaveUpdatesQueueAlbum(t *testing.T) {
 	ed2, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	m.overlay.metadataEditor = &ed2
 	ed3, _, _ := m.overlay.metadataEditor.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	ed3, _, _ = ed3.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	m.overlay.metadataEditor = &ed3
 	m = backspaceInEditor(m, 5)
 	m = typeIntoEditor(m, "NewAlbum")

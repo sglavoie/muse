@@ -181,6 +181,8 @@ type Model struct {
 	// panicked hash worker would mark still-present files missing. nil when the
 	// scan came from an option rather than from a rescan.
 	scanOutcome *library.StageOutcome
+	// scanWriteOutcome retains the first persistence error until the bridge drains.
+	scanWriteOutcome *library.StageOutcome
 	// scanErrCh carries non-fatal walk errors from the initial diff scan.
 	// It is already closed when Init() runs; drained once on startup.
 	scanErrCh <-chan library.ScanErrorMsg

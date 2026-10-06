@@ -33,6 +33,7 @@ var gatedScenarios = []string{
 	"layout-regressions-empty.json",
 	"narrow-long-text.json",
 	"metadata-editor-narrow.json",
+	"metadata-editor-context.json",
 	"metadata-editor-mixed.json",
 	"autodj-panel.json",
 }

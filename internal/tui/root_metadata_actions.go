@@ -77,7 +77,7 @@ func (m Model) metadataEditorForContext() (metadata.Editor, bool) {
 		track.Genre = full.Genre
 		track.AlbumArtist = full.AlbumArtist
 	}
-	return metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration).WithAlbumArtists(track.AlbumArtist), true
+	return metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration).WithAlbumArtists(track.AlbumArtist).WithPath(track.Path), true
 }
 
 // bulkEditorForHashes seeds a bulk editor from the tracks behind the hashes,

@@ -216,6 +216,7 @@ Each observation is normalized JSON:
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
 | `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
 | `layout-regressions-empty.json` | `empty` | Guards minimum-size empty-state and idle status-bar layout. |
+| `metadata-editor-context.json` | `rich` | Original filename, Album Artist navigation, seconds-based duration edits, undo, and resizing. |
 | `metadata-editor-narrow.json` | `narrow` | Guards metadata-editor height with long values at the minimum supported size. |
 | `resize-stress.json` | `rich` | Cycles many terminal sizes. |
 | `narrow-long-text.json` | `narrow` | Long text and wide Unicode at the minimum supported size. |

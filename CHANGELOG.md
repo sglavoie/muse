@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Manual rescans surface track, genre, and missing-track persistence failures
+  in Recent Messages and report success only after those writes finish.
+  Canceling a scan prevents a new rescan until its remaining batches drain.
+
 - Open playlist footers advertise enqueue/back actions and distinguish the
   focused track from selected rows.
 
@@ -38,6 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- Manual rescan summaries include added and missing track counts, treating
+  unchanged-content moves as the same track.
+- Metadata duration accepts plain seconds as well as `m:ss` and `h:mm:ss`,
+  with a format hint while editing. Album Artist sits beside Artist in both
+  display and keyboard order, and the original filename appears when space allows.
 
 - Help retains navigation/search/close hints and scroll position while scrolling.
 - A Clear selection palette command includes selected and hidden row counts.

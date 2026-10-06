@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/statusbar"
-	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // rescanEntry holds per-track values snapshotted before a full rescan clears
@@ -124,6 +124,7 @@ func (m Model) handleScanBatchMsg(msg library.ScanBatchMsg) (Model, tea.Cmd) {
 func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	m = m.refreshAlbumFavorites()
 	var cmd tea.Cmd
+	result := scanFinishedMsg{err: m.scanWriteOutcome.Err()}
 	m.statusBar.ClearScanProgress()
 	// A hash worker that panicked closes the scan channel exactly like a
 	// finished one, so the ScanDoneMsg alone cannot be trusted as "the whole
@@ -143,11 +144,12 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 		m, cmd = m.reconcileRescanDeletions()
 	}
 	if truncated == nil && m.scanning {
-		m.statusBar.Notify(fmt.Sprintf("Scan complete — %s %s", text.FormatCount(m.scanned), text.Pluralize(m.scanned, "track", "tracks")))
+		result.summary = m.scanCompletionSummary()
 	}
 	m.scanning = false
 	m.scanCh = nil
 	m.scanOutcome = nil
+	m.scanWriteOutcome = nil
 	m.rescanSnapshot = nil
 	m.rescanPriorPaths = nil
 	if m.scanCancel != nil {
@@ -162,7 +164,15 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	// applied, so this is the bump that covers the tracks a rescan removed from
 	// the candidate set.
 	m.djInvalidate()
-	return m, cmd
+	if cmd == nil {
+		return m.handleScanFinishedMsg(result), nil
+	}
+	return m, func() tea.Msg {
+		persisted := cmd().(scanFinishedMsg)
+		result.err = errors.Join(result.err, persisted.err)
+		result.missingError = persisted.err != nil
+		return result
+	}
 }
 
 // reconcileRescanDeletions compares the paths present before a full rescan
@@ -200,28 +210,33 @@ func (m Model) reconcileRescanDeletions() (Model, tea.Cmd) {
 		return m, nil
 	}
 	hashes := deletedHashes
-	// Coverage counts what the database still holds, so the reload has to wait
-	// for these marks; the command reports no completion of its own.
+	// Coverage counts what the database still holds, so the reload and scan
+	// completion notification must wait for these marks.
 	pending := m.insightsPending
 	pending.begin()
 	return m, func() tea.Msg {
 		defer pending.done()
+		var firstErr error
 		for _, h := range hashes {
 			if err := marker.MarkTrackMissing(h); err != nil {
 				slog.Warn("rescan: mark track missing", "hash", h, "err", err)
+				if firstErr == nil {
+					firstErr = fmt.Errorf("mark missing tracks: %w", err)
+				}
 			}
 		}
-		return nil
+		return scanFinishedMsg{err: firstErr}
 	}
 }
 
-// bridgeScanChannel wraps raw with a goroutine that persists each track to the
-// database via m.scanWriter before forwarding it. When no scanWriter is
-// configured, the raw channel is returned as-is.
-func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track {
+// bridgeScanChannel forwards tracks and persists batches through m.scanWriter.
+// The channel closes after the final write; its outcome retains the first save
+// error. Without a writer, the raw channel is returned with a nil outcome.
+func (m Model) bridgeScanChannel(raw <-chan library.Track) (<-chan library.Track, *library.StageOutcome) {
 	if m.scanWriter == nil {
-		return raw
+		return raw, nil
 	}
+	outcome := &library.StageOutcome{}
 	ch := make(chan library.Track, 256)
 	go func() {
 		defer close(ch)
@@ -235,10 +250,12 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 			}
 			if err := m.scanWriter.UpsertBatch(batch); err != nil {
 				slog.Warn("rescan: batch upsert", "err", err, "count", len(batch))
+				outcome.Fail(fmt.Errorf("save scanned tracks: %w", err))
 			}
 			if gp, ok := m.scanWriter.(genrePopulator); ok {
 				if err := gp.PopulateTrackGenres(batch); err != nil {
 					slog.Warn("rescan: batch genre populate", "err", err, "count", len(batch))
+					outcome.Fail(fmt.Errorf("save scanned genres: %w", err))
 				}
 			}
 			batch = batch[:0]
@@ -252,7 +269,7 @@ func (m Model) bridgeScanChannel(raw <-chan library.Track) <-chan library.Track 
 		}
 		flush()
 	}()
-	return ch
+	return ch, outcome
 }
 
 // normalizeScannedTrack applies the same metadata normalization the index

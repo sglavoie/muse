@@ -130,7 +130,7 @@ func TestMetadataExplicitDurationEdits(t *testing.T) {
 	for _, tc := range []struct {
 		input string
 		want  int64
-	}{{"4:00", 240000}, {"", 0}, {"1:99", -1}} {
+	}{{"4:00", 240000}, {"90", 90000}, {"", 0}, {"1:99", -1}} {
 		t.Run(tc.input, func(t *testing.T) {
 			m := precisionMetadataModel()
 			durations := &stubDurationWriter{}
@@ -161,5 +161,40 @@ func TestMetadataExplicitDurationEdits(t *testing.T) {
 				t.Fatalf("undo duration = %v, want 183.7", track.Duration)
 			}
 		})
+	}
+}
+
+func TestBulkMetadataSecondsPersistAndUndoPrecisely(t *testing.T) {
+	m := precisionMetadataModel()
+	m.library.Index.Insert(library.Track{Hash: "h2", Path: "/b.flac", Duration: 200.9})
+	durations := &stubDurationWriter{}
+	m.durationWriter = durations
+	ed := m.bulkEditorForHashes([]string{"h1", "h2"})
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	m.overlay.metadataEditor = &ed
+	m = typeIntoEditor(m, "90")
+	result, cmd := m.handleMetadataSave()
+	m = result.(Model)
+	if cmd == nil {
+		t.Fatal("bulk seconds edit did not produce a save")
+	}
+	if msg := cmd().(metadataEditedMsg); msg.err != nil {
+		t.Fatal(msg.err)
+	}
+	if len(durations.calls) != 2 {
+		t.Fatalf("duration writes = %d, want 2", len(durations.calls))
+	}
+	for _, call := range durations.calls {
+		if call.durationMs != 90000 {
+			t.Fatalf("persisted duration = %d, want 90000", call.durationMs)
+		}
+	}
+	m.durationWriter = nil
+	m = m.handleUndo()
+	for hash, want := range map[string]float64{"h1": 183.7, "h2": 200.9} {
+		track, _ := m.library.Index.FindByHash(hash)
+		if track.Duration != want {
+			t.Fatalf("undo %s duration = %v, want %v", hash, track.Duration, want)
+		}
 	}
 }

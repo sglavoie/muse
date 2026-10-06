@@ -27,7 +27,8 @@
     {"key": "M"},
     {"assert": {"contains": "Album Artist:"}},
     {"assert": {"no_layout_issues": true}},
-    {"key": "shift+tab"},
+    {"key": "tab"},
+    {"key": "tab"},
     {"text": "Various Artists"},
     {"assert": {"contains": "*Album Artist:"}},
     {"assert": {"no_layout_issues": true}}
