@@ -11,6 +11,12 @@ import (
 
 // Render returns the centered overlay string for the current editor step.
 func (e SmartRuleEditor) Render(termWidth, termHeight int, s styles.Styles) string {
+	if e.discard.Active {
+		return e.discard.Render(termWidth, termHeight, s)
+	}
+	if e.tagPicker != nil {
+		return e.renderTagPicker(termWidth, termHeight, s)
+	}
 	switch e.step {
 	case stepName:
 		return e.renderNameStep(termWidth, termHeight, s)
@@ -38,7 +44,7 @@ func (e SmartRuleEditor) renderNameStep(termWidth, termHeight int, s styles.Styl
 		},
 		Hint: "enter to continue · esc to cancel",
 	}
-	return box.Render(termWidth, termHeight, s)
+	return e.renderBox(box, termWidth, termHeight, s)
 }
 
 func (e SmartRuleEditor) renderRulesStep(termWidth, termHeight int, s styles.Styles) string {
@@ -75,7 +81,7 @@ func (e SmartRuleEditor) renderRulesStep(termWidth, termHeight int, s styles.Sty
 		Hint:          hint,
 		MaxInnerWidth: 60,
 	}
-	return box.Render(termWidth, termHeight, s)
+	return e.renderBox(box, termWidth, termHeight, s)
 }
 
 func (e SmartRuleEditor) renderEditRuleStep(termWidth, termHeight int, s styles.Styles) string {
@@ -92,9 +98,13 @@ func (e SmartRuleEditor) renderEditRuleStep(termWidth, termHeight int, s styles.
 	}
 
 	var valueText string
-	if e.editSubField == 2 {
+	switch {
+	case e.choiceValue():
+		valueText = e.choiceLabel()
+	case e.editSubField == 2:
+		e.ruleValueInput.SetWidth(max(1, min(38, termWidth-22)))
 		valueText = e.ruleValueInput.View()
-	} else {
+	default:
 		v := e.ruleValueInput.Value()
 		if v == "" {
 			valueText = "(empty)"
@@ -119,7 +129,7 @@ func (e SmartRuleEditor) renderEditRuleStep(termWidth, termHeight int, s styles.
 		},
 		Hint: "↑↓ move · ←→ cycle/edit · enter confirm · esc cancel",
 	}
-	return box.Render(termWidth, termHeight, s)
+	return e.renderBox(box, termWidth, termHeight, s)
 }
 
 func (e SmartRuleEditor) renderSortStep(termWidth, termHeight int, s styles.Styles) string {
@@ -155,5 +165,33 @@ func (e SmartRuleEditor) renderSortStep(termWidth, termHeight int, s styles.Styl
 		},
 		Hint: fmt.Sprintf("↑↓ move · ←→ cycle · enter %s · esc back", saveLabel),
 	}
-	return box.Render(termWidth, termHeight, s)
+	return e.renderBox(box, termWidth, termHeight, s)
+}
+
+func (e SmartRuleEditor) choiceLabel() string {
+	value := e.ruleValueInput.Value()
+	if e.currentField() == db.FieldFavorite {
+		if value == "true" || value == "1" {
+			return "◀ Yes ▶"
+		}
+		return "◀ No ▶"
+	}
+	if value == "" {
+		value = "Choose a tag"
+	}
+	return value + " (enter to choose)"
+}
+
+func (e SmartRuleEditor) renderBox(box overlay.Box, width, height int, s styles.Styles) string {
+	box.MaxInnerWidth = max(1, min(60, width-4))
+	if e.step == stepEditRule && e.currentField() == db.FieldDuration {
+		box.Rows = append(box.Rows, overlay.Row{Text: "Seconds, m:ss, or h:mm:ss"})
+	}
+	if e.errorText != "" {
+		box.Rows = append(box.Rows, overlay.Row{Text: e.errorText})
+	}
+	if e.saving {
+		box.Hint = "Saving…"
+	}
+	return box.Render(width, height, s)
 }

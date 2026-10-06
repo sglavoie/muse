@@ -56,6 +56,16 @@ func TestThemePreviewCancelAndAutoDetection(t *testing.T) {
 		t.Fatal("background detection overrode preview")
 	}
 	m = themeKey(m, "esc")
+	if !m.styles.HasDark || m.overlay.settings == nil {
+		t.Fatal("preview reverted before discard")
+	}
+	m = themeKey(m, "enter")
+	if !m.styles.HasDark || m.overlay.settings == nil {
+		t.Fatal("keep editing lost preview")
+	}
+	for _, key := range []string{"esc", "tab", "enter"} {
+		m = themeKey(m, key)
+	}
 	if m.styles.HasDark || m.overlay.settings != nil {
 		t.Fatal("cancel did not restore detected light theme")
 	}

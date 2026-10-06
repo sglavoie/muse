@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Smart-playlist save failures preserve the draft and allow retry. Pending saves
+  cannot be submitted twice; a successful write followed by a failed list refresh
+  is reported separately.
+- Smart-rule numeric values and playlist limits are validated in the editor;
+  invalid input remains editable instead of silently becoming a different value.
+
 - Playlist and tag undo failures appear in Recent Messages, retain the original
   retry window, and leave visible state unchanged. Bulk playlist restoration and
   tag-assignment restoration are atomic.
@@ -46,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- Settings and smart-playlist drafts ask before discarding edits, including
+  individual smart-rule drafts. Restoring opening values removes the prompt.
+- Smart rules offer duration entry in seconds, `m:ss`, or `h:mm:ss`, a Yes/No
+  favorite selector, and searchable tag selection for equals/not-equals rules.
 
 - Edited metadata forms and Auto-DJ drafts offer Keep editing / Discard changes
   when closed with Esc; unchanged forms still close immediately.

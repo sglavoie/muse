@@ -364,7 +364,7 @@ type debugInfoProvider interface {
 
 // smartPlaylistWriter creates and updates smart playlists in the database.
 // Root uses it when the SmartRuleEditor commits a new or edited smart playlist.
-// When nil, the commit is a no-op.
+// When nil, the editor retains its draft and reports storage unavailable.
 type smartPlaylistWriter interface {
 	CreateSmartPlaylist(name, queryJSON string) (int64, error)
 	UpdateSmartPlaylistQuery(id int64, name, queryJSON string) error

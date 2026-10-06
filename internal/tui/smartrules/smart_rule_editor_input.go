@@ -11,13 +11,19 @@ import (
 // ForwardMsg routes a generic tea.Msg to the currently focused text input.
 // Returns false if no text input is active in the current step.
 func (e SmartRuleEditor) ForwardMsg(msg tea.Msg) (SmartRuleEditor, tea.Cmd, bool) {
+	if e.discard.Active || e.saving {
+		return e, nil, true
+	}
+	if e.tagPicker != nil {
+		return e.forwardTagPicker(msg)
+	}
 	switch e.step {
 	case stepName:
 		updated, cmd := e.nameInput.Update(msg)
 		e.nameInput = updated
 		return e, cmd, true
 	case stepEditRule:
-		if e.editSubField == 2 {
+		if e.editSubField == 2 && !e.choiceValue() {
 			updated, cmd := e.ruleValueInput.Update(msg)
 			e.ruleValueInput = updated
 			return e, cmd, true
@@ -34,6 +40,16 @@ func (e SmartRuleEditor) ForwardMsg(msg tea.Msg) (SmartRuleEditor, tea.Cmd, bool
 
 // HandleKey processes a key press and returns the updated editor, result action, and any tea.Cmd.
 func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
+	if e.saving {
+		return e, actionNone, nil
+	}
+	if e.discard.Active {
+		return e.handleDiscard(msg.String())
+	}
+	if e.tagPicker != nil {
+		return e.handleTagPicker(msg)
+	}
+	e.errorText = ""
 	switch e.step {
 	case stepName:
 		return e.handleNameKey(msg)
@@ -50,7 +66,7 @@ func (e SmartRuleEditor) HandleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action
 func (e SmartRuleEditor) handleNameKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		return e, ActionClose, nil
+		return e.requestClose()
 	case "enter":
 		if strings.TrimSpace(e.nameInput.Value()) != "" {
 			e.step = stepRules
@@ -150,6 +166,7 @@ func (e SmartRuleEditor) startNewRule() SmartRuleEditor {
 	e.ruleValueInput.Blur()
 	e.editSubField = 0
 	e.step = stepEditRule
+	e.initialRule = e.draftRule()
 	return e
 }
 
@@ -178,11 +195,15 @@ func (e SmartRuleEditor) startEditRule(idx int) SmartRuleEditor {
 	e.ruleValueInput.Blur()
 	e.editSubField = 0
 	e.step = stepEditRule
+	e.initialRule = e.draftRule()
 	return e
 }
 
 func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	if e.editSubField == 2 {
+		if e.choiceValue() {
+			return e.handleChoiceValueKey(msg)
+		}
 		return e.handleRuleValueKey(msg)
 	}
 	return e.handleRuleSelectionKey(msg)
@@ -192,10 +213,8 @@ func (e SmartRuleEditor) handleEditRuleKey(msg tea.KeyPressMsg) (SmartRuleEditor
 func (e SmartRuleEditor) handleRuleValueKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		e.ruleValueInput.Blur()
-		e.step = stepRules
+		return e.cancelRule()
 	case "enter":
-		e.ruleValueInput.Blur()
 		e = e.confirmEditRule()
 	case "tab", "down":
 		e.ruleValueInput.Blur()
@@ -216,7 +235,7 @@ func (e SmartRuleEditor) handleRuleValueKey(msg tea.KeyPressMsg) (SmartRuleEdito
 func (e SmartRuleEditor) handleRuleSelectionKey(msg tea.KeyPressMsg) (SmartRuleEditor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		e.step = stepRules
+		return e.cancelRule()
 	case "enter":
 		e = e.confirmEditRule()
 	case "tab", "j", "down":
@@ -234,7 +253,7 @@ func (e SmartRuleEditor) handleRuleSelectionKey(msg tea.KeyPressMsg) (SmartRuleE
 // focusEditSubField moves the sub-form focus to sub, activating the value text
 // input when that is where focus lands.
 func (e SmartRuleEditor) focusEditSubField(sub int) SmartRuleEditor {
-	if sub == 2 {
+	if sub == 2 && !e.choiceValue() {
 		e.ruleValueInput.Focus()
 	}
 	e.editSubField = sub
@@ -249,6 +268,12 @@ func (e SmartRuleEditor) cycleEditSelection(delta int) SmartRuleEditor {
 	case 0:
 		e.ruleFieldIdx = cycleIndex(e.ruleFieldIdx, delta, len(allRuleFields))
 		e.ruleOpIdx = 0
+		if e.currentField() == db.FieldFavorite {
+			e.ruleValueInput.SetValue("true")
+		}
+		if e.currentField() == db.FieldTag {
+			e.ruleValueInput.SetValue("")
+		}
 	case 1:
 		e.ruleOpIdx = cycleIndex(e.ruleOpIdx, delta, len(validOpsForField(e.currentField())))
 	}
@@ -272,7 +297,13 @@ func cycleIndex(idx, delta, n int) int {
 func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
 	field := e.currentField()
 	op := e.currentOp()
-	value := e.ruleValueInput.Value()
+	value, err := normalizeRuleValue(field, e.ruleValueInput.Value())
+	if err != nil {
+		e.errorText = err.Error()
+		e = e.focusEditSubField(2)
+		return e
+	}
+	e.ruleValueInput.Blur()
 	rule := db.SmartRule{Field: field, Operator: op, Value: value}
 	if e.editingRuleIdx >= 0 && e.editingRuleIdx < len(e.rules) {
 		rules := make([]db.SmartRule, len(e.rules))
@@ -301,7 +332,7 @@ func (e SmartRuleEditor) handleMaxTracksKey(msg tea.KeyPressMsg) (SmartRuleEdito
 		e.maxTracksInput.Blur()
 		e.step = stepRules
 	case "enter":
-		return e, ActionCommit, nil
+		return e.commit()
 	case "tab", "down":
 		e.maxTracksInput.Blur()
 		e.sortCursor = 0
@@ -323,7 +354,7 @@ func (e SmartRuleEditor) handleSortSelectionKey(msg tea.KeyPressMsg) (SmartRuleE
 	case "esc":
 		e.step = stepRules
 	case "enter":
-		return e, ActionCommit, nil
+		return e.commit()
 	case "tab", "j", "down":
 		e = e.focusSortCursor((e.sortCursor + 1) % 3)
 	case "shift+tab", "k", "up":

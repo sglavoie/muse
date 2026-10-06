@@ -1,0 +1,243 @@
+{
+  "name": "Settings drafts and smart-playlist editing",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {
+      "key": "ctrl+,"
+    },
+    {
+      "key": "]"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Discard unsaved changes?"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "< 6% >"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "2"
+    },
+    {
+      "key": "S"
+    },
+    {
+      "text": "Evening focus"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "a"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "text": "abc"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "duration: use seconds"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "ctrl+a"
+    },
+    {
+      "key": "ctrl+k"
+    },
+    {
+      "text": "3:30"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "210"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "a"
+    },
+    {
+      "key": "left"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Choose tag"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "text": "fo"
+    },
+    {
+      "assert": {
+        "contains": "focus"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Tag equals \"focus\""
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "a"
+    },
+    {
+      "key": "left"
+    },
+    {
+      "key": "left"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "assert": {
+        "contains": "No"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Discard unsaved changes?"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Evening focus"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "view": "Playlists"
+      }
+    }
+  ]
+}

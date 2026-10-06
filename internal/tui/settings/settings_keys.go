@@ -5,12 +5,16 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // ForwardMsg routes a generic tea.Msg to whichever text input is currently
 // active (primary-color, excluded-path, library-dir, or EQ-name). Returns false if no input
 // is active. This enables paste and other multi-step textinput commands.
 func (o SettingsOverlay) ForwardMsg(msg tea.Msg) (SettingsOverlay, tea.Cmd, bool) {
+	if o.discard.Active {
+		return o, nil, true
+	}
 	if o.PrimaryInput != nil {
 		updated, cmd := o.PrimaryInput.Update(msg)
 		o.PrimaryInput = &updated
@@ -63,6 +67,14 @@ var settingsNavKeys = map[string]settingsKeyFunc{
 // HandleKey processes a key event and returns the updated overlay and the resulting action.
 // ctrl+c returns settingsNone so the caller can fall through to root quit handling.
 func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, Action, tea.Cmd) {
+	if o.discard.Active {
+		var discard bool
+		o.discard, discard = o.discard.HandleKey(msg.String())
+		if discard {
+			return o, ActionCancel, nil
+		}
+		return o, actionNone, nil
+	}
 	if o.PrimaryInput != nil {
 		return o.handlePrimaryInput(msg)
 	}
@@ -189,6 +201,10 @@ func (o SettingsOverlay) enterExcludedSubView() (SettingsOverlay, Action, tea.Cm
 func (o SettingsOverlay) handleEscape() (SettingsOverlay, Action, tea.Cmd) {
 	if o.Tab == tabLibrary && o.libSubView == libSubViewExcluded {
 		o.libSubView = libSubViewDirs
+		return o, actionNone, nil
+	}
+	if o.hasChanges() {
+		o.discard = overlay.DiscardPrompt{Active: true}
 		return o, actionNone, nil
 	}
 	return o, ActionCancel, nil

@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // editorStep identifies the current step of the SmartRuleEditor state machine.
@@ -33,6 +34,17 @@ const (
 type SmartRuleEditor struct {
 	IsEdit bool
 	EditID int64 // playlist ID when editing an existing smart playlist
+
+	initialName  string
+	initialQuery string
+	initialLimit string
+	initialRule  db.SmartRule
+	discard      overlay.DiscardPrompt
+	discardRule  bool
+	errorText    string
+	saving       bool
+	tags         []db.TagRow
+	tagPicker    *ruleTagPicker
 
 	step editorStep
 
@@ -62,7 +74,7 @@ type SmartRuleEditor struct {
 var allRuleFields = []db.RuleField{
 	db.FieldArtist, db.FieldTitle, db.FieldAlbum, db.FieldGenre,
 	db.FieldDuration, db.FieldDateAdded, db.FieldPlayCount,
-	db.FieldLastPlayed, db.FieldPath, db.FieldSize, db.FieldFavorite,
+	db.FieldLastPlayed, db.FieldPath, db.FieldSize, db.FieldFavorite, db.FieldTag,
 }
 
 // sortByOptions are the selectable sort fields; index 0 means "no sort".
@@ -81,6 +93,7 @@ var ruleFieldLabels = map[db.RuleField]string{
 	db.FieldPath:       "Path",
 	db.FieldSize:       "Size (bytes)",
 	db.FieldFavorite:   "Is favorite",
+	db.FieldTag:        "Tag",
 }
 
 // ruleOpLabels maps RuleOperator to a display label.
@@ -105,6 +118,8 @@ func ruleFieldType(f db.RuleField) string {
 		return "date"
 	case db.FieldFavorite:
 		return "bool"
+	case db.FieldTag:
+		return "tag"
 	default:
 		return "string"
 	}
@@ -117,7 +132,7 @@ func validOpsForField(f db.RuleField) []db.RuleOperator {
 		return []db.RuleOperator{db.OpEquals, db.OpNotEquals, db.OpGreaterThan, db.OpLessThan}
 	case "date":
 		return []db.RuleOperator{db.OpInLast}
-	case "bool":
+	case "bool", "tag":
 		return []db.RuleOperator{db.OpEquals, db.OpNotEquals}
 	default: // string
 		return []db.RuleOperator{
@@ -173,12 +188,13 @@ func newEditorInputDigits(initial string) textinput.Model {
 
 // NewSmartRuleEditor creates an empty editor for creating a new smart playlist.
 func NewSmartRuleEditor() SmartRuleEditor {
-	return SmartRuleEditor{
+	e := SmartRuleEditor{
 		conjunction:    db.ConjAnd,
 		editingRuleIdx: -1,
 		nameInput:      newEditorInput(""),
 		maxTracksInput: newEditorInputDigits(""),
 	}
+	return e.rememberInitial()
 }
 
 // NewSmartRuleEditorEdit creates an editor pre-populated for editing an existing playlist.
@@ -199,6 +215,9 @@ func NewSmartRuleEditorEdit(id int64, name string, q db.SmartPlaylistQuery) Smar
 		e.conjunction = q.Root.Conjunction
 	}
 	e.rules = append(e.rules, q.Root.Rules...)
+	if q.Root.Field != "" {
+		e.rules = []db.SmartRule{q.Root}
+	}
 	for i, opt := range sortByOptions {
 		if opt == q.SortBy || (q.SortBy == "" && i == 0) {
 			e.sortByIdx = i
@@ -208,7 +227,7 @@ func NewSmartRuleEditorEdit(id int64, name string, q db.SmartPlaylistQuery) Smar
 	if q.SortDir == "desc" {
 		e.sortDir = 1
 	}
-	return e
+	return e.rememberInitial()
 }
 
 // Name returns the trimmed playlist name from the name input.

@@ -140,7 +140,8 @@ matching release, and each release can then be unfavorited independently.
   focused field for every selected track; `ctrl+r` restores that field to
   unchanged. Clear operations show “Will clear for N tracks” before saving
   and support undo.
-- Edited metadata forms and Auto-DJ drafts ask before discarding changes on `Esc`.
+- Edited metadata forms, Settings, smart playlists, and Auto-DJ drafts ask before
+  discarding changes on `Esc`. Smart-playlist rule edits are protected too.
   The default is **Keep editing**; choose **Discard changes** with Tab and Enter.
   Unchanged forms close immediately.
 - Album Artist edits regroup albums immediately and support bulk editing, explicit
@@ -216,6 +217,13 @@ matching release, and each release can then be unfavorited independently.
   the search before dismissing the picker.
   The heading shows the count and total duration of the tracks being added,
   including hidden selections; `+` marks unknown durations.
+- Smart-playlist rules validate numeric values before accepting them. Duration
+  accepts seconds, `m:ss`, or `h:mm:ss`; favorites offer Yes/No, and Tag rules
+  offer a searchable picker of existing tags with equals/not-equals matching.
+  Type to search tags (including spaces), use Up/Down to move, and Enter to
+  choose. Tag rules store the tag name, so update the rule after renaming a tag.
+  Failed saves keep the draft open for correction or retry; repeated Enter
+  presses during a pending save do not create duplicate playlists.
 - Open playlists show their total entry count and duration, including repeated
   songs. Filtering preserves selected entries, which have their own duration
   and hidden-selection count;

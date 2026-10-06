@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/tui/settings"
@@ -167,6 +168,16 @@ func TestEQCancelRestoresOriginalEQState(t *testing.T) {
 
 	// Cancel — should restore to original disabled state.
 	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	nm = next.(Model)
+	if nm.overlay.settings == nil || !strings.Contains(ansi.Strip(nm.overlay.settings.Render(80, 24, *nm.styles)), "Discard unsaved changes?") {
+		t.Fatal("missing discard confirmation")
+	}
+	if len(stub.calls) != callsBefore {
+		t.Fatal("preview reverted before discard was confirmed")
+	}
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	nm = next.(Model)
+	next, _ = nm.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	nm = next.(Model)
 
 	if nm.overlay.settings != nil {

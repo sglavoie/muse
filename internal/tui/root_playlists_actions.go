@@ -42,7 +42,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 		return m, cmd, true
 	case keys.ActionSmartPlaylistCreate:
 		if m.ActiveView == viewPlaylists && m.playlists.AtListLevel() {
-			editor := smartrules.NewSmartRuleEditor()
+			editor := smartrules.NewSmartRuleEditor().WithTags(m.tags)
 			m.overlay.smartRuleEditor = &editor
 		}
 		return m, nil, true
@@ -61,7 +61,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 					m.statusBar.NotifyError("Invalid smart playlist query: " + err.Error())
 					return m, nil, true
 				}
-				editor := smartrules.NewSmartRuleEditorEdit(pl.ID, pl.Name, q)
+				editor := smartrules.NewSmartRuleEditorEdit(pl.ID, pl.Name, q).WithTags(m.tags)
 				m.overlay.smartRuleEditor = &editor
 			}
 		}

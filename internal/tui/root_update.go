@@ -282,6 +282,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tracksAddedToPlaylistMsg:
 		m = m.handleTracksAddedToPlaylistMsg(msg)
 
+	case smartPlaylistSaveResultMsg:
+		return m.handleSmartPlaylistSaveResult(msg)
+
 	case smartPlaylistCreatedMsg:
 		return m.handleSmartPlaylistCreatedMsg(msg)
 

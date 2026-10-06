@@ -136,7 +136,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/overlay` | 118 | 34 | 83 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
-| `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
+| `tui/smartrules` | 16 | 0 | 15 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
 | `tui/queue` | 79 | 18 | 60 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1044 exported identifiers across 15 packages**: 161 reached from two or more packages, 822 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1047 exported identifiers across 15 packages**: 161 reached from two or more packages, 825 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -550,10 +550,10 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `CornerTR` | const | `tui/metadata`, `tui/settings` | multi |
 | `tui/overlay` | `CrossL` | const | `tui/metadata`, `tui/settings` | multi |
 | `tui/overlay` | `CrossR` | const | `tui/metadata`, `tui/settings` | multi |
-| `tui/overlay` | `DiscardPrompt` | type | `tui/autodj`, `tui/metadata` | multi |
-| `tui/overlay` | `DiscardPrompt.Active` | field | `tui/autodj`, `tui/metadata` | multi |
-| `tui/overlay` | `DiscardPrompt.HandleKey` | method | `tui/autodj`, `tui/metadata` | multi |
-| `tui/overlay` | `DiscardPrompt.Render` | method | `tui/autodj`, `tui/metadata` | multi |
+| `tui/overlay` | `DiscardPrompt` | type | `tui/autodj`, `tui/metadata`, `tui/settings`, `tui/smartrules` | multi |
+| `tui/overlay` | `DiscardPrompt.Active` | field | `tui/autodj`, `tui/metadata`, `tui/settings`, `tui/smartrules` | multi |
+| `tui/overlay` | `DiscardPrompt.HandleKey` | method | `tui/autodj`, `tui/metadata`, `tui/settings`, `tui/smartrules` | multi |
+| `tui/overlay` | `DiscardPrompt.Render` | method | `tui/autodj`, `tui/metadata`, `tui/settings`, `tui/smartrules` | multi |
 | `tui/overlay` | `FilteredHelpSections` | func | `internal/tui` | root |
 | `tui/overlay` | `GoToAlbum` | const | `internal/tui`, `tui/uitest†` | multi |
 | `tui/overlay` | `GoToArtist` | const | `internal/tui`, `tui/uitest†` | multi |
@@ -604,7 +604,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay.TagsLine` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Title` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Total` | field | `internal/tui` | root |
-| `tui/overlay` | `ParseSeekTime` | func | `internal/tui`, `tui/metadata` | multi |
+| `tui/overlay` | `ParseSeekTime` | func | `internal/tui`, `tui/metadata`, `tui/smartrules` | multi |
 | `tui/overlay` | `PreviewOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `PreviewOverlay.Album` | field | `internal/tui` | root |
 | `tui/overlay` | `PreviewOverlay.Artist` | field | `internal/tui` | root |
@@ -763,6 +763,9 @@ export must either earn a justification, be recorded in
 | `tui/smartrules` | `SmartRuleEditor.IsEdit` | field | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.Name` | method | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.Render` | method | `internal/tui` | root |
+| `tui/smartrules` | `SmartRuleEditor.SaveFailed` | method | `internal/tui` | root |
+| `tui/smartrules` | `SmartRuleEditor.Submit` | method | `internal/tui` | root |
+| `tui/smartrules` | `SmartRuleEditor.WithTags` | method | `internal/tui` | root |
 | `tui/metadata` | `Action` | type | — | api |
 | `tui/metadata` | `ActionCancel` | const | `internal/tui` | root |
 | `tui/metadata` | `ActionSave` | const | `internal/tui` | root |

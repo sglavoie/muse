@@ -15,6 +15,9 @@ import (
 // keeps a fixed width so switching tabs only changes its height, and it grows
 // downward from the top rather than re-centering on every tab.
 func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
+	if o.discard.Active {
+		return o.discard.Render(termWidth, termHeight, s)
+	}
 	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
 	contentWidth := boxInner - overlay.HPadding
 

@@ -1,9 +1,12 @@
 package settings
 
 import (
+	"reflect"
+
 	"charm.land/bubbles/v2/textinput"
 
 	"github.com/sglavoie/muse/internal/config"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 func NewSettingsInput() *textinput.Model {
@@ -67,16 +70,18 @@ const (
 
 // SettingsOverlay is a centered overlay for editing runtime-tunable config values.
 type SettingsOverlay struct {
-	Tab          Tab
-	cursor       int
-	Fields       [tabCount][]Field
-	EQPresets    []config.EQPresetDef
-	EQNameInput  *textinput.Model // non-nil when prompting for preset name
-	EQConfirmDel bool             // true when showing delete confirmation
-	dirty        bool
-	primaryColor string
-	PrimaryInput *textinput.Model
-	primaryError string
+	Tab           Tab
+	cursor        int
+	Fields        [tabCount][]Field
+	EQPresets     []config.EQPresetDef
+	EQNameInput   *textinput.Model // non-nil when prompting for preset name
+	EQConfirmDel  bool             // true when showing delete confirmation
+	dirty         bool
+	initialConfig config.Config
+	discard       overlay.DiscardPrompt
+	primaryColor  string
+	PrimaryInput  *textinput.Model
+	primaryError  string
 
 	// Library tab state.
 	libSubView     librarySubView
@@ -147,8 +152,14 @@ func NewSettingsOverlay(cfg config.Config, musicDirs []string) SettingsOverlay {
 	}
 
 	o.initDisplay(cfg)
+	o.initialConfig = o.ToConfig(cfg)
 
 	return o
+}
+
+// hasChanges compares saved values, so restoring a setting removes the prompt.
+func (o SettingsOverlay) hasChanges() bool {
+	return !reflect.DeepEqual(o.ToConfig(o.initialConfig), o.initialConfig)
 }
 
 // EQState returns the current EQ enabled flag and band values from the overlay

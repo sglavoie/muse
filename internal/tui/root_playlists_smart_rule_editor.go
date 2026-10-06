@@ -1,14 +1,22 @@
 package tui
 
 import (
+	"errors"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/smartrules"
-	"github.com/sglavoie/muse/internal/tui/statusbar"
 )
 
-// handleSmartRuleEditorKeyPress routes key events to the smart rule editor
-// overlay when it is active. Returns (model, cmd, true) when the key was consumed.
+type smartPlaylistSaveResultMsg struct {
+	id         int64
+	editing    bool
+	playlists  []db.PlaylistRow
+	writeErr   error
+	refreshErr error
+}
+
+// handleSmartRuleEditorKeyPress routes keys while the editor is open.
 func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 	if m.overlay.smartRuleEditor == nil {
 		return m, nil, false
@@ -21,41 +29,56 @@ func (m Model) handleSmartRuleEditorKeyPress(msg tea.KeyPressMsg) (Model, tea.Cm
 	switch act {
 	case smartrules.ActionClose:
 		m.overlay.smartRuleEditor = nil
-		return m, cmd, true
 	case smartrules.ActionCommit:
-		name := updated.Name()
-		q := updated.BuildQuery()
-		isEdit := updated.IsEdit
-		editID := updated.EditID
-		m.overlay.smartRuleEditor = nil
-		sw := m.smartPlaylistWriter
-		if sw != nil {
-			return m, func() tea.Msg {
-				queryJSON, err := db.MarshalSmartPlaylistQuery(q)
-				if err != nil {
-					return statusbar.TransientErrorMsg("Smart playlist error: " + err.Error())
-				}
-				if isEdit {
-					if err := sw.UpdateSmartPlaylistQuery(editID, name, queryJSON); err != nil {
-						return statusbar.TransientErrorMsg("Update failed: " + err.Error())
-					}
-					rows, err := sw.ReadPlaylists()
-					if err != nil {
-						return statusbar.TransientErrorMsg("Refresh failed: " + err.Error())
-					}
-					return smartPlaylistEditedMsg{playlists: rows}
-				}
-				id, err := sw.CreateSmartPlaylist(name, queryJSON)
-				if err != nil {
-					return statusbar.TransientErrorMsg("Create failed: " + err.Error())
-				}
-				rows, err := sw.ReadPlaylists()
-				if err != nil {
-					return statusbar.TransientErrorMsg("Refresh failed: " + err.Error())
-				}
-				return smartPlaylistCreatedMsg{id: id, playlists: rows}
-			}, true
+		if m.smartPlaylistWriter == nil {
+			updated = updated.SaveFailed(errors.New("playlist storage unavailable"))
+			m.overlay.smartRuleEditor = &updated
+			return m, nil, true
 		}
+		submitted := updated.Submit()
+		m.overlay.smartRuleEditor = &submitted
+		return m, saveSmartPlaylistCmd(m.smartPlaylistWriter, updated), true
 	}
 	return m, cmd, true
+}
+
+func saveSmartPlaylistCmd(writer smartPlaylistWriter, editor smartrules.SmartRuleEditor) tea.Cmd {
+	name, query := editor.Name(), editor.BuildQuery()
+	result := smartPlaylistSaveResultMsg{id: editor.EditID, editing: editor.IsEdit}
+	return func() tea.Msg {
+		raw, err := db.MarshalSmartPlaylistQuery(query)
+		if err != nil {
+			result.writeErr = err
+			return result
+		}
+		if result.editing {
+			result.writeErr = writer.UpdateSmartPlaylistQuery(result.id, name, raw)
+		} else {
+			result.id, result.writeErr = writer.CreateSmartPlaylist(name, raw)
+		}
+		if result.writeErr == nil {
+			result.playlists, result.refreshErr = writer.ReadPlaylists()
+		}
+		return result
+	}
+}
+
+func (m Model) handleSmartPlaylistSaveResult(msg smartPlaylistSaveResultMsg) (Model, tea.Cmd) {
+	if msg.writeErr != nil {
+		if m.overlay.smartRuleEditor != nil {
+			editor := m.overlay.smartRuleEditor.SaveFailed(msg.writeErr)
+			m.overlay.smartRuleEditor = &editor
+		}
+		m.statusBar.NotifyError("Smart playlist save failed: " + msg.writeErr.Error())
+		return m, nil
+	}
+	m.overlay.smartRuleEditor = nil
+	if msg.refreshErr != nil {
+		m.statusBar.NotifyError("Smart playlist saved, but list refresh failed: " + msg.refreshErr.Error())
+		return m, nil
+	}
+	if msg.editing {
+		return m.handleSmartPlaylistEditedMsg(smartPlaylistEditedMsg{playlists: msg.playlists})
+	}
+	return m.handleSmartPlaylistCreatedMsg(smartPlaylistCreatedMsg{id: msg.id, playlists: msg.playlists})
 }
