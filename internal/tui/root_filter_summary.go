@@ -77,7 +77,7 @@ func (m Model) filterQuerySummary() string {
 	parts := []string{}
 	for _, field := range []struct{ label, value string }{
 		{"Text", fq.General}, {"Artist", fq.Artist}, {"Title", fq.Title},
-		{"Album", fq.Album}, {"Genre", fq.Genre},
+		{"Album", fq.Album}, {"Album Artist", fq.AlbumArtist}, {"Genre", fq.Genre},
 	} {
 		if field.value != "" {
 			value := strings.Join(strings.Fields(ansi.Strip(field.value)), " ")

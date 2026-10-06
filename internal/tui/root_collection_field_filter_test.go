@@ -48,7 +48,7 @@ func collectionFilterSetups(tracks []library.Track) map[string]func(*Model) {
 			m.tagsView.Tracks = nil
 			for _, tr := range tracks {
 				m.tagsView.Tracks = append(m.tagsView.Tracks, db.PlaylistTrackRow{
-					Hash: tr.Hash, Path: tr.Path, Title: tr.Title, Artist: tr.Artist, Album: tr.Album, Genre: tr.Genre,
+					Hash: tr.Hash, Path: tr.Path, Title: tr.Title, Artist: tr.Artist, Album: tr.Album, AlbumArtist: tr.AlbumArtist, Genre: tr.Genre,
 				})
 			}
 		},
@@ -57,8 +57,8 @@ func collectionFilterSetups(tracks []library.Track) map[string]func(*Model) {
 
 func TestCollectionTrackFiltersMatchAcrossViews(t *testing.T) {
 	tracks := []library.Track{
-		{Hash: "one", Title: "Live One", Artist: "Miles Davis", Album: "Kind of Blue", Genre: "Jazz"},
-		{Hash: "two", Title: "Live Two", Artist: "Miles Davis", Album: "Other", Genre: "Fusion"},
+		{Hash: "one", Title: "Live One", AlbumArtist: "Björk Ensemble", Artist: "Miles Davis", Album: "Kind of Blue", Genre: "Jazz"},
+		{Hash: "two", Title: "Live Two", AlbumArtist: "Björk Ensemble", Artist: "Miles Davis", Album: "Other", Genre: "Fusion"},
 		{Hash: "three", Title: "Miles Davis Tribute", Artist: "AC/DC", Album: "Kind of Blue", Genre: "Rock"},
 	}
 	for name, setup := range collectionFilterSetups(tracks) {
@@ -68,6 +68,10 @@ func TestCollectionTrackFiltersMatchAcrossViews(t *testing.T) {
 				want  []string
 			}{
 				{"a:Miles Davis", []string{"one", "two"}},
+				{"aa:bjork ensemble", []string{"one", "two"}},
+				{"ALBUMARTIST:BJORK ENSEMBLE g:jazz", []string{"one"}},
+				{"aa: g:Jazz", []string{"one"}},
+				{"aa:missing", nil},
 				{"ARTIST:MILES DAVIS genre:jazz", []string{"one"}},
 				{"live a:Miles Davis l:Kind of Blue", []string{"one"}},
 				{"title:Tribute album:Kind of Blue", []string{"three"}},

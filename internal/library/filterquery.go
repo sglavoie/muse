@@ -11,31 +11,34 @@ import (
 // A query like "rock a:beatles l:abbey" is parsed into General="rock",
 // Artist="beatles", Album="abbey".
 type FilterQuery struct {
-	General string
-	Artist  string
-	Title   string
-	Album   string
-	Genre   string
+	General     string
+	Artist      string
+	Title       string
+	Album       string
+	Genre       string
+	AlbumArtist string
 }
 
-// IsFieldSpecific reports whether at least one of Artist, Title, Album, or Genre is set.
+// IsFieldSpecific reports whether at least one of Artist, Title, Album, Genre, or AlbumArtist is set.
 func (fq FilterQuery) IsFieldSpecific() bool {
-	return fq.Artist != "" || fq.Title != "" || fq.Album != "" || fq.Genre != ""
+	return fq.Artist != "" || fq.Title != "" || fq.Album != "" || fq.Genre != "" || fq.AlbumArtist != ""
 }
 
 // prefixSpec maps a recognized prefix to the FilterQuery field it targets.
 type prefixSpec struct {
 	prefix string
-	field  int // 0=Artist, 1=Title, 2=Album, 3=Genre
+	field  int // 0=Artist, 1=Title, 2=Album, 3=Genre, 4=AlbumArtist
 }
 
 // recognizedPrefixes lists all accepted filter prefixes, longest first so that
 // "artist:" is checked before "a:" (avoiding ambiguous partial matches).
 var recognizedPrefixes = []prefixSpec{
+	{"albumartist:", 4},
 	{"artist:", 0},
 	{"title:", 1},
 	{"album:", 2},
 	{"genre:", 3},
+	{"aa:", 4},
 	{"a:", 0},
 	{"t:", 1},
 	{"l:", 2},
@@ -44,13 +47,13 @@ var recognizedPrefixes = []prefixSpec{
 
 // ParseFilterQuery parses a raw filter string into a FilterQuery.
 //
-// Recognized prefixes (a:/artist:, t:/title:, l:/album:, g:/genre:) are
+// Recognized prefixes (aa:/albumartist:, a:/artist:, t:/title:, l:/album:, g:/genre:) are
 // detected only at position 0 or immediately after a space. Each prefix
 // captures all text until the next recognized prefix or end of string. Text
 // before the first prefix goes into General. Duplicate prefixes: last one wins.
 func ParseFilterQuery(raw string) FilterQuery {
 	type segment struct {
-		field       int // 0=Artist, 1=Title, 2=Album, 3=Genre
+		field       int // 0=Artist, 1=Title, 2=Album, 3=Genre, 4=AlbumArtist
 		prefixStart int
 		start       int
 	}
@@ -112,6 +115,8 @@ func ParseFilterQuery(raw string) FilterQuery {
 			fq.Album = value
 		case 3:
 			fq.Genre = value
+		case 4:
+			fq.AlbumArtist = value
 		}
 	}
 
@@ -133,9 +138,9 @@ func isFilterBoundary(s string, pos int) bool {
 
 // MatchesMetadata applies field constraints and searches the general term in
 // title, artist, album, and (when supplied) the base filename.
-func (fq FilterQuery) MatchesMetadata(title, artist, album, genre string, path ...string) bool {
+func (fq FilterQuery) MatchesMetadata(title, artist, album, albumArtist, genre string, path ...string) bool {
 	for _, field := range []struct{ value, term string }{
-		{title, fq.Title}, {artist, fq.Artist}, {album, fq.Album}, {genre, fq.Genre},
+		{title, fq.Title}, {artist, fq.Artist}, {album, fq.Album}, {genre, fq.Genre}, {albumArtist, fq.AlbumArtist},
 	} {
 		if !SearchContains(field.value, field.term) {
 			return false

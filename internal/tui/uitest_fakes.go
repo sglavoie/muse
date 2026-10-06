@@ -288,3 +288,5 @@ func (d *uitestDismissals) ReadDismissedTrackHashes() (map[string]struct{}, erro
 }
 func (d *uitestDismissals) DismissTrack(string) error   { return nil }
 func (d *uitestDismissals) UndismissTrack(string) error { return nil }
+
+func (t *uitestTags) RestoreTrackTagBulk([]string, int64) error { return nil }

@@ -66,7 +66,7 @@ func (v View) tagFiltered(ordered []Entry) []Entry {
 func matchingEntries(ordered []Entry, fq library.FilterQuery) []Entry {
 	var result []Entry
 	for _, e := range ordered {
-		if fq.MatchesMetadata(e.Title, e.Artist, e.Album, e.Genre, e.Path) {
+		if fq.MatchesMetadata(e.Title, e.Artist, e.Album, e.AlbumArtist, e.Genre, e.Path) {
 			result = append(result, e)
 		}
 	}

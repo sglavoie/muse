@@ -209,6 +209,7 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `draft-protection.json` | `rich` | Edited metadata and Auto-DJ drafts require an explicit discard choice, including at 60×15. |
 | `usability-followup.json` | `rich` | Playlist hints, clear selection, persistent Help footer, and Album Artist at 60×15. |
 | `baseline-layout.json` | `rich` | Library renders and fits at 100×30. |
 | `all-primary-views.json` | `rich` | Cycles all eight primary views; each fits. |

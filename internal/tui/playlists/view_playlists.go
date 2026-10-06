@@ -77,7 +77,7 @@ func (v PlaylistsView) displayTrackIndices() []int {
 	filtered := make([]int, 0, len(order))
 	for _, idx := range order {
 		row := v.Tracks[idx]
-		if query.MatchesMetadata(row.Title, row.Artist, row.Album, row.Genre, row.Path) {
+		if query.MatchesMetadata(row.Title, row.Artist, row.Album, row.AlbumArtist, row.Genre, row.Path) {
 			filtered = append(filtered, idx)
 		}
 	}

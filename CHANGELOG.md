@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Playlist and tag undo failures appear in Recent Messages, retain the original
+  retry window, and leave visible state unchanged. Bulk playlist restoration and
+  tag-assignment restoration are atomic.
+
 - Manual rescans surface track, genre, and missing-track persistence failures
   in Recent Messages and report success only after those writes finish.
   Canceling a scan prevents a new rescan until its remaining batches drain.
@@ -42,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- Edited metadata forms and Auto-DJ drafts offer Keep editing / Discard changes
+  when closed with Esc; unchanged forms still close immediately.
+- Track filters accept `aa:` / `albumartist:` across views, including combined
+  queries and accent-insensitive matching.
 
 - Manual rescan summaries include added and missing track counts, treating
   unchanged-content moves as the same track.

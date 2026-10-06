@@ -134,6 +134,7 @@ func (s *stubPlaylistTrackReader) ReadPlaylistTracks(_ int64) ([]db.PlaylistTrac
 // stubPlaylistDeleter records calls to playlist/track soft-delete, undo, and
 // purge methods for use in playlist deletion and undo tests.
 type stubPlaylistDeleter struct {
+	undoErr                         error
 	deletePlaylistSoftCalls         []int64
 	undoDeletePlaylistCalls         []int64
 	purgeDeletedPlaylistsCalls      []int64
@@ -148,7 +149,7 @@ func (s *stubPlaylistDeleter) DeletePlaylistSoft(id int64) error {
 }
 func (s *stubPlaylistDeleter) UndoDeletePlaylist(id int64) error {
 	s.undoDeletePlaylistCalls = append(s.undoDeletePlaylistCalls, id)
-	return nil
+	return s.undoErr
 }
 func (s *stubPlaylistDeleter) PurgeDeletedPlaylists(before int64) error {
 	s.purgeDeletedPlaylistsCalls = append(s.purgeDeletedPlaylistsCalls, before)
@@ -160,7 +161,7 @@ func (s *stubPlaylistDeleter) RemovePlaylistTrackSoft(id int64) error {
 }
 func (s *stubPlaylistDeleter) UndoRemovePlaylistTrack(id int64) error {
 	s.undoRemovePlaylistTrackCalls = append(s.undoRemovePlaylistTrackCalls, id)
-	return nil
+	return s.undoErr
 }
 func (s *stubPlaylistDeleter) PurgeDeletedPlaylistTracks(before int64) error {
 	s.purgeDeletedPlaylistTracksCalls = append(s.purgeDeletedPlaylistTracksCalls, before)
@@ -194,4 +195,9 @@ func (s *stubBatchEnqueuer) DequeueTracksSoft(ids []int64) error {
 	copy(cp, ids)
 	s.dequeueTracksSoftIDs = append(s.dequeueTracksSoftIDs, cp)
 	return nil
+}
+
+func (s *stubPlaylistDeleter) UndoRemovePlaylistTracks(ids []int64) error {
+	s.undoRemovePlaylistTrackCalls = append(s.undoRemovePlaylistTrackCalls, ids...)
+	return s.undoErr
 }

@@ -39,6 +39,7 @@ func (s *stubTagReader) ReadTagCounts() (map[int64]int, error) {
 
 // stubTagWriter records tag mutation calls for assertion in tests.
 type stubTagWriter struct {
+	undoErr       error
 	nextID        int64
 	createCalls   []string
 	addTrackCalls []struct {
@@ -61,7 +62,7 @@ func (s *stubTagWriter) UpdateTagColor(_ int64, _ string) error { return nil }
 func (s *stubTagWriter) DeleteTagSoft(_ int64) error            { return nil }
 func (s *stubTagWriter) DeleteTagIfEmpty(_ int64) (bool, error) { return false, nil }
 func (s *stubTagWriter) PurgeDeletedTags(_ int64) error         { return nil }
-func (s *stubTagWriter) UndoDeleteTag(_ int64) error            { return nil }
+func (s *stubTagWriter) UndoDeleteTag(_ int64) error            { return s.undoErr }
 func (s *stubTagWriter) AddTrackTag(hash string, tagID int64) error {
 	s.addTrackCalls = append(s.addTrackCalls, struct {
 		hash  string
@@ -78,5 +79,12 @@ func (s *stubTagWriter) AddTrackTagBulk(hashes []string, tagID int64) error {
 	}{hashes, tagID})
 	return nil
 }
-func (s *stubTagWriter) RemoveTrackTagBulk(_ []string, _ int64) error { return nil }
+func (s *stubTagWriter) RemoveTrackTagBulk(_ []string, _ int64) error { return s.undoErr }
 func (s *stubTagWriter) MergeTags(_, _ int64) error                   { return nil }
+
+func (s *stubTagWriter) RestoreTrackTagBulk(hashes []string, tagID int64) error {
+	if s.undoErr != nil {
+		return s.undoErr
+	}
+	return s.AddTrackTagBulk(hashes, tagID)
+}

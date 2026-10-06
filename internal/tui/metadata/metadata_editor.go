@@ -34,7 +34,7 @@ type Action int
 const (
 	actionNone   Action = iota
 	ActionSave          // Enter was pressed
-	ActionCancel        // Esc was pressed
+	ActionCancel        // unchanged form closed or edited draft explicitly discarded
 )
 
 // Mode controls which fields are shown and whether tab cycles between them.
@@ -73,6 +73,7 @@ func ParseDuration(s string) (float64, error) {
 
 // Editor is a fullscreen overlay for editing track metadata.
 type Editor struct {
+	discard       overlay.DiscardPrompt
 	hash          string
 	filename      string   // opening filename, independent of edits to the title
 	hashes        []string // nil for single-track, populated for bulk
@@ -244,11 +245,23 @@ func (e Editor) DirtyFields() (title, artist, album, genre, duration *string) {
 // the resulting action. Keys that the editor handles (tab, enter, esc) are
 // intercepted; everything else is forwarded to the focused Bubbles textinput.
 func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
+	if e.discard.Active {
+		var discard bool
+		e.discard, discard = e.discard.HandleKey(msg.String())
+		if discard {
+			return e, ActionCancel, nil
+		}
+		return e, actionNone, nil
+	}
+	return e.handleFormKey(msg)
+}
+
+func (e Editor) handleFormKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		return e, ActionSave, nil
 	case "esc":
-		return e, ActionCancel, nil
+		return e.requestCancel()
 	case "ctrl+r":
 		e.setFieldCleared(false)
 		return e, actionNone, nil
@@ -350,6 +363,9 @@ const maxLabelW = 14
 
 // Render produces a centered box with six labelled, editable fields.
 func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
+	if e.discard.Active {
+		return e.discard.Render(termWidth, termHeight, s)
+	}
 	// Box width: use most of the terminal width, capped at 80.
 	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
 	contentWidth := boxInner - overlay.HPadding
@@ -624,4 +640,12 @@ func (e Editor) DirtyAlbumArtist() *string {
 	}
 	value := strings.TrimSpace(e.AlbumArtist())
 	return &value
+}
+
+func (e Editor) requestCancel() (Editor, Action, tea.Cmd) {
+	if slices.Contains(e.Dirty[:], true) {
+		e.discard = overlay.DiscardPrompt{Active: true}
+		return e, actionNone, nil
+	}
+	return e, ActionCancel, nil
 }

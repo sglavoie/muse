@@ -136,6 +136,26 @@ func (w *Writer) UndoRemovePlaylistTrack(id int64) error {
 	return w.undoSoftDeleteByID("playlist_tracks", id)
 }
 
+// UndoRemovePlaylistTracks restores every selected row in one transaction.
+func (w *Writer) UndoRemovePlaylistTracks(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return w.Exec(func(db *sql.DB) error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer rollback(tx)
+		for _, id := range ids {
+			if _, err := tx.Exec(`UPDATE playlist_tracks SET deleted_at=NULL WHERE id=?`, id); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	})
+}
+
 // ReorderPlaylistTrack performs a single-step adjacent swap for the track
 // identified by trackID inside playlistID. direction must be -1 (move up,
 // toward lower position) or +1 (move down, toward higher position). It is a

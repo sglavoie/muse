@@ -21,6 +21,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/radio"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // Catalog supplies the values the inclusion and exclusion pickers offer. It is
@@ -94,6 +95,7 @@ type Applied struct {
 
 // TunePanel is the Tune tab of the Auto-DJ overlay.
 type TunePanel struct {
+	discard overlay.DiscardPrompt
 	applied radio.Settings
 	draft   radio.Settings
 	catalog Catalog

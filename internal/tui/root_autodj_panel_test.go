@@ -162,8 +162,8 @@ func TestAutoDJTunePanelOwnsTheKeyboardWhileOpen(t *testing.T) {
 	}
 }
 
-// TestAutoDJTuneCancelDiscardsTheDraft is the cancellation contract: esc must
-// leave neither the panel nor the session carrying what was typed.
+// TestAutoDJTuneCancelDiscardsTheDraft verifies that only explicit discard
+// closes an edited draft, without applying it to the running session.
 func TestAutoDJTuneCancelDiscardsTheDraft(t *testing.T) {
 	m, _ := djPress(t, newTunableModel(), "ctrl+a")
 	applied := m.dj.settings
@@ -174,8 +174,16 @@ func TestAutoDJTuneCancelDiscardsTheDraft(t *testing.T) {
 	}
 
 	m, _ = djPress(t, m, "esc")
+	if m.overlay.autoDJ == nil {
+		t.Fatal("edited draft closed before confirmation")
+	}
+	m, _ = djPress(t, m, "enter") // Keep editing is the default.
+	if !djPanel(t, m).Dirty() {
+		t.Fatal("keeping draft lost edits")
+	}
+	m, _ = djPress(t, m, "esc", "tab", "enter")
 	if m.overlay.autoDJ != nil {
-		t.Fatal("esc did not close the panel")
+		t.Fatal("explicit discard did not close the panel")
 	}
 	if !m.dj.settings.Equal(applied) {
 		t.Fatalf("settings = %+v after a cancel, want the applied %+v", m.dj.settings, applied)

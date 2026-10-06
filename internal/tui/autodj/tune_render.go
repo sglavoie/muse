@@ -77,6 +77,9 @@ const (
 func (p TunePanel) Render(
 	termWidth, termHeight int, s styles.Styles, status []StatusLine, preview Preview,
 ) string {
+	if p.discard.Active {
+		return p.discard.Render(termWidth, termHeight, s)
+	}
 	if p.picker != nil {
 		return centerBox(p.picker.buildBoxLines(termWidth, termHeight, s), termWidth, termHeight)
 	}

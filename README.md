@@ -39,8 +39,8 @@ The preview above uses fictional library data from the
 
 | View | What it does |
 | --- | --- |
-| **Library** (`1`) | The whole collection, with sub-modes for All / Recently Added / History. Filter with prefixes (`a:` artist, `t:` title, `l:` album, `g:` genre). |
-| **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). `/` filters playlist names; open playlists also support `a:`, `t:`, `l:`, and `g:` field prefixes. |
+| **Library** (`1`) | The whole collection, with sub-modes for All / Recently Added / History. Filter with prefixes (`a:` artist, `t:` title, `l:` album, `g:` genre, `aa:` Album Artist). |
+| **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). `/` filters playlist names; open playlists also support `a:`, `t:`, `l:`, `g:`, and `aa:` field prefixes. |
 | **Queue** (`3`) | The live play queue: reorder, remove, yank/cut/paste rows, save the queue as a playlist. |
 | **Browse** (`4`) | Hierarchical browsing by Artists ↔ Albums ↔ Genres, drilling down to tracks. |
 | **Favorites** (`5`) | Favorited tracks, albums, and artists, grouped by category. |
@@ -140,6 +140,9 @@ matching release, and each release can then be unfavorited independently.
   focused field for every selected track; `ctrl+r` restores that field to
   unchanged. Clear operations show “Will clear for N tracks” before saving
   and support undo.
+- Edited metadata forms and Auto-DJ drafts ask before discarding changes on `Esc`.
+  The default is **Keep editing**; choose **Discard changes** with Tab and Enter.
+  Unchanged forms close immediately.
 - Album Artist edits regroup albums immediately and support bulk editing, explicit
   clearing, and undo. Corrections survive rescans and restarts. TSV exports include
   `album_artist`; importing an older export without that column leaves it unchanged.
@@ -179,8 +182,9 @@ matching release, and each release can then be unfavorited independently.
 - The palette's _Remove queue duplicates_ command previews how many repeated
   entries it will remove, keeping first occurrences. It is unavailable when
   the queue has no duplicates.
-- Undo (`u`) for destructive operations. Queue-restore failures appear in recent
-  messages and can be retried within the original ten-second undo window. The countdown belongs
+- Undo (`u`) for destructive operations. Queue, playlist, and tag undo failures
+  appear in Recent Messages and can be retried within the original ten-second
+  undo window. Bulk playlist and tag-assignment restores are atomic. The countdown belongs
   to the active undo prompt; unrelated messages do not inherit it.
 - Enqueue confirmations distinguish “Queued next” from “Added to queue,” with
   the same undo shortcut for both.
@@ -195,7 +199,9 @@ matching release, and each release can then be unfavorited independently.
   When space allows, track-list filter editors also show
   how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
   Browse, Favorites, Tags, Queue, and open playlists support the same field
-  prefixes, including `g:` / `genre:`, wherever individual tracks are listed.
+  prefixes, including `g:` / `genre:` and `aa:` / `albumartist:`, wherever
+  individual tracks are listed. Album Artist filters match the stored Album Artist
+  value, independently of the track artist; for example, `aa:Various Artists g:Jazz`.
   Collection-name filters continue to match literal text.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished

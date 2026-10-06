@@ -1,0 +1,140 @@
+{
+  "name": "Protect metadata and Auto-DJ drafts",
+  "fixture": "rich",
+  "size": "100x30",
+  "actions": [
+    {
+      "key": "M"
+    },
+    {
+      "text": " changed"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Discard unsaved changes?"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "Keep editing"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Track A1 changed"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Track A1 changed"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "M"
+    },
+    {
+      "assert": {
+        "not_contains": "Track A1 changed"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "ctrl+a"
+    },
+    {
+      "key": "right"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Discard unsaved changes?"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "Discovery"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "not_contains": "Discard unsaved changes?"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Discovery"
+      }
+    },
+    {
+      "key": "/"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "text": "aa:Various Artists"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

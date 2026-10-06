@@ -34,7 +34,7 @@ func FilterTracks(tracks []library.Track, query string) []library.Track {
 		if album == "" {
 			album = UnknownAlbum
 		}
-		if fq.MatchesMetadata(t.Title, artist, album, t.Genre, t.Path) {
+		if fq.MatchesMetadata(t.Title, artist, album, t.AlbumArtist, t.Genre, t.Path) {
 			out = append(out, t)
 		}
 	}

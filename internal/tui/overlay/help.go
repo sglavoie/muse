@@ -151,7 +151,7 @@ var helpSectionsTable = []HelpSection{
 		Context: keys.ContextLibrary,
 		entries: []helpEntry{
 			{"` / ~", "Cycle sub-mode forward / backward (All ↔ Recently Added ↔ History)"},
-			{"/", "Filter tracks (prefixes: a: t: l: g:; empty prefixes impose no restriction)"},
+			{"/", "Filter tracks (prefixes: a: t: l: g: aa:; empty prefixes impose no restriction)"},
 			{"enter", "Enqueue focused / selected tracks"},
 			{"N", "Play next (insert after current track)"},
 			{"shift+enter", "Replace queue with track"},

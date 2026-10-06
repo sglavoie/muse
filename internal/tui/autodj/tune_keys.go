@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sglavoie/muse/internal/radio"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 )
 
 // HandleKey processes one key press and reports what the root model should do.
@@ -14,6 +15,18 @@ import (
 // without a program running behind it.
 func (p TunePanel) HandleKey(msg tea.KeyPressMsg) (TunePanel, Action) {
 	key := msg.String()
+	if p.discard.Active {
+		var discard bool
+		p.discard, discard = p.discard.HandleKey(key)
+		if discard {
+			return p, ActionCancel
+		}
+		return p, actionNone
+	}
+	return p.handlePanelKey(key)
+}
+
+func (p TunePanel) handlePanelKey(key string) (TunePanel, Action) {
 	if p.picker != nil {
 		return p.handlePickerKey(key), actionNone
 	}
@@ -26,7 +39,7 @@ func (p TunePanel) HandleKey(msg tea.KeyPressMsg) (TunePanel, Action) {
 	}
 	switch key {
 	case "esc":
-		return p, ActionCancel
+		return p.requestCancel()
 	case "tab":
 		return p.switchTab(1)
 	case "shift+tab":
@@ -209,4 +222,12 @@ func (p TunePanel) clearFocusedField() TunePanel {
 	p = p.withFilterSet(fr.exclude, withFieldValues(p.filterSet(fr.exclude), fr.field, nil))
 	p.err = nil
 	return p
+}
+
+func (p TunePanel) requestCancel() (TunePanel, Action) {
+	if p.Dirty() {
+		p.discard = overlay.DiscardPrompt{Active: true}
+		return p, actionNone
+	}
+	return p, ActionCancel
 }

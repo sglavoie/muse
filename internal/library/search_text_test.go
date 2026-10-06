@@ -29,7 +29,7 @@ func TestFilenameAndAccentMatchingAgree(t *testing.T) {
 	track := Track{Path: "/private/Library/Café.flac", Title: "Unknown", Artist: "Björk", Genre: "Électronique"}
 	for query, want := range map[string]bool{"cafe": true, "cafe a:bjork g:electronique": true, "private": false, "t:cafe": false, "g:jazz": false} {
 		fq := ParseFilterQuery(query)
-		got := fq.MatchesMetadata(track.Title, track.Artist, track.Album, track.Genre, track.Path)
+		got := fq.MatchesMetadata(track.Title, track.Artist, track.Album, track.AlbumArtist, track.Genre, track.Path)
 		searched := len((SahilmFuzzySearcher{}).Search(query, []Track{track})) > 0
 		if got != want || searched != want {
 			t.Errorf("%q: matcher=%v search=%v want=%v", query, got, searched, want)

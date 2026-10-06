@@ -32,8 +32,8 @@ func (m Model) handleUndo() Model {
 	if err != nil {
 		// Keep the original expiry and action so retry cannot extend the
 		// undo window. Re-arm cleanup cancelled before the attempt.
-		if hadPurge && m.undoer != nil {
-			schedulePurge(&m.undo.slot, m.undoer.PurgeDeletedQueueEntries)
+		if hadPurge {
+			m.rearmUndoPurge()
 		}
 		slog.Warn("undo failed", "err", err)
 		m.statusBar.NotifyError("Undo failed: " + err.Error())

@@ -5,7 +5,7 @@ import "strings"
 // FakeFuzzySearcher is a deterministic in-memory FuzzySearcher for use in
 // unit tests. It performs the same case-insensitive, per-field substring match
 // as SahilmFuzzySearcher and returns results in stable index order. It supports
-// field-specific queries via a:/t:/l:/g: prefixes.
+// field-specific queries via a:/t:/l:/g:/aa: prefixes.
 type FakeFuzzySearcher struct{}
 
 // Search returns one Match per track whose artist, title, album, or base
@@ -66,6 +66,10 @@ func (f FakeFuzzySearcher) searchFieldSpecific(fq FilterQuery, tracks []Track) [
 			if _, matched := substringIndexes(t.Genre, fq.Genre); !matched {
 				ok = false
 			}
+		}
+
+		if ok && fq.AlbumArtist != "" {
+			_, ok = substringIndexes(t.AlbumArtist, fq.AlbumArtist)
 		}
 
 		if ok && fq.General != "" {

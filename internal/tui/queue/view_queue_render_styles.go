@@ -27,7 +27,7 @@ func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineAct
 	f := strip.FilterChunk{Active: v.Filter.Active, Text: v.Filter.Text}
 	if v.Filter.Active {
 		if v.Filter.Text == "" {
-			f.Hint = s.TextSecondary.Render("a: artist  t: title  l: album  g: genre")
+			f.Hint = s.TextSecondary.Render("a: artist  t: title  l: album  g: genre  aa: album artist")
 		} else {
 			f.InputView = v.Filter.View()
 		}

@@ -15,6 +15,7 @@ const scenarioDir = "docs/tui-testing/scenarios"
 // gatedScenarios are stable baseline examples that must pass in CI. They run
 // against their declared fixtures and are expected to report ok:true.
 var gatedScenarios = []string{
+	"draft-protection.json",
 	"playlist-fields-and-favorites-selection.json",
 	"seek-to-time.json",
 	"playlist-durations.json",

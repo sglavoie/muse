@@ -23,7 +23,7 @@ func (v Panel) renderStateStrip(total, filtered int) string {
 	f := strip.FilterChunk{Active: v.Filter.Active, Text: v.Filter.Text}
 	if v.Filter.Active {
 		if v.Filter.Text == "" {
-			f.Hint = v.Styles.TextSecondary.Render("a: artist  t: title  l: album  g: genre")
+			f.Hint = v.Styles.TextSecondary.Render("a: artist  t: title  l: album  g: genre  aa: album artist")
 		} else {
 			f.InputView = v.Filter.View()
 		}

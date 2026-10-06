@@ -90,6 +90,16 @@ func (w *Writer) RemoveTrackTag(hash string, tagID int64) error {
 // transaction. Each insert is idempotent (INSERT OR IGNORE). It is a no-op
 // when hashes is empty.
 func (w *Writer) AddTrackTagBulk(hashes []string, tagID int64) error {
+	return w.addTrackTagBulk(hashes, tagID, false)
+}
+
+// RestoreTrackTagBulk restores a possibly soft-deleted tag and its assignments
+// in one transaction, so a failed undo leaves neither partially restored.
+func (w *Writer) RestoreTrackTagBulk(hashes []string, tagID int64) error {
+	return w.addTrackTagBulk(hashes, tagID, true)
+}
+
+func (w *Writer) addTrackTagBulk(hashes []string, tagID int64, restore bool) error {
 	if len(hashes) == 0 {
 		return nil
 	}
@@ -99,6 +109,12 @@ func (w *Writer) AddTrackTagBulk(hashes []string, tagID int64) error {
 			return err
 		}
 		defer rollback(tx)
+
+		if restore {
+			if _, err := tx.Exec(`UPDATE tags SET deleted_at=NULL WHERE id=?`, tagID); err != nil {
+				return err
+			}
+		}
 
 		now := time.Now().Unix()
 		for _, hash := range hashes {

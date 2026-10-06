@@ -122,7 +122,7 @@ func (v Panel) renderZeroWidthFallback(display []displayTrack, start, end int) s
 	separator := ""
 	switch {
 	case v.Filter.Active && v.Filter.Text == "":
-		hint := v.Styles.Dim.Render("a: artist  t: title  l: album  g: genre")
+		hint := v.Styles.Dim.Render("a: artist  t: title  l: album  g: genre  aa: album artist")
 		separator = "Filter: " + hint + "\n"
 	case v.Filter.Active:
 		separator = "Filter: " + v.Filter.View() + "\n"

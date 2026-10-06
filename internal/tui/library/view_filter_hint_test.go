@@ -36,7 +36,7 @@ func TestFilterBarHintShownWhenEmpty(t *testing.T) {
 		t.Errorf("filter bar hint should show 'l: album' when empty, got:\n%s", got)
 	}
 	// The hint text should be wrapped in TextSecondary styling.
-	hint := "a: artist  t: title  l: album  g: genre"
+	hint := "a: artist  t: title  l: album  g: genre  aa: album artist"
 	styledHint := styledText(secondaryStyle, hint)
 	if ansi.Strip(styledHint) == styledHint {
 		t.Skip("lipgloss produced no ANSI output in this terminal environment")

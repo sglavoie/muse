@@ -79,7 +79,7 @@ func (v View) EffectiveTracks() []db.PlaylistTrackRow {
 	fq := library.ParseFilterQuery(v.FilterText)
 	var result []db.PlaylistTrackRow
 	for _, t := range v.Tracks {
-		if fq.MatchesMetadata(t.Title, t.Artist, t.Album, t.Genre, t.Path) {
+		if fq.MatchesMetadata(t.Title, t.Artist, t.Album, t.AlbumArtist, t.Genre, t.Path) {
 			result = append(result, t)
 		}
 	}

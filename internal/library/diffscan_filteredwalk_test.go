@@ -58,9 +58,15 @@ func TestFilteredWalk_ModifiedFileIncluded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat: %v", err)
 	}
+	// Files can be created on opposite sides of a second boundary. Snapshot
+	// the unchanged file itself rather than borrowing the first file's time.
+	unchanged, err := os.Stat(paths[1])
+	if err != nil {
+		t.Fatalf("stat unchanged file: %v", err)
+	}
 	known := map[string]KnownFile{
 		paths[0]: {ModTime: info.ModTime().Unix() - 1, SizeBytes: info.Size()},
-		paths[1]: {ModTime: info.ModTime().Unix(), SizeBytes: info.Size()},
+		paths[1]: {ModTime: unchanged.ModTime().Unix(), SizeBytes: unchanged.Size()},
 	}
 
 	changed, deleted, err := FilteredWalk(context.Background(), []string{dir}, nil, known, nil)

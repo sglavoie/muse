@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -24,7 +23,7 @@ func (a undoDeletePlaylistAction) description() string {
 func (a undoDeletePlaylistAction) perform(m Model) (Model, error) {
 	if m.playlistDeleter != nil {
 		if err := m.playlistDeleter.UndoDeletePlaylist(a.entry.ID); err != nil {
-			slog.Warn("undo delete playlist failed", "err", err)
+			return m, fmt.Errorf("restore playlist: %w", err)
 		}
 	}
 	idx := min(a.idx, len(m.playlists.Playlists))
@@ -56,7 +55,7 @@ func (a undoRemovePlaylistTrackAction) description() string {
 func (a undoRemovePlaylistTrackAction) perform(m Model) (Model, error) {
 	if m.playlistDeleter != nil {
 		if err := m.playlistDeleter.UndoRemovePlaylistTrack(a.entry.ID); err != nil {
-			slog.Warn("undo remove playlist track failed", "err", err)
+			return m, fmt.Errorf("restore playlist track: %w", err)
 		}
 	}
 	idx := min(a.idx, len(m.playlists.Tracks))
@@ -90,10 +89,12 @@ func (a undoBulkRemovePlaylistTracksAction) description() string {
 
 func (a undoBulkRemovePlaylistTracksAction) perform(m Model) (Model, error) {
 	if m.playlistDeleter != nil {
-		for _, t := range a.entries {
-			if err := m.playlistDeleter.UndoRemovePlaylistTrack(t.ID); err != nil {
-				slog.Warn("undo bulk remove playlist track failed", "err", err)
-			}
+		ids := make([]int64, len(a.entries))
+		for i, t := range a.entries {
+			ids[i] = t.ID
+		}
+		if err := m.playlistDeleter.UndoRemovePlaylistTracks(ids); err != nil {
+			return m, fmt.Errorf("restore playlist tracks: %w", err)
 		}
 	}
 	for i := range a.indices {

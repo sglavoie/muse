@@ -58,14 +58,17 @@ func TestPlaylistFilterDrilldownRestoresList(t *testing.T) {
 
 func TestPlaylistFieldFiltersPreserveDuplicateRows(t *testing.T) {
 	v := PlaylistsView{Level: TrackLevel, Tracks: []db.PlaylistTrackRow{
-		{ID: 1, Hash: "a", Title: "Live One", Artist: "Alice", Album: "Alpha", Genre: "Ambient"},
+		{ID: 1, Hash: "a", Title: "Live One", Artist: "Alice", Album: "Alpha", AlbumArtist: "Various Artists", Genre: "Ambient"},
 		{ID: 2, Hash: "b", Title: "Two", Artist: "Bob", Album: "Beta", Genre: "Jazz"},
-		{ID: 3, Hash: "a", Title: "Live One", Artist: "Alice", Album: "Alpha", Genre: "Ambient"},
+		{ID: 3, Hash: "a", Title: "Live One", Artist: "Alice", Album: "Alpha", AlbumArtist: "Various Artists", Genre: "Ambient"},
 	}}
 	for _, tc := range []struct {
 		query string
 		ids   []int64
 	}{
+		{"aa:various artists", []int64{1, 3}},
+		{"albumartist:various a:alice", []int64{1, 3}},
+		{"aa:missing", nil},
 		{"a:ALICE", []int64{1, 3}}, {"artist:Bob", []int64{2}},
 		{"live a:alice l:alpha g:ambient", []int64{1, 3}},
 		{"title:two genre:jazz", []int64{2}}, {"album:beta", []int64{2}},

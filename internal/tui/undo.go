@@ -26,3 +26,29 @@ func (m Model) undoDetail() string {
 	}
 	return "Revert: " + description
 }
+
+// rearmUndoPurge retains cleanup for the kind of row the failed undo owns.
+func (m *Model) rearmUndoPurge() {
+	var purge func(int64) error
+	switch m.undo.slot.action.kind() {
+	case undoKindDeletePlaylist:
+		if m.playlistDeleter != nil {
+			purge = m.playlistDeleter.PurgeDeletedPlaylists
+		}
+	case undoKindRemovePlaylistTrack, undoKindBulkRemovePlaylistTracks:
+		if m.playlistDeleter != nil {
+			purge = m.playlistDeleter.PurgeDeletedPlaylistTracks
+		}
+	case undoKindDeleteTag:
+		if m.tagWriter != nil {
+			purge = m.tagWriter.PurgeDeletedTags
+		}
+	default:
+		if m.undoer != nil {
+			purge = m.undoer.PurgeDeletedQueueEntries
+		}
+	}
+	if purge != nil {
+		schedulePurge(&m.undo.slot, purge)
+	}
+}

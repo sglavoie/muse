@@ -188,6 +188,7 @@ type playlistDeleter interface {
 	PurgeDeletedPlaylists(before int64) error
 	RemovePlaylistTrackSoft(id int64) error
 	UndoRemovePlaylistTrack(id int64) error
+	UndoRemovePlaylistTracks(ids []int64) error
 	PurgeDeletedPlaylistTracks(before int64) error
 }
 
@@ -483,6 +484,7 @@ type tagWriter interface {
 	RemoveTrackTag(hash string, tagID int64) error
 	RemoveAllTrackTags(hash string) error
 	AddTrackTagBulk(hashes []string, tagID int64) error
+	RestoreTrackTagBulk(hashes []string, tagID int64) error
 	RemoveTrackTagBulk(hashes []string, tagID int64) error
 	MergeTags(sourceID, destID int64) error
 }

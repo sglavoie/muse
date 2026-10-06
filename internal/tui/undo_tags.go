@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -38,17 +37,13 @@ func (a undoTagToggleAction) perform(m Model) (Model, error) {
 	if a.wasAdd {
 		// Undo add → remove.
 		if err := tw.RemoveTrackTagBulk(a.hashes, a.tagID); err != nil {
-			slog.Warn("undo tag toggle: remove failed", "tagID", a.tagID, "err", err)
+			return m, fmt.Errorf("remove tag assignment: %w", err)
 		}
 		m = m.applyTagToggle(a.tagID, a.hashes, false)
 	} else {
-		// Undo remove → re-add. Restore soft-deleted tag first (harmless
-		// no-op when the tag was not actually auto-deleted).
-		if err := tw.UndoDeleteTag(a.tagID); err != nil {
-			slog.Warn("undo tag toggle: restore tag failed", "tagID", a.tagID, "err", err)
-		}
-		if err := tw.AddTrackTagBulk(a.hashes, a.tagID); err != nil {
-			slog.Warn("undo tag toggle: re-add failed", "tagID", a.tagID, "err", err)
+		// Restore the tag and its assignments together, including auto-deleted tags.
+		if err := tw.RestoreTrackTagBulk(a.hashes, a.tagID); err != nil {
+			return m, fmt.Errorf("restore tag assignments: %w", err)
 		}
 		m = m.applyTagToggle(a.tagID, a.hashes, true)
 		// If the tag was removed from the cache (auto-deleted), restore it.
@@ -83,7 +78,7 @@ func (a undoDeleteTagAction) perform(m Model) (Model, error) {
 	tw := m.tagWriter
 	if tw != nil {
 		if err := tw.UndoDeleteTag(a.tag.ID); err != nil {
-			slog.Warn("undo delete tag: UndoDeleteTag failed", "id", a.tag.ID, "err", err)
+			return m, fmt.Errorf("restore tag: %w", err)
 		}
 	}
 	idx := min(a.idx, len(m.tags))
