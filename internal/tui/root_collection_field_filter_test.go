@@ -48,7 +48,7 @@ func collectionFilterSetups(tracks []library.Track) map[string]func(*Model) {
 			m.tagsView.Tracks = nil
 			for _, tr := range tracks {
 				m.tagsView.Tracks = append(m.tagsView.Tracks, db.PlaylistTrackRow{
-					Hash: tr.Hash, Title: tr.Title, Artist: tr.Artist, Album: tr.Album, Genre: tr.Genre,
+					Hash: tr.Hash, Path: tr.Path, Title: tr.Title, Artist: tr.Artist, Album: tr.Album, Genre: tr.Genre,
 				})
 			}
 		},
@@ -127,5 +127,21 @@ func TestCollectionNameFiltersStayLiteral(t *testing.T) {
 			t.Fatal("collection names must not advertise field matching")
 		}
 		m = pressEsc(m)
+	}
+}
+
+func TestCollectionFilenameAccentFilters(t *testing.T) {
+	tracks := []library.Track{{Hash: "accent", Path: "/private/Cafe\u0301.flac", Artist: "Björk"}}
+	for name, setup := range collectionFilterSetups(tracks) {
+		t.Run(name, func(t *testing.T) {
+			for _, query := range []string{"cafe", "cafe a:bjork", "a:BJORK"} {
+				m := newRichFixture()
+				setup(&m)
+				m = typeText(pressSlash(m), query)
+				if got := m.filterRowKeys(); !slices.Equal(got, []string{"accent"}) {
+					t.Fatalf("%q: %v", query, got)
+				}
+			}
+		})
 	}
 }

@@ -217,15 +217,16 @@ func (m Model) metadataExportDocument(tracks []library.Track, label string) (met
 		}
 		rootID, rel := roots.Locate(t.Path)
 		rows = append(rows, metaexport.Row{
-			Hash:    t.Hash,
-			RootID:  rootID,
-			RelPath: rel,
-			Artist:  t.Artist,
-			Title:   t.Title,
-			Album:   t.Album,
-			Genre:   t.Genre,
-			Track:   t.TrackNumber,
-			Disc:    t.DiscNumber,
+			Hash:        t.Hash,
+			RootID:      rootID,
+			RelPath:     rel,
+			Artist:      t.Artist,
+			Title:       t.Title,
+			Album:       t.Album,
+			AlbumArtist: t.AlbumArtist, AlbumArtistPresent: true,
+			Genre: t.Genre,
+			Track: t.TrackNumber,
+			Disc:  t.DiscNumber,
 		})
 	}
 	return metaexport.Document{

@@ -290,7 +290,7 @@ type sessionWriter = db.SessionWriter
 
 // metadataUpdater persists user-edited metadata to the database.
 type metadataUpdater interface {
-	UpdateTrackMetadata(hash, title, artist, album, genre string) error
+	UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error
 }
 
 // durationUpdater persists a manually edited track duration to the database.

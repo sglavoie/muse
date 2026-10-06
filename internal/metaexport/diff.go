@@ -9,21 +9,23 @@ import (
 
 // Current is the library's present state for one hash, as the diff sees it.
 type Current struct {
-	Path   string
-	Artist string
-	Title  string
-	Album  string
-	Genre  string
-	Track  int
-	Disc   int
+	AlbumArtist string
+	Path        string
+	Artist      string
+	Title       string
+	Album       string
+	Genre       string
+	Track       int
+	Disc        int
 }
 
 // Change is one row that differs from the library. A nil field means the row
 // left that field alone; a non-nil one carries the value to write.
 type Change struct {
-	Hash    string
-	Line    int
-	Current Current
+	AlbumArtist *string
+	Hash        string
+	Line        int
+	Current     Current
 
 	Artist *string
 	Title  *string
@@ -39,12 +41,13 @@ type Change struct {
 
 // FieldCounts is how many changes touch each field.
 type FieldCounts struct {
-	Artist int
-	Title  int
-	Album  int
-	Genre  int
-	Track  int
-	Disc   int
+	AlbumArtist int
+	Artist      int
+	Title       int
+	Album       int
+	Genre       int
+	Track       int
+	Disc        int
 }
 
 // Plan is everything the confirmation overlay needs to describe an import.
@@ -85,6 +88,10 @@ func Diff(rows []Row, cur map[string]Current) Plan {
 			ch.Title = &row.Title
 			p.Counts.Title++
 		}
+		if row.AlbumArtistPresent && !sameText(row.AlbumArtist, c.AlbumArtist) {
+			ch.AlbumArtist = &row.AlbumArtist
+			p.Counts.AlbumArtist++
+		}
 		if !sameText(row.Album, c.Album) {
 			ch.Album = &row.Album
 			p.Counts.Album++
@@ -104,7 +111,7 @@ func Diff(rows []Row, cur map[string]Current) Plan {
 			p.Counts.Disc++
 		}
 
-		if ch.Artist == nil && ch.Title == nil && ch.Album == nil &&
+		if ch.AlbumArtist == nil && ch.Artist == nil && ch.Title == nil && ch.Album == nil &&
 			ch.Genre == nil && ch.Track == nil && ch.Disc == nil {
 			p.Unchanged++
 			continue

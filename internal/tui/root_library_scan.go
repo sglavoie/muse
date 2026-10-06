@@ -268,6 +268,9 @@ func (m Model) normalizeScannedTrack(track library.Track) library.Track {
 		track.Artist = edited.Artist
 		track.Album = edited.Album
 		track.Genre = edited.Genre
+		if edited.AlbumArtistEdited {
+			track.AlbumArtist = edited.AlbumArtist
+		}
 		track.TrackNumber = edited.TrackNumber
 		track.DiscNumber = edited.DiscNumber
 	}

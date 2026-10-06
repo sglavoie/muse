@@ -326,6 +326,12 @@ func registerDefaultPrimaries(r *Registry) {
 }
 
 func registerTrackModePrimaries(r *Registry) {
+	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "enter", "enqueue")
+	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "N", "play-next")
+	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "esc", "clear/back")
+	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "/", "filter")
+	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "?", "help")
+
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "j/k", "nav")
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "e", "enqueue")
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "E", "enqueue all")
@@ -352,7 +358,7 @@ func registerSelectionModePrimaries(r *Registry) {
 	r.addPrimaryMode(ContextQueue, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(ContextQueue, HintModeSelection, "?", "help")
 
-	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "enter", "open")
+	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "enter", "enqueue focused")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "a", "remove")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "t", "tag")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "X", "clear")

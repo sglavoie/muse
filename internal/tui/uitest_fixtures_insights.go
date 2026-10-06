@@ -206,7 +206,7 @@ func (r *uitestInsights) ReadUnverifiedDurations() ([]db.UnverifiedTrack, error)
 // that follows it — which is the whole point of exercising the merge here.
 type uitestMetadata struct{ ins *uitestInsights }
 
-func (w *uitestMetadata) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+func (w *uitestMetadata) UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error {
 	for i := range w.ins.tracks {
 		if w.ins.tracks[i].Hash != hash {
 			continue
@@ -215,6 +215,9 @@ func (w *uitestMetadata) UpdateTrackMetadata(hash, title, artist, album, genre s
 		w.ins.tracks[i].Artist = artist
 		w.ins.tracks[i].Album = album
 		w.ins.tracks[i].Genre = genre
+		if len(albumArtist) > 0 {
+			w.ins.tracks[i].AlbumArtist = albumArtist[0]
+		}
 		break
 	}
 	return nil

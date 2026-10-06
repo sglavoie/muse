@@ -20,27 +20,32 @@ import (
 // importWriterSpy records both halves of an import write so a test can assert
 // they went through the same claim.
 type importWriterSpy struct {
-	mu        sync.Mutex
-	meta      map[string][4]string
-	positions map[string][2]int
-	failMeta  map[string]bool
+	mu           sync.Mutex
+	meta         map[string][4]string
+	albumArtists map[string]string
+	positions    map[string][2]int
+	failMeta     map[string]bool
 }
 
 func newImportWriterSpy() *importWriterSpy {
 	return &importWriterSpy{
-		meta:      map[string][4]string{},
-		positions: map[string][2]int{},
-		failMeta:  map[string]bool{},
+		meta:         map[string][4]string{},
+		albumArtists: map[string]string{},
+		positions:    map[string][2]int{},
+		failMeta:     map[string]bool{},
 	}
 }
 
-func (w *importWriterSpy) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+func (w *importWriterSpy) UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.failMeta[hash] {
 		return errors.New("database is locked")
 	}
 	w.meta[hash] = [4]string{title, artist, album, genre}
+	if len(albumArtist) > 0 {
+		w.albumArtists[hash] = albumArtist[0]
+	}
 	return nil
 }
 

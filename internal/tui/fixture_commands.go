@@ -21,6 +21,7 @@ import (
 func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
 		"playback.seek.time":     {},
+		"selection.clear":        {},
 		"messages.show":          {},
 		"help.show":              {},
 		"help.modes_legend":      {},

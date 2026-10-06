@@ -23,6 +23,7 @@ const (
 	fieldAlbum
 	fieldGenre
 	FieldDuration
+	FieldAlbumArtist
 	fieldCount
 )
 
@@ -147,6 +148,7 @@ func NewEditor(hash, title, artist, album, genre string, duration float64) Edito
 			newField(album, false),
 			newField(genre, false),
 			newField(dur, false),
+			newField("", false),
 		},
 	}
 }
@@ -163,6 +165,7 @@ func NewBulkEditor(hashes []string, commonTitle, commonArtist, commonAlbum, comm
 			newField(commonAlbum, false),
 			newField(commonGenre, false),
 			newField(commonDuration, false),
+			newField("", false),
 		},
 	}
 }
@@ -367,10 +370,10 @@ func (e Editor) DurationChanged() bool {
 // Hash returns the track hash this editor was opened for.
 func (e Editor) Hash() string { return e.hash }
 
-// maxLabelW is the column width of the field labels: len("*Duration:").
-const maxLabelW = 10
+// maxLabelW accommodates the longest changed label, "*Album Artist:".
+const maxLabelW = 14
 
-// Render produces a centered box with five labelled, editable fields.
+// Render produces a centered box with six labelled, editable fields.
 func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	// Box width: use most of the terminal width, capped at 80.
 	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
@@ -401,7 +404,20 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
 	// Hint.
-	lines = append(lines, strings.Split(e.hintLine(), "\n")...)
+	hints := strings.Split(e.hintLine(), "\n")
+	if len(lines)+len(hints) > termHeight {
+		changed := 0
+		for _, i := range renderFields {
+			if e.Dirty[i] {
+				changed++
+			}
+		}
+		hints = []string{"  tab fields · enter save · esc cancel", fmt.Sprintf("  ctrl+r reset · %d changed", changed)}
+		if e.IsBulk() {
+			hints[1] += " · ctrl+d clear"
+		}
+	}
+	lines = append(lines, hints...)
 
 	return centerBoxLines(lines, termWidth, termHeight)
 }
@@ -409,7 +425,7 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 // fieldLabels returns the field labels, marking every edited field that
 // differs from its opening value with a leading "*".
 func (e Editor) fieldLabels() [fieldCount]string {
-	labels := [fieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:"}
+	labels := [fieldCount]string{"Title:", "Artist:", "Album:", "Genre:", "Duration:", "Album Artist:"}
 	for i := range fieldCount {
 		if e.Dirty[i] {
 			labels[i] = "*" + labels[i]
@@ -439,7 +455,7 @@ func (e Editor) renderFieldIndices() []int {
 	case ModeRenameAlbum:
 		return []int{int(fieldAlbum)}
 	default:
-		return []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration)}
+		return []int{int(fieldTitle), int(fieldArtist), int(fieldAlbum), int(fieldGenre), int(FieldDuration), int(FieldAlbumArtist)}
 	}
 }
 
@@ -583,4 +599,37 @@ func metadataEditorValueLines(value string, width, continuationBudget int) []str
 		lines[maxLines-1] = text.Truncate(tail, width)
 	}
 	return lines
+}
+
+// WithAlbumArtists seeds the additional field, including mixed bulk values.
+func (e Editor) WithAlbumArtists(values ...string) Editor {
+	value := ""
+	if len(values) > 0 {
+		value = values[0]
+	}
+	for _, v := range values {
+		if v != value {
+			e.mixed[FieldAlbumArtist] = true
+			break
+		}
+	}
+	if e.mixed[FieldAlbumArtist] {
+		value = ""
+	}
+	e.initialValues[FieldAlbumArtist] = value
+	e.Fields[FieldAlbumArtist] = newField(value, false)
+	if e.mixed[FieldAlbumArtist] {
+		e.Fields[FieldAlbumArtist].Placeholder = mixedValuePlaceholder
+	}
+	return e
+}
+
+func (e Editor) AlbumArtist() string { return e.Fields[FieldAlbumArtist].Value() }
+
+func (e Editor) DirtyAlbumArtist() *string {
+	if !e.Dirty[FieldAlbumArtist] {
+		return nil
+	}
+	value := strings.TrimSpace(e.AlbumArtist())
+	return &value
 }

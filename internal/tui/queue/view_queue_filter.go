@@ -1,8 +1,6 @@
 package queue
 
 import (
-	"strings"
-
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 )
@@ -66,50 +64,13 @@ func (v View) tagFiltered(ordered []Entry) []Entry {
 
 // matchingEntries keeps the entries satisfying fq, preserving their order.
 func matchingEntries(ordered []Entry, fq library.FilterQuery) []Entry {
-	match := generalMatcher(strings.ToLower(fq.General))
-	if fq.IsFieldSpecific() {
-		match = fieldMatcher(fq)
-	}
 	var result []Entry
 	for _, e := range ordered {
-		if match(e) {
+		if fq.MatchesMetadata(e.Title, e.Artist, e.Album, e.Genre, e.Path) {
 			result = append(result, e)
 		}
 	}
 	return result
-}
-
-// generalMatcher matches a bare query against title, artist, or album.
-func generalMatcher(query string) func(Entry) bool {
-	return func(e Entry) bool {
-		return strings.Contains(strings.ToLower(e.Title), query) ||
-			strings.Contains(strings.ToLower(e.Artist), query) ||
-			strings.Contains(strings.ToLower(e.Album), query)
-	}
-}
-
-// fieldMatcher requires every field named in fq to match its own column, and
-// any leftover general term to appear in one of the three.
-func fieldMatcher(fq library.FilterQuery) func(Entry) bool {
-	return func(e Entry) bool {
-		title := strings.ToLower(e.Title)
-		artist := strings.ToLower(e.Artist)
-		album := strings.ToLower(e.Album)
-		if !fieldMatches(title, fq.Title) || !fieldMatches(artist, fq.Artist) || !fieldMatches(album, fq.Album) || !fieldMatches(strings.ToLower(e.Genre), fq.Genre) {
-			return false
-		}
-		if fq.General == "" {
-			return true
-		}
-		gen := strings.ToLower(fq.General)
-		return strings.Contains(title, gen) || strings.Contains(artist, gen) || strings.Contains(album, gen)
-	}
-}
-
-// fieldMatches reports whether value contains term, an empty term meaning the
-// field is unconstrained.
-func fieldMatches(value, term string) bool {
-	return term == "" || strings.Contains(value, strings.ToLower(term))
 }
 
 func validDisplayOrder(order []int, n int) bool {

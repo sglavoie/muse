@@ -22,18 +22,18 @@ import (
 // insightsMergeWrite is one track's genre rewrite, carried from the plan
 // through the database write to the memory update only a persisted row earns.
 type insightsMergeWrite struct {
-	hash, title, artist, album, genre string
-	original                          [5]string // title, artist, album, genre, duration — for undo
-	ticket                            uint64    // this row's slot in the metadata write queue
+	hash, title, artist, album, genre, albumArtist string
+	original                                       [5]string // title, artist, album, genre, duration — for undo
+	ticket                                         uint64    // this row's slot in the metadata write queue
 }
 
 // planStillHolds reports whether the track is still the row the merge planned
 // against. The plan is a genre rewrite of one specific row; once any of the
-// five edited fields has moved, reapplying it would revert the change that
+// edited fields has moved, reapplying it would revert the change that
 // moved them.
 func (w insightsMergeWrite) planStillHolds(t library.Track) bool {
 	return t.Title == w.original[0] && t.Artist == w.original[1] &&
-		t.Album == w.original[2] && t.Genre == w.original[3] &&
+		t.Album == w.original[2] && t.Genre == w.original[3] && t.AlbumArtist == w.albumArtist &&
 		metadata.FormatDuration(t.Duration) == w.original[4]
 }
 
@@ -112,7 +112,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 			continue
 		}
 		writes = append(writes, insightsMergeWrite{
-			hash: hash, title: t.Title, artist: t.Artist, album: t.Album, genre: merged,
+			hash: hash, title: t.Title, artist: t.Artist, album: t.Album, genre: merged, albumArtist: t.AlbumArtist,
 			original: [5]string{t.Title, t.Artist, t.Album, t.Genre, metadata.FormatDuration(t.Duration)},
 		})
 	}
@@ -141,7 +141,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 		msg := insightsMergedMsg{canonical: canonical}
 		for _, w := range writes {
 			wrote, err := q.Claim(w.hash, w.ticket, func() error {
-				return mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre)
+				return mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre, w.albumArtist)
 			})
 			switch {
 			case !wrote:
@@ -168,6 +168,7 @@ func (m Model) confirmInsightsGenreMerge() (Model, tea.Cmd, bool) {
 // rather than a no-op that claims the genres already agree.
 func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 	originals := make(map[string][5]string, len(msg.applied))
+	albumArtists := make(map[string]string, len(msg.applied))
 	superseded := msg.superseded
 	for _, w := range msg.applied {
 		// The write is durable but this reply is handled later than it ran: an
@@ -180,9 +181,10 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 		}
 		m.library.Index.UpdateMetadata(w.hash, w.title, w.artist, w.album, w.genre)
 		originals[w.hash] = w.original
+		albumArtists[w.hash] = w.albumArtist
 		if m.userEditedOverlay != nil {
 			m.userEditedOverlay[w.hash] = db.UserEditedRow{
-				Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre,
+				Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre, AlbumArtist: t.AlbumArtist, AlbumArtistEdited: true,
 				TrackNumber: t.TrackNumber, DiscNumber: t.DiscNumber,
 			}
 		}
@@ -191,7 +193,7 @@ func (m Model) handleInsightsMergedMsg(msg insightsMergedMsg) (Model, tea.Cmd) {
 	done := len(originals)
 	if done > 0 {
 		m = m.syncRecentlyAddedFromLibrary()
-		m.setUndoSlot(undoBulkEditMetadataAction{originals: originals}, nil)
+		m.setUndoSlot(undoBulkEditMetadataAction{originals: originals, albumArtists: albumArtists}, nil)
 		m = m.refreshDerivedViews()
 	}
 

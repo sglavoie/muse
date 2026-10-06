@@ -83,6 +83,7 @@ type paletteEntry struct {
 // bound in the registry must appear here or in paletteExcluded with a written
 // reason; TestPaletteCatalogCoversRegistryActions enforces that.
 var paletteCatalog = []paletteEntry{
+	{act: keys.ActionClearSelection, id: "selection.clear", name: "Clear selection", category: "view", ctx: keys.ContextLibrary, preferKey: "X", disabledReason: "Select rows first", enabled: func(m Model) bool { return m.activeViewSelectionCount() > 0 }},
 	// Pinned anchors (Serial Position Effect): Help at top, Quit at bottom.
 	{act: keys.ActionHelp, id: "help.show", name: "Show help", ctx: keys.ContextGlobal, pin: palette.PinTop},
 	{act: keys.ActionQuit, id: "app.quit", name: "Quit", ctx: keys.ContextGlobal, pin: palette.PinBottom},
@@ -281,9 +282,9 @@ var paletteExcluded = map[keys.Action]string{
 	// Selection primitives: only meaningful part-way through a bulk-action
 	// flow, which the palette interrupts.
 	keys.ActionBulkSelectionToggle: "only meaningful mid bulk-selection flow",
-	keys.ActionClearSelection:      "only meaningful mid bulk-selection flow",
-	keys.ActionVisualMode:          "only meaningful mid bulk-selection flow",
-	keys.ActionBulkAction:          "only meaningful mid bulk-selection flow",
+
+	keys.ActionVisualMode: "only meaningful mid bulk-selection flow",
+	keys.ActionBulkAction: "only meaningful mid bulk-selection flow",
 
 	keys.ActionCommandPalette: "opens the palette itself",
 

@@ -42,7 +42,7 @@ func (m *Model) refreshHelpViewport() {
 	if m.helpSearchFilter.Active || m.helpSearchFilter.Text != "" {
 		extraLines = 1
 	}
-	m.helpViewport.SetHeight(max(m.termHeight-2-extraLines, 0))
+	m.helpViewport.SetHeight(max(m.termHeight-3-extraLines, 0))
 }
 
 // clearPendingConfirmations resets the confirmation bar. The insights merge

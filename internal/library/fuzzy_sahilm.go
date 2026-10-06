@@ -3,6 +3,7 @@ package library
 import (
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 // SahilmFuzzySearcher performs deterministic substring filtering across track
@@ -124,16 +125,22 @@ func generalSubstringIndexes(t Track, query string) ([]int, bool) {
 // substringIndexes reports whether query occurs contiguously in s using a
 // case-insensitive comparison and returns rune-based positions for rendering.
 func substringIndexes(s, query string) ([]int, bool) {
-	queryRunes := []rune(query)
+	folded, positions := foldSearch(s)
+	queryRunes := []rune(FoldSearchText(query))
 	if len(queryRunes) == 0 {
 		return nil, true
 	}
-
-	idx := runeIndex(strings.ToLower(s), strings.ToLower(query))
+	idx := runeIndex(folded, string(queryRunes))
 	if idx < 0 {
 		return nil, false
 	}
-	return consecutiveIndexes(idx, len(queryRunes)), true
+	start, end := positions[idx], positions[idx+len(queryRunes)-1]+1
+	// Include combining accents belonging to the matched final character.
+	original := []rune(s)
+	for end < len(original) && unicode.Is(unicode.Mn, original[end]) {
+		end++
+	}
+	return consecutiveIndexes(start, end-start), true
 }
 
 // consecutiveIndexes returns a slice [start, start+1, ..., start+length-1].

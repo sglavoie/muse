@@ -86,13 +86,15 @@ func (w *Writer) ClearTrackMissing(hash string) error {
 }
 
 // UpdateTrackMetadata updates the title, artist, album, and genre for the track
-// identified by hash and sets user_edited=1 so that future rescans preserve
+// identified by hash. An optional Album Artist value also protects that field
+// from rescans, including an explicit empty value. Omission preserves its value
+// and existing edit flag. Sets user_edited=1 so that future rescans preserve
 // the manually edited metadata. The track_genres junction table is refreshed
 // in the same transaction so that genre-driven recommendation queries
 // (ReadTopGenres, ReadHiddenGemsMix, ReadNeverPlayedMix,
 // ReadHourGenreAffinities) reflect the edit immediately instead of mixing the
 // edited genre with stale entries from before the edit.
-func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error {
 	return w.Exec(func(db *sql.DB) error {
 		tx, err := db.Begin()
 		if err != nil {
@@ -105,8 +107,8 @@ func (w *Writer) UpdateTrackMetadata(hash, title, artist, album, genre string) e
 		}
 
 		if _, err := tx.Exec(
-			`UPDATE tracks SET title=?, artist=?, album=?, genre=?, user_edited=1, updated_at=? WHERE hash=?`,
-			title, artist, album, genre, time.Now().Unix(), hash,
+			`UPDATE tracks SET title=?, artist=?, album=?, genre=?, album_artist=COALESCE(?, album_artist), album_artist_edited=CASE WHEN ? THEN 1 ELSE album_artist_edited END, user_edited=1, updated_at=? WHERE hash=?`,
+			title, artist, album, genre, optionalAlbumArtist(albumArtist), len(albumArtist) > 0, time.Now().Unix(), hash,
 		); err != nil {
 			return err
 		}
@@ -201,7 +203,7 @@ INSERT INTO tracks (hash, path, title, artist, album, genre, duration_ms, size_b
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(hash) DO UPDATE SET
 path         = excluded.path,
-album_artist = excluded.album_artist,
+album_artist = CASE WHEN tracks.album_artist_edited = 0 THEN excluded.album_artist ELSE tracks.album_artist END,
 title        = CASE WHEN tracks.user_edited = 0 THEN excluded.title ELSE tracks.title END,
 artist       = CASE WHEN tracks.user_edited = 0 THEN excluded.artist ELSE tracks.artist END,
 album        = CASE WHEN tracks.user_edited = 0 THEN excluded.album ELSE tracks.album END,
@@ -263,4 +265,11 @@ func (w *Writer) MarkDurationVerified(hash string) error {
 		)
 		return err
 	})
+}
+
+func optionalAlbumArtist(values []string) any {
+	if len(values) == 0 {
+		return nil
+	}
+	return values[0]
 }

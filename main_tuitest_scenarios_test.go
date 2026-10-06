@@ -24,6 +24,7 @@ var gatedScenarios = []string{
 	"usability-polish.json",
 	"filter-and-queue-clarity.json",
 	"baseline-layout.json",
+	"usability-followup.json",
 	"all-primary-views.json",
 	"overlays.json",
 	"themes.json",

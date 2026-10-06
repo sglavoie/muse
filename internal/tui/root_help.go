@@ -3,6 +3,8 @@ package tui
 import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/filter"
 )
 
@@ -73,4 +75,17 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 		m.helpViewport, cmd = m.helpViewport.Update(msg)
 		return m, cmd, true
 	}
+}
+
+// renderHelpFooter stays outside the scrollable content so recovery keys remain visible.
+func (m Model) renderHelpFooter() string {
+	hints := "j/k scroll · / search · ? all/view · Esc close"
+	if m.helpSearchFilter.Active {
+		hints = "Enter apply · Esc clear"
+	} else if m.helpSearchFilter.Text != "" {
+		hints = "/ search · ? all/context · Esc clear"
+	}
+	position := fmt.Sprintf("%d%%", int(m.helpViewport.ScrollPercent()*100))
+	room := max(0, m.termWidth-len(position)-3)
+	return m.styles.Dim.Render(ansi.Truncate(hints, room, "…") + " · " + position)
 }

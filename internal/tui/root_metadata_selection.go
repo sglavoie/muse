@@ -223,6 +223,7 @@ func (m Model) refreshDerivedViews() Model {
 	for i := range m.queue.Entries {
 		if track, ok := m.library.Index.FindByHash(m.queue.Entries[i].Hash); ok {
 			m.queue.Entries[i].Genre = track.Genre
+			m.queue.Entries[i].AlbumArtist = track.AlbumArtist
 		}
 	}
 	m.clampQueueCursorAndScroll()

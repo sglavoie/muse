@@ -17,10 +17,10 @@ import (
 // the next watcher or scan observation would reapply it through
 // normalizeScannedTrack.
 type importOriginal struct {
-	title, artist, album, genre string
-	track, disc                 int
-	overlay                     db.UserEditedRow
-	hadOverlay                  bool
+	title, artist, album, genre, albumArtist string
+	track, disc                              int
+	overlay                                  db.UserEditedRow
+	hadOverlay                               bool
 }
 
 // undoImportMetadataAction reverts a TSV metadata import (undoKindImportMetadata).
@@ -39,7 +39,7 @@ func (a undoImportMetadataAction) perform(m Model) (Model, error) {
 	mw := m.metadataWriter
 	pw := m.trackPositionWriter
 	for hash, orig := range a.originals {
-		m.library.Index.UpdateMetadata(hash, orig.title, orig.artist, orig.album, orig.genre)
+		m.library.Index.UpdateMetadata(hash, orig.title, orig.artist, orig.album, orig.genre, orig.albumArtist)
 		m.library.Index.UpdateTrackPosition(hash, orig.track, orig.disc)
 		if m.userEditedOverlay != nil {
 			if orig.hadOverlay {
@@ -86,7 +86,7 @@ func (a undoImportMetadataAction) perform(m Model) (Model, error) {
 			for h, orig := range originals {
 				write := func() error {
 					if mw != nil {
-						if err := mw.UpdateTrackMetadata(h, orig.title, orig.artist, orig.album, orig.genre); err != nil {
+						if err := mw.UpdateTrackMetadata(h, orig.title, orig.artist, orig.album, orig.genre, orig.albumArtist); err != nil {
 							return err
 						}
 					}

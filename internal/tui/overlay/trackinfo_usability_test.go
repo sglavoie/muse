@@ -53,15 +53,15 @@ func TestTrackInfoScrollPreservesAllContent(t *testing.T) {
 }
 
 func TestTrackInfoLibraryAndFileValues(t *testing.T) {
-	info := NewTrackInfoOverlay("/song.flac", map[string]any{"Title": "Old title", "Artist": "Same artist", "Genre": "Rock"}, 0, nil)
-	info = info.WithLibraryMetadata(library.Track{Title: "Correct title", Artist: "Same artist", Album: "New album", Genre: ""})
+	info := NewTrackInfoOverlay("/song.flac", map[string]any{"Title": "Old title", "Artist": "Same artist", "Genre": "Rock", "AlbumArtist": "File album artist"}, 0, nil)
+	info = info.WithLibraryMetadata(library.Track{Title: "Correct title", Artist: "Same artist", Album: "New album", Genre: "", AlbumArtist: "Various Artists"})
 	rows := make(map[string]string)
 	for _, row := range info.rows {
 		if row.Label != "" {
 			rows[row.Label] = row.Text
 		}
 	}
-	for label, want := range map[string]string{"Title:": "Correct title", "File Title:": "Old title", "Artist:": "Same artist", "Album:": "New album", "File Album:": "(missing)", "Genre:": "(blank)", "File Genre:": "Rock"} {
+	for label, want := range map[string]string{"Title:": "Correct title", "File Title:": "Old title", "Artist:": "Same artist", "Album:": "New album", "File Album:": "(missing)", "Genre:": "(blank)", "File Genre:": "Rock", "Album Artist:": "Various Artists", "File Album Artist:": "File album artist"} {
 		if rows[label] != want {
 			t.Errorf("%s = %q, want %q", label, rows[label], want)
 		}

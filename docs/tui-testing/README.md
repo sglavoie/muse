@@ -209,6 +209,7 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `usability-followup.json` | `rich` | Playlist hints, clear selection, persistent Help footer, and Album Artist at 60×15. |
 | `baseline-layout.json` | `rich` | Library renders and fits at 100×30. |
 | `all-primary-views.json` | `rich` | Cycles all eight primary views; each fits. |
 | `overlays.json` | `rich` | Help, queue-summary, debug, and favorite-target overlays fit at 100×30, and `L` navigates to Insights rather than opening an overlay. |

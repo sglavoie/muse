@@ -38,9 +38,9 @@ type metadataImportAppliedMsg struct {
 // metadataImportWrite is one row's post-import state, carried from the UI
 // goroutine into the write command.
 type metadataImportWrite struct {
-	hash, title, artist, album, genre string
-	track, disc                       int
-	ticket                            uint64
+	hash, title, artist, album, genre, albumArtist string
+	track, disc                                    int
+	ticket                                         uint64
 }
 
 // handleMetadataImportRequest snapshots the library on the UI goroutine and
@@ -67,13 +67,14 @@ func (m Model) metadataImportCurrent() map[string]metaexport.Current {
 			continue
 		}
 		cur[t.Hash] = metaexport.Current{
-			Path:   t.Path,
-			Artist: t.Artist,
-			Title:  t.Title,
-			Album:  t.Album,
-			Genre:  t.Genre,
-			Track:  t.TrackNumber,
-			Disc:   t.DiscNumber,
+			Path:        t.Path,
+			Artist:      t.Artist,
+			Title:       t.Title,
+			Album:       t.Album,
+			AlbumArtist: t.AlbumArtist,
+			Genre:       t.Genre,
+			Track:       t.TrackNumber,
+			Disc:        t.DiscNumber,
 		}
 	}
 	return cur
@@ -179,6 +180,10 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 			continue
 		}
 		title, artist, album, genre := t.Title, t.Artist, t.Album, t.Genre
+		albumArtist := t.AlbumArtist
+		if ch.AlbumArtist != nil {
+			albumArtist = *ch.AlbumArtist
+		}
 		track, disc := t.TrackNumber, t.DiscNumber
 		if ch.Title != nil {
 			title = *ch.Title
@@ -198,7 +203,7 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 		if ch.Disc != nil {
 			disc = *ch.Disc
 		}
-		if title == t.Title && artist == t.Artist && album == t.Album &&
+		if albumArtist == t.AlbumArtist && title == t.Title && artist == t.Artist && album == t.Album &&
 			metaexport.CanonicalGenre(genre) == metaexport.CanonicalGenre(t.Genre) &&
 			track == t.TrackNumber && disc == t.DiscNumber {
 			continue
@@ -208,11 +213,11 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 		// exact prior row — or remove a key this import introduced.
 		prevOverlay, hadOverlay := m.userEditedOverlay[ch.Hash]
 		originals[ch.Hash] = importOriginal{
-			title: t.Title, artist: t.Artist, album: t.Album, genre: t.Genre,
+			title: t.Title, artist: t.Artist, album: t.Album, genre: t.Genre, albumArtist: t.AlbumArtist,
 			track: t.TrackNumber, disc: t.DiscNumber,
 			overlay: prevOverlay, hadOverlay: hadOverlay,
 		}
-		m.library.Index.UpdateMetadata(ch.Hash, title, artist, album, genre)
+		m.library.Index.UpdateMetadata(ch.Hash, title, artist, album, genre, albumArtist)
 		m.library.Index.UpdateTrackPosition(ch.Hash, track, disc)
 
 		display := text.TrackDisplay(artist, title, "")
@@ -229,7 +234,7 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 		m = m.syncStatusBarMetadata(ch.Hash, artist, title)
 
 		writes = append(writes, metadataImportWrite{
-			hash: ch.Hash, title: title, artist: artist, album: album, genre: genre,
+			hash: ch.Hash, title: title, artist: artist, album: album, genre: genre, albumArtist: albumArtist,
 			track: track, disc: disc,
 		})
 	}
@@ -246,10 +251,10 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 
 	if m.userEditedOverlay != nil {
 		for _, w := range writes {
-			// All six fields, because normalizeScannedTrack overlays them as a
+			// All editable fields, because normalizeScannedTrack overlays them as a
 			// block: a partial row would zero what the import did not change.
 			m.userEditedOverlay[w.hash] = db.UserEditedRow{
-				Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre,
+				Hash: w.hash, Title: w.title, Artist: w.artist, Album: w.album, Genre: w.genre, AlbumArtistEdited: true, AlbumArtist: w.albumArtist,
 				TrackNumber: w.track, DiscNumber: w.disc,
 			}
 		}
@@ -274,7 +279,7 @@ func (m Model) applyMetadataImport(o metadata.ImportOverlay) (Model, tea.Cmd, bo
 		for _, w := range writes {
 			wrote, err := q.Claim(w.hash, w.ticket, func() error {
 				if mw != nil {
-					if err := mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre); err != nil {
+					if err := mw.UpdateTrackMetadata(w.hash, w.title, w.artist, w.album, w.genre, w.albumArtist); err != nil {
 						return err
 					}
 				}

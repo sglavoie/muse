@@ -136,7 +136,7 @@ func TestMetadataExportWritesTheFileAndNotifies(t *testing.T) {
 	if !strings.Contains(body, "# root\t1\t/music\n") {
 		t.Fatalf("missing root preamble in:\n%s", body)
 	}
-	if !strings.Contains(body, "h1\t1\ta/1.mp3\tBach\tOne\tRelax\tClassical\t1\t0\n") {
+	if !strings.Contains(body, "h1\t1\ta/1.mp3\tBach\tOne\tRelax\tClassical\t1\t0\t\n") {
 		t.Fatalf("missing hydrated data row in:\n%s", body)
 	}
 

@@ -25,14 +25,14 @@ func TestDefaultEditorHandleKeyTabCycles(t *testing.T) {
 	}
 }
 
-// TestDefaultEditorTabCyclesFiveFields verifies that tab cycles through all
-// five fields including Duration.
-func TestDefaultEditorTabCyclesFiveFields(t *testing.T) {
+// TestDefaultEditorTabCyclesSixFields verifies that tab cycles through all
+// six fields including Duration and Album Artist.
+func TestDefaultEditorTabCyclesSixFields(t *testing.T) {
 	ed := NewEditor("h1", "T", "A", "B", "G", 225)
 	if ed.focused != fieldTitle {
 		t.Fatalf("expected initial focus=fieldTitle, got %v", ed.focused)
 	}
-	expectedCycle := []Field{fieldArtist, fieldAlbum, fieldGenre, FieldDuration, fieldTitle}
+	expectedCycle := []Field{fieldArtist, fieldAlbum, fieldGenre, FieldDuration, FieldAlbumArtist, fieldTitle}
 	for i, want := range expectedCycle {
 		ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: '\t'})
 		if ed.focused != want {

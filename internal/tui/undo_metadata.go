@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/metadata"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -11,8 +12,9 @@ import (
 // undoBulkEditMetadataAction reverts a bulk metadata edit (undoKindBulkEditMetadata).
 // originals maps track hash → {title, artist, album, genre, duration (M:SS or "")}.
 type undoBulkEditMetadataAction struct {
-	originals map[string][5]string
-	durations map[string]float64 // precise seconds, when captured by the editor
+	originals    map[string][5]string
+	albumArtists map[string]string
+	durations    map[string]float64 // precise seconds, when captured by the editor
 }
 
 func (a undoBulkEditMetadataAction) originalDuration(hash string) float64 {
@@ -34,9 +36,12 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, error) {
 	mw := m.metadataWriter
 	dw := m.durationWriter
 	for hash, orig := range a.originals {
-		m.library.Index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3])
+		m.library.Index.UpdateMetadata(hash, orig[0], orig[1], orig[2], orig[3], a.albumArtistValues(hash)...)
 		origDur := a.originalDuration(hash)
 		m.library.Index.UpdateDuration(hash, origDur)
+		if t, ok := m.library.Index.FindByHash(hash); ok && m.userEditedOverlay != nil {
+			m.userEditedOverlay[hash] = db.UserEditedRow{Hash: hash, Title: t.Title, Artist: t.Artist, Album: t.Album, Genre: t.Genre, AlbumArtistEdited: len(a.albumArtistValues(hash)) > 0 || m.userEditedOverlay[hash].AlbumArtistEdited, AlbumArtist: t.AlbumArtist, TrackNumber: t.TrackNumber, DiscNumber: t.DiscNumber}
+		}
 		display := text.TrackDisplay(orig[1], orig[0], "")
 		origDurMs := int64(origDur * 1000)
 		for i := range m.queue.Entries {
@@ -75,7 +80,7 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, error) {
 			for h, orig := range originals {
 				if mw != nil {
 					_, err := q.Claim(h, tickets[h], func() error {
-						return mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3])
+						return mw.UpdateTrackMetadata(h, orig[0], orig[1], orig[2], orig[3], a.albumArtistValues(h)...)
 					})
 					if err != nil {
 						slog.Warn("undo bulk metadata edit: DB write failed", "hash", h, "err", err)
@@ -94,4 +99,11 @@ func (a undoBulkEditMetadataAction) perform(m Model) (Model, error) {
 	n := len(a.originals)
 	m.statusBar.Notify(fmt.Sprintf("Undone metadata edit for %d %s", n, text.Pluralize(n, "track", "tracks")))
 	return m, nil
+}
+
+func (a undoBulkEditMetadataAction) albumArtistValues(hash string) []string {
+	if value, ok := a.albumArtists[hash]; ok {
+		return []string{value}
+	}
+	return nil
 }

@@ -1,6 +1,7 @@
 package library
 
 import (
+	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -130,17 +131,18 @@ func isFilterBoundary(s string, pos int) bool {
 	return unicode.IsSpace(r)
 }
 
-// MatchesMetadata applies field constraints and matches the general term against
-// title, artist, or album. Empty prefixes impose no constraint.
-func (fq FilterQuery) MatchesMetadata(title, artist, album, genre string) bool {
-	title, artist, album, genre = strings.ToLower(title), strings.ToLower(artist), strings.ToLower(album), strings.ToLower(genre)
+// MatchesMetadata applies field constraints and searches the general term in
+// title, artist, album, and (when supplied) the base filename.
+func (fq FilterQuery) MatchesMetadata(title, artist, album, genre string, path ...string) bool {
 	for _, field := range []struct{ value, term string }{
 		{title, fq.Title}, {artist, fq.Artist}, {album, fq.Album}, {genre, fq.Genre},
 	} {
-		if !strings.Contains(field.value, strings.ToLower(field.term)) {
+		if !SearchContains(field.value, field.term) {
 			return false
 		}
 	}
-	general := strings.ToLower(fq.General)
-	return strings.Contains(title, general) || strings.Contains(artist, general) || strings.Contains(album, general)
+	if SearchContains(title, fq.General) || SearchContains(artist, fq.General) || SearchContains(album, fq.General) {
+		return true
+	}
+	return len(path) > 0 && path[0] != "" && SearchContains(filepath.Base(path[0]), fq.General)
 }

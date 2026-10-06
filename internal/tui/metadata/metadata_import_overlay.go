@@ -49,6 +49,9 @@ func importChangedFields(ch metaexport.Change) []importFieldChange {
 	if ch.Title != nil {
 		out = append(out, importFieldChange{"t", "title", ch.Current.Title, *ch.Title})
 	}
+	if ch.AlbumArtist != nil {
+		out = append(out, importFieldChange{"aa", "album artist", ch.Current.AlbumArtist, *ch.AlbumArtist})
+	}
 	if ch.Album != nil {
 		out = append(out, importFieldChange{"b", "album", ch.Current.Album, *ch.Album})
 	}
@@ -176,6 +179,9 @@ func (o ImportOverlay) headerRows() []overlay.Row {
 			len(p.Changes), p.Unchanged, len(p.Unknown), o.skipped)},
 		{Text: fmt.Sprintf("artist %d · title %d · album %d · genre %d · trk %d · disc %d",
 			p.Counts.Artist, p.Counts.Title, p.Counts.Album, p.Counts.Genre, p.Counts.Track, p.Counts.Disc)},
+	}
+	if p.Counts.AlbumArtist > 0 {
+		rows = append(rows, overlay.Row{Text: fmt.Sprintf("album artist %d", p.Counts.AlbumArtist)})
 	}
 	if n := len(p.Unknown); n > 0 {
 		rows = append(rows, overlay.Row{Text: fmt.Sprintf(

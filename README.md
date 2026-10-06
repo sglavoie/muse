@@ -118,7 +118,7 @@ matching release, and each release can then be unfavorited independently.
 
 **Library management**
 
-- **Metadata editor** (`M`) — fix title, artist, album, and genre on the
+- **Metadata editor** (`M`) — fix title, artist, album, Album Artist, and genre on the
   focused track. Edits are stored in muse's database, so your audio files are
   never modified. `i` shows the library values first and labels differing original
   file tags, followed by audio and file details from ExifTool or ffprobe.
@@ -136,6 +136,19 @@ matching release, and each release can then be unfavorited independently.
   focused field for every selected track; `ctrl+r` restores that field to
   unchanged. Clear operations show “Will clear for N tracks” before saving
   and support undo.
+- Album Artist edits regroup albums immediately and support bulk editing, explicit
+  clearing, and undo. Corrections survive rescans and restarts. TSV exports include
+  `album_artist`; importing an older export without that column leaves it unchanged.
+- Playlist footers show enqueue and back controls inside a playlist, with
+  “enqueue focused” when rows are selected.
+- Help keeps scrolling, search, scope, and close hints visible, with a scroll percentage.
+- The palette’s **Clear selection** command describes the selected row count and
+  how many are hidden, and clears only the current view’s selection.
+- Track searches match base filenames consistently across views. Matching ignores
+  case and Latin accents (`bjork` finds `Björk`), while displayed metadata retains
+  its original spelling and highlights. Field prefixes still search only their
+  named fields; directory names are excluded from filename matching.
+
 - **Metadata export / import** — round-trip the visible view's rows through a
   TSV file in the data directory, for bulk cleanup outside the TUI. The palette
   shows the number of unique exportable tracks and whether it uses your selection

@@ -342,6 +342,9 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	cmds = append(cmds, m.sortPaletteCommands()...)
 	for i := range cmds {
 		cmds[i] = m.describeQueueCommand(cmds[i])
+		if cmds[i].ID == "selection.clear" {
+			cmds[i].Detail = m.clearSelectionDetail()
+		}
 		cmds[i] = m.describePlaylistCommand(cmds[i])
 		if detail, ok := playbackDetails[cmds[i].ID]; ok {
 			cmds[i].Detail = detail

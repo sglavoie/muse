@@ -1,8 +1,6 @@
 package artists
 
 import (
-	"strings"
-
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/layout"
 )
@@ -13,10 +11,9 @@ func FilterStrings(items []string, query string) []string {
 	if query == "" {
 		return items
 	}
-	q := strings.ToLower(query)
 	var out []string
 	for _, s := range items {
-		if strings.Contains(strings.ToLower(library.AlbumLabel(s)), q) {
+		if library.SearchContains(library.AlbumLabel(s), query) {
 			out = append(out, s)
 		}
 	}
@@ -37,7 +34,7 @@ func FilterTracks(tracks []library.Track, query string) []library.Track {
 		if album == "" {
 			album = UnknownAlbum
 		}
-		if fq.MatchesMetadata(t.Title, artist, album, t.Genre) {
+		if fq.MatchesMetadata(t.Title, artist, album, t.Genre, t.Path) {
 			out = append(out, t)
 		}
 	}

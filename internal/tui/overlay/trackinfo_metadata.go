@@ -9,6 +9,7 @@ func (t TrackInfoOverlay) WithLibraryMetadata(track library.Track) TrackInfoOver
 		{Label: "Title:", Text: track.Title},
 		{Label: "Artist:", Text: track.Artist},
 		{Label: "Album:", Text: track.Album},
+		{Label: "Album Artist:", Text: track.AlbumArtist},
 		{Label: "Genre:", Text: track.Genre},
 	}
 	rows := []Row{{Text: "Library metadata", Styled: true}}
@@ -32,7 +33,7 @@ func (t TrackInfoOverlay) WithLibraryMetadata(track library.Track) TrackInfoOver
 	rows = append(rows, originals...)
 	for _, row := range t.rows {
 		switch row.Label {
-		case "Title:", "Artist:", "Album:", "Genre:":
+		case "Title:", "Artist:", "Album:", "Album Artist:", "Genre:":
 			continue
 		}
 		rows = append(rows, row)

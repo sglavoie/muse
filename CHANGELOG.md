@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Open playlist footers advertise enqueue/back actions and distinguish the
+  focused track from selected rows.
+
 - Library settings retain invalid directory input and explain missing paths,
   files, and duplicate roots (including symlink aliases), allowing correction.
 - Saving unrelated settings preserves the configured startup volume instead
@@ -35,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window. Bulk removal undo restores all rows in one transaction.
 
 ### Added
+
+- Help retains navigation/search/close hints and scroll position while scrolling.
+- A Clear selection palette command includes selected and hidden row counts.
+- Track filters match filenames across views and ignore Latin accents while
+  preserving the original spelling and highlight positions.
+- Album Artist can be edited singly, in bulk, or through metadata TSV import,
+  with undo and persistence across rescans. Older exports leave it unchanged.
 
 - Palette copy and reveal commands identify the focused song or file path.
 - Palette search accepts “errors” for Recent Messages, “restart song” for

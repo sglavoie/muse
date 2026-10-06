@@ -317,7 +317,7 @@ func (idx *LibraryIndex) UpdateTrackPosition(hash string, track, disc int) bool 
 // Genre, then re-inserts it to maintain sort order (since the sort key includes
 // Artist and Title, the position may change). Returns true if the track was
 // found and updated.
-func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string) bool {
+func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string, albumArtist ...string) bool {
 	if hash == "" {
 		return false
 	}
@@ -331,6 +331,9 @@ func (idx *LibraryIndex) UpdateMetadata(hash, title, artist, album, genre string
 			t.Artist = artist
 			t.Album = album
 			t.Genre = genre
+			if len(albumArtist) > 0 {
+				t.AlbumArtist = albumArtist[0]
+			}
 			pos := sort.Search(len(idx.tracks), func(j int) bool {
 				return !less(idx.tracks[j], t)
 			})

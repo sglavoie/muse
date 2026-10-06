@@ -137,7 +137,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
-| `tui/metadata` | 50 | 0 | 48 | 2 | `tui` |
+| `tui/metadata` | 54 | 0 | 52 | 2 | `tui` |
 | `tui/queue` | 79 | 18 | 60 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
 | `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1035 exported identifiers across 15 packages**: 156 reached from two or more packages, 818 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1039 exported identifiers across 15 packages**: 156 reached from two or more packages, 822 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -764,8 +764,10 @@ export must either earn a justification, be recorded in
 | `tui/metadata` | `ActionSave` | const | `internal/tui` | root |
 | `tui/metadata` | `Editor` | type | `internal/tui` | root |
 | `tui/metadata` | `Editor.Album` | method | `internal/tui` | root |
+| `tui/metadata` | `Editor.AlbumArtist` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.Artist` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.Dirty` | field | `internal/tui†` | root (tests only) |
+| `tui/metadata` | `Editor.DirtyAlbumArtist` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.DirtyFields` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.Duration` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.DurationChanged` | method | `internal/tui` | root |
@@ -779,8 +781,10 @@ export must either earn a justification, be recorded in
 | `tui/metadata` | `Editor.Mode` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.Render` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.Title` | method | `internal/tui` | root |
+| `tui/metadata` | `Editor.WithAlbumArtists` | method | `internal/tui` | root |
 | `tui/metadata` | `Editor.WithMixedValues` | method | `internal/tui` | root |
 | `tui/metadata` | `Field` | type | — | api |
+| `tui/metadata` | `FieldAlbumArtist` | const | `internal/tui†` | root (tests only) |
 | `tui/metadata` | `FieldDuration` | const | `internal/tui†` | root (tests only) |
 | `tui/metadata` | `FormatDuration` | func | `internal/tui` | root |
 | `tui/metadata` | `ImportOverlay` | type | `internal/tui` | root |

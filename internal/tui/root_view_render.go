@@ -137,7 +137,7 @@ func (m Model) renderOverlayBody() (string, bool) {
 		} else if m.helpSearchFilter.Text != "" {
 			filterBar = "Search: " + m.helpSearchFilter.Text + "\n"
 		}
-		return filterBar + m.helpViewport.View(), true
+		return filterBar + m.helpViewport.View() + "\n" + m.renderHelpFooter(), true
 	case m.debugVisible:
 		return m.debugViewport.View(), true
 	case m.overlay.settings != nil:
@@ -232,7 +232,8 @@ func (m Model) renderFooterHint() string {
 		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:
 		mode = keys.HintModeSelection
-	case m.ActiveView == viewMixes && m.mixes.Level == 1:
+	case m.ActiveView == viewMixes && m.mixes.Level == 1,
+		m.ActiveView == viewPlaylists && !m.playlists.AtListLevel():
 		mode = keys.HintModeTracks
 	}
 	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)

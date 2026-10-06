@@ -30,6 +30,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	artist := ed.Artist()
 	album := ed.Album()
 	genre := ed.Genre()
+	albumArtist := ed.AlbumArtist()
 	durStr := strings.TrimSpace(ed.Duration())
 
 	newDuration, err := metadata.ParseDuration(durStr)
@@ -38,7 +39,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	var origTitle, origArtist, origAlbum, origGenre string
+	var origTitle, origArtist, origAlbum, origGenre, origAlbumArtist string
 	var origDuration float64
 	var trackNumber, discNumber int
 	if t, ok := m.library.Index.FindByHash(hash); ok {
@@ -46,6 +47,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		origArtist = t.Artist
 		origAlbum = t.Album
 		origGenre = t.Genre
+		origAlbumArtist = t.AlbumArtist
 		origDuration = t.Duration
 		trackNumber = t.TrackNumber
 		discNumber = t.DiscNumber
@@ -57,12 +59,12 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		newDuration = origDuration
 	}
 	m.overlay.metadataEditor = nil
-	if title == origTitle && artist == origArtist && album == origAlbum && genre == origGenre && !durationChanged {
+	if title == origTitle && artist == origArtist && album == origAlbum && genre == origGenre && albumArtist == origAlbumArtist && !durationChanged {
 		m.statusBar.Notify("No changes")
 		return m, nil
 	}
 
-	m.library.Index.UpdateMetadata(hash, title, artist, album, genre)
+	m.library.Index.UpdateMetadata(hash, title, artist, album, genre, albumArtist)
 	m.library.Index.UpdateDuration(hash, newDuration)
 	m = m.syncRecentlyAddedFromLibrary()
 
@@ -82,8 +84,9 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 	m = m.preserveQueueSort()
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
-		originals: map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, metadata.FormatDuration(origDuration)}},
-		durations: map[string]float64{hash: origDuration},
+		originals:    map[string][5]string{hash: {origTitle, origArtist, origAlbum, origGenre, metadata.FormatDuration(origDuration)}},
+		durations:    map[string]float64{hash: origDuration},
+		albumArtists: map[string]string{hash: origAlbumArtist},
 	}, nil)
 
 	m = m.refreshDerivedViews()
@@ -93,7 +96,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		// current numbers forward; leaving them zero would make the next scan
 		// wipe a track number the file's own tags do supply.
 		m.userEditedOverlay[hash] = db.UserEditedRow{
-			Hash: hash, Title: title, Artist: artist, Album: album, Genre: genre,
+			Hash: hash, Title: title, Artist: artist, Album: album, Genre: genre, AlbumArtistEdited: true, AlbumArtist: albumArtist,
 			TrackNumber: trackNumber, DiscNumber: discNumber,
 		}
 	}
@@ -112,7 +115,7 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 		var firstErr error
 		if mw != nil {
 			_, err := q.Claim(hash, ticket, func() error {
-				return mw.UpdateTrackMetadata(hash, title, artist, album, genre)
+				return mw.UpdateTrackMetadata(hash, title, artist, album, genre, albumArtist)
 			})
 			if err != nil {
 				slog.Warn("metadata edit: DB write failed", "hash", hash, "err", err)
@@ -136,8 +139,9 @@ func (m Model) handleMetadataSave() (tea.Model, tea.Cmd) {
 func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	ed := m.overlay.metadataEditor
 	dirtyTitle, dirtyArtist, dirtyAlbum, dirtyGenre, dirtyDuration := ed.DirtyFields()
+	dirtyAlbumArtist := ed.DirtyAlbumArtist()
 
-	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil && dirtyDuration == nil {
+	if dirtyTitle == nil && dirtyArtist == nil && dirtyAlbum == nil && dirtyGenre == nil && dirtyDuration == nil && dirtyAlbumArtist == nil {
 		m.overlay.metadataEditor = nil
 		m.statusBar.Notify("No changes")
 		return m, nil
@@ -156,12 +160,13 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 	originals := make(map[string][5]string, len(ed.Hashes()))
 	durations := make(map[string]float64, len(ed.Hashes()))
+	albumArtists := make(map[string]string, len(ed.Hashes()))
 
 	type update struct {
-		hash, title, artist, album, genre string
-		trackNumber, discNumber           int
-		durationMs                        int64
-		ticket                            uint64
+		hash, title, artist, album, genre, albumArtist string
+		trackNumber, discNumber                        int
+		durationMs                                     int64
+		ticket                                         uint64
 	}
 	var updates []update
 
@@ -172,6 +177,11 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		}
 		originals[h] = [5]string{t.Title, t.Artist, t.Album, t.Genre, metadata.FormatDuration(t.Duration)}
 		durations[h] = t.Duration
+		albumArtists[h] = t.AlbumArtist
+		newAlbumArtist := t.AlbumArtist
+		if dirtyAlbumArtist != nil {
+			newAlbumArtist = *dirtyAlbumArtist
+		}
 
 		newTitle, newArtist, newAlbum, newGenre := t.Title, t.Artist, t.Album, t.Genre
 		trackDuration := t.Duration
@@ -191,7 +201,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 			trackDuration = newDuration
 		}
 
-		m.library.Index.UpdateMetadata(h, newTitle, newArtist, newAlbum, newGenre)
+		m.library.Index.UpdateMetadata(h, newTitle, newArtist, newAlbum, newGenre, newAlbumArtist)
 		if dirtyDuration != nil {
 			m.library.Index.UpdateDuration(h, trackDuration)
 		}
@@ -212,7 +222,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 
 		m = m.syncStatusBarMetadata(h, newArtist, newTitle)
 
-		updates = append(updates, update{hash: h, title: newTitle, artist: newArtist, album: newAlbum, genre: newGenre, trackNumber: t.TrackNumber, discNumber: t.DiscNumber, durationMs: durationMs})
+		updates = append(updates, update{hash: h, title: newTitle, artist: newArtist, album: newAlbum, genre: newGenre, albumArtist: newAlbumArtist, trackNumber: t.TrackNumber, discNumber: t.DiscNumber, durationMs: durationMs})
 	}
 	m = m.syncRecentlyAddedFromLibrary()
 	m = m.preserveQueueSort()
@@ -220,8 +230,9 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	m = m.clearActiveViewSelection()
 
 	m.setUndoSlot(undoBulkEditMetadataAction{
-		originals: originals,
-		durations: durations,
+		originals:    originals,
+		durations:    durations,
+		albumArtists: albumArtists,
 	}, nil)
 
 	m = m.refreshDerivedViews()
@@ -230,7 +241,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 	if m.userEditedOverlay != nil {
 		for _, u := range updates {
 			m.userEditedOverlay[u.hash] = db.UserEditedRow{
-				Hash: u.hash, Title: u.title, Artist: u.artist, Album: u.album, Genre: u.genre,
+				Hash: u.hash, Title: u.title, Artist: u.artist, Album: u.album, Genre: u.genre, AlbumArtistEdited: true, AlbumArtist: u.albumArtist,
 				TrackNumber: u.trackNumber, DiscNumber: u.discNumber,
 			}
 		}
@@ -249,7 +260,7 @@ func (m Model) handleBulkMetadataSave() (tea.Model, tea.Cmd) {
 		for _, u := range updates {
 			if mw != nil {
 				_, err := q.Claim(u.hash, u.ticket, func() error {
-					return mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre)
+					return mw.UpdateTrackMetadata(u.hash, u.title, u.artist, u.album, u.genre, u.albumArtist)
 				})
 				if err != nil {
 					slog.Warn("bulk metadata edit: DB write failed", "hash", u.hash, "err", err)

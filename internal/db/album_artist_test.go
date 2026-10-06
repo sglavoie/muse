@@ -54,3 +54,28 @@ func TestAlbumArtistMigrationRefreshesTagsWithoutLosingEdits(t *testing.T) {
 		t.Fatalf("migration did not preserve existing metadata and request a tag refresh: %+v, %v", rows, err)
 	}
 }
+
+func TestAlbumArtistEditsSurviveRescanAndRestart(t *testing.T) {
+	d := openMigratedTestDB(t)
+	w := newWriter(t, d)
+	track := library.Track{Hash: "album-edit", Path: "/a.flac", Title: "Song", Album: "Compilation", AlbumArtist: "File Artist"}
+	if err := w.UpsertBatch([]library.Track{track}); err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"Various Artists", ""} {
+		if err := w.UpdateTrackMetadata(track.Hash, track.Title, track.Artist, track.Album, track.Genre, value); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.UpsertBatch([]library.Track{track}); err != nil {
+			t.Fatal(err)
+		}
+		rows, err := d.ReadTracks()
+		if err != nil || len(rows) != 1 || rows[0].AlbumArtist != value {
+			t.Fatalf("rescan overwrote %q: %+v %v", value, rows, err)
+		}
+		edited, err := d.ReadUserEditedTracks()
+		if err != nil || len(edited) != 1 || edited[0].AlbumArtist != value || !edited[0].AlbumArtistEdited {
+			t.Fatalf("restart overlay lost %q: %+v %v", value, edited, err)
+		}
+	}
+}

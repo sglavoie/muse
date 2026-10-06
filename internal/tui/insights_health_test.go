@@ -83,12 +83,12 @@ type flakyMetadataWriter struct {
 	calls   int
 }
 
-func (w *flakyMetadataWriter) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+func (w *flakyMetadataWriter) UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error {
 	w.calls++
 	if w.calls > w.succeed {
 		return errors.New("database is locked")
 	}
-	return w.inner.UpdateTrackMetadata(hash, title, artist, album, genre)
+	return w.inner.UpdateTrackMetadata(hash, title, artist, album, genre, albumArtist...)
 }
 
 // mergeRaceDB is the test's database. It guards its rows so -race can see the
@@ -115,7 +115,7 @@ func newMergeRaceDB(inner metadataUpdater) *mergeRaceDB {
 	}
 }
 
-func (d *mergeRaceDB) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+func (d *mergeRaceDB) UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error {
 	d.parkOnce.Do(func() {
 		d.parked <- hash
 		<-d.release
@@ -123,7 +123,7 @@ func (d *mergeRaceDB) UpdateTrackMetadata(hash, title, artist, album, genre stri
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.rows[hash] = [4]string{title, artist, album, genre}
-	return d.inner.UpdateTrackMetadata(hash, title, artist, album, genre)
+	return d.inner.UpdateTrackMetadata(hash, title, artist, album, genre, albumArtist...)
 }
 
 func (d *mergeRaceDB) row(hash string) [4]string {

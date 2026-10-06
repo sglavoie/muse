@@ -75,19 +75,21 @@ func (m Model) metadataEditorForContext() (metadata.Editor, bool) {
 			track.Album = full.Album
 		}
 		track.Genre = full.Genre
+		track.AlbumArtist = full.AlbumArtist
 	}
-	return metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration), true
+	return metadata.NewEditor(track.Hash, track.Title, track.Artist, track.Album, track.Genre, track.Duration).WithAlbumArtists(track.AlbumArtist), true
 }
 
 // bulkEditorForHashes seeds a bulk editor from the tracks behind the hashes,
 // marking mixed fields with a display-only placeholder.
 func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
-	var titles, artists, albums, genres, durations []string
+	var titles, artists, albums, genres, durations, albumArtists []string
 	for _, h := range hashes {
 		t, ok := m.library.Index.FindByHash(h)
 		if !ok {
 			continue
 		}
+		albumArtists = append(albumArtists, t.AlbumArtist)
 		titles = append(titles, t.Title)
 		artists = append(artists, t.Artist)
 		albums = append(albums, t.Album)
@@ -95,7 +97,7 @@ func (m Model) bulkEditorForHashes(hashes []string) metadata.Editor {
 		durations = append(durations, metadata.FormatDuration(t.Duration))
 	}
 	return metadata.NewBulkEditor(hashes, commonValue(titles), commonValue(artists), commonValue(albums), commonValue(genres), commonValue(durations)).
-		WithMixedValues(titles, artists, albums, genres, durations)
+		WithMixedValues(titles, artists, albums, genres, durations).WithAlbumArtists(albumArtists...)
 }
 
 // renameEditorForFocusedEntity returns a rename MetadataEditor when the active

@@ -68,8 +68,8 @@ func TestEncodeGolden(t *testing.T) {
 	if err := Encode(&buf, goldenDoc()); err != nil {
 		t.Fatalf("Encode: %v", err)
 	}
-	if got := buf.String(); got != goldenTSV {
-		t.Fatalf("Encode mismatch\n got: %q\nwant: %q", got, goldenTSV)
+	if got := buf.String(); got != goldenExportTSV() {
+		t.Fatalf("Encode mismatch\n got: %q\nwant: %q", got, goldenExportTSV())
 	}
 	for i, line := range strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n") {
 		if strings.ContainsAny(line, "\r") {
@@ -92,6 +92,7 @@ func TestEncodeParseRoundTrip(t *testing.T) {
 	}
 	want := goldenDoc().Rows
 	for i := range want {
+		want[i].AlbumArtistPresent = true
 		want[i].Line = 8 + i // 6 preamble lines + header
 	}
 	if !reflect.DeepEqual(f.Rows, want) {
@@ -100,4 +101,16 @@ func TestEncodeParseRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(f.Roots, map[int]string{1: "/Users/seb/Music", 2: "/Volumes/Archive/FLAC"}) {
 		t.Fatalf("roots mismatch: %#v", f.Roots)
 	}
+}
+
+func goldenExportTSV() string {
+	lines := strings.Split(goldenTSV, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "hash\t") {
+			lines[i] += "\talbum_artist"
+		} else if line != "" && !strings.HasPrefix(line, "#") {
+			lines[i] += "\t"
+		}
+	}
+	return strings.Join(lines, "\n")
 }

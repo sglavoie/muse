@@ -37,3 +37,15 @@ func TestGenreFilterPreservesQueueIdentityAndOrder(t *testing.T) {
 		t.Fatal("genre and tag filters should intersect")
 	}
 }
+
+func TestFilenameAccentFilterKeepsDuplicateQueueEntries(t *testing.T) {
+	v := makeQueue(100, []Entry{{ID: 1, Hash: "same", Path: "/private/Café.flac", Artist: "Björk"}, {ID: 2, Hash: "other", Path: "/other.flac"}, {ID: 3, Hash: "same", Path: "/private/Café.flac", Artist: "Björk"}})
+	v.Filter.Text = "cafe a:bjork"
+	if got := entryOrigIdxs(v.FilteredEntries()); !slices.Equal(got, []int{0, 2}) {
+		t.Fatalf("filename filter lost duplicate identity: %v", got)
+	}
+	v.Filter.Text = "private"
+	if len(v.FilteredEntries()) != 0 {
+		t.Fatal("filename search matched parent directory")
+	}
+}

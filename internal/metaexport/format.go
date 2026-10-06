@@ -21,40 +21,44 @@ const Version = 1
 // magicPrefix opens line 1 of every export; the major version follows it.
 const magicPrefix = "# muse-export v"
 
-// Column names. Every one of them is required on import; the parser matches
-// them by name so an LLM may reorder them freely.
+// Column names. The original columns are required on import; the parser matches
+// them by name so an LLM may reorder them freely. Album Artist is optional
+// when reading older v1 exports; a missing column leaves it unchanged.
 const (
-	ColHash   = "hash"
-	ColRoot   = "root"
-	ColPath   = "path"
-	ColArtist = "artist"
-	ColTitle  = "title"
-	ColAlbum  = "album"
-	ColGenre  = "genre"
-	ColTrack  = "track"
-	ColDisc   = "disc"
+	ColHash        = "hash"
+	ColRoot        = "root"
+	ColPath        = "path"
+	ColArtist      = "artist"
+	ColTitle       = "title"
+	ColAlbum       = "album"
+	ColAlbumArtist = "album_artist"
+	ColGenre       = "genre"
+	ColTrack       = "track"
+	ColDisc        = "disc"
 )
 
 // Columns lists every column an export writes, in write order.
 var Columns = []string{
 	ColHash, ColRoot, ColPath,
 	ColArtist, ColTitle, ColAlbum, ColGenre,
-	ColTrack, ColDisc,
+	ColTrack, ColDisc, ColAlbumArtist,
 }
 
 // Row is one exported track. Hash is the only join key on import: RootID and
 // RelPath are context for the LLM and are ignored when applying edits.
 type Row struct {
-	Hash    string
-	RootID  int // 1-based id of a declared root; 0 means RelPath is absolute
-	RelPath string
-	Artist  string
-	Title   string
-	Album   string
-	Genre   string
-	Track   int // 0 = unknown
-	Disc    int // 0 = unknown
-	Line    int // 1-based physical line the row was parsed from; 0 when encoding
+	AlbumArtist        string
+	AlbumArtistPresent bool // false for legacy imports without this optional column
+	Hash               string
+	RootID             int // 1-based id of a declared root; 0 means RelPath is absolute
+	RelPath            string
+	Artist             string
+	Title              string
+	Album              string
+	Genre              string
+	Track              int // 0 = unknown
+	Disc               int // 0 = unknown
+	Line               int // 1-based physical line the row was parsed from; 0 when encoding
 }
 
 // Document is a whole export: the music directories the rows live under (root
@@ -101,6 +105,7 @@ func Encode(w io.Writer, d Document) error {
 			escapeField(r.Genre),
 			strconv.Itoa(r.Track),
 			strconv.Itoa(r.Disc),
+			escapeField(r.AlbumArtist),
 		}, "\t"))
 	}
 	return ew.err

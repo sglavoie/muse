@@ -69,7 +69,7 @@ func (d *blockingInsightsDB) ReadUnverifiedDurations() ([]db.UnverifiedTrack, er
 }
 
 // UpdateTrackMetadata is the write the undo path launches on its own goroutine.
-func (d *blockingInsightsDB) UpdateTrackMetadata(hash, title, artist, album, genre string) error {
+func (d *blockingInsightsDB) UpdateTrackMetadata(hash, title, artist, album, genre string, albumArtist ...string) error {
 	<-d.release
 	d.mu.Lock()
 	defer d.mu.Unlock()

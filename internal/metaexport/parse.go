@@ -208,6 +208,9 @@ func parseHeader(raw string) (map[string]int, []string, error) {
 		cols[name] = i
 	}
 	for _, want := range Columns {
+		if want == ColAlbumArtist {
+			continue
+		}
 		if _, ok := cols[want]; !ok {
 			return nil, nil, fmt.Errorf("%w: %q", ErrMissingColumn, want)
 		}
@@ -243,6 +246,10 @@ func (f *File) parseRow(raw string, line int, cols map[string]int, ncols int) (R
 		Album:   get(ColAlbum),
 		Genre:   get(ColGenre),
 		Line:    line,
+	}
+	if _, ok := cols[ColAlbumArtist]; ok {
+		row.AlbumArtist = get(ColAlbumArtist)
+		row.AlbumArtistPresent = true
 	}
 	rawRoot, rawTrack, rawDisc := get(ColRoot), get(ColTrack), get(ColDisc)
 	if bad {

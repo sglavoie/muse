@@ -40,3 +40,26 @@ func TestSingleTrackResetOnlyRestoresFocusedField(t *testing.T) {
 		}
 	}
 }
+
+func TestBulkAlbumArtistClearResetAndNarrowLayout(t *testing.T) {
+	ed := NewBulkEditor([]string{"a", "b"}, "", "", "Compilation", "Jazz", "").WithAlbumArtists("One", "Two")
+	ed.focused = FieldAlbumArtist
+	if ed.DirtyAlbumArtist() != nil || !strings.Contains(ed.Fields[FieldAlbumArtist].Placeholder, "Multiple values") {
+		t.Fatal("mixed album artists were marked as an edit")
+	}
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	if value := ed.DirtyAlbumArtist(); value == nil || *value != "" {
+		t.Fatal("explicit clear missing")
+	}
+	out := ansi.Strip(ed.Render(60, 12, newTestStyles()))
+	if !strings.Contains(out, "*Album Artist:") {
+		t.Fatal("missing changed album artist label")
+	}
+	if len(strings.Split(strings.TrimRight(out, "\n"), "\n")) > 12 {
+		t.Fatal("bulk album artist editor overflow")
+	}
+	ed, _, _ = ed.HandleKey(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	if ed.DirtyAlbumArtist() != nil || !strings.Contains(ed.Fields[FieldAlbumArtist].Placeholder, "Multiple values") {
+		t.Fatal("reset did not restore mixed unchanged value")
+	}
+}
