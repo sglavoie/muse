@@ -14,9 +14,11 @@ import (
 
 // SeekTime is a timestamp input for the loaded track.
 type SeekTime struct {
-	Input textinput.Model
-	track string
-	Error string
+	Input        textinput.Model
+	track        string
+	Error        string
+	CurrentSecs  float64
+	DurationSecs float64
 }
 
 func NewSeekTime(track string) SeekTime {
@@ -50,8 +52,13 @@ func ParseSeekTime(value string) (float64, error) {
 func (m SeekTime) Render(width, height int, s styles.Styles) string {
 	inner := max(1, min(52, width-8))
 	m.Input.SetWidth(min(24, inner))
+	duration := "unknown"
+	if m.DurationSecs > 0 {
+		duration = text.FormatPositionSecs(m.DurationSecs)
+	}
+	timing := "Current: " + text.FormatPositionSecs(max(0, m.CurrentSecs)) + " · Duration: " + duration
 	lines := []string{s.Heading.Render("Seek to time"), text.Truncate(m.track, inner),
-		"", m.Input.View(), "Seconds, m:ss, or h:mm:ss"}
+		text.Truncate(timing, inner), m.Input.View(), "Seconds, m:ss, or h:mm:ss"}
 	if m.Error != "" {
 		lines = append(lines, s.Error.Render(ansi.Wrap(m.Error, inner, "")))
 	}

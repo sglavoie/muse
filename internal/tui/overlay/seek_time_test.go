@@ -35,3 +35,19 @@ func TestSeekTimePromptFitsMinimumWindow(t *testing.T) {
 		t.Fatalf("prompt too tall: %s", out)
 	}
 }
+
+func TestSeekTimeShowsPositionAndDuration(t *testing.T) {
+	prompt := NewSeekTime("Song")
+	prompt.CurrentSecs = 222
+	prompt.DurationSecs = 728
+	out := ansi.Strip(prompt.Render(60, 12, styles.NewStyles(true)))
+	if !strings.Contains(out, "Current: 3:42 · Duration: 12:08") {
+		t.Fatalf("missing timing: %s", out)
+	}
+	prompt.CurrentSecs = 0
+	prompt.DurationSecs = 0
+	out = ansi.Strip(prompt.Render(60, 12, styles.NewStyles(true)))
+	if !strings.Contains(out, "Current: 0:00 · Duration: unknown") {
+		t.Fatalf("missing unknown duration: %s", out)
+	}
+}

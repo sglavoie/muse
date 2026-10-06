@@ -3,9 +3,11 @@ package tui
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
@@ -99,5 +101,20 @@ func TestSeekTimePaletteAvailability(t *testing.T) {
 	m, _ = m.openSeekTime()
 	if m.overlay.seekTime != nil {
 		t.Fatal("prompt opened without track")
+	}
+}
+
+func TestSeekTimeTimingUpdatesWhileOpen(t *testing.T) {
+	m, _ := timestampModel()
+	m.termWidth, m.termHeight = 60, 15
+	m.playback.elapsedSecs, m.playback.totalSecs = 222, 728
+	out := ansi.Strip(m.renderActiveBody())
+	if !strings.Contains(out, "Current: 3:42 · Duration: 12:08") {
+		t.Fatalf("timing missing: %s", out)
+	}
+	m.playback.elapsedSecs, m.playback.totalSecs = 224, 730
+	out = ansi.Strip(m.renderActiveBody())
+	if !strings.Contains(out, "Current: 3:44 · Duration: 12:10") {
+		t.Fatalf("timing stale: %s", out)
 	}
 }

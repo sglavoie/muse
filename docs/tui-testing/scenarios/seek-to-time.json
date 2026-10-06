@@ -6,6 +6,8 @@
     {"command": "playback.seek.time"},
     {"assert": {"overlay": "seek_time"}},
     {"assert": {"contains": "Seek to time"}},
+    {"assert": {"contains": "Current:"}},
+    {"assert": {"contains": "Duration:"}},
     {"assert": {"no_layout_issues": true}},
     {"text": "1:99"},
     {"key": "enter"},

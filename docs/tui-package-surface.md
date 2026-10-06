@@ -133,7 +133,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 112 | 29 | 82 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/overlay` | 114 | 29 | 84 | 1 | `tui`, `metadata`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 13 | 0 | 12 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1033 exported identifiers across 15 packages**: 156 reached from two or more packages, 816 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1035 exported identifiers across 15 packages**: 156 reached from two or more packages, 818 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 78 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -631,6 +631,8 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `Row.Text` | field | `internal/tui`, `tui/favorites`, `tui/metadata`, `tui/smartrules` | multi |
 | `tui/overlay` | `SearchHelpSections` | func | `internal/tui` | root |
 | `tui/overlay` | `SeekTime` | type | `internal/tui` | root |
+| `tui/overlay` | `SeekTime.CurrentSecs` | field | `internal/tui` | root |
+| `tui/overlay` | `SeekTime.DurationSecs` | field | `internal/tui` | root |
 | `tui/overlay` | `SeekTime.Error` | field | `internal/tui` | root |
 | `tui/overlay` | `SeekTime.Input` | field | `internal/tui` | root |
 | `tui/overlay` | `SeekTime.Render` | method | `internal/tui` | root |

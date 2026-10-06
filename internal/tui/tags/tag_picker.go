@@ -1,6 +1,7 @@
 package tags
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -34,6 +35,7 @@ type TagPicker struct {
 	Items      []TagPickerItem // all tags, with current check states
 	Filtered   []int           // indices into Items after filter
 	Cursor     int
+	height     int
 	Filter     filter.State
 	trackHash  string   // single-track mode (empty when bulkHashes is set)
 	bulkHashes []string // bulk mode (nil in single-track mode)
@@ -119,10 +121,44 @@ func (tp TagPicker) Hashes() []string {
 // filterText returns the current filter input value.
 func (tp TagPicker) filterText() string { return tp.Filter.Text }
 
-// FocusedOnCreate reports whether the cursor is on the "+ Create" synthetic row
-// (only possible when no filtered items match the current filter text).
+// canCreate allows a new name alongside substring matches, but not duplicates.
+func (tp TagPicker) canCreate() bool {
+	name := strings.TrimSpace(tp.filterText())
+	if name == "" {
+		return false
+	}
+	for _, item := range tp.Items {
+		if strings.EqualFold(item.tag.Name, name) {
+			return false
+		}
+	}
+	return true
+}
+
+func (tp TagPicker) rowCount() int {
+	count := len(tp.Filtered)
+	if tp.canCreate() {
+		count++
+	}
+	return count
+}
+
+// FocusedOnCreate reports whether the cursor is on the final synthetic row.
 func (tp TagPicker) FocusedOnCreate() bool {
-	return len(tp.Filtered) == 0 && tp.filterText() != ""
+	return tp.canCreate() && tp.Cursor == len(tp.Filtered)
+}
+
+// SetHeight supplies the overlay height for paging, including its borders and hint.
+func (tp *TagPicker) SetHeight(height int) { tp.height = height }
+
+func tagPickerPageSize(height int) int {
+	// Six fixed box rows, the footer hint, and its trailing newline.
+	return max(1, height-8)
+}
+
+func (tp TagPicker) moveCursor(delta int) TagPicker {
+	tp.Cursor = max(0, min(tp.Cursor+delta, tp.rowCount()-1))
+	return tp
 }
 
 // focusedItem returns the TagPickerItem at the cursor, and true when valid.
@@ -160,20 +196,14 @@ func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.C
 		return tp, func() tea.Msg { return TagPickerDismissedMsg{} }
 
 	case "up", "ctrl+k", "ctrl+p":
-		if tp.Cursor > 0 {
-			tp.Cursor--
-		}
-		return tp, nil
-
+		return tp.moveCursor(-1), nil
 	case "down", "ctrl+j", "ctrl+n":
-		// When "+Create" is focused, there is no row to move to.
-		// Otherwise advance up to the last filtered row.
-		if !tp.FocusedOnCreate() && tp.Cursor < len(tp.Filtered)-1 {
-			tp.Cursor++
-		}
-		return tp, nil
-
-	case "enter", "space":
+		return tp.moveCursor(1), nil
+	case "pgup":
+		return tp.moveCursor(-tagPickerPageSize(tp.height)), nil
+	case "pgdown":
+		return tp.moveCursor(tagPickerPageSize(tp.height)), nil
+	case "enter":
 		return tp.handleToggleOrCreate()
 
 	default:
@@ -238,7 +268,7 @@ func (tp TagPicker) RemoveItem(tagID int64) TagPicker {
 
 // Refilter rebuilds tp.Filtered and clamps the cursor.
 func (tp *TagPicker) Refilter() {
-	query := strings.ToLower(tp.Filter.Text)
+	query := strings.ToLower(strings.TrimSpace(tp.Filter.Text))
 	if query == "" {
 		tp.Filtered = make([]int, len(tp.Items))
 		for i := range tp.Items {
@@ -252,9 +282,7 @@ func (tp *TagPicker) Refilter() {
 			}
 		}
 	}
-	if tp.Cursor >= len(tp.Filtered) {
-		tp.Cursor = max(len(tp.Filtered)-1, 0)
-	}
+	tp.Cursor = max(0, min(tp.Cursor, tp.rowCount()-1))
 }
 
 // --- Rendering ---
@@ -272,10 +300,10 @@ const (
 
 // Render produces a centered overlay string for the tag picker.
 func (tp TagPicker) Render(termWidth, termHeight int, s styles.Styles) string {
-	boxLines := tp.buildBoxLines(termWidth, s)
-	hint := "space toggle · enter select/create · esc close"
+	boxLines := tp.buildBoxLines(termWidth, termHeight, s)
+	hint := "enter toggle/create · pgup/pgdown scroll · esc close"
 	if tp.IsBulk() {
-		hint = "~ partial → assign all · " + hint
+		hint = "enter toggle/create · pgup/dn · esc close · ~ assign all"
 	}
 	return overlay.RenderCenteredLines(boxLines, s.Dim.Render(hint), termWidth, termHeight)
 }
@@ -284,6 +312,9 @@ func (tp TagPicker) Render(termWidth, termHeight int, s styles.Styles) string {
 // what the terminal can show.
 func (tp TagPicker) tagPickerInnerWidth(termWidth, minInner int) int {
 	innerWidth := minInner
+	if tp.canCreate() {
+		innerWidth = max(innerWidth, ansi.StringWidth(strings.TrimSpace(tp.filterText()))+13)
+	}
 	for _, i := range tp.Filtered {
 		// Use plain name for width calculation (dot is always 1 visible cell).
 		label := tp.Items[i].checkboxLabel() + " ● " + tp.Items[i].tag.Name
@@ -295,8 +326,12 @@ func (tp TagPicker) tagPickerInnerWidth(termWidth, minInner int) int {
 	return max(innerWidth, 1)
 }
 
-func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
-	const modalTitle = " Manage Tags "
+func (tp TagPicker) buildBoxLines(termWidth, termHeight int, s styles.Styles) []string {
+	start, end := tp.visibleWindow(termHeight)
+	modalTitle := " Manage Tags "
+	if tp.rowCount() > end-start {
+		modalTitle = fmt.Sprintf(" Manage Tags · %d–%d/%d ", start+1, end, tp.rowCount())
+	}
 	const minInner = 32
 
 	innerWidth := tp.tagPickerInnerWidth(termWidth, max(minInner, ansi.StringWidth(modalTitle)+2))
@@ -329,7 +364,7 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	lines = append(lines, tpCrossL+strings.Repeat(tpBorderH, innerWidth)+tpCrossR)
 
 	// Tag rows.
-	lines = append(lines, tp.tagRowLines(contentWidth, s)...)
+	lines = append(lines, tp.tagRowLines(contentWidth, start, end, s)...)
 
 	// Bottom border.
 	lines = append(lines, tpCornerBL+strings.Repeat(tpBorderH, innerWidth)+tpCornerBR)
@@ -337,22 +372,27 @@ func (tp TagPicker) buildBoxLines(termWidth int, s styles.Styles) []string {
 	return lines
 }
 
-// tagRowLines renders the modal's list body: one row per filtered tag, the
-// "no tags" placeholder when the list is empty and unfiltered, or the
-// "+ Create" row when a filter text matches nothing.
-func (tp TagPicker) tagRowLines(contentWidth int, s styles.Styles) []string {
-	if len(tp.Filtered) == 0 {
-		if tp.filterText() == "" {
-			return []string{tagPickerRow(text.Pad("(no tags — type to create)", contentWidth), false, s)}
-		}
-		createLabel := `+ Create "` + tp.filterText() + `"`
-		return []string{tagPickerRow(text.Pad(createLabel, contentWidth), true, s)}
+// visibleWindow keeps the focused row visible, including after a resize.
+func (tp TagPicker) visibleWindow(height int) (int, int) {
+	count := tp.rowCount()
+	size := tagPickerPageSize(height)
+	start := max(0, min(tp.Cursor-size+1, count-size))
+	return start, min(count, start+size)
+}
+
+// tagRowLines renders only the visible tags and optional create row.
+func (tp TagPicker) tagRowLines(contentWidth, start, end int, s styles.Styles) []string {
+	if tp.rowCount() == 0 {
+		return []string{tagPickerRow(text.Pad("(no tags — type to create)", contentWidth), false, s)}
 	}
-	lines := make([]string, 0, len(tp.Filtered))
-	for rowIdx, itemIdx := range tp.Filtered {
-		item := tp.Items[itemIdx]
-		label := item.checkboxLabel() + " " + styles.ColoredDot(item.tag.Color) + " " + item.tag.Name
-		lines = append(lines, tagPickerRow(text.Pad(label, contentWidth), rowIdx == tp.Cursor, s))
+	lines := make([]string, 0, end-start)
+	for row := start; row < end; row++ {
+		label := `+ Create "` + strings.TrimSpace(tp.filterText()) + `"`
+		if row < len(tp.Filtered) {
+			item := tp.Items[tp.Filtered[row]]
+			label = item.checkboxLabel() + " " + styles.ColoredDot(item.tag.Color) + " " + item.tag.Name
+		}
+		lines = append(lines, tagPickerRow(text.Pad(label, contentWidth), row == tp.Cursor, s))
 	}
 	return lines
 }

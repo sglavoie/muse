@@ -97,7 +97,9 @@ matching release, and each release can then be unfavorited independently.
   playback advances while the palette is open.
 - **Seek to time…** in the command palette jumps to seconds (`90`), `m:ss`
   (`12:30`), or `h:mm:ss` (`1:02:03`) in the loaded track, preserving pause.
-  Invalid times stay open for correction; changing tracks cancels the target.
+  The dialog shows the current position and track duration, updating while open;
+  unknown durations are labeled explicitly. Invalid times stay open for correction;
+  changing tracks cancels the target.
 - **Gapless playback** via mpv prefetch (`gapless_audio`).
 - **10-band equalizer** with built-in presets (Flat, Bass Boost, Treble Boost,
   Rock, Jazz, Classical, Pop) and user-defined custom presets, plus stereo
@@ -135,6 +137,11 @@ matching release, and each release can then be unfavorited independently.
   collection. Re-exporting keeps the previous file, including any external edits, as `metadata-export.tsv.bak`.
   Use the palette’s _Reveal previous metadata export backup_ command to locate it.
   To recover it, copy that backup over `metadata-export.tsv` before importing.
+- The track tag picker accepts multiword names, with Enter to toggle or create
+  and Space as normal text. A Create row remains available alongside partial
+  matches unless the exact name already exists (ignoring case). Long lists scroll
+  to keep the focused row visible; Page Up/Down moves a page and the heading
+  shows the visible range.
 - Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
   except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
 - Library and Queue selections show their total duration beside the count,
