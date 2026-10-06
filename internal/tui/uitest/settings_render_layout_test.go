@@ -10,7 +10,7 @@ import (
 )
 
 func TestSettingsRenderHintFitsMinimumSupportedSize(t *testing.T) {
-	o := settings.NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := settings.NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 
 	raw := o.Render(tui.MinTerminalWidth, tui.MinTerminalHeight, s)

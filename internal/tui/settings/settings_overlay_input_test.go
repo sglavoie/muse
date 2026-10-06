@@ -9,7 +9,7 @@ import (
 )
 
 func TestSettingsTabSwitchForward(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if o.Tab != TabPlayback {
 		t.Errorf("']': expected settingsTabPlayback, got %v", o.Tab)
@@ -24,7 +24,7 @@ func TestSettingsTabSwitchForward(t *testing.T) {
 }
 
 func TestSettingsTabSwitchBackward(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: '[', Text: "["})
 	if o.Tab != TabDisplay {
 		t.Errorf("'[' from Library: expected wrap to settingsTabDisplay, got %v", o.Tab)
@@ -32,7 +32,7 @@ func TestSettingsTabSwitchBackward(t *testing.T) {
 }
 
 func TestSettingsTabSwitchWraps(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
@@ -43,7 +43,7 @@ func TestSettingsTabSwitchWraps(t *testing.T) {
 }
 
 func TestSettingsTabSwitchResetsCursor(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: ']', Text: "]"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if o.cursor != 1 {
@@ -56,7 +56,7 @@ func TestSettingsTabSwitchResetsCursor(t *testing.T) {
 }
 
 func TestSettingsCursorDownWraps(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	n := len(o.Fields[o.Tab])
 	for range n {
@@ -68,7 +68,7 @@ func TestSettingsCursorDownWraps(t *testing.T) {
 }
 
 func TestSettingsCursorUpWraps(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	n := len(o.Fields[TabPlayback])
@@ -78,7 +78,7 @@ func TestSettingsCursorUpWraps(t *testing.T) {
 }
 
 func TestSettingsCursorArrowKeys(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	if o.cursor != 1 {
@@ -91,7 +91,7 @@ func TestSettingsCursorArrowKeys(t *testing.T) {
 }
 
 func TestSettingsIncrementValue(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	initial := o.Fields[TabPlayback][0].Value
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
@@ -105,7 +105,7 @@ func TestSettingsIncrementValue(t *testing.T) {
 }
 
 func TestSettingsDecrementValue(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	initial := o.Fields[TabPlayback][0].Value
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
@@ -116,7 +116,7 @@ func TestSettingsDecrementValue(t *testing.T) {
 }
 
 func TestSettingsIncrementClampsAtMax(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	f := &o.Fields[TabPlayback][0]
 	f.Value = f.max
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
@@ -126,7 +126,7 @@ func TestSettingsIncrementClampsAtMax(t *testing.T) {
 }
 
 func TestSettingsDecrementClampsAtMin(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	f := &o.Fields[TabPlayback][0]
 	f.Value = f.min
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'h', Text: "h"})
@@ -136,7 +136,7 @@ func TestSettingsDecrementClampsAtMin(t *testing.T) {
 }
 
 func TestSettingsArrowKeysAdjustValue(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	initial := o.Fields[TabPlayback][0].Value
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyRight})
@@ -150,7 +150,7 @@ func TestSettingsArrowKeysAdjustValue(t *testing.T) {
 }
 
 func TestSettingsEscReturnsCancel(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if action != ActionCancel {
 		t.Errorf("esc: expected settingsCancel, got %v", action)
@@ -158,7 +158,7 @@ func TestSettingsEscReturnsCancel(t *testing.T) {
 }
 
 func TestSettingsCtrlSReturnsSave(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if action != ActionSave {
 		t.Errorf("ctrl+s: expected settingsSave, got %v", action)
@@ -166,7 +166,7 @@ func TestSettingsCtrlSReturnsSave(t *testing.T) {
 }
 
 func TestSettingsCtrlCReturnsNone(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if action != actionNone {
 		t.Errorf("ctrl+c: expected settingsNone (fall-through), got %v", action)
@@ -174,7 +174,7 @@ func TestSettingsCtrlCReturnsNone(t *testing.T) {
 }
 
 func TestStereoWideToggleReturnsLiveAction(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	for range 6 {
 		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -191,7 +191,7 @@ func TestStereoWideToggleReturnsLiveAction(t *testing.T) {
 func TestStereoWideAmountAdjustReturnsLiveAction(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideAmount = 20
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab = TabPlayback
 	for range 7 {
 		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -75,12 +76,10 @@ func (v View) EffectiveTracks() []db.PlaylistTrackRow {
 	if v.FilterText == "" {
 		return v.Tracks
 	}
-	q := strings.ToLower(v.FilterText)
+	fq := library.ParseFilterQuery(v.FilterText)
 	var result []db.PlaylistTrackRow
 	for _, t := range v.Tracks {
-		if strings.Contains(strings.ToLower(t.Title), q) ||
-			strings.Contains(strings.ToLower(t.Artist), q) ||
-			strings.Contains(strings.ToLower(t.Album), q) {
+		if fq.MatchesMetadata(t.Title, t.Artist, t.Album, t.Genre) {
 			result = append(result, t)
 		}
 	}

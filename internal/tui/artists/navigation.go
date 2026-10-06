@@ -23,13 +23,13 @@ func FilterStrings(items []string, query string) []string {
 	return out
 }
 
-// FilterTracks returns tracks whose title, artist, or album contains query
-// (case-insensitive). Returns tracks unchanged when query is empty.
+// FilterTracks applies the shared field-aware query while preserving matching
+// against displayed unknown artist/album labels. An empty query returns all tracks.
 func FilterTracks(tracks []library.Track, query string) []library.Track {
 	if query == "" {
 		return tracks
 	}
-	q := strings.ToLower(query)
+	fq := library.ParseFilterQuery(query)
 	var out []library.Track
 	for _, t := range tracks {
 		artist := DisplayArtistName(t.Artist)
@@ -37,9 +37,7 @@ func FilterTracks(tracks []library.Track, query string) []library.Track {
 		if album == "" {
 			album = UnknownAlbum
 		}
-		if strings.Contains(strings.ToLower(t.Title), q) ||
-			strings.Contains(strings.ToLower(artist), q) ||
-			strings.Contains(strings.ToLower(album), q) {
+		if fq.MatchesMetadata(t.Title, artist, album, t.Genre) {
 			out = append(out, t)
 		}
 	}

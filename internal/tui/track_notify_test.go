@@ -131,7 +131,7 @@ func TestToggleTrackNotifyFlipsState(t *testing.T) {
 // command palette.
 func TestSettingsSaveSyncsTrackNotifyMirror(t *testing.T) {
 	m := New(context.Background())
-	o := settings.NewSettingsOverlay(m.cfg, m.cfg.DefaultVolume, m.cfg.MusicDirectories)
+	o := settings.NewSettingsOverlay(m.cfg, m.cfg.MusicDirectories)
 	o.Fields[settings.TabDisplay][2].Value = 1
 	m.overlay.settings = &o
 

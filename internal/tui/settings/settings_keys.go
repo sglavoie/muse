@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"os"
 	"slices"
 	"strings"
 
@@ -122,6 +121,7 @@ func (o SettingsOverlay) beginAdd() (SettingsOverlay, Action, tea.Cmd) {
 		o.ExclPathInput = NewSettingsInput()
 	} else {
 		o.LibDirInput = NewSettingsInput()
+		o.libDirError = ""
 	}
 	return o, actionNone, nil
 }
@@ -243,19 +243,20 @@ func (o SettingsOverlay) handleExclDeleteConfirm(msg tea.KeyPressMsg) (SettingsO
 func (o SettingsOverlay) handleLibDirInput(msg tea.KeyPressMsg) (SettingsOverlay, Action, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
-		path := o.LibDirInput.Value()
-		o.LibDirInput = nil
-		if path != "" {
-			expanded := expandTildeSettings(path)
-			if _, err := os.Stat(expanded); err == nil {
-				o.LibraryDirs = append(o.LibraryDirs, expanded)
-				o.libCursor = len(o.LibraryDirs) - 1
-				o.dirty = true
-			}
+		path, err := validateLibraryDir(o.LibDirInput.Value(), o.LibraryDirs)
+		if err != nil {
+			o.libDirError = err.Error()
+			return o, actionNone, nil
 		}
+		o.LibDirInput = nil
+		o.libDirError = ""
+		o.LibraryDirs = append(o.LibraryDirs, path)
+		o.libCursor = len(o.LibraryDirs) - 1
+		o.dirty = true
 		return o, actionNone, nil
 	case "esc":
 		o.LibDirInput = nil
+		o.libDirError = ""
 		return o, actionNone, nil
 	default:
 		updated, cmd := o.LibDirInput.Update(msg)

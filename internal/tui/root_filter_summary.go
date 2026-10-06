@@ -5,11 +5,16 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/library"
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/browse"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
-// Library-based track panels, Queue, and open playlists interpret field prefixes.
-// Other lists perform literal substring matching and must not advertise a
-// field constraint they do not actually apply.
+// Track lists interpret field prefixes. Collection names use literal matching
+// and must not advertise a field constraint they do not actually apply.
 func (m Model) fieldFilterText() string {
 	switch m.ActiveView {
 	case viewLibrary:
@@ -24,6 +29,41 @@ func (m Model) fieldFilterText() string {
 		}
 	case viewQueue:
 		return m.queue.Filter.Text
+	}
+	return m.collectionFieldFilterText()
+}
+
+func (m Model) collectionFieldFilterText() string {
+	switch m.ActiveView {
+	case viewBrowse:
+		return m.browseFieldFilterText()
+	case viewFavorites:
+		v := m.favorites
+		if v.Level == favtui.TrackLevel || (v.Level == favtui.ListLevel && v.Category == favtui.CategoryTracks) {
+			return v.Filter.Text
+		}
+	case viewTags:
+		if m.tagsView.Level == tagtui.TrackLevel {
+			return m.tagsView.Filter.Text
+		}
+	}
+	return ""
+}
+
+func (m Model) browseFieldFilterText() string {
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		if m.browse.Artists.Level == arttui.TrackLevel {
+			return m.browse.Artists.Filter.Text
+		}
+	case browse.BrowseModeAlbums:
+		if m.browse.Albums.Level == albtui.TrackLevel {
+			return m.browse.Albums.Filter.Text
+		}
+	case browse.BrowseModeGenres:
+		if m.browse.Genres.Level == gentui.TrackLevel {
+			return m.browse.Genres.Filter.Text
+		}
 	}
 	return ""
 }

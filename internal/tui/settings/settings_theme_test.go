@@ -12,7 +12,7 @@ import (
 
 func TestThemeFieldsPreviewAndMerge(t *testing.T) {
 	cfg := config.Defaults()
-	o := NewSettingsOverlay(cfg, 80, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab, o.cursor = TabDisplay, displayTheme
 	for _, want := range []string{"dark", "light"} {
 		var action Action
@@ -47,7 +47,7 @@ func TestThemeFieldsPreviewAndMerge(t *testing.T) {
 func TestPrimaryValidationAndEscape(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.PrimaryColor = "#123456"
-	o := NewSettingsOverlay(cfg, 80, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab, o.cursor = TabDisplay, displayPrimary
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	o.PrimaryInput.SetValue("not a color")

@@ -11,7 +11,7 @@ import (
 )
 
 func TestEQRenderEqualizerTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
@@ -25,7 +25,7 @@ func TestEQRenderEqualizerTab(t *testing.T) {
 func TestEQRenderShowsPresetName(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab = TabEqualizer
 	o.cursor = 1
 	s := styles.NewStyles(true)
@@ -36,7 +36,7 @@ func TestEQRenderShowsPresetName(t *testing.T) {
 }
 
 func TestEQRenderShowsNameInputPrompt(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabEqualizer
 	input := NewSettingsInput()
 	input.SetValue("My")
@@ -53,7 +53,7 @@ func TestEQRenderShowsDeleteConfirmation(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab = TabEqualizer
 	o.cursor = 1
 	o.Fields[TabEqualizer][1].Value = len(config.BuiltinEQPresets)
@@ -69,7 +69,7 @@ func TestEQRenderShowsDeleteConfirmation(t *testing.T) {
 }
 
 func TestEQHintLineShowsOnEQTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))
@@ -82,7 +82,7 @@ func TestEQHintLineShowsOnEQTab(t *testing.T) {
 }
 
 func TestEQHintLineIncludesJKFields(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 40, s))

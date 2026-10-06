@@ -13,7 +13,7 @@ import (
 )
 
 func TestSettingsRenderContainsTitle(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 	out := o.Render(80, 24, s)
 	stripped := ansi.Strip(out)
@@ -23,7 +23,7 @@ func TestSettingsRenderContainsTitle(t *testing.T) {
 }
 
 func TestSettingsRenderContainsTabNames(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	for _, name := range []string{"Playback", "Equalizer", "Display"} {
@@ -34,7 +34,7 @@ func TestSettingsRenderContainsTabNames(t *testing.T) {
 }
 
 func TestSettingsRenderContainsFieldLabels(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabPlayback
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
@@ -46,7 +46,7 @@ func TestSettingsRenderContainsFieldLabels(t *testing.T) {
 }
 
 func TestSettingsRenderContainsBorderChars(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	for _, ch := range []string{overlay.CornerTL, overlay.CornerBL, overlay.BorderH, overlay.BorderV} {
@@ -57,7 +57,7 @@ func TestSettingsRenderContainsBorderChars(t *testing.T) {
 }
 
 func TestSettingsRenderContainsHint(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
 	if !strings.Contains(out, "ctrl+s save") {
@@ -69,7 +69,7 @@ func TestSettingsRenderContainsHint(t *testing.T) {
 // on the first line, so switching between tabs of different heights (Library
 // has two rows, Equalizer a dozen) changes only how far down the box reaches.
 func TestSettingsRenderAnchorsToTop(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	s := styles.NewStyles(true)
 	for _, tab := range []Tab{tabLibrary, TabPlayback, TabEqualizer, TabDisplay} {
 		o.Tab = tab
@@ -81,7 +81,7 @@ func TestSettingsRenderAnchorsToTop(t *testing.T) {
 }
 
 func TestSettingsRenderDisplayTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Tab = TabDisplay
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
@@ -96,7 +96,7 @@ func TestSettingsRenderDisplayTab(t *testing.T) {
 func TestSettingsRenderClampsToBoxWidthAtNarrowTerm(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{strings.Repeat("a-very-long-excluded-path-pattern/", 4)}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab = tabLibrary
 	o.libSubView = libSubViewExcluded
 	s := styles.NewStyles(true)
@@ -144,7 +144,7 @@ func TestSettingsRenderClampsToBoxWidthAtNarrowTerm(t *testing.T) {
 // longest tab content and many fields).
 func TestSettingsRenderEqualizerTabClampsAtNarrowTerm(t *testing.T) {
 	cfg := config.Defaults()
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab = TabEqualizer
 	s := styles.NewStyles(true)
 
@@ -179,7 +179,7 @@ func TestSettingsRenderEqualizerTabClampsAtNarrowTerm(t *testing.T) {
 func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideAmount = 20
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.Tab = TabPlayback
 	for range 7 {
 		o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -203,7 +203,7 @@ func settingsHintLine(t *testing.T, o SettingsOverlay) string {
 // in the same order, and that the Equalizer tells its preset keys apart from
 // ctrl+s, which saves the settings.
 func TestSettingsHintsShareWordingAndOrder(t *testing.T) {
-	base := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	base := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	tabNames := [tabCount]string{"Library", "Playback", "Equalizer", "Display"}
 	cases := map[string]SettingsOverlay{}
 	for tab := tabLibrary; tab < tabCount; tab++ {

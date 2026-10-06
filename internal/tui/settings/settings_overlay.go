@@ -83,7 +83,8 @@ type SettingsOverlay struct {
 	LibraryDirs    []string
 	libCursor      int
 	LibDirInput    *textinput.Model // non-nil when adding a directory
-	libConfirmDel  bool             // true when showing directory delete confirmation
+	libDirError    string
+	libConfirmDel  bool // true when showing directory delete confirmation
 	ExcludedPaths  []string
 	exclCursor     int
 	ExclPathInput  *textinput.Model // non-nil when adding an excluded path pattern
@@ -94,7 +95,7 @@ type SettingsOverlay struct {
 const eqCustomSentinelName = "(Custom)"
 
 // NewSettingsOverlay creates a SettingsOverlay pre-populated from cfg.
-func NewSettingsOverlay(cfg config.Config, currentVolume int, musicDirs []string) SettingsOverlay {
+func NewSettingsOverlay(cfg config.Config, musicDirs []string) SettingsOverlay {
 	o := SettingsOverlay{}
 
 	// Copy library dirs.
@@ -109,7 +110,7 @@ func NewSettingsOverlay(cfg config.Config, currentVolume int, musicDirs []string
 		{label: "Volume step", Value: cfg.VolumeIncrement, defaultValue: 5, min: 1, max: 25, step: 1, unit: "%"},
 		{label: "Seek short", Value: int(cfg.SeekOffsetShort), defaultValue: 5, min: 1, max: 60, step: 1, unit: "s"},
 		{label: "Seek long", Value: int(cfg.SeekOffsetLong), defaultValue: 30, min: 5, max: 300, step: 5, unit: "s"},
-		{label: "Default volume", Value: currentVolume, defaultValue: 100, min: 0, max: 100, step: 5, unit: "%"},
+		{label: "Default volume", Value: cfg.DefaultVolume, defaultValue: 100, min: 0, max: 100, step: 5, unit: "%"},
 		{label: "Normalize", Value: boolToInt(cfg.NormalizeVolume), defaultValue: 0, min: 0, max: 1, step: 1, unit: ""},
 		{label: "Gapless", Value: boolToInt(cfg.GaplessAudio), defaultValue: 1, min: 0, max: 1, step: 1, unit: ""},
 		{label: "Stereo wide", Value: boolToInt(cfg.StereoWideEnabled), defaultValue: 0, min: 0, max: 1, step: 1, unit: ""},

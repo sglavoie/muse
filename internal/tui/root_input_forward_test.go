@@ -19,7 +19,7 @@ func TestInputForwardingPrefersHelpSearchOverOverlayInputs(t *testing.T) {
 	m.termHeight = 24
 	m.helpSearchFilter = filter.New()
 	m.helpSearchFilter, _ = m.helpSearchFilter.Activate()
-	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), 50, nil)
+	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), nil)
 	overlaySettings.ExclPathInput = settings.NewSettingsInput()
 	m.overlay.settings = &overlaySettings
 
@@ -38,7 +38,7 @@ func TestInputForwardingPrefersHelpSearchOverOverlayInputs(t *testing.T) {
 
 func TestInputForwardingPrefersSettingsOverMetadataEditor(t *testing.T) {
 	m := New(context.Background())
-	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), 50, nil)
+	overlaySettings := settings.NewSettingsOverlay(config.Defaults(), nil)
 	overlaySettings.ExclPathInput = settings.NewSettingsInput()
 	m.overlay.settings = &overlaySettings
 	editor := metadata.NewEditor("hash", "title", "artist", "album", "genre", 0)

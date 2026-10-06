@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Library settings retain invalid directory input and explain missing paths,
+  files, and duplicate roots (including symlink aliases), allowing correction.
+- Saving unrelated settings preserves the configured startup volume instead
+  of replacing it with the current playback volume.
+- Browse, Favorites, and Tags track lists interpret the same artist, title,
+  album, and genre filter prefixes as Library, including recalled queries.
+  Their filter editors also show the interpreted fields.
+
 - Queue summaries count separate album releases using Album Artist or folder,
   matching Browse instead of combining releases with the same title.
 

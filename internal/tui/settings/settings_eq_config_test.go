@@ -11,7 +11,7 @@ func TestEQToConfigRoundTrip(t *testing.T) {
 	cfg.EQEnabled = true
 	cfg.EQPreset = "rock"
 	cfg.EQBands = [10]int{5, 4, 2, 0, -1, 0, 2, 3, 4, 5}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 
 	got := o.ToConfig(cfg)
 
@@ -29,7 +29,7 @@ func TestEQToConfigRoundTrip(t *testing.T) {
 }
 
 func TestEQToConfigCustomSentinelKeyIsCustom(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.Fields[TabEqualizer][1].Value = len(o.EQPresets) - 1
 	got := o.ToConfig(config.Defaults())
 	if got.EQPreset != "custom" {
@@ -42,7 +42,7 @@ func TestToConfigIncludesCustomPresets(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "My Sound", Key: "my_sound", Bands: [10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
 	}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	got := o.ToConfig(cfg)
 
 	if len(got.EQCustomPresets) != 1 {
@@ -54,7 +54,7 @@ func TestToConfigIncludesCustomPresets(t *testing.T) {
 }
 
 func TestToConfigExcludesBuiltinsAndSentinel(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	got := o.ToConfig(config.Defaults())
 
 	if len(got.EQCustomPresets) != 0 {

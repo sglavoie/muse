@@ -8,8 +8,8 @@ import (
 
 func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	cfg := config.Defaults()
-	currentVolume := 75
-	o := NewSettingsOverlay(cfg, currentVolume, cfg.MusicDirectories)
+	cfg.DefaultVolume = 75
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 
 	pb := o.Fields[TabPlayback]
 	if len(pb) != 8 {
@@ -24,8 +24,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	if pb[2].Value != int(cfg.SeekOffsetLong) {
 		t.Errorf("SeekOffsetLong: expected %d, got %d", int(cfg.SeekOffsetLong), pb[2].Value)
 	}
-	if pb[3].Value != currentVolume {
-		t.Errorf("DefaultVolume: expected %d, got %d", currentVolume, pb[3].Value)
+	if pb[3].Value != cfg.DefaultVolume {
+		t.Errorf("DefaultVolume: expected %d, got %d", cfg.DefaultVolume, pb[3].Value)
 	}
 	if pb[4].Value != boolToInt(cfg.NormalizeVolume) {
 		t.Errorf("NormalizeVolume: expected %d, got %d", boolToInt(cfg.NormalizeVolume), pb[4].Value)
@@ -65,19 +65,18 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 }
 
-func TestNewSettingsOverlayUsesCurrentVolume(t *testing.T) {
+func TestNewSettingsOverlayUsesConfiguredVolume(t *testing.T) {
 	cfg := config.Defaults()
-	cfg.DefaultVolume = 100
-	currentVolume := 75
-	o := NewSettingsOverlay(cfg, currentVolume, cfg.MusicDirectories)
+	cfg.DefaultVolume = 75
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	pb := o.Fields[TabPlayback]
 	if pb[3].Value != 75 {
-		t.Errorf("expected Default volume field to show currentVolume 75, got %d", pb[3].Value)
+		t.Errorf("expected Default volume field to show configured volume 75, got %d", pb[3].Value)
 	}
 }
 
 func TestNewSettingsOverlayDefaultsTab(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	if o.Tab != tabLibrary {
 		t.Errorf("expected initial tab=settingsTabLibrary, got %v", o.Tab)
 	}
@@ -90,7 +89,7 @@ func TestStereoWideFieldsInitializeFromConfig(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 20
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	pb := o.Fields[TabPlayback]
 	if pb[6].Value != 1 {
 		t.Errorf("StereoWideEnabled field: expected 1, got %d", pb[6].Value)
@@ -104,7 +103,7 @@ func TestStereoWideStateHelper(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 25
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	enabled, amount := o.StereoWideState()
 	if !enabled {
 		t.Error("StereoWideState: expected enabled=true")

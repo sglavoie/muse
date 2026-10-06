@@ -13,7 +13,7 @@ import (
 
 func TestLibraryTabInitializesFromMusicDirs(t *testing.T) {
 	dirs := []string{"/music/rock", "/music/jazz"}
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
+	o := NewSettingsOverlay(config.Defaults(), dirs)
 	if len(o.LibraryDirs) != 2 {
 		t.Fatalf("expected 2 libraryDirs, got %d", len(o.LibraryDirs))
 	}
@@ -24,7 +24,7 @@ func TestLibraryTabInitializesFromMusicDirs(t *testing.T) {
 
 func TestLibraryTabDeleteDirRemovesEntry(t *testing.T) {
 	dirs := []string{"/music/rock", "/music/jazz"}
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
+	o := NewSettingsOverlay(config.Defaults(), dirs)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if !o.libConfirmDel {
 		t.Fatal("expected libConfirmDel=true after 'd'")
@@ -40,7 +40,7 @@ func TestLibraryTabDeleteDirRemovesEntry(t *testing.T) {
 
 func TestLibraryTabDeleteRefusesIfOnlyOneDir(t *testing.T) {
 	dirs := []string{"/music/rock"}
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
+	o := NewSettingsOverlay(config.Defaults(), dirs)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if o.libConfirmDel {
 		t.Error("expected libConfirmDel=false when only one directory remains")
@@ -52,7 +52,7 @@ func TestLibraryTabDeleteRefusesIfOnlyOneDir(t *testing.T) {
 
 func TestLibraryTabDeleteCancelRestoresList(t *testing.T) {
 	dirs := []string{"/music/rock", "/music/jazz"}
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
+	o := NewSettingsOverlay(config.Defaults(), dirs)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if o.libConfirmDel {
@@ -65,7 +65,7 @@ func TestLibraryTabDeleteCancelRestoresList(t *testing.T) {
 
 func TestLibraryTabToConfigRoundTrip(t *testing.T) {
 	dirs := []string{"/music/rock", "/music/jazz"}
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, dirs)
+	o := NewSettingsOverlay(config.Defaults(), dirs)
 	got := o.ToConfig(config.Defaults())
 
 	if len(got.MusicDirectories) != 2 {
@@ -80,7 +80,7 @@ func TestLibraryTabToConfigRoundTrip(t *testing.T) {
 }
 
 func TestExcludedSubViewToggle(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	if o.libSubView != libSubViewDirs {
 		t.Fatalf("initial libSubView: expected libSubViewDirs, got %v", o.libSubView)
 	}
@@ -91,7 +91,7 @@ func TestExcludedSubViewToggle(t *testing.T) {
 }
 
 func TestExcludedSubViewEscReturnsToDir(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	if o.libSubView != libSubViewExcluded {
 		t.Fatalf("precondition: expected libSubViewExcluded")
@@ -106,7 +106,7 @@ func TestExcludedSubViewEscReturnsToDir(t *testing.T) {
 }
 
 func TestExcludedPathAddViaInput(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -133,7 +133,7 @@ func TestExcludedPathAddViaInput(t *testing.T) {
 func TestExcludedPathAddDuplicateIsNoop(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts"}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	for _, r := range "Podcasts" {
@@ -146,7 +146,7 @@ func TestExcludedPathAddDuplicateIsNoop(t *testing.T) {
 }
 
 func TestExcludedPathAddInputEscCancels(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	for _, r := range "Podcasts" {
@@ -164,7 +164,7 @@ func TestExcludedPathAddInputEscCancels(t *testing.T) {
 func TestExcludedPathDeleteFlow(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
@@ -184,7 +184,7 @@ func TestExcludedPathDeleteFlow(t *testing.T) {
 func TestExcludedPathDeleteEscCancels(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts"}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -199,7 +199,7 @@ func TestExcludedPathDeleteEscCancels(t *testing.T) {
 func TestExcludedPathsToConfigRoundTrip(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	got := o.ToConfig(cfg)
 	if len(got.ExcludedPaths) != 2 {
 		t.Fatalf("ExcludedPaths: expected 2, got %d: %v", len(got.ExcludedPaths), got.ExcludedPaths)
@@ -210,7 +210,7 @@ func TestExcludedPathsToConfigRoundTrip(t *testing.T) {
 }
 
 func TestTabSwitchResetsToLibSubViewDirs(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	if o.libSubView != libSubViewExcluded {
 		t.Fatalf("precondition: expected libSubViewExcluded")
@@ -222,7 +222,7 @@ func TestTabSwitchResetsToLibSubViewDirs(t *testing.T) {
 }
 
 func TestExcludedPathsRenderNone(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o.libSubView = libSubViewExcluded
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))
@@ -234,7 +234,7 @@ func TestExcludedPathsRenderNone(t *testing.T) {
 func TestExcludedPathsRenderShowsPatterns(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.ExcludedPaths = []string{"Podcasts", "Audiobooks"}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o.libSubView = libSubViewExcluded
 	s := styles.NewStyles(true)
 	out := ansi.Strip(o.Render(80, 24, s))

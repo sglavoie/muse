@@ -253,7 +253,7 @@ func (m Model) handleSettingsKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool
 
 // handleSettingsOpen creates a new SettingsOverlay from the current config.
 func (m Model) handleSettingsOpen() (tea.Model, tea.Cmd) {
-	overlay := settings.NewSettingsOverlay(m.cfg, m.playback.volume, m.cfg.MusicDirectories)
+	overlay := settings.NewSettingsOverlay(m.cfg, m.cfg.MusicDirectories)
 	m.overlay.settings = &overlay
 	return m, nil
 }

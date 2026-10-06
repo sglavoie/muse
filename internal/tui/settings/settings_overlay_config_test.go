@@ -8,7 +8,7 @@ import (
 
 func TestSettingsToConfigRoundTrip(t *testing.T) {
 	base := config.Defaults()
-	o := NewSettingsOverlay(base, base.DefaultVolume, base.MusicDirectories)
+	o := NewSettingsOverlay(base, base.MusicDirectories)
 
 	o.Fields[TabPlayback][0].Value = 10
 	o.Fields[TabPlayback][1].Value = 15
@@ -56,7 +56,7 @@ func TestSettingsToConfigPreservesOtherFields(t *testing.T) {
 	base.MusicDirectories = []string{"/my/music"}
 	base.MPVSocketPath = "/tmp/mpv.sock"
 
-	o := NewSettingsOverlay(base, base.DefaultVolume, base.MusicDirectories)
+	o := NewSettingsOverlay(base, base.MusicDirectories)
 	got := o.ToConfig(base)
 
 	if len(got.MusicDirectories) == 0 || got.MusicDirectories[0] != "/my/music" {
@@ -76,7 +76,7 @@ func TestSettingsToConfigKeepsFractionalSeekOffsets(t *testing.T) {
 	base.SeekOffsetShort = 2.5
 	base.SeekOffsetLong = 12.5
 
-	o := NewSettingsOverlay(base, base.DefaultVolume, base.MusicDirectories)
+	o := NewSettingsOverlay(base, base.MusicDirectories)
 	o.Fields[TabPlayback][0].Value = 10 // an unrelated setting
 	got := o.ToConfig(base)
 	if got.SeekOffsetShort != 2.5 || got.SeekOffsetLong != 12.5 {
@@ -97,7 +97,7 @@ func TestStereoWideToConfigRoundTrip(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.StereoWideEnabled = true
 	cfg.StereoWideAmount = 30
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	got := o.ToConfig(cfg)
 	if !got.StereoWideEnabled {
 		t.Error("ToConfig: expected StereoWideEnabled=true")

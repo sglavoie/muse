@@ -23,6 +23,8 @@ full keybinding reference.
    settings. Press `a` to add a music directory, `Enter` to accept it, and
    `ctrl+s` to save and scan. You can also edit `music_directories` in
    `~/.config/muse/config.toml` (or `$XDG_CONFIG_HOME/muse/config.toml`).
+   Invalid or duplicate directories keep the input open with an explanation
+   so you can correct the path; `~` and relative paths are accepted.
 4. Select a track and press `Enter` to enqueue
    it; the first queued track starts playback. Use `Space` to pause, `/` to
    filter, `3` to see the queue, and `?` for help. To diagnose setup problems,
@@ -173,9 +175,11 @@ matching release, and each release can then be unfavorited independently.
   such as `AC/DC` can be typed normally. Help search also treats `/` as literal
   text while typing; `Enter` applies the search and `Esc` clears it. Empty field
   prefixes such as `a:` leave tracks visible while you type; other populated terms still apply.
-  When space allows, Library, Mixes, Insights track lists, and Queue also show
+  When space allows, track-list filter editors also show
   how field prefixes were interpreted, such as `Artist: Miles Davis · Genre: Jazz`.
-  Queue and open playlists support the same field prefixes, including `g:` / `genre:`.
+  Browse, Favorites, Tags, Queue, and open playlists support the same field
+  prefixes, including `g:` / `genre:`, wherever individual tracks are listed.
+  Collection-name filters continue to match literal text.
 - **Recent filters** — while editing `/`, Up/Down recalls the last 20 distinct
   committed queries across views. Down past the newest restores your unfinished
   query. If saving history fails, Recent Messages reports it once until saving

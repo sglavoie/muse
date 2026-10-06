@@ -67,11 +67,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	var hint string
 	switch o.Tab {
 	case tabLibrary:
-		if o.libSubView == libSubViewExcluded {
-			hint = "a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back"
-		} else {
-			hint = "a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
-		}
+		hint = o.libraryHint()
 	case TabDisplay:
 		hint = o.displayHint()
 	case TabEqualizer:
@@ -81,6 +77,20 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	}
 
 	return overlay.RenderTopLines(lines, hint, termWidth)
+}
+
+func (o SettingsOverlay) libraryHint() string {
+	if o.LibDirInput != nil {
+		hint := "enter add · esc cancel"
+		if o.libDirError != "" {
+			return o.libDirError + " · " + hint
+		}
+		return hint
+	}
+	if o.libSubView == libSubViewExcluded {
+		return "a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back"
+	}
+	return "a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
 }
 
 func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth int, s styles.Styles) []string {

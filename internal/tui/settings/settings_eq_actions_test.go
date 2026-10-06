@@ -11,7 +11,7 @@ import (
 func TestEQPresetCyclingSnapssBands(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -38,7 +38,7 @@ func TestEQPresetCyclingIncludesCustomPresets(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{-2, -1, 0, 0, 0, 0, 0, 0, -1, -2}},
 	}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -56,7 +56,7 @@ func TestEQPresetCyclingIncludesCustomPresets(t *testing.T) {
 func TestEQBandAdjustmentSwitchesToCustomSentinel(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -78,7 +78,7 @@ func TestEQBandAdjustmentSwitchesToCustomSentinel(t *testing.T) {
 }
 
 func TestEQEnabledToggleReturnsEQLive(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	_, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 'l', Text: "l"})
 	if action != ActionEQLive {
@@ -87,7 +87,7 @@ func TestEQEnabledToggleReturnsEQLive(t *testing.T) {
 }
 
 func TestEQSavePresetOpensNameInput(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 
 	o, action, _ := o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
@@ -100,7 +100,7 @@ func TestEQSavePresetOpensNameInput(t *testing.T) {
 }
 
 func TestEQSavePresetTypingAndEnter(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.EQPresets)
 
@@ -128,7 +128,7 @@ func TestEQSavePresetTypingAndEnter(t *testing.T) {
 }
 
 func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.EQPresets)
 
@@ -143,7 +143,7 @@ func TestEQSavePresetEmptyNameNoOp(t *testing.T) {
 }
 
 func TestEQSavePresetEscCancels(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.EQPresets)
 
@@ -166,7 +166,7 @@ func TestEQSavePresetSlugDedup(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "My Sound", Key: "my_sound", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 's', Text: "s"})
@@ -198,7 +198,7 @@ func TestEQSavePresetSlugDedup(t *testing.T) {
 func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "flat"
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o, _, _ = o.HandleKey(tea.KeyPressMsg{Code: 'j', Text: "j"})
@@ -212,7 +212,7 @@ func TestEQDeleteBuiltinPresetIgnored(t *testing.T) {
 }
 
 func TestEQDeleteSentinelIgnored(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 
 	o.Fields[TabEqualizer][1].Value = len(o.EQPresets) - 1
@@ -231,7 +231,7 @@ func TestEQDeleteCustomPresetFlow(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.EQPresets)
 
@@ -269,7 +269,7 @@ func TestEQDeleteCustomPresetEscCancels(t *testing.T) {
 	cfg.EQCustomPresets = []config.EQCustomPreset{
 		{Name: "Night Mode", Key: "night_mode", Bands: [10]int{}},
 	}
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.EQPresets)
 
@@ -294,7 +294,7 @@ func TestEQBandAtMinDoesNotResetPreset(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
 	cfg.EQBands = config.BuiltinEQPresets[1].Bands
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o.cursor = 2
@@ -315,7 +315,7 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.EQPreset = "bass_boost"
 	cfg.EQBands = config.BuiltinEQPresets[1].Bands
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	o.cursor = 2
@@ -338,7 +338,7 @@ func TestEQBandAtMaxDoesNotResetPreset(t *testing.T) {
 // would silently destroy the user's work.
 func TestEQPresetCyclingOntoCustomSentinelPreservesBands(t *testing.T) {
 	cfg := config.Defaults()
-	o := NewSettingsOverlay(cfg, cfg.DefaultVolume, cfg.MusicDirectories)
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	o = switchToEQTab(o)
 
 	// Position the Preset cursor just before the (Custom) sentinel.
@@ -371,7 +371,7 @@ func TestEQPresetCyclingOntoCustomSentinelPreservesBands(t *testing.T) {
 }
 
 func TestEQSavePresetAllSpecialCharsNameNoOp(t *testing.T) {
-	o := NewSettingsOverlay(config.Defaults(), config.Defaults().DefaultVolume, config.Defaults().MusicDirectories)
+	o := NewSettingsOverlay(config.Defaults(), config.Defaults().MusicDirectories)
 	o = switchToEQTab(o)
 	initialPresetCount := len(o.EQPresets)
 
