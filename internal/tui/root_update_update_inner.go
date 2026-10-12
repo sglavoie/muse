@@ -1,0 +1,480 @@
+package tui
+
+import (
+	"fmt"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/desktop"
+	"github.com/sglavoie/muse/internal/library"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/overlay"
+	"github.com/sglavoie/muse/internal/tui/palette"
+	"github.com/sglavoie/muse/internal/tui/playback"
+	pltui "github.com/sglavoie/muse/internal/tui/playlists"
+	"github.com/sglavoie/muse/internal/tui/queue"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
+)
+
+// updateInner handles incoming messages. Number keys switch active views;
+// Ctrl+C quits. Escape-style navigation remains delegated to the active view.
+func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case browseNowPlayingMsg:
+		return m.browseNowPlaying(msg.hash), nil
+	case selectSortFieldMsg:
+		return m.selectSortField(msg.field)
+	case showRecentMessagesMsg:
+		m = m.showRecentMessages()
+	case messagesCopiedMsg:
+		if msg.err != nil {
+			m.statusBar.NotifyError("Copy failed: " + msg.err.Error())
+		} else {
+			m.statusBar.Notify("Copied recent messages")
+		}
+
+	case tea.WindowSizeMsg:
+		m = m.handleWindowSizeMsg(msg)
+
+	case tea.BackgroundColorMsg:
+		m.terminalHasDark = msg.IsDark()
+		m.backgroundDetected = true
+		m = m.applyTheme()
+
+	case library.ScanProgressMsg:
+		m = m.handleScanProgressMsg(msg)
+
+	case library.ScanTotalMsg:
+		m = m.handleScanTotalMsg(msg)
+
+	case library.ScanBatchMsg:
+		return m.handleScanBatchMsg(msg)
+
+	case watchBatchMsg:
+		return m.handleWatchBatchMsg(msg)
+
+	case library.DurationAuditBatchMsg:
+		return m.handleDurationAuditBatchMsg(msg)
+
+	case library.DurationAuditDoneMsg:
+		return m.handleDurationAuditDoneMsg(msg)
+
+	case scanFinishedMsg:
+		return m.handleScanFinishedMsg(msg), nil
+
+	case library.ScanDoneMsg:
+		return m.handleScanDoneMsg()
+
+	case library.ScanErrorMsg:
+		m.statusBar.NotifyError(fmt.Sprintf("Scan error: %v", msg.Err))
+		if m.scanErrCh != nil {
+			return m, waitForScanErr(m.scanErrCh)
+		}
+
+	case library.WatchStatusMsg:
+		// The background library pipeline reports watcher availability exactly
+		// once. On failure the watcher never delivers live change events, so
+		// mark the status bar degraded and tell the user to rely on manual
+		// rescan. A setup error and a graceful fd-exhaustion fallback are
+		// distinguished so the notification matches what actually happened.
+		if !msg.Available {
+			m.watchDegraded = true
+			if msg.Err != nil {
+				m.statusBar.NotifyError("File watcher failed to start; use manual rescan (ctrl+r)")
+			} else {
+				m.statusBar.NotifyError("File watcher unavailable; use manual rescan (ctrl+r)")
+			}
+		}
+
+	case tickMsg:
+		return m.handleTickMsg()
+
+	case pulseTickMsg:
+		// Receipt forces a redraw so the now-playing row returns to its
+		// normal styling once pulseUntil has elapsed. No state changes.
+		return m, nil
+
+	case notificationFadeMsg:
+		// Receipt forces a redraw so the status-bar notification renders its
+		// dim fade frame for the last notificationFadeWindow of its lifetime.
+		// No state changes — render-time check on isFading() picks up the dim.
+		return m, nil
+
+	case syncPositionMsg:
+		return m.handleSyncPositionMsg()
+
+	case sessionTickMsg:
+		return m.handleSessionTickMsg()
+
+	case playback.PlayerStatusMsg:
+		m = m.handlePlayerStatusMsg(msg)
+
+	case playback.MissingTrackMsg:
+		m = m.handleMissingTrackMsg(msg)
+
+	case playback.PlayerDisconnectedMsg:
+		m = m.handlePlayerDisconnectedMsg()
+
+	case playback.PlaybackEndedMsg:
+		var cmd tea.Cmd
+		m, cmd = m.handlePlaybackEndedMsg()
+		if m.playback.state == playback.StatePlaying {
+			return m, tea.Batch(cmd, m.sessionPositionCmd())
+		}
+		if cmd != nil {
+			return m, cmd
+		}
+
+	case playback.PauseChangedMsg:
+		return m.handlePauseChangedMsg(msg)
+
+	case controlRequestMsg:
+		return m.handleControlRequest(msg)
+
+	case playback.RemoteActionMsg:
+		m, cmd, _ := m.handlePlaybackKeyAction(playback.RemoteAction(msg.ActionName))
+		return m, cmd
+
+	case previewStartedMsg:
+		m = m.handlePreviewStartedMsg(msg)
+
+	case previewPauseResultMsg:
+		return m.handlePreviewPauseResultMsg(msg)
+
+	case previewStartErrorMsg:
+		return m.handlePreviewStartErrorMsg(msg)
+
+	case overlay.TrackInfoMsg:
+		if msg.Err != nil {
+			m.statusBar.NotifyError("Track info failed: " + msg.Err.Error())
+		} else {
+			var userTags []db.TagRow
+			if m.tagReader != nil && msg.Hash != "" {
+				userTags, _ = m.tagReader.ReadTagsForTrack(msg.Hash)
+			}
+			info := overlay.NewTrackInfoOverlay(msg.Path, msg.Tags, msg.PlayCount, userTags)
+			if track, ok := m.library.Index.FindByHash(msg.Hash); ok {
+				info = info.WithLibraryMetadata(track)
+			}
+			m.overlay.trackInfo = &info
+		}
+
+	case playback.TrackChangedMsg:
+		return m.handleTrackChangedMsg(msg)
+
+	case playback.PlayRecordedMsg:
+		m = m.handlePlayRecordedMsg(msg)
+
+	case FilterBarMsg:
+		return m.handleFilterBarMsg()
+
+	case libtui.TrackEnqueuedMsg:
+		m = m.handleTrackEnqueuedMsg(msg)
+
+	case BatchEnqueuedMsg:
+		m = m.handleBatchEnqueuedMsg(msg)
+
+	case playback.PlayQueueIndexMsg:
+		return m.handlePlayQueueIndexMsg(msg)
+
+	case playback.PlayFromIndexResultMsg:
+		wasStopped := m.radio.stoppedByUser
+		m = m.handlePlayFromIndexResultMsg(msg)
+		if wasStopped && !m.radio.stoppedByUser {
+			return m.startRadioEnqueueCmd()
+		}
+
+	case playbackControlResultMsg:
+		return m.handlePlaybackControlResultMsg(msg)
+
+	case playback.MissingTrackSelectedMsg:
+		return m.handleMissingTrackSelectedMsg(msg)
+
+	case queue.DequeueTrackMsg:
+		m = m.handleDequeueTrackMsg(msg)
+
+	case queue.BulkSelectionToggleMsg:
+		m = m.handleBulkSelectionToggleMsg(msg)
+
+	case queue.ClearQueueMsg:
+		m = m.handleClearQueueMsg()
+
+	case UndoMsg:
+		m = m.handleUndo()
+
+	case queue.MoveTrackUpMsg:
+		return m.handleMoveTrackUpMsg(msg)
+
+	case queue.MoveTrackDownMsg:
+		return m.handleMoveTrackDownMsg(msg)
+
+	case QueuePastedMsg:
+		m = m.handleQueuePastedMsg(msg)
+
+	case statusbar.TransientErrorMsg:
+		m.statusBar.NotifyError(string(msg))
+	case statusbar.TransientNotifyMsg:
+		m.statusBar.Notify(string(msg))
+
+	case settingsSavedMsg:
+		m = m.handleSettingsSavedMsg(msg)
+
+	case tea.KeyPressMsg:
+		return m.handleKeyPressMsg(msg)
+
+	case playlistTracksLoadedMsg:
+		m = m.handlePlaylistTracksLoadedMsg(msg)
+	case playlistOrderSavedMsg:
+		m = m.handlePlaylistOrderSaved(msg)
+
+	case playlistTracksLoadErrorMsg:
+		m = m.handlePlaylistTracksLoadErrorMsg(msg)
+
+	case PlaylistRenameMsg:
+		m = m.handlePlaylistRenameMsg()
+
+	case playlistRenamedMsg:
+		m = m.handlePlaylistRenamedMsg(msg)
+
+	case playlistRenameErrorMsg:
+		m = m.handlePlaylistRenameErrorMsg(msg)
+
+	case PlaylistCreateMsg:
+		m = m.handlePlaylistCreateMsg()
+
+	case playlistCreatedMsg:
+		return m.handlePlaylistCreatedMsg(msg)
+
+	case playlistCreateErrorMsg:
+		m = m.handlePlaylistCreateErrorMsg(msg)
+
+	case queueSavedAsPlaylistMsg:
+		m = m.handleQueueSavedAsPlaylistMsg(msg)
+
+	case queueSaveAsPlaylistErrorMsg:
+		m = m.handleQueueSaveAsPlaylistErrorMsg(msg)
+
+	case playlistAddErrorMsg:
+		m = m.handlePlaylistAddErrorMsg(msg)
+
+	case tracksAddedToPlaylistMsg:
+		m = m.handleTracksAddedToPlaylistMsg(msg)
+
+	case smartPlaylistSaveResultMsg:
+		return m.handleSmartPlaylistSaveResult(msg)
+
+	case smartPlaylistCreatedMsg:
+		return m.handleSmartPlaylistCreatedMsg(msg)
+
+	case smartPlaylistEditedMsg:
+		return m.handleSmartPlaylistEditedMsg(msg)
+
+	case smartPlaylistCountsUpdatedMsg:
+		m = m.handleSmartPlaylistCountsUpdatedMsg(msg)
+
+	case favoriteToggledMsg:
+		m = m.handleFavoriteToggledMsg(msg)
+
+	case favtui.TargetDismissedMsg:
+		m.overlay.favoriteTargetPicker = nil
+
+	case favtui.TargetPickedMsg:
+		return m.handleFavoriteTargetPicked(msg)
+
+	case favoritesLoadedMsg:
+		m = m.handleFavoritesLoadedMsg(msg)
+
+	case metadataEditedMsg:
+		m = m.refreshAlbumFavorites()
+		if msg.err != nil {
+			m.statusBar.NotifyError("Metadata save failed: " + msg.err.Error())
+		}
+		// Genres, health findings and every library-derived shelf read the
+		// values this edit changed. The index was rewritten before the write was
+		// even attempted, so a failed write leaves them just as stale.
+		m.insightsInvalidate()
+		// Auto-DJ filters on artist and genre, so the same rewrite changes which
+		// tracks are eligible and why.
+		m.djInvalidate()
+
+	case overlay.GoToDismissedMsg:
+		m.overlay.goTo = nil
+
+	case overlay.GoToPickedMsg:
+		m.overlay.goTo = nil
+		switch msg.Kind {
+		case overlay.GoToArtist:
+			m = m.jumpToArtist(msg.Value)
+		case overlay.GoToAlbum:
+			m = m.jumpToAlbum(msg.Value)
+		case overlay.GoToGenre:
+			m = m.jumpToGenre(msg.Value)
+		case overlay.GoToPlaylist:
+			m = m.jumpToPlaylist(msg.Value)
+		}
+
+	case palette.CommandPaletteDismissedMsg:
+		m.overlay.commandPalette = nil
+
+	case palette.CommandPalettePickedMsg:
+		m.overlay.commandPalette = nil
+		// In a fixture-backed harness run, gate key/text-driven palette
+		// selections through the same allowlist as direct command actions so a
+		// scenario cannot execute a side-effectful command (Finder, clipboard,
+		// open-directory) by opening the palette and pressing enter.
+		if m.fixtureSafeCommands && !IsSafeDirectCommand(msg.Command.Key()) {
+			name := msg.Command.Name
+			return m, func() tea.Msg {
+				return statusbar.TransientNotifyMsg(fmt.Sprintf("Command %q blocked in fixture mode", name))
+			}
+		}
+		if msg.Command.Exec != nil {
+			return m, msg.Command.Exec()
+		}
+
+	case RadioBatchEnqueuedMsg:
+		return m.handleRadioBatchEnqueuedMsg(msg)
+
+	case radioBatchCleanupMsg:
+		m = m.handleRadioBatchCleanupMsg(msg)
+
+	case djPreviewPlannedMsg:
+		m = m.handleDJPreviewPlannedMsg(msg)
+
+	case djRejectRetryMsg:
+		m = m.handleDJRejectRetryMsg(msg)
+
+	case djRefreshDoneMsg:
+		return m.handleDJRefreshDoneMsg(msg)
+
+	case mixCountsLoadedMsg:
+		m = m.handleMixCountsLoadedMsg(msg)
+
+	case mixLoadedMsg:
+		m = m.handleMixLoadedMsg(msg)
+
+	case insightsLoadedMsg:
+		m = m.handleInsightsLoadedMsg(msg)
+
+	case insightsMergedMsg:
+		return m.handleInsightsMergedMsg(msg)
+
+	case recommendationCacheRebuiltMsg:
+		// Cache rebuilt; no additional state change needed — playsSinceRefresh
+		// is already reset by handleMixCountsLoadedMsg which fires in parallel.
+
+	case mixSavedAsPlaylistMsg:
+		m = m.handleMixSavedAsPlaylistMsg(msg)
+
+	case mixSaveAsPlaylistErrorMsg:
+		m.statusBar.NotifyError("Save mix failed: " + msg.err.Error())
+
+	case mixDismissedMsg:
+		m = m.handleMixDismissedMsg(msg)
+
+	case mixDismissErrorMsg:
+		m.statusBar.NotifyError("Dismiss failed: " + msg.err.Error())
+
+	case mixUndismissedMsg:
+		m = m.handleMixUndismissedMsg(msg)
+
+	case mixUndismissErrorMsg:
+		m.statusBar.NotifyError("Undismiss failed: " + msg.err.Error())
+
+	case refreshSmartPlaylistMsg:
+		return m.handleRefreshSmartPlaylist()
+
+	case openSeekTimeMsg:
+		return m.openSeekTime()
+
+	case commandPaletteActionMsg:
+		return m.handleCommandPaletteAction(msg.action, msg.view)
+
+	case navigateLibraryModeMsg:
+		return m.handleNavigateLibraryModeMsg(msg)
+
+	case navigateBrowseModeMsg:
+		return m.handleNavigateBrowseModeMsg(msg)
+
+	case desktop.FileManagerResultMsg:
+		if msg.Err != nil {
+			m.statusBar.NotifyError(msg.Action + " failed: " + msg.Path + " — " + msg.Err.Error())
+		}
+
+	case desktop.ClipboardResultMsg:
+		if msg.Err != nil {
+			m.statusBar.NotifyError("Copy failed: " + msg.Err.Error())
+		} else {
+			m.statusBar.Notify("Copied: " + msg.Text)
+		}
+
+	case metadataExportRequestedMsg:
+		return m.handleMetadataExportRequest()
+
+	case metadataExportedMsg:
+		m = m.handleMetadataExportedMsg(msg)
+
+	case metadataImportRequestedMsg:
+		return m.handleMetadataImportRequest()
+
+	case metadataImportParsedMsg:
+		m = m.handleMetadataImportParsedMsg(msg)
+
+	case metadataImportAppliedMsg:
+		m = m.handleMetadataImportAppliedMsg(msg)
+
+	case configToggleMsg:
+		return m.handleConfigToggleMsg(msg)
+
+	case autoDJStartSelectionMsg:
+		return m.djStartFromSelection(time.Now())
+
+	case randomAlbumMsg:
+		return m.handleRandomAlbumMsg()
+
+	case randomArtistMsg:
+		return m.handleRandomArtistMsg()
+
+	case jumpToNowPlayingMsg:
+		return m.handleJumpToNowPlayingMsg()
+
+	case toggleThemeMsg:
+		return m.handleToggleThemeMsg()
+
+	case toggleFooterHintsMsg:
+		return m.handleToggleFooterHintsMsg()
+
+	case toggleTrackNotifyMsg:
+		return m.handleToggleTrackNotifyMsg()
+
+	case toggleQueueFollowMsg:
+		return m.handleToggleQueueFollowMsg()
+
+	case queueShuffleMsg:
+		return m.handleQueueShuffleMsg()
+
+	case queueDedupMsg:
+		return m.handleQueueDedupMsg()
+
+	case playlistShuffleMsg:
+		return m.handlePlaylistShuffleMsg()
+
+	case pltui.DestinationPickerDismissedMsg:
+		m = m.handleDestinationPickerDismissedMsg()
+
+	case pltui.DestinationPickerCreateMsg:
+		m = m.handleDestinationPickerCreateMsg()
+
+	case pltui.DestinationPickedMsg:
+		return m.handleDestinationPickedMsg(msg)
+
+	default:
+		if next, cmd, ok := m.updateTagMsg(msg); ok {
+			return next, cmd
+		}
+		return m.handleUnhandledMsg(msg)
+	}
+	return m, nil
+}
