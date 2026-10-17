@@ -48,20 +48,36 @@ func bitmap(_ pixels: Int, _ draw: (CGContext) -> Void) -> Data {
 /// slanted beam across the stem tops.
 func notesPath() -> CGPath {
     let path = CGMutablePath()
-    let heads = [CGPoint(x: 24, y: 18), CGPoint(x: 74, y: 28)]
     let stemTops = [CGPoint(x: 37, y: 88), CGPoint(x: 87, y: 98)]
+    let radiusX: CGFloat = 15
+    let radiusY: CGFloat = 11
+    let angle: CGFloat = -0.35
+    // Align each tilted oval's rightmost point with the stem's outer edge,
+    // and extend the stem to that tangent so the join has no protruding lip.
+    let rightExtent = sqrt(pow(radiusX * cos(angle), 2) + pow(radiusY * sin(angle), 2))
+    let tangentY = (radiusX * radiusX - radiusY * radiusY) * sin(angle) * cos(angle) / rightExtent
+    let heads = zip(stemTops, [CGFloat(18), CGFloat(28)]).map { top, y in
+        CGPoint(x: top.x - rightExtent, y: y)
+    }
     for center in heads {
-        let tilt = CGAffineTransform(translationX: center.x, y: center.y).rotated(by: -0.35)
-        path.addEllipse(in: CGRect(x: -15, y: -11, width: 30, height: 22), transform: tilt)
+        let tilt = CGAffineTransform(translationX: center.x, y: center.y).rotated(by: angle)
+        path.addEllipse(
+            in: CGRect(x: -radiusX, y: -radiusY, width: 2 * radiusX, height: 2 * radiusY),
+            transform: tilt)
     }
     let stem: CGFloat = 6
+    let beamThickness: CGFloat = 14
     for (head, top) in zip(heads, stemTops) {
-        path.addRect(CGRect(x: top.x - stem, y: head.y, width: stem, height: top.y - head.y))
+        let bottom = head.y + tangentY
+        // End inside the beam so the flat stem cap cannot protrude above
+        // its slanted upper edge.
+        let stemTop = top.y - beamThickness / 2
+        path.addRect(CGRect(x: top.x - stem, y: bottom, width: stem, height: stemTop - bottom))
     }
     // The beam: a parallelogram 14 units thick from the first stem top to the
     // second, wound counterclockwise like the rects so the overlaps stay filled.
-    path.move(to: CGPoint(x: stemTops[0].x - stem, y: stemTops[0].y - 14))
-    path.addLine(to: CGPoint(x: stemTops[1].x, y: stemTops[1].y - 14))
+    path.move(to: CGPoint(x: stemTops[0].x - stem, y: stemTops[0].y - beamThickness))
+    path.addLine(to: CGPoint(x: stemTops[1].x, y: stemTops[1].y - beamThickness))
     path.addLine(to: CGPoint(x: stemTops[1].x, y: stemTops[1].y))
     path.addLine(to: CGPoint(x: stemTops[0].x - stem, y: stemTops[0].y))
     path.closeSubpath()
