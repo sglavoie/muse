@@ -1,0 +1,298 @@
+{
+  "name": "Everyday actions, selection scope and collection headings",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "assert": {
+        "contains": ": commands"
+      }
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "a:Alice"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "[filtered]"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Alice"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "d remove"
+      }
+    },
+    {
+      "assert": {
+        "contains": "4 tracks"
+      }
+    },
+    {
+      "key": "1"
+    },
+    {
+      "assert": {
+        "contains": "[filtered]"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enqueue 2 selected"
+      }
+    },
+    {
+      "assert": {
+        "contains": "X clear"
+      }
+    },
+    {
+      "assert": {
+        "contains": "◉"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "key": "2"
+    },
+    {
+      "assert": {
+        "contains": "Playlists"
+      }
+    },
+    {
+      "assert": {
+        "contains": "2 playlists"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "5"
+    },
+    {
+      "assert": {
+        "contains": "Favorites"
+      }
+    },
+    {
+      "assert": {
+        "contains": "3 categories"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "6"
+    },
+    {
+      "assert": {
+        "contains": "Tags"
+      }
+    },
+    {
+      "assert": {
+        "contains": "3 tags"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "7"
+    },
+    {
+      "assert": {
+        "contains": "Mixes"
+      }
+    },
+    {
+      "assert": {
+        "contains": "5 mixes"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "2"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enqueue 2 selected"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "6 tracks"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "ctrl+,"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "l"
+    },
+    {
+      "assert": {
+        "contains": "1 unsaved change"
+      }
+    },
+    {
+      "assert": {
+        "contains": "[Playback*]"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Volume step *"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "l"
+    },
+    {
+      "assert": {
+        "contains": "2 unsaved changes"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Playback*"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Equalizer*"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "shift+tab"
+    },
+    {
+      "key": "h"
+    },
+    {
+      "assert": {
+        "contains": "1 unsaved change"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Playback*"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "Keep editing"
+      }
+    }
+  ]
+}

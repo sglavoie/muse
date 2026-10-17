@@ -23,33 +23,35 @@ func (m Model) handleLibraryQueueAction(action keys.Action) (tea.Model, tea.Cmd,
 }
 
 func (m Model) handleLibraryEnqueueAction() (tea.Model, tea.Cmd, bool) {
+	if !m.atEnqueueTrackLevel() {
+		return m, nil, true
+	}
 	var cmd tea.Cmd
 	switch m.ActiveView {
 	case viewLibrary:
-		if len(m.library.SelectedHashes) > 0 {
-			if m.batchEnqueuer == nil {
-				m.statusBar.Notify("Enqueue not available")
-				return m, nil, true
-			}
-			tracks := m.bulkLibraryTracks()
-			if len(tracks) == 0 {
-				m.statusBar.Notify("No selected tracks available")
-				return m, nil, true
-			}
-			cmd = m.batchEnqueueTracksCmd(tracks, "", "Queue")
-			m = exitVisualMode(m)
-			m.library = m.library.ClearSelection()
-			m.library = m.library.ClearFilter()
-			return m, cmd, true
-		}
 		if m.queueWriter == nil {
 			return m, nil, true
 		}
 		cmd = m.library.EnqueueFocused(m.queueWriter, len(m.queue.Entries))
-		m.library = m.library.ClearFilter()
 	case viewMixes:
 		if m.queueWriter != nil && m.mixes.Level == 1 {
 			cmd = m.mixes.TrackView.EnqueueFocused(m.queueWriter, len(m.queue.Entries))
+		}
+	case viewPlaylists:
+		return m.handlePlaylistOpen()
+	case viewFavorites:
+		return m.handleFavoritesOpen()
+	case viewTags:
+		next, cmd := m.handleTagOpen()
+		return next, cmd, true
+	case viewBrowse:
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return m.handleArtistOpenAction()
+		case browse.BrowseModeAlbums:
+			return m.handleAlbumOpenAction()
+		case browse.BrowseModeGenres:
+			return m.handleGenreOpenAction()
 		}
 	case viewInsights:
 		if m.queueWriter != nil && m.insights.AtTracks() {
@@ -70,7 +72,6 @@ func (m Model) handleLibraryPlayNextAction() (tea.Model, tea.Cmd, bool) {
 	switch m.ActiveView {
 	case viewLibrary:
 		cmd = m.library.PlayNextFocused(m.queueWriter, prevLen, insertIdx)
-		m.library = m.library.ClearFilter()
 	case viewBrowse:
 		switch m.browse.Mode {
 		case browse.BrowseModeArtists:
@@ -113,7 +114,6 @@ func (m Model) handleLibraryEnqueueReplaceAction() (tea.Model, tea.Cmd, bool) {
 		if _, ok := m.library.Panel().FocusedTrack(); ok {
 			m = m.clearQueueForReplace()
 			cmd = m.library.EnqueueFocused(m.queueWriter, 0)
-			m.library = m.library.ClearFilter()
 		}
 	case viewBrowse:
 		switch m.browse.Mode {

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library enqueue, play-next, and replace actions preserve the filter and focus.
+- Enter enqueues selected tracks across Library, Browse, Playlists, Favorites,
+  Tags, and Insights, including hidden selections and duplicate playlist entries.
+  The palette uses the same scope and footers show the selected count.
+- Compact footers prioritize Queue removal, clearing selections, and Library's
+  command palette over generic navigation reminders.
+- Track rows distinguish focus, selection, and playback simultaneously, including
+  without color: `▎` focused, `●` selected, `◉` both, with playback beside them.
+- Settings marks changed fields and tabs and counts unsaved changes; restoring
+  opening values removes the markers.
+- Playlists, Favorites, Tags, and Mixes show collection headings and counts.
+
 - Compact command palettes show six commands at the minimum size, prioritize
   enabled commands for the current view, and retain focus across resize. Help
   and Quit remain searchable and have compact footer shortcuts.

@@ -1,6 +1,8 @@
 package playlists
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	"github.com/sglavoie/muse/internal/tui/sorting"
@@ -10,6 +12,7 @@ import (
 func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[string]struct{}, nowPlayingHash, nowPlayingIcon string) string {
 	pv := View{
 		Level:            v.Level,
+		totalPlaylists:   len(v.Playlists),
 		allTracks:        v.Tracks,
 		Cursor:           v.Cursor,
 		ScrollOffset:     v.ScrollOffset,
@@ -36,15 +39,37 @@ func (v PlaylistsView) Render(s styles.Styles, favHashes, favArtists, favAlbums 
 	pv.FavoriteAlbums = favAlbums
 	pv.NowPlayingHash = nowPlayingHash
 	pv.NowPlayingIcon = nowPlayingIcon
+	return v.renderFiltered(pv)
+}
+
+func (v PlaylistsView) renderFiltered(pv View) string {
 	body := pv.Render()
-	if v.Filter.Text != "" && ((v.AtListLevel() && len(pv.Playlists) == 0) || (!v.AtListLevel() && len(pv.Tracks) == 0)) {
+	if v.hasNoMatches(pv) {
 		body = ansi.Truncate(filter.NoMatchesMessage(true, false), v.Width, "…")
+		if v.AtListLevel() {
+			body = pv.listHeading() + "\n" + body
+		}
 		if !v.AtListLevel() {
 			body = pv.renderTrackHeading() + "\n" + pv.renderTrackSummary() + "\n" + body
 		}
 	}
 	if pv.FilterVisible {
-		return ansi.Truncate("Filter: "+v.Filter.View(), v.Width, "…") + "\n" + body
+		filterLine := ansi.Truncate("Filter: "+v.Filter.View(), v.Width, "…")
+		if v.AtListLevel() {
+			heading := pv.listHeading() + "\n"
+			return heading + filterLine + "\n" + strings.TrimPrefix(body, heading)
+		}
+		return filterLine + "\n" + body
 	}
 	return body
+}
+
+func (v PlaylistsView) hasNoMatches(pv View) bool {
+	if v.Filter.Text == "" {
+		return false
+	}
+	if v.AtListLevel() {
+		return len(pv.Playlists) == 0
+	}
+	return len(pv.Tracks) == 0
 }

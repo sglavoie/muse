@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/recommendation"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	libtui "github.com/sglavoie/muse/internal/tui/library"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -147,6 +148,12 @@ func (v MixesView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[
 		return v.TrackView.Render(s, favHashes, favArtists, favAlbums, nowPlayingHash, nowPlayingIcon)
 	}
 
+	heading := strip.Collection(v.width, "Mixes", "mix", len(v.Mixes), len(v.Mixes), s)
+	v.Height = max(0, v.Height-1)
+	return heading + "\n" + v.renderList(s)
+}
+
+func (v MixesView) renderList(s styles.Styles) string {
 	if v.InsufficientData {
 		if len(v.Mixes) > 0 && v.Mixes[0].Progress != "" {
 			var sb strings.Builder

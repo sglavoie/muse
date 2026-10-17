@@ -5,6 +5,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -91,5 +92,8 @@ func (v View) Render() string {
 	if v.Level == TrackLevel {
 		return v.renderTracks()
 	}
-	return v.renderTags()
+	unfiltered := v
+	unfiltered.FilterText = ""
+	heading := strip.Collection(v.Width, "Tags", "tag", len(v.EffectiveTags()), len(unfiltered.EffectiveTags()), v.Styles)
+	return heading + "\n" + v.renderTags()
 }

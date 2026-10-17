@@ -365,7 +365,7 @@ func registerSelectionModePrimaries(r *Registry) {
 	r.addPrimaryMode(ContextQueue, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(ContextQueue, HintModeSelection, "?", "help")
 
-	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "enter", "enqueue focused")
+	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "enter", "enqueue selected")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "a", "remove")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "t", "tag")
 	r.addPrimaryMode(ContextPlaylists, HintModeSelection, "X", "clear")

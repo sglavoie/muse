@@ -240,7 +240,7 @@ func (m Model) renderFooterHint() string {
 		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:
 		mode = keys.HintModeSelection
-		if m.footerEnqueuesFocusedTrack() {
+		if m.atCollectionTrackLevel() {
 			mode = keys.HintModeTrackSelection
 		}
 	case !m.hasFooterTarget():
@@ -248,11 +248,11 @@ func (m Model) renderFooterHint() string {
 	case m.footerOpensCollectionOnly():
 		mode = keys.HintModeCollections
 	case m.ActiveView == viewMixes && m.mixes.Level == 1,
-		m.footerEnqueuesFocusedTrack():
+		m.atCollectionTrackLevel():
 		mode = keys.HintModeTracks
 	}
 	_, _, _, track := m.focusedTrackForPalette()
-	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles, track && mode != keys.HintModeFilter && mode != keys.HintModeVisual)
+	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles, track && mode != keys.HintModeFilter && mode != keys.HintModeVisual, m.activeViewSelectionCount())
 	if mode == keys.HintModeFilter {
 		summary := m.filterQuerySummary()
 		room := m.termWidth - ansi.StringWidth(hint) - 3

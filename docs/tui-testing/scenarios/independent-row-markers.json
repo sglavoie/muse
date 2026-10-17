@@ -1,0 +1,62 @@
+{
+  "name": "Focus, selection and playback remain independently visible",
+  "fixture": "playback",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "◉▶"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "k"
+    },
+    {
+      "assert": {
+        "contains": "●▶"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "◉ "
+      }
+    },
+    {
+      "assert": {
+        "contains": "●▶"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "contains": "●▶"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

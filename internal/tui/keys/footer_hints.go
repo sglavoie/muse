@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -34,18 +35,13 @@ const footerHintSep = " · "
 // which is kept while the pairs before it are dropped: help is where every
 // dropped hint can still be found. Any partially-rendered pair is elided with
 // "…" so the strip never wraps.
-func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styles.Styles, trackDetails ...bool) string {
+func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styles.Styles, showInfo bool, selected int) string {
 	if width <= 0 {
 		return ""
 	}
-	hints := r.primaryHintsForMode(ctx, mode)
+	hints := footerHints(r, ctx, mode, showInfo, selected)
 	if len(hints) == 0 {
 		return ""
-	}
-	if len(trackDetails) > 0 && trackDetails[0] {
-		hints = slices.Clone(hints)
-		at := len(hints) - 1
-		hints = slices.Insert(hints, at, primaryHint{Key: "i", Label: "info"})
 	}
 
 	const leading = "  "
@@ -58,7 +54,7 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 	if rendered < len(hints) {
 		hints = slices.Clone(hints)
 		slices.SortStableFunc(hints, func(a, b primaryHint) int {
-			return hintPriority(a) - hintPriority(b)
+			return hintPriority(a, ctx, mode) - hintPriority(b, ctx, mode)
 		})
 		styled, rendered = renderHintsWithinBudget(hints, avail, s)
 		if kept, ok := renderHintsKeepingHelp(hints, avail, s); ok {
@@ -73,22 +69,49 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 	return leading + styled
 }
 
+func footerHints(r Registry, ctx Context, mode HintMode, showInfo bool, selected int) []primaryHint {
+	hints := slices.Clone(r.primaryHintsForMode(ctx, mode))
+	if len(hints) == 0 {
+		return nil
+	}
+	if selected > 0 {
+		for i := range hints {
+			if hints[i].Key == "enter" && strings.HasPrefix(hints[i].Label, "enqueue") {
+				hints[i].Label = fmt.Sprintf("enqueue %d selected", selected)
+			}
+		}
+	}
+	if showInfo {
+		hints = slices.Insert(hints, len(hints)-1, primaryHint{Key: "i", Label: "info"})
+	}
+
+	return hints
+}
+
 // Essential actions survive compact windows before navigation reminders and
 // secondary operations. Full-width hints retain their familiar ordering.
-func hintPriority(h primaryHint) int {
-	switch h.Key {
-	case "enter", "e":
+func hintPriority(h primaryHint, ctx Context, mode HintMode) int {
+	if h.Key == "?" {
+		return 100
+	}
+	if h.Key == "enter" || h.Key == "e" {
 		return 0
-	case "esc":
+	}
+	if taskHint(h.Key, ctx, mode) {
 		return 1
-	case "i":
-		return 2
-	case "/":
+	}
+
+	switch h.Key {
+	case "esc":
 		return 3
-	case "?":
-		return 5
-	default:
+	case "i":
 		return 4
+	case "/":
+		return 5
+	case "j/k":
+		return 9
+	default:
+		return 6
 	}
 }
 
@@ -174,4 +197,21 @@ func renderTruncatedHint(truncated, key string, s styles.Styles) string {
 		return s.HelpKey.Render(key) + " " + s.Dim.Render(rest)
 	}
 	return s.Dim.Render(truncated)
+}
+
+// Promote the actions that distinguish the current task from ordinary browsing.
+func taskHint(key string, ctx Context, mode HintMode) bool {
+	if key == "X" {
+		switch mode {
+		case HintModeSelection, HintModeTrackSelection, HintModeVisual:
+			return true
+		}
+	}
+	switch ctx {
+	case ContextQueue:
+		return key == "d"
+	case ContextLibrary:
+		return key == ":"
+	}
+	return false
 }

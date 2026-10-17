@@ -39,7 +39,7 @@ func (v View) visibleRows() int {
 	var reserve int
 	switch v.Level {
 	case CategoryLevel:
-		// No chrome needed for the 3-row category view.
+		reserve = 1 // collection heading
 	case ListLevel:
 		reserve = 2 // heading + separator (blank line or filter line)
 		if v.Category == CategoryTracks {

@@ -281,7 +281,7 @@ const (
 	HintModeDefault        HintMode = iota // resting-state hints (no selection, no visual mode)
 	HintModeSelection                      // one or more rows are bulk-selected
 	HintModeVisual                         // visual line-selection mode is active
-	HintModeTrackSelection                 // selected tracks, Enter enqueues only the focused row
+	HintModeTrackSelection                 // selected tracks, Enter enqueues the selection
 	HintModeTracks                         // a collection is open at its track list
 	HintModeFilter                         // a view filter is being edited
 	HintModeEmpty                          // no row is available for actions
@@ -467,13 +467,12 @@ func emptyNeedsLibrary(ctx Context) bool {
 	return false
 }
 
-// Track selections leave Enter focused on one row; collection selections open
-// the focused collection instead. Keep the rest of the selection hints intact.
+// Track selections enqueue; collection selections still open the focused collection.
 func (r Registry) trackSelectionHints(ctx Context) []primaryHint {
 	hints := append([]primaryHint(nil), r.primaryHintsForMode(ctx, HintModeSelection)...)
 	for i := range hints {
 		if hints[i].Key == "enter" {
-			hints[i].Label = "enqueue focused"
+			hints[i].Label = "enqueue selected"
 		}
 	}
 	return hints

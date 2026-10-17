@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/library"
 	arttui "github.com/sglavoie/muse/internal/tui/artists"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -22,7 +23,7 @@ func (v View) Render() string {
 	case TrackLevel:
 		return v.renderTracks()
 	default:
-		return v.renderCategories()
+		return strip.Collection(v.Width, "Favorites", "category", 3, 3, v.Styles) + "\n" + v.renderCategories()
 	}
 }
 

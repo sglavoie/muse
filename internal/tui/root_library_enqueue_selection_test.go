@@ -36,8 +36,8 @@ func TestLibraryEnterEnqueuesSelectionAsBatch(t *testing.T) {
 	if len(nm.library.SelectedHashes) != 0 {
 		t.Fatalf("selection must clear when batch is dispatched, got %v", nm.library.SelectedHashes)
 	}
-	if nm.library.Filter.Text != "" {
-		t.Fatalf("committed filter must clear after enqueue, got %q", nm.library.Filter.Text)
+	if nm.library.Filter.Text != "selected" {
+		t.Fatalf("committed filter must remain after enqueue, got %q", nm.library.Filter.Text)
 	}
 	if nm.visual.active {
 		t.Fatal("batch enqueue must exit visual mode")

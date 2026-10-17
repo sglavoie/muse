@@ -14,7 +14,7 @@ func TestFavoritesVisibleReserve(t *testing.T) {
 		v    favtui.FavoritesView
 		want int
 	}{
-		{"category level", favtui.FavoritesView{Level: favtui.CategoryLevel}, 0},
+		{"category level", favtui.FavoritesView{Level: favtui.CategoryLevel}, 1},
 		{"list level artists no filter no sort", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists}, 2},
 		{"list level artists with filter", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists, Filter: filter.State{Active: true}}, 2},
 		{"list level artists with committed filter text", favtui.FavoritesView{Level: favtui.ListLevel, Category: favtui.CategoryArtists, Filter: filter.State{Text: "foo"}}, 2},

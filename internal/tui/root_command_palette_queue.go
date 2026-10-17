@@ -18,14 +18,14 @@ func (m Model) describeQueueCommand(cmd palette.PaletteCommand) palette.PaletteC
 	if !cmd.IsEnabled() {
 		return cmd
 	}
-	if cmd.ID == "queue.enqueue.focused" && m.ActiveView == viewLibrary && len(m.library.SelectedHashes) > 0 {
+	if cmd.ID == "queue.enqueue.focused" && m.atEnqueueTrackLevel() && m.activeViewSelectionCount() > 0 {
 		return m.describeSelectedQueueCommand(cmd)
 	}
 	return m.describeFocusedQueueCommand(cmd)
 }
 
 func (m Model) describeSelectedQueueCommand(cmd palette.PaletteCommand) palette.PaletteCommand {
-	count := len(m.bulkLibraryTracks())
+	count := len(m.selectedEnqueueTracks())
 	if count == 0 {
 		return unavailableQueueCommand(cmd, "No selected tracks available")
 	}

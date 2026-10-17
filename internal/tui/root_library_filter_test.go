@@ -37,10 +37,10 @@ func TestLibraryEscClearsCommittedFilter(t *testing.T) {
 	}
 }
 
-// TestLibraryEnterClearsCommittedFilter verifies that pressing Enter on a
+// TestLibraryEnterPreservesCommittedFilter verifies that pressing Enter on a
 // focused track while a committed filter is active enqueues the track and
-// clears the filter.
-func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
+// preserves the filter.
+func TestLibraryEnterPreservesCommittedFilter(t *testing.T) {
 	qa := &stubQueueAppender{}
 	m := New(context.Background(), WithQueueWriter(qa))
 	m.library.Index.Insert(library.Track{Artist: "Alice", Title: "Alpha", Hash: "h1"})
@@ -53,8 +53,8 @@ func TestLibraryEnterClearsCommittedFilter(t *testing.T) {
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(Model)
 
-	if m.library.Filter.Text != "" {
-		t.Errorf("expected filterText cleared after enqueue Enter, got %q", m.library.Filter.Text)
+	if m.library.Filter.Text != "ali" {
+		t.Errorf("expected filterText preserved after enqueue Enter, got %q", m.library.Filter.Text)
 	}
 	if m.library.Filter.Active {
 		t.Error("expected filterActive=false after enqueue Enter")

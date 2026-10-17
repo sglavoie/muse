@@ -71,7 +71,7 @@ func TestRenderListPendingSmartCountFitsWidth(t *testing.T) {
 		Playlists: []db.PlaylistRow{{ID: 1, Name: "Long Smart Playlist", TrackCount: -1, IsSmart: true}},
 	}
 
-	line := ansi.Strip(v.Render())
+	line := strings.Split(ansi.Strip(v.Render()), "\n")[1]
 	if got := ansi.StringWidth(line); got != width {
 		t.Fatalf("pending smart playlist row width = %d, want %d; line=%q", got, width, line)
 	}
@@ -87,7 +87,7 @@ func TestRenderListLargeCountFitsWidth(t *testing.T) {
 		Playlists: []db.PlaylistRow{{ID: 1, Name: "Huge", TrackCount: 123456789}},
 	}
 
-	line := ansi.Strip(v.Render())
+	line := strings.Split(ansi.Strip(v.Render()), "\n")[1]
 	if got := ansi.StringWidth(line); got != width {
 		t.Fatalf("large count playlist row width = %d, want %d; line=%q", got, width, line)
 	}

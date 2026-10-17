@@ -68,7 +68,7 @@
     },
     {
       "assert": {
-        "contains": "enter enqueue focused"
+        "contains": "enter enqueue 1 selected"
       }
     },
     {
@@ -116,7 +116,7 @@
     },
     {
       "assert": {
-        "contains": "enter enqueue focused"
+        "contains": "enter enqueue 1 selected"
       }
     },
     {
@@ -159,7 +159,7 @@
     },
     {
       "assert": {
-        "contains": "enter enqueue focused"
+        "contains": "enter enqueue 1 selected"
       }
     },
     {
@@ -210,7 +210,7 @@
     },
     {
       "assert": {
-        "contains": "enter enqueue focused"
+        "contains": "enter enqueue 1 selected"
       }
     },
     {
@@ -267,7 +267,7 @@
     },
     {
       "assert": {
-        "contains": "enter enqueue focused"
+        "contains": "enter enqueue 1 selected"
       }
     },
     {

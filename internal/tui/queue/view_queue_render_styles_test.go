@@ -83,8 +83,8 @@ func TestQueueRenderSelectedAndFocusedMarker(t *testing.T) {
 	if focusedLine == "" {
 		t.Fatal("focused entry must appear in the output")
 	}
-	if !strings.Contains(focusedLine, "●") {
-		t.Error("selected+focused entry must contain ● marker")
+	if !strings.Contains(focusedLine, "◉") {
+		t.Error("selected+focused entry must contain ◉ marker")
 	}
 }
 

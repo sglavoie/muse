@@ -9,7 +9,7 @@
     {"assert": {"contains": "enter enqueue"}},
     {"assert": {"not_contains": "c create"}},
     {"key": "x"},
-    {"assert": {"contains": "enqueue focused"}},
+    {"assert": {"contains": "enqueue 1 selected"}},
     {"command": "selection.clear"},
     {"assert": {"not_contains": "1 selected"}},
     {"resize": "60x15"},

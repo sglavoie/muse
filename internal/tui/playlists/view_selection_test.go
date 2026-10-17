@@ -82,8 +82,8 @@ func TestRenderTracksShowsBulletOnlyForSelected(t *testing.T) {
 		SelectedTrackIDs: map[int64]struct{}{10: {}},
 	}
 	out := v.Render()
-	if !strings.Contains(out, "●") {
-		t.Fatal("expected '●' marker in output for selected track")
+	if !strings.Contains(out, "◉") {
+		t.Fatal("expected '◉' marker in output for selected track")
 	}
 	lines := strings.Split(out, "\n")
 	var selectedLine, unselectedLine string
@@ -95,11 +95,11 @@ func TestRenderTracksShowsBulletOnlyForSelected(t *testing.T) {
 			unselectedLine = l
 		}
 	}
-	if !strings.Contains(selectedLine, "●") {
-		t.Errorf("selected track line must contain '●'; got: %q", selectedLine)
+	if !strings.Contains(selectedLine, "◉") {
+		t.Errorf("selected track line must contain '◉'; got: %q", selectedLine)
 	}
-	if strings.Contains(unselectedLine, "●") {
-		t.Errorf("unselected track line must not contain '●'; got: %q", unselectedLine)
+	if strings.Contains(unselectedLine, "◉") {
+		t.Errorf("unselected track line must not contain '◉'; got: %q", unselectedLine)
 	}
 }
 

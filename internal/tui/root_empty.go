@@ -7,6 +7,7 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
@@ -89,7 +90,12 @@ func (m Model) renderEmptyPrimary(display styles.Styles) (string, bool) {
 	default:
 		return "", false
 	}
-	return display.RenderEmptyCard(m.termWidth, max(m.termHeight-5, 1), title, []styles.EmptyAction{action, {Key: "?", Label: "help"}}), true
+	height := max(m.termHeight-5, 1)
+	heading := m.emptyPrimaryHeading(display)
+	if heading != "" {
+		height--
+	}
+	return heading + display.RenderEmptyCard(m.termWidth, height, title, []styles.EmptyAction{action, {Key: "?", Label: "help"}}), true
 }
 
 func (m Model) footerOpensCollectionOnly() bool {
@@ -149,9 +155,9 @@ func (m Model) playlistsHasFooterTarget() bool {
 	return ok
 }
 
-// footerEnqueuesFocusedTrack distinguishes collection navigation from the
-// single-row enqueue performed by Enter, even with a bulk selection present.
-func (m Model) footerEnqueuesFocusedTrack() bool {
+// atCollectionTrackLevel distinguishes collection navigation from the
+// enqueue performed by Enter at track level.
+func (m Model) atCollectionTrackLevel() bool {
 	switch m.ActiveView {
 	case viewPlaylists:
 		return !m.playlists.AtListLevel()
@@ -171,4 +177,15 @@ func (m Model) footerEnqueuesFocusedTrack() bool {
 		}
 	}
 	return false
+}
+
+func (m Model) emptyPrimaryHeading(display styles.Styles) string {
+	heading := ""
+	switch m.ActiveView {
+	case viewFavorites:
+		heading = strip.Collection(m.termWidth, "Favorites", "category", 3, 3, display) + "\n"
+	case viewMixes:
+		heading = strip.Collection(m.termWidth, "Mixes", "mix", 0, 0, display) + "\n"
+	}
+	return heading
 }

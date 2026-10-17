@@ -192,9 +192,9 @@ func TestTagsVisibleReserve(t *testing.T) {
 		v    tagtui.TagsView
 		want int
 	}{
-		{"tag level no filter no sort", tagtui.TagsView{Level: tagtui.TagLevel}, 0},
-		{"tag level with filter", tagtui.TagsView{Level: tagtui.TagLevel, Filter: filter.State{Active: true}}, 1},
-		{"tag level with sort", tagtui.TagsView{Level: tagtui.TagLevel, SortState: sorting.SortState{Field: sorting.SortName}}, 1},
+		{"tag level no filter no sort", tagtui.TagsView{Level: tagtui.TagLevel}, 1},
+		{"tag level with filter", tagtui.TagsView{Level: tagtui.TagLevel, Filter: filter.State{Active: true}}, 2},
+		{"tag level with sort", tagtui.TagsView{Level: tagtui.TagLevel, SortState: sorting.SortState{Field: sorting.SortName}}, 2},
 		{"track level no sort", tagtui.TagsView{Level: tagtui.TrackLevel}, 3},
 		{"track level with sort", tagtui.TagsView{Level: tagtui.TrackLevel, SortState: sorting.SortState{Field: sorting.SortTitle}}, 4},
 	}

@@ -5,8 +5,8 @@ import "testing"
 func TestVisibleRows_CategoryLevel(t *testing.T) {
 	v := View{Level: CategoryLevel, Height: 20}
 	got := v.visibleRows()
-	if got != 20 {
-		t.Errorf("expected 20, got %d", got)
+	if got != 19 {
+		t.Errorf("expected 19, got %d", got)
 	}
 }
 
@@ -33,8 +33,8 @@ func TestVisibleRows_TrackLevel(t *testing.T) {
 
 func TestVisibleRows_WithSortIndicator(t *testing.T) {
 	v := View{Level: CategoryLevel, Height: 20, SortIndicator: "Sort: Name ▲"}
-	if got := v.visibleRows(); got != 19 {
-		t.Errorf("expected 19, got %d", got)
+	if got := v.visibleRows(); got != 18 {
+		t.Errorf("expected 18, got %d", got)
 	}
 }
 

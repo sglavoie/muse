@@ -198,32 +198,26 @@ func FormatTrackPosSimple(trackNum, fallback int) string {
 	return strconv.Itoa(trackNum)
 }
 
-// RowMarker returns the two-column selection/focus/now-playing marker shown
-// at the left edge of every track row. Precedence (highest first):
-//
-//  1. selected (any): "● "
-//  2. focused + now-playing: normalized now-playing icon
-//  3. focused only: "▎ "
-//  4. now-playing only: normalized now-playing icon
-//  5. default: "  "
-//
-// The returned string is always two display columns wide. An empty
-// nowPlayingIcon falls back to "♪" so callers that haven't plumbed a
-// playback-state icon still render a stable two-column marker.
+// RowMarker keeps focus/selection in the first column and playback in the
+// second. A ringed dot identifies a focused selection without relying on color.
 func RowMarker(isSelected, isFocused, isNowPlaying bool, nowPlayingIcon string) string {
-	normalizedIcon := normalizeMarkerIcon(nowPlayingIcon)
+	marker := " "
 	switch {
+	case isSelected && isFocused:
+		marker = "◉"
 	case isSelected:
-		return "● "
-	case isFocused && isNowPlaying:
-		return normalizedIcon
+		marker = "●"
 	case isFocused:
-		return "▎ "
-	case isNowPlaying:
-		return normalizedIcon
-	default:
-		return "  "
+		marker = "▎"
 	}
+	if !isNowPlaying {
+		return marker + " "
+	}
+	icon := strings.TrimSpace(normalizeMarkerIcon(nowPlayingIcon))
+	if ansi.StringWidth(icon) != 1 {
+		icon = "♪"
+	}
+	return marker + icon
 }
 
 func normalizeMarkerIcon(icon string) string {

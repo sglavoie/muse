@@ -44,9 +44,10 @@ an empty search, enabled commands for the current view come first; Help and Quit
 move to `F1` and `ctrl+c` footer shortcuts. Both remain searchable. Resizing keeps
 the focused command, and unavailable commands retain their explanations.
 
-Compact footers prioritize the primary action, back/cancel, track information,
-and filtering. `i` opens full track information from track lists. When a table
-leaves enough space in a window at least 24 rows tall, a two-line area above the
+Compact footers prioritize the current task: Queue keeps `d remove`, selection
+mode keeps `X clear`, and Library keeps `: commands`. Generic navigation hints
+yield before these actions. `i` opens full track information from track lists.
+When a table leaves enough space in a window at least 24 rows tall, a two-line area above the
 footer shows the focused song's title, artist, and album independently of playback.
 It uses spare space without reducing the number of visible tracks.
 
@@ -148,8 +149,13 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 - Album Artist edits regroup albums immediately and support bulk editing, explicit
   clearing, and undo. Corrections survive rescans and restarts. TSV exports include
   `album_artist`; importing an older export without that column leaves it unchanged.
-- Playlist footers show enqueue and back controls inside a playlist, with
-  “enqueue focused” when rows are selected.
+- Enter enqueues selected tracks in Library, open playlists, Browse track lists,
+  Favorites track lists, Tags, and Insights. With no selection it enqueues the
+  focused track. Footers show the selected count, and the command palette offers
+  the same action. Hidden selections remain included; repeated playlist entries
+  remain separate. Enter still opens collections and plays the focused Queue row.
+- Library enqueue, play-next, and replace-queue actions retain the text filter
+  and focused row. Clear the filter explicitly with `Esc` when finished.
 - Help keeps scrolling, search, scope, and close hints visible, with a scroll percentage.
 - The palette’s **Clear selection** command describes the selected row count and
   how many are hidden, and clears only the current view’s selection.
@@ -278,11 +284,18 @@ in the config to keep them out.
 
 Collection lists and pickers use `▎` to mark the focused row, independently of
 color. Footers distinguish `Enter open` at collection level from `Enter enqueue`
-at track level; `enqueue focused` means a bulk selection is not used.
+at track level; `enqueue N selected` identifies the selection used by Enter.
+Track-row markers keep playback separate: `▎` means focused, `●` means selected,
+and `◉` means focused and selected. The playing/paused icon stays beside these
+markers, including on selected rows. Collection screens show their full name and
+item count, including when navigation tabs are abbreviated.
 
 Settings accepts `Tab` / `Shift+Tab` or `]` / `[` to switch tabs. Inline editors
 keep those keys while editing. Settings and Auto-DJ retain save/start and exit
 hints in narrow windows; Settings lists scroll to keep the focused row visible.
+Changed Settings fields and tabs show `*`; the title counts unsaved changes.
+Restoring opening values removes their markers. Directory/exclusion lists and
+custom presets also contribute to the count.
 Insights uses a compact panel selector in ordinary windows and shows its full
 briefing when the terminal is tall enough. Use backtick/tilde to change panels.
 

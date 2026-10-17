@@ -124,12 +124,12 @@ func TestRenderTagsPreservesCountWhenNameTruncates(t *testing.T) {
 	v := View{
 		Level:     TagLevel,
 		Width:     width,
-		Height:    1,
+		Height:    2,
 		Tags:      tags,
 		TagCounts: map[int64]int{tags[0].ID: 42},
 	}
 
-	out := ansi.Strip(v.Render())
+	out := strings.Split(ansi.Strip(v.Render()), "\n")[1]
 
 	if !strings.Contains(out, "42 tracks") {
 		t.Fatalf("expected truncated tag row to preserve count suffix, got:\n%s", out)

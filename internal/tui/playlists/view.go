@@ -30,6 +30,7 @@ type View struct {
 	ListCursor       int // saved list cursor; restored when BackToList is called
 	ListScrollOffset int // saved list scroll offset; restored when BackToList is called
 	ScrollOffset     int // first visible row index
+	totalPlaylists   int
 	Playlists        []db.PlaylistRow
 	Tracks           []db.PlaylistTrackRow // populated when Level == TrackLevel
 	Width            int
@@ -57,6 +58,9 @@ type View struct {
 // row + 1 padding).
 func (v View) visibleRows() int {
 	reserve := 1
+	if v.Level == ListLevel && v.Creating {
+		reserve++
+	}
 	if v.Level == ListLevel && v.SortField != "" {
 		reserve++
 	}

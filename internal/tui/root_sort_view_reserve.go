@@ -12,6 +12,9 @@ import (
 
 func playlistsVisibleReserve(v pltui.PlaylistsView) int {
 	reserve := 1
+	if v.Level == pltui.ListLevel && v.Creating {
+		reserve++
+	}
 	if v.Level == pltui.ListLevel && v.SortState.Field != sorting.SortDefault {
 		reserve++
 	}
@@ -27,9 +30,9 @@ func playlistsVisibleReserve(v pltui.PlaylistsView) int {
 func drilldownVisibleReserve(isTopLevel, filterActive, hasSort bool) int {
 	reserve := 3
 	if isTopLevel {
-		reserve = 0
+		reserve = 1
 		if filterActive {
-			reserve = 1
+			reserve = 2
 		}
 	}
 	if hasSort {
@@ -59,6 +62,8 @@ func albumsVisibleReserve(v browse.AlbumsView) int {
 func favoritesVisibleReserve(v favtui.FavoritesView) int {
 	var reserve int
 	switch v.Level {
+	case favtui.CategoryLevel:
+		reserve = 1
 	case favtui.ListLevel:
 		reserve = 2
 		if v.Category == favtui.CategoryTracks {

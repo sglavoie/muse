@@ -209,6 +209,8 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `everyday-polish.json` | `rich` | Filter retention after enqueue, selection counts, compact actions, collection headings, and Settings change markers. |
+| `independent-row-markers.json` | `playback` | Focus, selection, and playback remain distinguishable together at compact and ordinary sizes. |
 | `navigation-context.json` | `rich` | Numbered navigation and filtered collection return paths at compact and ordinary widths. |
 | `playback-mode-labels.json` | `playback` | Playback mode state is readable in plain text at 60×15 and 100×30. |
 | `compact-dialog-controls.json` | `rich` | Essential Settings/Auto-DJ hints, Settings tab aliases, and scrolling at 60×15. |

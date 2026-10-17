@@ -94,7 +94,7 @@ with the current view. Normal layout supports terminals of **60×15 or larger**.
 | Key | Action |
 | --- | --- |
 | `j` / `k`, arrows | Navigate |
-| `Enter` | Enqueue a track, open a collection, or play a Queue row |
+| `Enter` | Enqueue focused/selected tracks, open a collection, or play a Queue row |
 | `Space` | Play / pause |
 | `n` / `p` | Next / previous track |
 | `/` | Filter the current view |

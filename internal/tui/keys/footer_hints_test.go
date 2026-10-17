@@ -11,7 +11,7 @@ import (
 func TestRenderFooterHints_EmptyWhenNoPrimaries(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	if got := RenderFooterHints(80, ContextGlobal, HintModeDefault, reg, s); got != "" {
+	if got := RenderFooterHints(80, ContextGlobal, HintModeDefault, reg, s, false, 0); got != "" {
 		t.Errorf("expected empty hint strip for contextGlobal (no primaries), got %q", got)
 	}
 }
@@ -20,7 +20,7 @@ func TestFilterFooterPrioritizesApplyAndClear(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	for _, width := range []int{26, 60, 100} {
-		got := ansi.Strip(RenderFooterHints(width, ContextLibrary, HintModeFilter, reg, s))
+		got := ansi.Strip(RenderFooterHints(width, ContextLibrary, HintModeFilter, reg, s, false, 0))
 		if !strings.Contains(got, "enter apply · esc clear") || ansi.StringWidth(got) > width {
 			t.Fatalf("width %d: %q", width, got)
 		}
@@ -33,7 +33,7 @@ func TestFilterFooterPrioritizesApplyAndClear(t *testing.T) {
 func TestRenderFooterHints_ZeroWidth(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	if got := RenderFooterHints(0, ContextLibrary, HintModeDefault, reg, s); got != "" {
+	if got := RenderFooterHints(0, ContextLibrary, HintModeDefault, reg, s, false, 0); got != "" {
 		t.Errorf("expected empty hint strip at width 0, got %q", got)
 	}
 }
@@ -41,7 +41,7 @@ func TestRenderFooterHints_ZeroWidth(t *testing.T) {
 func TestRenderFooterHints_IncludesAllPrimariesAtWideWidth(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	got := RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s)
+	got := RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s, false, 0)
 	plain := ansi.Strip(got)
 	for _, want := range []string{"j/k", "nav", "enter", "enqueue", ":", "commands", "/", "filter", "v", "select", "?", "help"} {
 		if !strings.Contains(plain, want) {
@@ -53,7 +53,7 @@ func TestRenderFooterHints_IncludesAllPrimariesAtWideWidth(t *testing.T) {
 func TestRenderFooterHints_TruncatesToWidth(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	got := RenderFooterHints(20, ContextLibrary, HintModeDefault, reg, s)
+	got := RenderFooterHints(20, ContextLibrary, HintModeDefault, reg, s, false, 0)
 	if ansi.StringWidth(got) > 20 {
 		t.Errorf("RenderFooterHints(20) width = %d; want ≤ 20 (plain=%q)", ansi.StringWidth(got), ansi.Strip(got))
 	}
@@ -66,7 +66,7 @@ func TestRenderFooterHints_KeepsHelpWhenNarrow(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	for _, width := range []int{10, 20, 40, 60} {
-		got := RenderFooterHints(width, ContextLibrary, HintModeDefault, reg, s)
+		got := RenderFooterHints(width, ContextLibrary, HintModeDefault, reg, s, false, 0)
 		plain := ansi.Strip(got)
 		if ansi.StringWidth(got) > width {
 			t.Errorf("width %d: strip is %d columns wide: %q", width, ansi.StringWidth(got), plain)
@@ -75,7 +75,7 @@ func TestRenderFooterHints_KeepsHelpWhenNarrow(t *testing.T) {
 			t.Errorf("width %d: strip should end with \"? help\", got %q", width, plain)
 		}
 	}
-	if got := ansi.Strip(RenderFooterHints(40, ContextLibrary, HintModeDefault, reg, s)); !strings.HasPrefix(got, "  enter enqueue") {
+	if got := ansi.Strip(RenderFooterHints(40, ContextLibrary, HintModeDefault, reg, s, false, 0)); !strings.HasPrefix(got, "  enter enqueue") {
 		t.Errorf("primary action should survive compact layout, got %q", got)
 	}
 }
@@ -86,7 +86,7 @@ func TestRenderFooterHints_KeyLabelAsymmetry(t *testing.T) {
 	// blanket-Dim rendering.
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	got := RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s)
+	got := RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s, false, 0)
 
 	// Sanity: plain-text content unchanged.
 	plain := ansi.Strip(got)
@@ -123,7 +123,7 @@ func TestRenderFooterHints_TruncationFallbackKeyPops(t *testing.T) {
 	s := styles.NewStyles(true)
 	// Width that fits the two-space indent, "j/k", a space, and an ellipsis
 	// but not the full label "nav".
-	got := RenderFooterHints(10, ContextLibrary, HintModeDefault, reg, s)
+	got := RenderFooterHints(10, ContextLibrary, HintModeDefault, reg, s, false, 0)
 	if got == "" {
 		t.Fatalf("expected non-empty truncated output")
 	}
@@ -139,7 +139,7 @@ func TestRenderFooterHints_TruncationFallbackKeyPops(t *testing.T) {
 func TestRenderFooterHints_ContextSpecificContent(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	queue := ansi.Strip(RenderFooterHints(200, ContextQueue, HintModeDefault, reg, s))
+	queue := ansi.Strip(RenderFooterHints(200, ContextQueue, HintModeDefault, reg, s, false, 0))
 	if !strings.Contains(queue, "play") {
 		t.Errorf("Queue hint strip missing 'play': %q", queue)
 	}
@@ -155,7 +155,7 @@ func TestRenderFooterHints_SelectionMode(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	// Library selection set surfaces bulk-action labels distinct from default.
-	got := ansi.Strip(RenderFooterHints(200, ContextLibrary, HintModeSelection, reg, s))
+	got := ansi.Strip(RenderFooterHints(200, ContextLibrary, HintModeSelection, reg, s, false, 0))
 	for _, want := range []string{"enter", "enqueue", "a", "bulk action", "t", "tag", "X", "clear"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("Library selection hint strip missing %q: %q", want, got)
@@ -166,7 +166,7 @@ func TestRenderFooterHints_SelectionMode(t *testing.T) {
 		t.Errorf("Library selection hint strip should not surface default-only 'play-next': %q", got)
 	}
 	// Queue selection set keeps its view-local actions (remove, save).
-	q := ansi.Strip(RenderFooterHints(200, ContextQueue, HintModeSelection, reg, s))
+	q := ansi.Strip(RenderFooterHints(200, ContextQueue, HintModeSelection, reg, s, false, 0))
 	for _, want := range []string{"play", "remove", "save", "clear"} {
 		if !strings.Contains(q, want) {
 			t.Errorf("Queue selection hint strip missing %q: %q", want, q)
@@ -178,7 +178,7 @@ func TestRenderFooterHints_VisualMode(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	for _, ctx := range []Context{ContextLibrary, ContextQueue, ContextArtists, ContextFavorites} {
-		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeVisual, reg, s))
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeVisual, reg, s, false, 0))
 		for _, want := range []string{"j/k", "extend", "v", "exit", "esc", "cancel", "X", "clear"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("ctx %d visual hint strip missing %q: %q", ctx, want, got)
@@ -191,8 +191,8 @@ func TestRenderFooterHints_VisualFallsBackToDefaultWhenUnregistered(t *testing.T
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	// contextMixes has no visual-mode hints registered — should fall back to default.
-	got := ansi.Strip(RenderFooterHints(200, ContextMixes, HintModeVisual, reg, s))
-	def := ansi.Strip(RenderFooterHints(200, ContextMixes, HintModeDefault, reg, s))
+	got := ansi.Strip(RenderFooterHints(200, ContextMixes, HintModeVisual, reg, s, false, 0))
+	def := ansi.Strip(RenderFooterHints(200, ContextMixes, HintModeDefault, reg, s, false, 0))
 	if got != def {
 		t.Errorf("expected visual mode to fall back to default for contextMixes; got=%q want=%q", got, def)
 	}
@@ -204,7 +204,7 @@ func TestRenderFooterHints_DefaultModeMatchesCurrent(t *testing.T) {
 	// hint is added we want the change to be deliberate.
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	got := ansi.Strip(RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s))
+	got := ansi.Strip(RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s, false, 0))
 	want := []string{"j/k nav", "enter enqueue", ": commands", "/ filter", "v select", "? help"}
 	for _, w := range want {
 		if !strings.Contains(got, w) {
@@ -249,7 +249,7 @@ func TestRenderFooterHints_EmptyLabelDoesNotOverReserveWidth(t *testing.T) {
 	// Width budget: 2 (leading) + 2 (key) == 4. With the previous accounting
 	// (treating the pair as "ab " = 3 cols) this would fall into the
 	// truncation fallback even though the key fits exactly.
-	got := RenderFooterHints(4, ContextLibrary, HintModeDefault, reg, s)
+	got := RenderFooterHints(4, ContextLibrary, HintModeDefault, reg, s, false, 0)
 	if got == "" {
 		t.Fatalf("expected non-empty output at width 4 for a 2-col key")
 	}
@@ -268,7 +268,7 @@ func TestRenderFooterHints_CreateRenameMatchAcrossPlaylistsAndTags(t *testing.T)
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	for _, ctx := range []Context{ContextPlaylists, ContextTags} {
-		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeDefault, reg, s))
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeDefault, reg, s, false, 0))
 		if !strings.Contains(got, "c create · r rename") {
 			t.Errorf("context %d: want \"c create · r rename\", got %q", ctx, got)
 		}
@@ -282,7 +282,7 @@ func TestRenderFooterHints_SelectionLabelsRemoveWhereARemoves(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	for _, ctx := range []Context{ContextPlaylists, ContextFavorites} {
-		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeSelection, reg, s))
+		got := ansi.Strip(RenderFooterHints(200, ctx, HintModeSelection, reg, s, false, 0))
 		if !strings.Contains(got, "a remove") || strings.Contains(got, "bulk action") {
 			t.Errorf("context %d: want \"a remove\" and no \"bulk action\", got %q", ctx, got)
 		}

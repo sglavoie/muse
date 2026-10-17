@@ -10,8 +10,9 @@ func (v View) visibleRows() int {
 	var reserve int
 	switch v.Level {
 	case TagLevel:
+		reserve = 1
 		if v.FilterActive || v.FilterText != "" {
-			reserve = 1
+			reserve++
 		}
 	default: // TrackLevel
 		reserve = 3 // heading + separator + column header

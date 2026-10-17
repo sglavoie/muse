@@ -74,7 +74,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 
 <!-- BEGIN GENERATED: package layers -->
 
-**33 packages, 140 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
+**33 packages, 145 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
 
 | Level | Packages |
 |---:|---|
@@ -92,20 +92,20 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `main` | L7 | `internal/app` (L6), `tui/uitest` (L6), `internal/tui` (L5), `tui/playback` (L2) |
 | `internal/app` | L6 | `internal/tui` (L5), `tui/queue` (L4), `tui/playback` (L2) |
 | `tui/uitest` | L6 | `internal/tui` (L5), `tui/palette` (L4) |
-| `internal/tui` | L5 | `tui/autodj` (L4), `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/palette` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/keys` (L1), `tui/sorting` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `internal/tui` | L5 | `tui/autodj` (L4), `tui/browse` (L4), `tui/favorites` (L4), `tui/metadata` (L4), `tui/palette` (L4), `tui/queue` (L4), `tui/settings` (L4), `tui/smartrules` (L4), `tui/tags` (L4), `tui/albums` (L3), `tui/genres` (L3), `tui/insights` (L3), `tui/mixes` (L3), `tui/overlay` (L3), `tui/playlists` (L3), `tui/statusbar` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/playback` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `internal/desktop` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/autodj` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/browse` | L4 | `tui/albums` (L3), `tui/genres` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/styles` (L0) |
-| `tui/favorites` | L4 | `tui/overlay` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/favorites` | L4 | `tui/overlay` (L3), `tui/artists` (L2), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/metadata` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/palette` | L4 | `tui/overlay` (L3), `tui/filter` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/queue` | L4 | `tui/playlists` (L3), `tui/statusbar` (L3), `tui/playback` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/settings` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/smartrules` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
-| `tui/tags` | L4 | `tui/overlay` (L3), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/tags` | L4 | `tui/overlay` (L3), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/albums` | L3 | `tui/artists` (L2), `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/genres` | L3 | `tui/artists` (L2), `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/insights` | L3 | `tui/library` (L2), `tui/chart` (L1), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/styles` (L0), `tui/text` (L0) |
-| `tui/mixes` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/styles` (L0), `tui/text` (L0) |
+| `tui/mixes` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/strip` (L1), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/overlay` | L3 | `tui/playback` (L2), `tui/keys` (L1), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/playlists` | L3 | `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/statusbar` | L3 | `tui/playback` (L2), `tui/styles` (L0), `tui/text` (L0) |
@@ -115,7 +115,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/chart` | L1 | `tui/styles` (L0) |
 | `tui/keys` | L1 | `tui/styles` (L0) |
 | `tui/sorting` | L1 | `tui/buckets` (L0) |
-| `tui/strip` | L1 | `tui/styles` (L0) |
+| `tui/strip` | L1 | `tui/styles` (L0), `tui/text` (L0) |
 | `internal/desktop` | L0 | — |
 | `tui/buckets` | L0 | — |
 | `tui/filter` | L0 | — |

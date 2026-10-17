@@ -219,8 +219,8 @@ func TestRenderTracksShowsSelectionMarker(t *testing.T) {
 		SelectedHashes: map[string]struct{}{"h1": {}},
 	}
 	out := v.Render()
-	if !strings.Contains(out, "●") {
-		t.Errorf("expected selection marker ● in output for selected track, got:\n%s", out)
+	if !strings.Contains(out, "\n◉ ") {
+		t.Errorf("expected selection marker ◉ in output for selected track, got:\n%s", out)
 	}
 }
 

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -27,7 +28,15 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	lines = append(lines, overlay.CornerTL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerTR)
 
 	// Title row (centered).
+	changes := o.changedFields()
+	count := 0
+	for _, fields := range changes {
+		count += changedCount(fields)
+	}
 	title := " ⚙ Settings "
+	if count > 0 {
+		title = fmt.Sprintf("Settings · %d unsaved %s", count, text.Pluralize(count, "change", "changes"))
+	}
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
@@ -41,13 +50,16 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	var tabParts []string
 	for i := range tabCount {
 		name := tabNames[i]
+		if changedCount(changes[i]) > 0 {
+			name += "*"
+		}
 		if Tab(i) == o.Tab {
 			tabParts = append(tabParts, s.Heading.Render("["+name+"]"))
 		} else {
 			tabParts = append(tabParts, s.Dim.Render(name))
 		}
 	}
-	tabContent := strings.Join(tabParts, "  ")
+	tabContent := strings.Join(tabParts, " ")
 	tabContent = text.Truncate(tabContent, contentWidth)
 	tabVisW := ansi.StringWidth(tabContent)
 	tabPad := max(0, contentWidth-tabVisW)
@@ -118,7 +130,7 @@ func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth, termH
 	}
 	start, end := settingsRowWindow(len(o.ExcludedPaths), o.exclCursor, termHeight, extra)
 	for i := start; i < end; i++ {
-		pattern := o.ExcludedPaths[i]
+		pattern := o.ExcludedPaths[i] + changedValueMark(o.ExcludedPaths[i], o.initialConfig.ExcludedPaths)
 		pattern = text.Truncate(pattern, contentWidth)
 		patW := ansi.StringWidth(pattern)
 		pad := max(0, contentWidth-patW)
@@ -153,7 +165,8 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth, termHei
 	start, end := settingsRowWindow(len(o.LibraryDirs), o.libCursor, termHeight, extra)
 	for i := start; i < end; i++ {
 		dir := o.LibraryDirs[i]
-		display := text.Truncate(collapseHomeDir(dir), contentWidth)
+		label := collapseHomeDir(dir) + changedValueMark(dir, o.initialConfig.MusicDirectories)
+		display := text.Truncate(label, contentWidth)
 		displayW := ansi.StringWidth(display)
 		pad := max(0, contentWidth-displayW)
 		row := text.FocusMarker(i == o.libCursor) + display + strings.Repeat(" ", pad) + "  "
@@ -180,13 +193,18 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth, termHei
 }
 
 func (o SettingsOverlay) renderFieldsTab(lines []string, contentWidth, termHeight int, s styles.Styles) []string {
+	changes := o.changedFields()[o.Tab]
+	fields := slices.Clone(o.Fields[o.Tab])
 	maxLabelW := 0
-	for _, f := range o.Fields[o.Tab] {
-		maxLabelW = max(maxLabelW, len(f.label))
+	for i := range fields {
+		if changes[i] {
+			fields[i].label += " *"
+		}
+		maxLabelW = max(maxLabelW, len(fields[i].label))
 	}
 	start, end := o.visibleFieldRange(termHeight)
 	for i := start; i < end; i++ {
-		f := o.Fields[o.Tab][i]
+		f := fields[i]
 		lines = append(lines, o.renderFieldRow(f, i == o.cursor, maxLabelW, contentWidth, s))
 		if o.Tab == TabEqualizer && i == 1 {
 			lines = o.renderEQStateRow(lines, contentWidth, f)

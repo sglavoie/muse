@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/layout"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -18,7 +19,7 @@ import (
 func (v View) Render() string {
 	switch v.Level {
 	case ListLevel:
-		return v.renderList()
+		return v.listHeading() + "\n" + v.renderList()
 	default:
 		return v.renderTracks()
 	}
@@ -309,4 +310,8 @@ func joinPlaylistCells(sep, pos, title, artist, album, duration string) string {
 		cells = append(cells, album)
 	}
 	return strings.Join(append(cells, duration), sep)
+}
+
+func (v View) listHeading() string {
+	return strip.Collection(v.Width, "Playlists", "playlist", len(v.Playlists), max(len(v.Playlists), v.totalPlaylists), v.Styles)
 }
