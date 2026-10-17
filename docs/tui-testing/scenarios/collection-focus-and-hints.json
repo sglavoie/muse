@@ -1,0 +1,303 @@
+{
+  "name": "collection-focus-and-hints",
+  "fixture": "rich",
+  "size": "80x24",
+  "actions": [
+    {
+      "key": "2"
+    },
+    {
+      "assert": {
+        "contains": "▎ Focus"
+      }
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "▎ Evening"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "4"
+    },
+    {
+      "assert": {
+        "contains": "▎ ★ Alice"
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "▎ ★ Alpha"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "/music/alice/alpha"
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue focused"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter open"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "`"
+    },
+    {
+      "assert": {
+        "contains": "Albums"
+      }
+    },
+    {
+      "assert": {
+        "contains": "▎ ★ Alpha"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue focused"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "`"
+    },
+    {
+      "assert": {
+        "contains": "Genres"
+      }
+    },
+    {
+      "assert": {
+        "contains": "▎ Ambient"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue focused"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "5"
+    },
+    {
+      "assert": {
+        "contains": "▎ Artists"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue focused"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "6"
+    },
+    {
+      "assert": {
+        "contains": "▎ ● chill"
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter open"
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue focused"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "7"
+    },
+    {
+      "assert": {
+        "contains": "▎ Rediscover"
+      }
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "▎ Hidden Gems"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

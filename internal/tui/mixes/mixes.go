@@ -170,10 +170,7 @@ func (v MixesView) Render(s styles.Styles, favHashes, favArtists, favAlbums map[
 	var lines []string
 	for i, mix := range v.Mixes {
 		focused := i == v.SelectedMix
-		cursor := "  "
-		if focused {
-			cursor = "> "
-		}
+		cursor := text.FocusMarker(focused)
 
 		row := renderMixListRow(cursor, mix, v.width)
 

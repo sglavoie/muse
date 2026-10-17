@@ -278,15 +278,16 @@ type primaryHint struct {
 type HintMode int
 
 const (
-	HintModeDefault     HintMode = iota // resting-state hints (no selection, no visual mode)
-	HintModeSelection                   // one or more rows are bulk-selected
-	HintModeVisual                      // visual line-selection mode is active
-	HintModeTracks                      // a collection is open at its track list
-	HintModeFilter                      // a view filter is being edited
-	HintModeEmpty                       // no row is available for actions
-	HintModeEmptyTracks                 // an open collection has no tracks
-	HintModeNoMatches                   // filters hide every row
-	HintModeCollections                 // only navigation applies at this collection level
+	HintModeDefault        HintMode = iota // resting-state hints (no selection, no visual mode)
+	HintModeSelection                      // one or more rows are bulk-selected
+	HintModeVisual                         // visual line-selection mode is active
+	HintModeTrackSelection                 // selected tracks, Enter enqueues only the focused row
+	HintModeTracks                         // a collection is open at its track list
+	HintModeFilter                         // a view filter is being edited
+	HintModeEmpty                          // no row is available for actions
+	HintModeEmptyTracks                    // an open collection has no tracks
+	HintModeNoMatches                      // filters hide every row
+	HintModeCollections                    // only navigation applies at this collection level
 )
 
 // primaryHintKey is the composite map key for per-context, per-mode hint sets.
@@ -319,6 +320,10 @@ func (r Registry) primaryHints(ctx Context) []primaryHint {
 // default-mode set so the footer never goes empty just because a mode-
 // specific set wasn't customized for this view.
 func (r Registry) primaryHintsForMode(ctx Context, mode HintMode) []primaryHint {
+	if mode == HintModeTrackSelection {
+		return r.trackSelectionHints(ctx)
+	}
+
 	// Filter input is handled before view bindings, identically in every view.
 	if mode == HintModeCollections {
 		return []primaryHint{{Key: "j/k", Label: "nav"}, {Key: "enter", Label: "open"}, {Key: ":", Label: "commands"}, {Key: "?", Label: "help"}}
@@ -460,4 +465,16 @@ func emptyNeedsLibrary(ctx Context) bool {
 		return true
 	}
 	return false
+}
+
+// Track selections leave Enter focused on one row; collection selections open
+// the focused collection instead. Keep the rest of the selection hints intact.
+func (r Registry) trackSelectionHints(ctx Context) []primaryHint {
+	hints := append([]primaryHint(nil), r.primaryHintsForMode(ctx, HintModeSelection)...)
+	for i := range hints {
+		if hints[i].Key == "enter" {
+			hints[i].Label = "enqueue focused"
+		}
+	}
+	return hints
 }

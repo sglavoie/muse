@@ -8,6 +8,7 @@ import (
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 type favoriteTarget int
@@ -276,7 +277,7 @@ func (p TargetPicker) HandleKey(key string) (TargetPicker, tea.Cmd) {
 func (p TargetPicker) Render(termWidth, termHeight int, s styles.Styles) string {
 	rows := make([]overlay.Row, 0, len(p.rows))
 	for i, row := range p.rows {
-		line := p.rowText(row)
+		line := text.FocusMarker(row.enabled && i == p.cursor) + p.rowText(row)
 		if !row.enabled {
 			line = s.Dim.Render(line)
 		}

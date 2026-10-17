@@ -37,8 +37,8 @@ func (v View) renderGenres() string {
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
 		absIdx := start + i
-		labelW, countStr := text.RowLabelWidthAndCount(v.Width, v.GenreCounts, name)
-		label := text.Pad(name, labelW)
+		labelW, countStr := text.RowLabelWidthAndCount(v.Width-2, v.GenreCounts, name)
+		label := text.FocusMarker(absIdx == cursor) + text.Pad(name, labelW)
 		lines[i] = v.renderGenreRow(label, countStr, absIdx == cursor, absIdx%2 == 1)
 	}
 	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
@@ -75,7 +75,7 @@ func (v View) renderArtists() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteArtists[name]
-		display := text.FavPrefix(name, v.Width, isFav)
+		display := text.FocusMarker(absIdx == cursor) + text.FavPrefix(name, v.Width-2, isFav)
 		isOdd := absIdx%2 == 1
 		switch {
 		case absIdx == cursor && isFav:

@@ -239,7 +239,7 @@ func (m DestinationPickerModal) buildBoxLines(termWidth int, s styles.Styles) []
 		label := labels[i]
 		// Truncate and pad using display-width-aware helpers so that
 		// multi-byte characters (CJK, emoji) are handled correctly.
-		display := text.Pad(label, contentWidth)
+		display := text.FocusMarker(i == focusCursor) + text.Pad(label, contentWidth-2)
 		// Row content between the borders: " label_padded " = innerWidth chars.
 		rowContent := " " + display + " "
 		if i == focusCursor {

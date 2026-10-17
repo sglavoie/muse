@@ -216,7 +216,7 @@ func TestInsightsHeaderBudgetLeavesRoomForBody(t *testing.T) {
 	if short.briefingFits() {
 		t.Fatal("precondition: the briefing list should not fit at 60x15")
 	}
-	if got, want := short.headerBudget(), 15-1-insightsMinBodyRows; got != want {
+	if got, want := short.headerBudget(), 15-2-insightsMinBodyRows; got != want {
 		t.Errorf("short budget: want %d, got %d", want, got)
 	}
 	// Even a terminal with no room at all keeps the header's blank line and

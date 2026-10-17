@@ -124,7 +124,7 @@ func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, sta
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
 	return append(lines, "  "+s.Dim.Render(
-		text.Truncate(p.hint(end-start < int(rowCount)), inner)))
+		text.CompactHints(p.hint(end-start < int(rowCount)), inner, "ctrl+s", "esc", "enter")))
 }
 
 // splitBudget divides the vertical space between the rows and the explanation
@@ -170,7 +170,7 @@ func (p TunePanel) renderRow(r row, content int, s styles.Styles) string {
 	if rowLabels[r] != "" {
 		label = text.Pad(rowLabels[r], labelWidth)
 	}
-	body := text.Pad(text.Truncate(label+p.rowValue(r), content), content)
+	body := text.FocusMarker(int(r) == p.cursor) + text.Pad(label+p.rowValue(r), max(content-2, 0))
 	if int(r) == p.cursor {
 		return boxBorderV + s.Accent.Render(" "+body+" ") + boxBorderV
 	}

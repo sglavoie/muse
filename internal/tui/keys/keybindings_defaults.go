@@ -326,6 +326,14 @@ func registerDefaultPrimaries(r *Registry) {
 }
 
 func registerTrackModePrimaries(r *Registry) {
+	for _, ctx := range []Context{ContextBrowse, ContextArtists, ContextAlbums, ContextGenres, ContextFavorites, ContextTags} {
+		r.addPrimaryMode(ctx, HintModeTracks, "enter", "enqueue")
+		r.addPrimaryMode(ctx, HintModeTracks, "N", "play-next")
+		r.addPrimaryMode(ctx, HintModeTracks, "esc", "clear/back")
+		r.addPrimaryMode(ctx, HintModeTracks, "/", "filter")
+		r.addPrimaryMode(ctx, HintModeTracks, "?", "help")
+	}
+
 	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "enter", "enqueue")
 	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "N", "play-next")
 	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "esc", "clear/back")

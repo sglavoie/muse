@@ -70,7 +70,7 @@ func (fp filterPicker) renderRow(optIdx int, focused bool, content int, s styles
 	if opt.color != "" {
 		label = styles.ColoredDot(opt.color) + " " + label
 	}
-	body := text.Pad(text.Truncate(mark+label, content), content)
+	body := text.FocusMarker(focused) + text.Pad(mark+label, max(content-2, 0))
 	if focused {
 		return boxBorderV + s.Accent.Render(" "+body+" ") + boxBorderV
 	}

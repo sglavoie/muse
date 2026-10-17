@@ -30,6 +30,11 @@ func (v View) Location() *time.Location {
 func (v View) coverageRows() []Row {
 	c := v.Snap.Coverage
 	rows := make([]Row, 0, 40)
+	albumKeys := make([]string, 0, len(c.DustyAlbums))
+	for _, album := range c.DustyAlbums {
+		albumKeys = append(albumKeys, album.Name)
+	}
+	albumLabels := library.AlbumDisplayLabels(albumKeys)
 
 	var untouched, dusty []insightsdata.ShelfStat
 	for _, a := range c.DustyAlbums {
@@ -42,9 +47,13 @@ func (v View) coverageRows() []Row {
 
 	appendShelves := func(section string, shelves []insightsdata.ShelfStat, kind DrillKind) {
 		for _, s := range shelves {
+			label := s.Name
+			if kind == DrillUnheardAlbum {
+				label = albumLabels[s.Name]
+			}
 			rows = append(rows, Row{
 				Section:  section,
-				Label:    library.AlbumLabel(s.Name),
+				Label:    label,
 				note:     fmt.Sprintf("%d/%d unheard", s.Unheard, s.Tracks),
 				fraction: shelfFraction(s),
 				Drill:    kind,
@@ -136,8 +145,10 @@ func (v View) Render(s styles.Styles, favHashes, favArtists, favAlbums map[strin
 	b.WriteString("\n")
 	if v.briefingFits() {
 		b.WriteString(v.renderBriefing(s))
-		b.WriteString("\n")
+	} else {
+		b.WriteString(v.renderPanelSelector(s))
 	}
+	b.WriteString("\n")
 	b.WriteString(v.renderPanel(s))
 
 	// The header block has a floor it cannot shrink past, so at extreme heights
@@ -159,6 +170,8 @@ func (v View) headerHeight() int {
 	h := 1 // state strip
 	if v.briefingFits() {
 		h += len(insightsPanelSpecs)
+	} else {
+		h++
 	}
 	// Rendering the header with a zero Styles yields the same line count as the
 	// styled render, so the two can never drift apart.
@@ -207,11 +220,11 @@ func (v View) renderBriefing(s styles.Styles) string {
 		labelW = max(labelW, len(spec.Name))
 	}
 	for _, spec := range insightsPanelSpecs {
-		cursor := "  "
+		label := spec.Name
 		if spec.id == v.Panel {
-			cursor = "> "
+			label = "[" + label + "]"
 		}
-		head := cursor + text.Pad(spec.Name, labelW) + "  "
+		head := text.Pad(label, labelW+2) + "  "
 		tail := v.headline(spec.id)
 		if v.width > 0 {
 			tail = text.Truncate(tail, max(v.width-len(head), 1))
@@ -337,6 +350,8 @@ func (v View) headerBudget() int {
 	used := 1 // state strip
 	if v.briefingFits() {
 		used += len(insightsPanelSpecs)
+	} else {
+		used++
 	}
 	return max(v.Height-used-insightsMinBodyRows, insightsMinHeaderLines)
 }
@@ -406,6 +421,9 @@ func (v View) renderPanel(s styles.Styles) string {
 	for i := v.ScrollOffset; i < len(rows) && budget > 0; i++ {
 		row := rows[i]
 		if row.Section != section {
+			if budget < 2 {
+				break // Keep each heading with its first row.
+			}
 			section = row.Section
 			lines = append(lines, s.BucketHeader.Render(section))
 			budget--
@@ -420,11 +438,8 @@ func (v View) renderPanel(s styles.Styles) string {
 }
 
 func (v View) renderRow(s styles.Styles, row Row, focused bool) string {
-	cursor := "  "
-	if focused {
-		cursor = "> "
-	}
-	width := max(v.width-len(cursor), 1)
+	cursor := text.FocusMarker(focused)
+	width := max(v.width-2, 1)
 
 	var body string
 	if v.compact() || row.Drill == DrillDormant {
@@ -460,4 +475,17 @@ func formatMonths(months float64) string {
 	default:
 		return fmt.Sprintf("%d %s", rest, text.Pluralize(rest, "month", "months"))
 	}
+}
+
+// renderPanelSelector leaves the scrollable content room in ordinary terminals.
+func (v View) renderPanelSelector(s styles.Styles) string {
+	position := 1
+	for i, spec := range insightsPanelSpecs {
+		if spec.id == v.Panel {
+			position = i + 1
+			break
+		}
+	}
+	label := fmt.Sprintf("‹ %s · %d/%d ›  `/~ panel", v.Spec().Name, position, len(insightsPanelSpecs))
+	return s.Heading.Render(text.Truncate(label, v.width))
 }

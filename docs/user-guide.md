@@ -19,7 +19,11 @@
 
 Albums are grouped by title and **Album Artist**. When Album Artist is missing,
 muse uses the containing folder, keeping untagged compilations together. Album
-rows show the artist or folder to distinguish releases with the same title.
+rows show Album Artist when present. Folder-backed albums show just the title
+when unique in the collection, or the shortest distinguishing folder suffix
+when multiple releases share that title. Filtering preserves those labels.
+Full folder paths remain searchable and appear in drill-down headings and track
+details.
 Untagged discs in separate folders remain separate; a shared Album Artist tag
 groups them across folders. Existing title-only album favorites apply to every
 matching release, and each release can then be unfavorited independently.
@@ -239,6 +243,16 @@ but a music directory holding video files will index them; use `excluded_paths`
 in the config to keep them out.
 
 ## Usage
+
+Collection lists and pickers use `▎` to mark the focused row, independently of
+color. Footers distinguish `Enter open` at collection level from `Enter enqueue`
+at track level; `enqueue focused` means a bulk selection is not used.
+
+Settings accepts `Tab` / `Shift+Tab` or `]` / `[` to switch tabs. Inline editors
+keep those keys while editing. Settings and Auto-DJ retain save/start and exit
+hints in narrow windows; Settings lists scroll to keep the focused row visible.
+Insights uses a compact panel selector in ordinary windows and shows its full
+briefing when the terminal is tall enough. Use backtick/tilde to change panels.
 
 Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its

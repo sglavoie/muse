@@ -32,7 +32,7 @@ func (p TunePanel) buildPreviewLines(termWidth, termHeight int, s styles.Styles,
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
 	return append(lines, "  "+s.Dim.Render(
-		text.Truncate(previewHint(end-start < len(body), p.CommitLabel()), inner)))
+		text.CompactHints(previewHint(end-start < len(body), p.CommitLabel()), inner, "ctrl+s", "esc")))
 }
 
 // previewWindow returns the half-open range of wrapped lines to draw.

@@ -220,7 +220,7 @@ func (m GoToModal) buildBoxLines(termWidth int, s styles.Styles) []string {
 
 	// Option rows.
 	for i, label := range labels {
-		display := text.Pad(label, contentWidth)
+		display := text.FocusMarker(i == m.cursor) + text.Pad(label, contentWidth-2)
 		rowContent := " " + display + " "
 		if i == m.cursor {
 			lines = append(lines, gtBorderV+s.Accent.Render(rowContent)+gtBorderV)

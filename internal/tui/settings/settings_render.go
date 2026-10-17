@@ -59,7 +59,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 
 	// Content rows.
 	if o.Tab == tabLibrary {
-		lines = o.renderLibraryTab(lines, contentWidth, s)
+		lines = o.renderLibraryTab(lines, contentWidth, termHeight, s)
 	} else {
 		lines = o.renderFieldsTab(lines, contentWidth, termHeight, s)
 	}
@@ -67,52 +67,62 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	// Bottom border.
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
-	var hint string
-	switch o.Tab {
-	case tabLibrary:
-		hint = o.libraryHint()
-	case TabDisplay:
-		hint = o.displayHint()
-	case TabEqualizer:
-		hint = "s save preset · d delete · [/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
-	default:
-		hint = "[/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
-	}
-
+	hint := text.CompactHints(o.keyHint(), termWidth, "ctrl+s", "esc", "enter", "j/k")
 	return overlay.RenderTopLines(lines, hint, termWidth)
 }
 
+func (o SettingsOverlay) keyHint() string {
+	if o.EQNameInput != nil {
+		return "enter save preset · esc cancel"
+	}
+	if o.EQConfirmDel || o.libConfirmDel || o.exclConfirmDel {
+		return "enter delete · esc cancel"
+	}
+	switch o.Tab {
+	case tabLibrary:
+		return o.libraryHint()
+	case TabDisplay:
+		return o.displayHint()
+	case TabEqualizer:
+		return "s save preset · d delete · tab/⇧tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+	default:
+		return "tab/⇧tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+	}
+}
+
 func (o SettingsOverlay) libraryHint() string {
-	if o.LibDirInput != nil {
-		hint := "enter add · esc cancel"
-		if o.libDirError != "" {
-			return o.libDirError + " · " + hint
-		}
-		return hint
+	if o.LibDirInput != nil || o.ExclPathInput != nil {
+		return "enter add · esc cancel"
 	}
 	if o.libSubView == libSubViewExcluded {
-		return "a add · d delete · [/] tabs · j/k navigate · ctrl+s save · esc back"
+		return "a add · d delete · tab/⇧tab tabs · j/k navigate · ctrl+s save · esc back"
 	}
-	return "a add · d delete · e excluded · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
+	return "a add · d delete · e excluded · tab/⇧tab tabs · j/k navigate · ctrl+s save · esc cancel"
 }
 
-func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth int, s styles.Styles) []string {
+func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth, termHeight int, s styles.Styles) []string {
 	if o.libSubView == libSubViewExcluded {
-		return o.renderExcludedPaths(lines, contentWidth, s)
+		return o.renderExcludedPaths(lines, contentWidth, termHeight, s)
 	}
-	return o.renderLibraryDirs(lines, contentWidth, s)
+	return o.renderLibraryDirs(lines, contentWidth, termHeight, s)
 }
 
-func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s styles.Styles) []string {
+func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth, termHeight int, s styles.Styles) []string {
 	if len(o.ExcludedPaths) == 0 && o.ExclPathInput == nil {
 		row := "  (none)" + strings.Repeat(" ", max(0, contentWidth-6)) + "  "
 		lines = append(lines, overlay.BorderV+s.Dim.Render(row)+overlay.BorderV)
 	}
-	for i, pattern := range o.ExcludedPaths {
+	extra := 0
+	if o.ExclPathInput != nil || o.exclConfirmDel {
+		extra++
+	}
+	start, end := settingsRowWindow(len(o.ExcludedPaths), o.exclCursor, termHeight, extra)
+	for i := start; i < end; i++ {
+		pattern := o.ExcludedPaths[i]
 		pattern = text.Truncate(pattern, contentWidth)
 		patW := ansi.StringWidth(pattern)
 		pad := max(0, contentWidth-patW)
-		row := "  " + pattern + strings.Repeat(" ", pad) + "  "
+		row := text.FocusMarker(i == o.exclCursor) + pattern + strings.Repeat(" ", pad) + "  "
 		if i == o.exclCursor {
 			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
@@ -132,12 +142,21 @@ func (o SettingsOverlay) renderExcludedPaths(lines []string, contentWidth int, s
 	return lines
 }
 
-func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s styles.Styles) []string {
-	for i, dir := range o.LibraryDirs {
+func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth, termHeight int, s styles.Styles) []string {
+	extra := 0
+	if o.LibDirInput != nil || o.libConfirmDel {
+		extra++
+	}
+	if o.libDirError != "" {
+		extra++
+	}
+	start, end := settingsRowWindow(len(o.LibraryDirs), o.libCursor, termHeight, extra)
+	for i := start; i < end; i++ {
+		dir := o.LibraryDirs[i]
 		display := text.Truncate(collapseHomeDir(dir), contentWidth)
 		displayW := ansi.StringWidth(display)
 		pad := max(0, contentWidth-displayW)
-		row := "  " + display + strings.Repeat(" ", pad) + "  "
+		row := text.FocusMarker(i == o.libCursor) + display + strings.Repeat(" ", pad) + "  "
 		if i == o.libCursor {
 			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
 		} else {
@@ -148,6 +167,9 @@ func (o SettingsOverlay) renderLibraryDirs(lines []string, contentWidth int, s s
 		body := text.Truncate("Add dir: "+o.LibDirInput.View(), contentWidth)
 		pad := max(0, contentWidth-ansi.StringWidth(body))
 		lines = append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
+		if o.libDirError != "" {
+			lines = append(lines, overlay.BorderV+"  "+s.Error.Render(text.Pad(o.libDirError, contentWidth))+"  "+overlay.BorderV)
+		}
 	} else if o.libConfirmDel && o.libCursor < len(o.LibraryDirs) {
 		dirName := collapseHomeDir(o.LibraryDirs[o.libCursor])
 		body := text.Truncate(fmt.Sprintf("Delete %q? D/Enter=yes  Esc=no", dirName), contentWidth)
@@ -184,7 +206,7 @@ func (o SettingsOverlay) renderFieldRow(f Field, focused bool, maxLabelW, conten
 	rowBody := fmt.Sprintf("%-*s%s%s", maxLabelW, f.label, strings.Repeat(" ", gap), spinner)
 	rowBody = text.Truncate(rowBody, contentWidth)
 	rowPad := max(0, contentWidth-ansi.StringWidth(rowBody))
-	row := "  " + rowBody + strings.Repeat(" ", rowPad) + "  "
+	row := text.FocusMarker(focused) + rowBody + strings.Repeat(" ", rowPad) + "  "
 	if focused {
 		return overlay.BorderV + s.Accent.Render(row) + overlay.BorderV
 	}

@@ -25,6 +25,7 @@ func (v View) Render() string {
 }
 
 func (v View) renderAlbums() string {
+	labels := library.AlbumDisplayLabels(v.Albums)
 	items := v.EffectiveAlbums()
 	if len(v.Albums) == 0 {
 		return v.renderEmpty("No albums yet — add music to your library")
@@ -39,7 +40,7 @@ func (v View) renderAlbums() string {
 
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
-		lines[i] = v.renderAlbumRow(name, start+i, width)
+		lines[i] = v.renderAlbumRow(name, labels[name], start+i, width)
 	}
 	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
 }
@@ -55,11 +56,11 @@ func (v View) renderEmpty(msg string) string {
 
 // renderAlbumRow renders one album name followed by its right-aligned track
 // count zone.
-func (v View) renderAlbumRow(name string, absIdx, width int) string {
+func (v View) renderAlbumRow(name, displayLabel string, absIdx, width int) string {
 	_, isFav := v.FavoriteAlbums[name]
 	isOdd := absIdx%2 == 1
-	labelW, countStr := text.RowLabelWidthAndCount(width, v.AlbumCounts, name)
-	label := text.FavPrefix(library.AlbumLabel(name), labelW, isFav)
+	labelW, countStr := text.RowLabelWidthAndCount(width-2, v.AlbumCounts, name)
+	label := text.FocusMarker(absIdx == v.Cursor) + text.FavPrefix(displayLabel, labelW, isFav)
 	switch {
 	case absIdx == v.Cursor:
 		a := v.Styles.Accent

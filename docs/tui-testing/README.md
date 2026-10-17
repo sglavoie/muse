@@ -209,6 +209,9 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `compact-dialog-controls.json` | `rich` | Essential Settings/Auto-DJ hints, Settings tab aliases, and scrolling at 60×15. |
+| `collection-focus-and-hints.json` | `rich` | Shared collection focus markers, short album labels, and contextual enqueue/selection hints. |
+| `picker-focus.json` | `rich` | Textual focus in destination, tag, favorite-target, and command pickers. |
 | `compact-readability.json` | `narrow` | Readable History titles, compact palette results and paging, scoped help, and resizing at 60×15. |
 | `empty-actions.json` | `empty` | All eight empty views offer useful recovery actions and omit unavailable row actions. |
 | `smart-playlist-editing.json` | `rich` | Settings discard protection, smart-rule validation, duration parsing, favorites, and tag selection at 60×15. |

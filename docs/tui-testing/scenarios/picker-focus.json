@@ -1,0 +1,92 @@
+{
+  "name": "picker-focus",
+  "fixture": "rich",
+  "size": "80x24",
+  "actions": [
+    {
+      "key": "a"
+    },
+    {
+      "assert": {
+        "contains": "▎ Play Queue"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "G"
+    },
+    {
+      "assert": {
+        "contains": "▎ New playlist"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "t"
+    },
+    {
+      "assert": {
+        "contains": "▎ [x] ● chill"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "ctrl+t"
+    },
+    {
+      "assert": {
+        "contains": "▎ ●"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "F"
+    },
+    {
+      "assert": {
+        "contains": "▎ [t]"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "assert": {
+        "contains": "▎ "
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

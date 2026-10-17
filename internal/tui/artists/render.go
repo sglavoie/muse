@@ -40,8 +40,8 @@ func (v View) renderArtists() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteArtists[name]
-		labelW, countStr := text.RowLabelWidthAndCount(v.Width, v.ArtistCounts, name)
-		label := text.FavPrefix(name, labelW, isFav)
+		labelW, countStr := text.RowLabelWidthAndCount(v.Width-2, v.ArtistCounts, name)
+		label := text.FocusMarker(absIdx == v.Cursor) + text.FavPrefix(name, labelW, isFav)
 		lines[i] = v.renderArtistRow(label, countStr, absIdx == v.Cursor, isFav, absIdx%2 == 1)
 	}
 	return strip.JoinStrip(stripLine, strings.Join(lines, "\n"))
@@ -69,6 +69,7 @@ func (v View) renderArtistRow(label, countStr string, isFocused, isFav, isOdd bo
 }
 
 func (v View) renderAlbums() string {
+	labels := library.AlbumDisplayLabels(v.Albums)
 	items := v.EffectiveAlbums()
 	if len(v.Albums) == 0 {
 		return v.emptyMessage("No albums found for this artist")
@@ -85,7 +86,7 @@ func (v View) renderAlbums() string {
 	for i, name := range items[start:end] {
 		absIdx := start + i
 		_, isFav := v.FavoriteAlbums[name]
-		display := text.FavPrefix(library.AlbumLabel(name), v.Width, isFav)
+		display := text.FocusMarker(absIdx == v.Cursor) + text.FavPrefix(labels[name], v.Width-2, isFav)
 		isOdd := absIdx%2 == 1
 		switch {
 		case absIdx == v.Cursor && isFav:

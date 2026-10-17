@@ -44,6 +44,7 @@ func (cp CommandPalette) paletteRowLine(row cpPaletteRow, m cpBoxMetrics, s styl
 
 	cmd := cp.Filtered[row.index]
 	body := cp.buildRowContent(cmd, m.contentWidth, m.maxCategoryWidth, m.maxShortcutWidth, s)
+	body = text.FocusMarker(row.index == cp.cursor) + strings.TrimPrefix(body, " ")
 	switch {
 	case row.index == cp.cursor && !cmd.IsEnabled():
 		body = s.Accent.Faint(true).Italic(true).Render(body)
@@ -52,7 +53,7 @@ func (cp CommandPalette) paletteRowLine(row cpPaletteRow, m cpBoxMetrics, s styl
 	case !cmd.IsEnabled():
 		body = s.Dim.Italic(true).Render(body)
 	}
-	return cpBorderV + " " + body + " " + cpBorderV
+	return cpBorderV + body + " " + cpBorderV
 }
 
 type cpPaletteRowKind int

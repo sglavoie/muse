@@ -1,0 +1,285 @@
+{
+  "name": "compact-dialog-controls",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "ctrl+,"
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s save"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "contains": "▎ ~/Music"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "contains": "[Playback]"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s save"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "contains": "[Equalizer]"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s save"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "▎ 16 kHz"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "contains": "[Display]"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s save"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "contains": "[Library]"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s save"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "shift+tab"
+    },
+    {
+      "assert": {
+        "contains": "[Display]"
+      }
+    },
+    {
+      "key": "]"
+    },
+    {
+      "assert": {
+        "contains": "[Library]"
+      }
+    },
+    {
+      "key": "["
+    },
+    {
+      "assert": {
+        "contains": "[Display]"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "ctrl+a"
+    },
+    {
+      "assert": {
+        "contains": "▎ Preset"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s start"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "wait": "500ms"
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s start"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "contains": "▎ Late Night"
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter load"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s start"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "▎ Morning Focus"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

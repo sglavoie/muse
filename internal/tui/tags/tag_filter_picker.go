@@ -183,7 +183,7 @@ func (tp TagFilterPicker) buildBoxLines(termWidth int, s styles.Styles) []string
 		for rowIdx, tagIdx := range tp.filtered {
 			tag := tp.tags[tagIdx]
 			label := styles.ColoredDot(tag.Color) + " " + tag.Name
-			padded := text.Pad(label, contentWidth)
+			padded := text.FocusMarker(rowIdx == tp.cursor) + text.Pad(label, contentWidth-2)
 			rowContent := " " + padded + " "
 			if rowIdx == tp.cursor {
 				lines = append(lines, mpBorderV+s.Accent.Render(rowContent)+mpBorderV)

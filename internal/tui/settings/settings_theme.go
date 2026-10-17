@@ -105,10 +105,10 @@ func (o SettingsOverlay) renderPrimaryEditor(lines []string, width int, s styles
 }
 
 // Keep the focused appearance field and validation feedback visible at the
-// minimum terminal height; scroll the ordinary display rows out of the way.
+// minimum terminal height; every tab scrolls its rows to keep focus visible.
 func (o SettingsOverlay) visibleFieldRange(termHeight int) (int, int) {
 	n := len(o.Fields[o.Tab])
-	if o.Tab != TabDisplay || termHeight <= 0 {
+	if termHeight <= 0 {
 		return 0, n
 	}
 	extra := 0
@@ -118,9 +118,12 @@ func (o SettingsOverlay) visibleFieldRange(termHeight int) (int, int) {
 	if o.primaryError != "" {
 		extra++
 	}
-	count := min(n, max(1, termHeight-7-extra))
-	start := max(0, min(o.cursor-count+1, n-count))
-	return start, start + count
+	focus := o.cursor
+	if o.EQNameInput != nil || o.EQConfirmDel {
+		extra++
+		focus = 1
+	}
+	return settingsRowWindow(n, focus, termHeight, extra)
 }
 
 func (o SettingsOverlay) displayHint() string {
@@ -128,7 +131,17 @@ func (o SettingsOverlay) displayHint() string {
 		return "#RGB or #RRGGBB · blank for default · enter apply · esc back"
 	}
 	if o.cursor == displayPrimary {
-		return "enter edit · r reset · [/] tabs · j/k navigate · ctrl+s save · esc cancel"
+		return "enter edit · r reset · tab/⇧tab tabs · j/k navigate · ctrl+s save · esc cancel"
 	}
-	return "[/] tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+	return "tab/⇧tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+}
+
+// settingsRowWindow reserves the box chrome, footer and any inline editor.
+func settingsRowWindow(n, focus, height, extra int) (int, int) {
+	if height <= 0 {
+		return 0, n
+	}
+	count := min(n, max(1, height-7-extra))
+	start := max(0, min(focus-count+1, n-count))
+	return start, start + count
 }

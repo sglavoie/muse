@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Settings and Auto-DJ keep commit and exit hints visible in compact windows,
+  dropping secondary hints as whole pairs. All Settings tabs and long directory
+  lists scroll to keep the focused row and footer visible.
+- Settings accepts Tab/Shift+Tab alongside the existing bracket shortcuts;
+  inline text editors retain ownership of their keys.
+- Browse, Favorites, and Tags footers distinguish opening collections from
+  enqueueing tracks, and identify focused-only enqueue actions during selection.
+- Collection lists, pickers, and Insights use the same textual focus marker.
+- Insights uses a compact panel selector at ordinary terminal heights, retains
+  the full briefing in tall windows, and keeps section headings with their rows.
+- Album lists omit unnecessary folder paths and use the shortest distinguishing
+  folder suffix for same-title releases. Full paths remain in drill-down details
+  and searchable labels; release identity and favorites are unchanged.
+
 - Compact track tables prioritize Title and Artist, hiding secondary columns
   and shortening History timestamps before truncating song identities.
 - Command palette searches show only matching commands, including Help and

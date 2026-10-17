@@ -35,7 +35,7 @@ func (v View) renderCategories() string {
 
 	lines := make([]string, len(categories))
 	for i, name := range categories {
-		display := text.Pad(name, v.Width)
+		display := text.FocusMarker(i == v.Cursor) + text.Pad(name, v.Width-2)
 		isOdd := i%2 == 1
 		if i == v.Cursor {
 			display = v.Styles.Accent.Render(display)
@@ -68,9 +68,14 @@ func (v View) renderList() string {
 
 	start, end := v.visibleWindow(len(items))
 	st := v.categoryStyling()
+	labels := library.AlbumDisplayLabels(v.Albums)
 	lines := make([]string, end-start)
 	for i, name := range items[start:end] {
-		lines[i] = v.renderItemRow(name, start+i, st)
+		label := name
+		if v.Category == CategoryAlbums {
+			label = labels[name]
+		}
+		lines[i] = v.renderItemRow(name, label, start+i, st)
 	}
 	return heading + v.filterSeparator() + strings.Join(lines, "\n")
 }
@@ -121,13 +126,13 @@ func (v View) categoryStyling() listStyling {
 
 // renderItemRow renders one artist or album row. Focus wins over bulk
 // selection, which in turn wins over the favorite colour and zebra banding.
-func (v View) renderItemRow(name string, absIdx int, st listStyling) string {
+func (v View) renderItemRow(name, displayLabel string, absIdx int, st listStyling) string {
 	isFocused := absIdx == v.Cursor
 	_, isFav := st.favMap[name]
 	_, selected := v.SelectedItems[name]
 	isOdd := absIdx%2 == 1
 
-	display := text.FavPrefix(library.AlbumLabel(name), v.Width-2, isFav)
+	display := text.FavPrefix(displayLabel, v.Width-2, isFav)
 	line := text.RowMarker(selected, isFocused, false, "") + display
 	switch {
 	case isFocused && isFav:

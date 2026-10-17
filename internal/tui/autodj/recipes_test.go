@@ -422,7 +422,7 @@ func TestAnUnreadableStoreIsReportedRatherThanShownEmpty(t *testing.T) {
 func TestThePageSummarizesEachRecipe(t *testing.T) {
 	page := recipesPage(recipesPanel(t, true))
 	assertContains(t, page,
-		"▸ Late Night · Explore · 80% discovery",
+		"▎ Late Night · Explore · 80% discovery",
 		"Deep Focus · Familiar · 20% discovery",
 		"Broken · unreadable",
 		"1 include",

@@ -360,7 +360,7 @@ func TestDeletingThroughTheTabRemovesTheRow(t *testing.T) {
 	if !strings.Contains(out, "Deleted “Late Night”") {
 		t.Fatalf("the page does not confirm the delete:\n%s", out)
 	}
-	if !strings.Contains(out, "▸ Deep Focus") {
+	if !strings.Contains(out, "▎ Deep Focus") {
 		t.Fatalf("the cursor did not land on the surviving recipe:\n%s", out)
 	}
 }

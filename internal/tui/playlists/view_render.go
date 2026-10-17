@@ -84,15 +84,15 @@ func (v View) renderEmptyList() string {
 // placeholder — TrackCount < 0 means the background evaluation has not yet
 // returned.
 func (v View) renderPlaylistRow(p db.PlaylistRow, cols Columns, isFocused bool) string {
-	name := text.Pad(p.Name, cols.Name)
+	name := text.Pad(p.Name, cols.Name-2)
 	count := text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
 	if p.IsSmart {
-		name = text.Pad("⚡ "+p.Name, cols.Name)
+		name = text.Pad("⚡ "+p.Name, cols.Name-2)
 		if p.TrackCount < 0 {
 			count = text.PadLeft("(smart)", cols.Count)
 		}
 	}
-	line := name + "  " + count
+	line := text.FocusMarker(isFocused) + name + "  " + count
 	if isFocused {
 		return v.Styles.Accent.Render(line)
 	}

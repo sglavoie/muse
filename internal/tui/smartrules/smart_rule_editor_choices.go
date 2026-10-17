@@ -10,6 +10,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 type ruleTagPicker struct {
@@ -110,10 +111,7 @@ func (e SmartRuleEditor) renderTagPicker(width, height int, s styles.Styles) str
 	start := max(0, picker.cursor-visible+1)
 	end := min(len(matches), start+visible)
 	for i := start; i < end; i++ {
-		marker := "  "
-		if i == picker.cursor {
-			marker = "▸ "
-		}
+		marker := text.FocusMarker(i == picker.cursor)
 		rows = append(rows, overlay.Row{Text: marker + matches[i].Name, Styled: i == picker.cursor})
 	}
 	if len(matches) == 0 {

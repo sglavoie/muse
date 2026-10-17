@@ -25,7 +25,7 @@ func (p TunePanel) buildRecipesLines(termWidth, termHeight int, s styles.Styles)
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
 	return append(lines, "  "+s.Dim.Render(
-		text.Truncate(p.recipeHint(end-start < len(body)), inner)))
+		text.CompactHints(p.recipeHint(end-start < len(body)), inner, "ctrl+s", "esc", "enter")))
 }
 
 // recipeLines assembles the page and reports which logical line the cursor is
@@ -61,10 +61,7 @@ func (p TunePanel) recipeLines() ([]previewLine, int) {
 
 // recipeRow summarizes one stored recipe on a single line.
 func (p TunePanel) recipeRow(idx int, r Recipe) string {
-	marker := "  "
-	if idx == p.recipeCursor {
-		marker = "▸ "
-	}
+	marker := text.FocusMarker(idx == p.recipeCursor)
 	if r.Invalid != nil {
 		return marker + r.Name + " · unreadable"
 	}
@@ -111,7 +108,7 @@ func (p TunePanel) recipeHint(scrolled bool) string {
 	if scrolled {
 		scroll = "j/k scrolls · "
 	}
-	return scroll + "enter load · s save as · u update · n rename · d delete · ctrl+s " +
+	return scroll + "enter load · s save as · d delete · u update · n rename · ctrl+s " +
 		strings.ToLower(p.CommitLabel()) + " · esc cancel"
 }
 

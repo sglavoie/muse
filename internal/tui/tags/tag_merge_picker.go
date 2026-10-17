@@ -249,7 +249,7 @@ func (tp TagMergePicker) buildPickLines(termWidth int, s styles.Styles) []string
 		for rowIdx, destIdx := range tp.filtered {
 			dest := tp.dests[destIdx]
 			label := styles.ColoredDot(dest.Color) + " " + dest.Name
-			padded := text.Pad(label, contentWidth)
+			padded := text.FocusMarker(rowIdx == tp.cursor) + text.Pad(label, contentWidth-2)
 			rowContent := " " + padded + " "
 			if rowIdx == tp.cursor {
 				lines = append(lines, mpBorderV+s.Accent.Render(rowContent)+mpBorderV)

@@ -33,7 +33,7 @@ func TestTheWindowFollowsTheCursorThroughALongList(t *testing.T) {
 
 	p, _ = press(t, p, "up") // wrap to the last row, the furthest from the top
 	out := plain(renderRecipes(t, p, 80, 12))
-	if !strings.Contains(out, "▸ "+many[len(many)-1].Name) {
+	if !strings.Contains(out, "▎ "+many[len(many)-1].Name) {
 		t.Fatalf("the focused recipe scrolled off the page:\n%s", out)
 	}
 }

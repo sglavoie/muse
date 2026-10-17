@@ -65,7 +65,7 @@ func (v View) renderTagRow(tag db.TagRow, isFocused, isOdd bool) string {
 	if v.TagCounts != nil {
 		count = v.TagCounts[tag.ID]
 	}
-	display := renderTagLabel(styles.ColoredDot(tag.Color), tag.Name, count, v.Width)
+	display := text.FocusMarker(isFocused) + renderTagLabel(styles.ColoredDot(tag.Color), tag.Name, count, v.Width-2)
 	switch {
 	case isFocused:
 		return v.Styles.Accent.Render(display)

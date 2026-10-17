@@ -400,7 +400,7 @@ func (tp TagPicker) tagRowLines(contentWidth, start, end int, s styles.Styles) [
 // tagPickerRow frames one padded row between the modal's vertical borders,
 // accenting it when focused.
 func tagPickerRow(padded string, accented bool, s styles.Styles) string {
-	rowContent := " " + padded + " "
+	rowContent := " " + text.FocusMarker(accented) + text.Pad(strings.TrimRight(padded, " "), max(ansi.StringWidth(padded)-2, 0)) + " "
 	if accented {
 		return tpBorderV + s.Accent.Render(rowContent) + tpBorderV
 	}

@@ -310,11 +310,8 @@ func (v View) renderSessionList(s styles.Styles) string {
 }
 
 func (v View) renderSessionRow(s styles.Styles, r insightsdata.SessionRow, focused bool) string {
-	cursor := "  "
-	if focused {
-		cursor = "> "
-	}
-	width := max(v.width-len(cursor), 1)
+	cursor := text.FocusMarker(focused)
+	width := max(v.width-2, 1)
 
 	note := fmt.Sprintf("%d %s · %d %s",
 		r.Plays, text.Pluralize(r.Plays, "play", "plays"),

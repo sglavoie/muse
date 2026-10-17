@@ -74,7 +74,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 
 <!-- BEGIN GENERATED: package layers -->
 
-**33 packages, 139 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
+**33 packages, 140 direct imports between them, 8 levels (L0–L7).** Levels are read off the graph, not assigned by hand: a package that imports nothing else in the table is L0, and every other package sits one level above the highest package it imports.
 
 | Level | Packages |
 |---:|---|
@@ -100,7 +100,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/palette` | L4 | `tui/overlay` (L3), `tui/filter` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/queue` | L4 | `tui/playlists` (L3), `tui/statusbar` (L3), `tui/playback` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/strip` (L1), `tui/buckets` (L0), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/settings` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
-| `tui/smartrules` | L4 | `tui/overlay` (L3), `tui/styles` (L0) |
+| `tui/smartrules` | L4 | `tui/overlay` (L3), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/tags` | L4 | `tui/overlay` (L3), `tui/library` (L2), `tui/keys` (L1), `tui/sorting` (L1), `tui/filter` (L0), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/albums` | L3 | `tui/artists` (L2), `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
 | `tui/genres` | L3 | `tui/artists` (L2), `tui/strip` (L1), `tui/layout` (L0), `tui/styles` (L0), `tui/text` (L0) |
@@ -131,7 +131,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 |---|---:|---:|---:|---:|---|
 | `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
-| `tui/keys` | 158 | 41 | 116 | 1 | `tui` + 11 view packages |
+| `tui/keys` | 159 | 41 | 117 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 118 | 34 | 83 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1051 exported identifiers across 15 packages**: 161 reached from two or more packages, 830 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1052 exported identifiers across 15 packages**: 161 reached from two or more packages, 831 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -467,6 +467,7 @@ export must either earn a justification, be recorded in
 | `tui/keys` | `HintModeFilter` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeNoMatches` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeSelection` | const | `internal/tui` | root |
+| `tui/keys` | `HintModeTrackSelection` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeTracks` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeVisual` | const | `internal/tui` | root |
 | `tui/keys` | `NewRegistry` | func | `internal/tui`, `tui/overlay†`, `tui/statusbar†` | multi |

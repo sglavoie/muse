@@ -151,7 +151,7 @@ func TestTimeVsPlaysHeaderShrinksRatherThanVanishing(t *testing.T) {
 
 	// Unlike the other panels' chart blocks the table is the panel itself, so a
 	// tight budget shortens it instead of dropping it whole.
-	v.SetSize(100, 20)
+	v.SetSize(100, 15)
 	if b := v.headerBudget(); b >= len(full) {
 		t.Fatalf("precondition: budget %d should be tighter than the full header's %d lines", b, len(full))
 	}

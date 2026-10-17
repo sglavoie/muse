@@ -7,6 +7,7 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // Render returns the centered overlay string for the current editor step.
@@ -60,10 +61,7 @@ func (e SmartRuleEditor) renderRulesStep(termWidth, termHeight int, s styles.Sty
 		rows = append(rows, overlay.Row{Text: "(no rules — all tracks match)"})
 	} else {
 		for i, r := range e.rules {
-			marker := "  "
-			if i == e.ruleCursor {
-				marker = "▸ "
-			}
+			marker := text.FocusMarker(i == e.ruleCursor)
 			rows = append(rows, overlay.Row{
 				Text:   marker + ruleDisplayLabel(r),
 				Styled: i == e.ruleCursor,

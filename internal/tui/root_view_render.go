@@ -235,12 +235,15 @@ func (m Model) renderFooterHint() string {
 		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:
 		mode = keys.HintModeSelection
+		if m.footerEnqueuesFocusedTrack() {
+			mode = keys.HintModeTrackSelection
+		}
 	case !m.hasFooterTarget():
 		mode = m.emptyHintMode()
 	case m.footerOpensCollectionOnly():
 		mode = keys.HintModeCollections
 	case m.ActiveView == viewMixes && m.mixes.Level == 1,
-		m.ActiveView == viewPlaylists && !m.playlists.AtListLevel():
+		m.footerEnqueuesFocusedTrack():
 		mode = keys.HintModeTracks
 	}
 	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)

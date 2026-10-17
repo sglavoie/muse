@@ -15,7 +15,7 @@ const insightsCompactWidth = 70
 // insightsBriefingMinHeight is the view height below which the briefing block
 // collapses to the active panel's headline alone, so the panel body still has
 // room to say something.
-const insightsBriefingMinHeight = 18
+const insightsBriefingMinHeight = 26
 
 // insightsProseMinHeight is the view height below which Coverage drops its
 // cross-reference paragraph. The paragraph wraps to three lines at narrow

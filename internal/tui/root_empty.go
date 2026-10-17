@@ -1,8 +1,11 @@
 package tui
 
 import (
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
+	arttui "github.com/sglavoie/muse/internal/tui/artists"
 	"github.com/sglavoie/muse/internal/tui/browse"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	gentui "github.com/sglavoie/muse/internal/tui/genres"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
@@ -144,4 +147,28 @@ func (m Model) playlistsHasFooterTarget() bool {
 	}
 	_, ok := m.playlists.FocusedTrack()
 	return ok
+}
+
+// footerEnqueuesFocusedTrack distinguishes collection navigation from the
+// single-row enqueue performed by Enter, even with a bulk selection present.
+func (m Model) footerEnqueuesFocusedTrack() bool {
+	switch m.ActiveView {
+	case viewPlaylists:
+		return !m.playlists.AtListLevel()
+	case viewTags:
+		return m.tagsView.Level == tagtui.TrackLevel
+	case viewFavorites:
+		return m.favorites.Level == favtui.TrackLevel ||
+			(m.favorites.Level == favtui.ListLevel && m.favorites.Category == favtui.CategoryTracks)
+	case viewBrowse:
+		switch m.browse.Mode {
+		case browse.BrowseModeArtists:
+			return m.browse.Artists.Level == arttui.TrackLevel
+		case browse.BrowseModeAlbums:
+			return m.browse.Albums.Level == albtui.TrackLevel
+		case browse.BrowseModeGenres:
+			return m.browse.Genres.Level == gentui.TrackLevel
+		}
+	}
+	return false
 }
