@@ -37,7 +37,7 @@ func (v MessagesOverlay) lines(width int) []string {
 	for i := len(v.messages) - 1; i >= 0; i-- {
 		msg := v.messages[i]
 		line := ansi.Strip(msg)
-		lines = append(lines, strings.Split(ansi.Hardwrap(line, max(1, width), true), "\n")...)
+		lines = append(lines, strings.Split(ansi.Wrap(line, max(1, width), ""), "\n")...)
 		lines = append(lines, "")
 	}
 	return lines

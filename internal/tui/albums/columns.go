@@ -6,8 +6,8 @@ const (
 	trackDurationFixed   = 10 // "mm:ss.xxx" — duration column
 	trackSepCount        = 3  // spaces between the four columns
 
-	trackTitleRatio  = 55
-	trackArtistRatio = 45
+	trackTitleRatio  = 60
+	trackArtistRatio = 40
 	trackTotalRatio  = trackTitleRatio + trackArtistRatio
 )
 
@@ -27,6 +27,11 @@ type TrackColumns struct {
 // absorbs any rounding remainder. On narrow terminals, fixed columns shrink
 // before the title disappears so the allocation does not exceed totalWidth.
 func ComputeTrack(totalWidth int) TrackColumns {
+	if totalWidth >= 40 && totalWidth < 80 {
+		flex := totalWidth - 15
+		return TrackColumns{SelectionMarker: 2, Position: 3, Duration: 7, Title: flex - flex*2/5, Artist: flex * 2 / 5}
+	}
+
 	cols := TrackColumns{
 		SelectionMarker: selectionMarkerFixed,
 		Position:        trackPosFixed,

@@ -6,11 +6,11 @@ const (
 	durationFixed        = 10
 	dateAddedFixed       = 10
 	playedAtFixed        = 16
-	sepCount             = 8  // 2-char gaps × 4 separators between five content columns
-	sepCountWithDate     = 10 // 2-char gaps × 5 separators between six content columns
+	sepCount             = 4 // 1-char gaps × 4 separators between five content columns
+	sepCountWithDate     = 5 // 1-char gaps × 5 separators between six content columns
 
-	artistRatio = 30
-	titleRatio  = 35
+	artistRatio = 35
+	titleRatio  = 40
 	albumRatio  = 25
 	totalRatio  = artistRatio + titleRatio + albumRatio
 )
@@ -20,8 +20,8 @@ const (
 type Columns struct {
 	SelectionMarker int // fixed: selectionMarkerFixed chars ('●'/' ' + space)
 	TrackNum        int // fixed: trackNumFixed chars
-	Artist          int // proportional: ~30% of flex
-	Title           int // proportional: ~35% of flex; absorbs rounding remainder
+	Artist          int // proportional: ~35% of flex
+	Title           int // proportional: ~40% of flex; absorbs rounding remainder
 	Album           int // proportional: ~25% of flex
 	Duration        int // fixed: durationFixed chars
 	DateAdded       int // fixed: dateAddedFixed chars; zero when column hidden
@@ -36,7 +36,7 @@ func (c Columns) IsTrackNumOnly() bool {
 // Compute calculates column widths for the given total terminal width.
 // TrackNum and Duration receive fixed character allocations. The remaining
 // width (after subtracting fixed columns and inter-column separators) is
-// distributed proportionally in a 30:35:25 ratio among Artist, Title, and
+// distributed proportionally in a 35:40:25 ratio among Artist, Title, and
 // Album. Title absorbs any rounding remainder so that the sum of all column
 // widths plus separators equals totalWidth exactly.
 //
@@ -123,9 +123,4 @@ func compactColumns(width, dateWidth int) Columns {
 		Artist: artist, Title: flex - artist, DateAdded: dateWidth}
 }
 
-func (c Columns) separator() string {
-	if c.TrackNum == 3 && c.Duration == 7 {
-		return " "
-	}
-	return "  "
-}
+func (c Columns) separator() string { return " " }

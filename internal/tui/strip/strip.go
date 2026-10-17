@@ -42,8 +42,10 @@ type FilterChunk struct {
 
 // CountsChunk describes the right-zone counts on the strip. When
 // Filtering is true the chunk renders "filtered/total"; otherwise it
-// renders the bare total. A zero Total suppresses the chunk entirely.
+// renders the total, followed by Unit when supplied. A zero Total suppresses
+// the chunk entirely.
 type CountsChunk struct {
+	Unit      string // plural item name, e.g. tracks or albums; empty for legacy callers
 	Filtered  int
 	Total     int
 	Filtering bool

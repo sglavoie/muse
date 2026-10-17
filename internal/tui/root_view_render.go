@@ -23,7 +23,7 @@ func (m Model) View() tea.View {
 
 	body := m.renderActiveBody()
 	if !m.hasActiveOverlay() {
-		tabSep := m.styles.TextTertiary.Render(strings.Repeat("─", m.termWidth))
+		tabSep := m.renderTitleDivider()
 		body = m.renderTitleBar() + "\n" + tabSep + "\n" + body
 	}
 

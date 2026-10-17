@@ -40,7 +40,7 @@ func TestQueueRemainingUsesScheduledRows(t *testing.T) {
 	m.queue.Width = 100
 	m.queue.Height = 20
 	screen := ansi.Strip(m.renderPrimaryViewBody(*m.styles, ""))
-	if !strings.Contains(screen, "4 · 2:40 remaining") {
+	if !strings.Contains(screen, "4 tracks · 2:40 remaining") {
 		t.Fatalf("missing header duration: %s", screen)
 	}
 	m.playback.state = playback.StatePaused

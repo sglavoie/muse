@@ -28,7 +28,24 @@ Untagged discs in separate folders remain separate; a shared Album Artist tag
 groups them across folders. Existing title-only album favorites apply to every
 matching release, and each release can then be unfavorited independently.
 
+Browsing keeps your place: opening a collection and returning with `Esc`
+restores its filter, sort, focused item, and scroll position. This applies to
+Browse, Favorites, Tags, and Playlists. If that item was removed, focus moves
+to a remaining row. Press `Esc` again to clear a restored filter.
+
+The navigation bar keeps all eight numbered shortcuts visible, abbreviating
+view names in compact terminals. Filter badges appear on the divider below it
+so tabs stay in place. Track tables put Title before Artist, followed by Album
+and Duration when applicable; compact tables give song identity priority over
+album detail. Collection counts name their units, such as `3 tracks`.
+
 **Playback**
+
+The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
+**Stop after track**, and **Auto-DJ**. When none is enabled it says
+**Sequential**. Compact combinations use `Rpt:all/one`, `Shuf`, `Stop`, and
+`DJ`; enabled states remain distinguishable without color.
+
 
 - **Radio mode / Auto-DJ** (`A`) — muse keeps the queue fed by scoring
   candidate tracks against what you have been listening to, avoiding recent
@@ -345,3 +362,13 @@ only when they match. A search with no results cannot execute a command.
 
 View-specific help (`?`) begins with that view's actions. Empty-view footers
 show recovery or creation controls instead of actions requiring a row.
+
+### Error feedback
+
+Failures take priority over routine confirmations. Long banners are shortened
+to preserve the playing song and clock; their full text remains in
+`:` → **Show recent messages**, where it wraps and can be scrolled or copied.
+A `! errors · :` indicator remains after banners fade, until you open that
+history. Errors arriving after you open it remain unread; reopen to inspect
+them. A successful undo retry retires its old failure banner without deleting
+the history.

@@ -28,14 +28,17 @@ func (v View) Render() string {
 
 func (v View) renderCategories() string {
 	categories := []string{
-		fmt.Sprintf("Artists (%d)", v.ArtistCount),
-		fmt.Sprintf("Albums (%d)", v.AlbumCount),
-		fmt.Sprintf("Tracks (%d)", v.TrackCount),
+		"Artists",
+		"Albums",
+		"Tracks",
 	}
 
+	counts := []int{v.ArtistCount, v.AlbumCount, v.TrackCount}
+	units := []string{"artist", "album", "track"}
 	lines := make([]string, len(categories))
 	for i, name := range categories {
-		display := text.FocusMarker(i == v.Cursor) + text.Pad(name, v.Width-2)
+		count := text.FormatCount(counts[i]) + " " + text.Pluralize(counts[i], units[i], units[i]+"s")
+		display := text.FocusMarker(i == v.Cursor) + text.Pad(name, max(0, v.Width-3-ansi.StringWidth(count))) + " " + count
 		isOdd := i%2 == 1
 		if i == v.Cursor {
 			display = v.Styles.Accent.Render(display)

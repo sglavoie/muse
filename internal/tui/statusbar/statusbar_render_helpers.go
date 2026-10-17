@@ -109,7 +109,7 @@ func renderGlyphProgress(st styles.Styles, fullCells, partialSteps, emptyCells i
 // selection count). When abbreviated is true short forms are used ("V",
 // "Y:N", "Cut:N", "Sel:N"); otherwise verbose forms ("Visual", "Yank: N",
 // "Cut: N", "Sel: N"). Playback modes (repeat/shuffle/stop-next/radio) are
-// rendered separately by render() as the 4-glyph RSND cluster.
+// rendered separately as explicit labels, abbreviated in compact windows.
 func (s StatusBar) modeLabels(abbreviated bool) []string {
 	var out []string
 	if s.VisualMode {

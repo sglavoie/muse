@@ -28,18 +28,14 @@ func TestModelRepeatModeDefaultOff(t *testing.T) {
 	}
 }
 
-// TestTitleBarTagsBadgeShowsZero verifies that the Tags view (10th view) shows
-// badge "0" matching its actual keybinding, not "10".
-func TestTitleBarTagsBadgeShowsZero(t *testing.T) {
+// The Tags badge must match its actual keybinding.
+func TestTitleBarTagsBadge(t *testing.T) {
 	m := New(context.Background())
 	s := styles.NewStyles(true)
 	m.styles = &s
-	m.termWidth = 200 // wide enough for the full layout
+	m.termWidth = 200
 	m.ActiveView = viewTags
-
-	out := m.renderTitleBar()
-	// The Tags badge must show "0", not "10".
-	if strings.Contains(out, "10") {
-		t.Errorf("title bar should show badge '0' for Tags, not '10': got %q", out)
+	if out := m.renderTitleBar(); !strings.Contains(out, "[6 Tags]") {
+		t.Fatalf("incorrect Tags shortcut: %s", out)
 	}
 }

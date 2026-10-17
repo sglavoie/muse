@@ -1,0 +1,16 @@
+{
+ "name":"playback-mode-labels",
+ "fixture":"playback",
+ "size":"60x15",
+ "actions":[
+  {"assert":{"status_contains":"Repeat all · Shuffle"}},
+  {"key":"r"}, {"key":"r"}, {"key":"z"},
+  {"assert":{"status_contains":"Sequential"}},
+  {"key":"ctrl+n"},
+  {"assert":{"status_contains":"Stop after track"}},
+  {"assert":{"status_contains":"Track G1"}},
+  {"resize":"100x30"},
+  {"assert":{"status_contains":"Stop after track"}},
+  {"assert":{"no_layout_issues":true}}
+ ]
+}

@@ -76,7 +76,7 @@ func TestRenderArtistsCountDropsAtNarrowWidth(t *testing.T) {
 	}
 }
 
-func TestRenderArtistsZeroCountHidden(t *testing.T) {
+func TestRenderArtistsZeroCountLabeled(t *testing.T) {
 	v := View{
 		Level:        ArtistLevel,
 		Width:        80,
@@ -87,12 +87,10 @@ func TestRenderArtistsZeroCountHidden(t *testing.T) {
 	if !strings.Contains(out, "5") {
 		t.Errorf("expected Alice count 5 visible, got:\n%s", out)
 	}
-	// Verify no spurious "0" digit appears between row labels — we accept
-	// digits only when they belong to the count zone of a known count.
-	// Crude assertion: a "0" should not appear on the Unknown row.
+	// Zero is an explicit count, not an absent value.
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "Unknown") && strings.Contains(line, "0") {
-			t.Errorf("expected zero-count to render blank, got line: %q", line)
+		if strings.Contains(line, "Unknown") && !strings.Contains(line, "0 tracks") {
+			t.Errorf("expected zero-count to be labeled, got line: %q", line)
 		}
 	}
 }

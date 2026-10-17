@@ -51,6 +51,7 @@ func (m Model) showRecentMessages() Model {
 		lines[i] = entry.At.Format("15:04:05") + "  " + label + entry.Text
 	}
 	m.overlay.messages = overlay.NewMessages(lines)
+	m.statusBar.MarkMessagesRead()
 	return m
 }
 

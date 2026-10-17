@@ -29,6 +29,7 @@ func (v Panel) renderStateStrip(total, filtered int) string {
 		}
 	}
 	counts := strip.CountsChunk{
+		Unit:      "tracks",
 		Filtered:  filtered,
 		Total:     total,
 		Filtering: v.Filter.Text != "",

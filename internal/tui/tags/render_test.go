@@ -131,7 +131,7 @@ func TestRenderTagsPreservesCountWhenNameTruncates(t *testing.T) {
 
 	out := ansi.Strip(v.Render())
 
-	if !strings.Contains(out, "(42)") {
+	if !strings.Contains(out, "42 tracks") {
 		t.Fatalf("expected truncated tag row to preserve count suffix, got:\n%s", out)
 	}
 	if got := ansi.StringWidth(out); got != width {

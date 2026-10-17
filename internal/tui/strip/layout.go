@@ -2,6 +2,7 @@ package strip
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -120,6 +121,13 @@ func buildFilterValue(filter FilterChunk) string {
 }
 
 func buildCountsPlain(counts CountsChunk) string {
+	unit := counts.Unit
+	if counts.Total == 1 {
+		unit = strings.TrimSuffix(unit, "s")
+	}
+	if unit != "" {
+		unit = " " + unit
+	}
 	switch {
 	case counts.Total <= 0:
 		return ""
@@ -131,9 +139,9 @@ func buildCountsPlain(counts CountsChunk) string {
 		if filtered > counts.Total {
 			filtered = counts.Total
 		}
-		return fmt.Sprintf("%d/%d", filtered, counts.Total)
+		return fmt.Sprintf("%d/%d", filtered, counts.Total) + unit
 	default:
-		return fmt.Sprintf("%d", counts.Total)
+		return fmt.Sprintf("%d", counts.Total) + unit
 	}
 }
 

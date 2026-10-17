@@ -33,6 +33,7 @@ func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineAct
 		}
 	}
 	counts := strip.CountsChunk{
+		Unit:      "tracks",
 		Filtered:  filtered,
 		Total:     total,
 		Filtering: v.Filter.Text != "",

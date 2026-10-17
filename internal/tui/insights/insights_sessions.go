@@ -278,7 +278,7 @@ func (v View) sessionListHeaderLines(s styles.Styles) []string {
 	}
 	line := strip.Render(v.width, []string{"Insights", "Sessions", v.SessionLabel},
 		strip.SortChunk{}, strip.FilterChunk{},
-		strip.CountsChunk{Filtered: n, Total: n}, nil, "esc ←", s)
+		strip.CountsChunk{Filtered: n, Total: n, Unit: "sessions"}, nil, "esc ←", s)
 	if line == "" {
 		line = "Sessions"
 	}

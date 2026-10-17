@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -14,17 +15,23 @@ func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
 	notif := ctx.styles.StatusNotification
 	notifErr := ctx.styles.StatusNotificationError
 	var segments []string
-	if s.ConfigCreated {
-		segments = append(segments, notif.Render(fmt.Sprintf(" config created: %s ", s.ConfigPath)))
-	}
-	if s.WatchDegraded {
-		segments = append(segments, notifErr.Render(" File watcher unavailable — press ctrl+r to rescan manually "))
+	if s.hasUnreadErrors {
+		segments = append(segments, notifErr.Render("! errors · :"))
 	}
 	if top := s.TopNotification(); top.Msg != "" {
-		msg := top.Msg
 		style := notificationStyle(top.Severity, top.isFading(), notif, notifErr)
-		segments = append(segments, style.Render(" "+msg+" "))
+		segments = append(segments, style.Render(top.Msg))
+	} else if s.WatchDegraded {
+		segments = append(segments, notifErr.Render("Watcher offline · ctrl+r"))
+	} else if s.ConfigCreated {
+		segments = append(segments, notif.Render(fmt.Sprintf("Config created: %s", s.ConfigPath)))
 	}
+	// Full messages remain in Recent Messages. Bound this zone so a long
+	// filesystem error cannot displace the song and its playback modes.
+	if ctx.width > 0 && (s.Title != "" || s.Artist != "") {
+		return ansi.Truncate(strings.Join(segments, ctx.r(" · ")), max(12, ctx.width/3), "…")
+	}
+
 	return strings.Join(segments, ctx.r(" "))
 }
 
@@ -44,19 +51,13 @@ func notificationStyle(severity Severity, fading bool, notif, notifErr lipgloss.
 func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string {
 	stateIcon, stateIconWidth := s.playbackStateIcon(ctx)
 	cluster, clusterWidth := s.renderModeCluster(ctx)
-	if ctx.width > 0 && s.PlaylistSource != "" {
-		available := max(0, ctx.width-ansi.StringWidth(right)-2)
-		s.PlaylistSource = text.Truncate(s.PlaylistSource, max(0, available/3-clusterWidth-6))
-	}
-	suffix, suffixWidth := s.renderSuffix(ctx, cluster, clusterWidth)
+	suffixCtx := ctx
 	if ctx.width > 0 {
-		available := max(0, ctx.width-ansi.StringWidth(right)-2)
-		if suffixWidth > available/3 {
-			suffix = ansi.Truncate(suffix, available/3, "…")
-			suffixWidth = ansi.StringWidth(suffix)
-		}
-		s = s.fitArtist(ctx, stateIcon, stateIconWidth, available-suffixWidth)
+		suffixCtx.width = max(1, ctx.width-ansi.StringWidth(right)-2)
 	}
+	suffix, suffixWidth := s.renderSuffix(suffixCtx, cluster, clusterWidth)
+	s = s.fitIdentity(ctx, stateIcon, stateIconWidth, suffixCtx.width-suffixWidth)
+
 	prefix, prefixWidth, sep, sepWidth := s.renderPrefix(ctx, stateIcon, stateIconWidth)
 	title := s.Title
 	if ctx.width > 0 && s.Title != "" {
@@ -79,6 +80,22 @@ func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string 
 	return ctx.rightAlign(strings.Join(parts, ""), right)
 }
 
+// Song identity takes priority over queue position when modes and notices
+// compete for space. The playback clock remains on its separate line.
+func (s StatusBar) fitIdentity(ctx statusBarRenderContext, icon string, iconWidth, budget int) StatusBar {
+	if ctx.width <= 0 {
+		return s
+	}
+	positionWidth := ansi.StringWidth(s.QueuePosition)
+	if s.BucketLabel != "" {
+		positionWidth += 3 + ansi.StringWidth(s.BucketLabel)
+	}
+	if s.QueuePosition != "" && budget < 1+positionWidth+4+min(12, ansi.StringWidth(s.Title)) {
+		s.QueuePosition, s.BucketLabel = "", ""
+	}
+	return s.fitArtist(ctx, icon, iconWidth, budget)
+}
+
 func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 	switch s.PlaybackState {
 	case playback.StatePlaying:
@@ -92,57 +109,49 @@ func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 	}
 }
 
+// Only enabled modes are shown; the all-off state is named explicitly.
+// Text changes with state even in terminals with no color support.
 func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
-	clusterDim := ctx.styles.TextTertiary.Background(ctx.base.GetBackground())
-	activeStyles := []lipgloss.Style{ctx.barModeRepeat, ctx.barModeShuffle, ctx.barModeStopAfter, ctx.barModeRadio}
+	var labels, compact []string
 	indicators := playback.ModeIndicators(s.RepeatMode, s.Shuffle, s.StopAfterCurrent, s.RadioMode)
-	var cluster strings.Builder
-	for i, ind := range indicators {
-		style := clusterDim
-		if ind.Active && i < len(activeStyles) {
-			style = activeStyles[i]
+	full := []string{"Repeat " + s.RepeatMode.DisplayString(), "Shuffle", "Stop after track", "Auto-DJ"}
+	short := []string{"Rpt:" + s.RepeatMode.DisplayString(), "Shuf", "Stop", "DJ"}
+	for i, indicator := range indicators {
+		if indicator.Active {
+			labels = append(labels, full[i])
+			compact = append(compact, short[i])
 		}
-		cluster.WriteString(style.Render(ind.Glyph))
 	}
-	return cluster.String(), len(indicators)
+	label := strings.Join(labels, " · ")
+	if label == "" {
+		label = "Sequential"
+	}
+	if ctx.width > 0 && ansi.StringWidth(label) > ctx.width/3 {
+		label = strings.Join(compact, " ")
+	}
+	return ctx.barBold.Render(label), ansi.StringWidth(label)
 }
 
 func (s StatusBar) renderSuffix(ctx statusBarRenderContext, cluster string, clusterWidth int) (string, int) {
-	suffix := ""
-	suffixWidth := 0
-	if s.PlaylistSource != "" {
-		suffix += ctx.barDim.Render("  [" + s.PlaylistSource + "]")
-		suffixWidth += 2 + ansi.StringWidth(s.PlaylistSource) + 2
+	suffix := ctx.r("  ") + cluster
+	width := 2 + clusterWidth
+	budget := ctx.width * 2 / 5
+	if ctx.width <= 0 {
+		budget = 10000
 	}
-	suffix += ctx.r("  ") + cluster
-	suffixWidth += 2 + clusterWidth
-
-	fullLabels := s.modeLabels(false)
-	abbrevLabels := s.modeLabels(true)
-	if len(fullLabels) == 0 {
-		return suffix, suffixWidth
-	}
-	const sepText = " │ "
-	const sepWidth = 3
-	fullText := strings.Join(fullLabels, " ")
-	fullDisplayWidth := sepWidth + ansi.StringWidth(fullText)
-	if ctx.width > 0 && suffixWidth+fullDisplayWidth > ctx.width*2/5 {
-		abbrevText := strings.Join(abbrevLabels, " ")
-		var rendered []string
-		for _, label := range abbrevLabels {
-			rendered = append(rendered, ctx.barBold.Render(label))
+	// Modes always survive. Other hints yield as whole labels, not half words.
+	for _, label := range s.modeLabels(true) {
+		if width+3+ansi.StringWidth(label) <= budget {
+			suffix += ctx.r(" · ") + ctx.barBold.Render(label)
+			width += 3 + ansi.StringWidth(label)
 		}
-		suffix += ctx.r(sepText) + strings.Join(rendered, ctx.r(" "))
-		suffixWidth += sepWidth + ansi.StringWidth(abbrevText)
-		return suffix, suffixWidth
 	}
-	var rendered []string
-	for _, label := range fullLabels {
-		rendered = append(rendered, ctx.barBold.Render(label))
+	if s.PlaylistSource != "" && budget-width >= 8 {
+		source := text.Truncate(s.PlaylistSource, budget-width-4)
+		suffix += ctx.barDim.Render("  [" + source + "]")
+		width += 4 + ansi.StringWidth(source)
 	}
-	suffix += ctx.r(sepText) + strings.Join(rendered, ctx.r(" "))
-	suffixWidth += fullDisplayWidth
-	return suffix, suffixWidth
+	return suffix, width
 }
 
 func (s StatusBar) renderPrefix(ctx statusBarRenderContext, stateIcon string, stateIconWidth int) (string, int, string, int) {
@@ -169,6 +178,7 @@ func (s StatusBar) renderPrefix(ctx statusBarRenderContext, stateIcon string, st
 	case stateIcon != "":
 		prefix = stateIcon + qp
 		prefixWidth = stateIconWidth + qpWidth
+		sep, sepWidth = " ", 1
 	case s.Artist != "":
 		prefix = ctx.r(s.Artist)
 		prefixWidth = ansi.StringWidth(s.Artist)
@@ -187,7 +197,7 @@ func (s StatusBar) fitArtist(ctx statusBarRenderContext, icon string, iconWidth,
 	_, prefixWidth, _, sepWidth := s.renderPrefix(ctx, icon, iconWidth)
 	artistWidth := ansi.StringWidth(s.Artist)
 	titleWidth := ansi.StringWidth(s.Title)
-	if artistWidth <= 12 || prefixWidth+sepWidth+titleWidth <= budget {
+	if prefixWidth+sepWidth+titleWidth <= budget {
 		return s
 	}
 	fixed := prefixWidth - artistWidth + sepWidth

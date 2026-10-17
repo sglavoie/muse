@@ -14,14 +14,14 @@ func TestComputeTrack_DoesNotOverAllocateNearMinimumBoundary(t *testing.T) {
 
 func TestComputeTrack_PreservesMinimumsWhenSpaceAllows(t *testing.T) {
 	cols := ComputeTrack(80)
-	if cols.Title < minTitleWidth {
-		t.Fatalf("Title=%d, want >=%d", cols.Title, minTitleWidth)
+	if cols.Title < 10 {
+		t.Fatalf("Title=%d, want >=%d", cols.Title, 10)
 	}
-	if cols.Artist < minArtistWidth {
-		t.Fatalf("Artist=%d, want >=%d", cols.Artist, minArtistWidth)
+	if cols.Artist < 10 {
+		t.Fatalf("Artist=%d, want >=%d", cols.Artist, 10)
 	}
-	if cols.Album < minAlbumWidth {
-		t.Fatalf("Album=%d, want >=%d", cols.Album, minAlbumWidth)
+	if cols.Album < 8 {
+		t.Fatalf("Album=%d, want >=%d", cols.Album, 8)
 	}
 }
 

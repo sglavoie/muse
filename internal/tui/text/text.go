@@ -347,10 +347,11 @@ func RowLabelWidthAndCount(width int, counts map[string]int, name string) (int, 
 	if width <= 0 {
 		return 0, ""
 	}
-	if len(counts) == 0 || width < MinLabelWithCount+1+CountColWidth {
+	count := " " + FormatCount(counts[name]) + " " + Pluralize(counts[name], "track", "tracks")
+	if len(counts) == 0 || width < MinLabelWithCount+ansi.StringWidth(count) {
 		return width, ""
 	}
-	return width - 1 - CountColWidth, FormatCountSuffix(counts[name])
+	return width - ansi.StringWidth(count), count
 }
 
 // Pluralize returns singular when n == 1, plural otherwise.

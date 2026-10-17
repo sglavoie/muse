@@ -1,7 +1,6 @@
 package tags
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
@@ -217,10 +216,10 @@ func (v View) renderUnfilledTrackRow(r trackRow, title string) string {
 
 func renderTagLabel(dot, name string, count, width int) string {
 	prefix := dot + " "
-	suffix := fmt.Sprintf(" (%d)", count)
+	suffix := " " + text.FormatCount(count) + " " + text.Pluralize(count, "track", "tracks")
 	fixedWidth := ansi.StringWidth(prefix) + ansi.StringWidth(suffix)
 	if fixedWidth <= width {
-		return text.Pad(prefix+text.Truncate(name, width-fixedWidth)+suffix, width)
+		return prefix + text.Pad(name, width-fixedWidth) + suffix
 	}
 	return text.Pad(prefix+name+suffix, width)
 }

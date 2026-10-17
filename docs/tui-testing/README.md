@@ -209,6 +209,8 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `navigation-context.json` | `rich` | Numbered navigation and filtered collection return paths at compact and ordinary widths. |
+| `playback-mode-labels.json` | `playback` | Playback mode state is readable in plain text at 60×15 and 100×30. |
 | `compact-dialog-controls.json` | `rich` | Essential Settings/Auto-DJ hints, Settings tab aliases, and scrolling at 60×15. |
 | `collection-focus-and-hints.json` | `rich` | Shared collection focus markers, short album labels, and contextual enqueue/selection hints. |
 | `picker-focus.json` | `rich` | Textual focus in destination, tag, favorite-target, and command pickers. |

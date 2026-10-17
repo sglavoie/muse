@@ -1,6 +1,10 @@
 package statusbar
 
 import (
+	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/styles"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,5 +61,54 @@ func TestUndoBannerIdentityAndLifetime(t *testing.T) {
 	s.UndoExpiresAt = time.Time{}
 	if got := s.TopNotification().Msg; got != "" {
 		t.Fatalf("completed undo resurfaced: %q", got)
+	}
+}
+
+func TestFailureOutranksConfirmationAndRemainsDiscoverable(t *testing.T) {
+	s := StatusBar{Title: "Recognizable song", PlaybackState: playback.StatePlaying, Elapsed: "0:10", Total: "3:00"}
+	s.NotifyError("Save failed: " + strings.Repeat("very long path/", 20))
+	s.Notify("Added a track")
+	if s.TopNotification().Severity != SeverityError {
+		t.Fatal("success displaced failure")
+	}
+	out := ansi.Strip(s.Render(60, styles.NewStyles(true)))
+	if !strings.Contains(out, "Recognizable") || !strings.Contains(out, "0:10 / 3:00") || !strings.Contains(out, "! errors") {
+		t.Fatalf("notice hid playback or recovery: %s", out)
+	}
+	for i := range s.Notifications {
+		s.Notifications[i].ExpiresAt = time.Now().Add(-time.Second)
+	}
+	s.PruneNotifications()
+	if !s.hasUnreadErrors {
+		t.Fatal("expiry acknowledged error")
+	}
+	s.MarkMessagesRead()
+	if s.hasUnreadErrors || len(s.RecentMessages()) != 2 {
+		t.Fatal("inspection must acknowledge without deleting history")
+	}
+}
+
+func TestPlaybackIdentityAndModesSurviveLongNotification(t *testing.T) {
+	s := StatusBar{Title: "Recognizable song", Artist: strings.Repeat("Artist ", 30), Album: strings.Repeat("Album ", 30), PlaylistSource: strings.Repeat("Playlist ", 30), QueuePosition: "999 of 1000", BucketLabel: strings.Repeat("Bucket ", 30), PlaybackState: playback.StatePlaying, RepeatMode: playback.RepeatAll, Shuffle: true, StopAfterCurrent: true, RadioMode: true, Elapsed: "0:10", Total: "3:00"}
+	s.NotifyError(strings.Repeat("Failure ", 40))
+	for _, width := range []int{60, 80, 100, 160} {
+		screen := ansi.Strip(s.Render(width, styles.NewStyles(true)))
+		for _, want := range []string{"Recogniz", "0:10 / 3:00", "! errors"} {
+			if !strings.Contains(screen, want) {
+				t.Fatalf("width %d missing %q: %s", width, want, screen)
+			}
+		}
+		wantModes := "Rpt:all Shuf Stop DJ"
+		if width == 160 {
+			wantModes = "Repeat all · Shuffle · Stop after track · Auto-DJ"
+		}
+		if !strings.Contains(screen, wantModes) {
+			t.Fatalf("width %d hid modes: %s", width, screen)
+		}
+		for _, line := range strings.Split(screen, "\n") {
+			if ansi.StringWidth(line) > width {
+				t.Fatalf("overflow at %d: %s", width, line)
+			}
+		}
 	}
 }

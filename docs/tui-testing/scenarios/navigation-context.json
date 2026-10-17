@@ -1,0 +1,27 @@
+{
+ "name":"navigation-context",
+ "fixture":"rich",
+ "size":"60x15",
+ "actions":[
+  {"assert":{"contains":"1 Lib"}},
+  {"assert":{"contains":"8 Ins"}},
+  {"key":"4"}, {"key":"/"}, {"text":"Bob"}, {"key":"enter"},
+  {"assert":{"contains":"1/3 artists"}},
+  {"assert":{"contains":"8 Ins"}},
+  {"key":"enter"}, {"assert":{"contains":"Artists › Bob"}},
+  {"key":"esc"}, {"assert":{"contains":"filter \"Bob\""}},
+  {"assert":{"contains":"▎ ★ Bob"}},
+  {"assert":{"not_contains":"★ Alice"}},
+  {"resize":"100x30"},
+  {"assert":{"contains":"8 Insights"}},
+  {"key":"esc"}, {"assert":{"contains":"▎ ★ Bob"}},
+  {"assert":{"contains":"★ Alice"}},
+  {"key":"2"}, {"key":"/"}, {"text":"Evening"}, {"key":"enter"},
+  {"key":"enter"}, {"wait":"100ms"}, {"key":"esc"},
+  {"assert":{"contains":"Evening"}}, {"assert":{"not_contains":"Focus"}},
+  {"key":"6"}, {"key":"/"}, {"text":"focus"}, {"key":"enter"},
+  {"key":"enter"}, {"wait":"100ms"}, {"key":"esc"},
+  {"assert":{"contains":"focus"}}, {"assert":{"not_contains":"chill"}},
+  {"assert":{"no_layout_issues":true}}
+ ]
+}

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Collection drill-downs restore the parent's filter, sort, focused item, and
+  scroll position on return, including after resizing or a library refresh.
+- All eight numbered navigation shortcuts remain visible at supported widths;
+  filter badges occupy the divider without moving tabs.
+- Playback modes use readable active-state labels with compact text variants.
+- Errors outrank routine confirmations and retain an unread history indicator.
+  Long banners leave room for playback; Recent Messages wraps at word boundaries.
+- Track tables put Title before Artist with consistent spacing and width
+  priorities. Collection counts explicitly label tracks, artists, and albums.
+
+
 - Settings and Auto-DJ keep commit and exit hints visible in compact windows,
   dropping secondary hints as whole pairs. All Settings tabs and long directory
   lists scroll to keep the focused row and footer visible.

@@ -1,8 +1,8 @@
 package playlists
 
 const (
-	countFixed = 7 // "(smart)" — enough for the widest built-in count label
-	nameSep    = 2 // two spaces between name and count columns
+	countFixed = 14 // labeled track count, including comma separators
+	nameSep    = 2  // two spaces between name and count columns
 
 	trackMarkerFixed   = 2  // '●' glyph + separator space
 	trackPosFixed      = 5  // "9999 " — supports up to 4-digit track numbers
@@ -18,7 +18,7 @@ const (
 // Columns holds computed character widths for the playlist list columns.
 type Columns struct {
 	Name  int // flexible: fills remaining width after fixed columns
-	Count int // fixed: countFixed chars for "(n)" display
+	Count int // fixed: countFixed chars for labeled track counts
 }
 
 // Compute calculates column widths for the given total terminal width.
@@ -46,8 +46,8 @@ type TrackColumns struct {
 
 // ComputeTrack calculates column widths for the track-level view given the
 // total terminal width. Position and Duration receive fixed allocations; the
-// remaining width is split 56:44 between Title and Artist so the overall
-// proportions land near 45% / 35% of the total. Title absorbs any rounding
+// remaining width is split 40:35:25 between Title, Artist, and Album.
+// Compact tables omit Album and split Title/Artist 60:40. Title absorbs rounding
 // remainder. When the terminal is too narrow, Title is clamped to 1 and
 // Artist to 0.
 func ComputeTrack(totalWidth int) TrackColumns {

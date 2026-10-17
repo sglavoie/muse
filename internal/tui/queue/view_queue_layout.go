@@ -17,7 +17,7 @@ type queueColumns struct {
 func computeQueueColumns(totalWidth int, hasSource bool) queueColumns {
 	const (
 		markerWidth = 2
-		posWidth    = 4
+		posWidth    = 5
 		durWidth    = 10
 	)
 	cols := queueColumns{Position: posWidth, Duration: durWidth}
@@ -28,10 +28,10 @@ func computeQueueColumns(totalWidth int, hasSource bool) queueColumns {
 	}
 
 	sepCount := 4
-	weights := []int{40, 20, 20}
+	weights := []int{40, 35, 25}
 	if hasSource {
 		sepCount = 5
-		weights = []int{30, 20, 20, 10}
+		weights = []int{40, 35, 25, 15}
 	}
 
 	available := totalWidth - markerWidth - sepCount
@@ -73,13 +73,8 @@ func distributeQueueFlex(total int, weights []int) []int {
 	if total <= 0 || len(weights) == 0 {
 		return widths
 	}
-	if total >= len(widths) {
-		for i := range widths {
-			widths[i] = 1
-		}
-		total -= len(widths)
-	} else {
-		for i := 0; i < total && i < len(widths); i++ {
+	if total < len(widths) {
+		for i := 0; i < total; i++ {
 			widths[i] = 1
 		}
 		return widths
@@ -89,15 +84,13 @@ func distributeQueueFlex(total int, weights []int) []int {
 	for _, w := range weights {
 		weightTotal += w
 	}
+	// Title takes the rounding remainder, matching the other track tables.
 	assigned := 0
-	for i, w := range weights {
-		add := total * w / weightTotal
-		widths[i] += add
-		assigned += add
+	for i := 1; i < len(weights); i++ {
+		widths[i] = max(1, total*weights[i]/weightTotal)
+		assigned += widths[i]
 	}
-	for remaining := total - assigned; remaining > 0; remaining-- {
-		widths[0]++
-	}
+	widths[0] = total - assigned
 	return widths
 }
 

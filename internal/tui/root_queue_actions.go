@@ -29,6 +29,7 @@ func (m Model) handleUndo() Model {
 		m.statusBar.NotifyError("Undo failed: " + err.Error())
 		return m
 	}
+	m.statusBar.DismissErrorNotifications("Undo failed:")
 	m.retireUndoCleanup()
 	m = exitVisualMode(m)
 	m = m.resetAllSorts()

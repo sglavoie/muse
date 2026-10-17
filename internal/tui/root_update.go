@@ -15,6 +15,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.sortPreferenceKey() != updated.sortPreferenceKey() {
 		updated = updated.restoreSortPreference()
 	}
+	updated = updated.restoreNavigationParents(m)
 	updated, flushCmd := updated.drainListenFlushes()
 	updated = updated.publishControlState()
 	if flushCmd == nil {

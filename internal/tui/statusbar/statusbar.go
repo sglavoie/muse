@@ -8,12 +8,13 @@ import (
 
 // StatusBar manages the persistent status bar at the bottom of the screen.
 type StatusBar struct {
-	ConfigCreated bool
-	ConfigPath    string
-	WatchDegraded bool
-	Notifications []TransientNotification
-	history       []Message
-	TransientDur  time.Duration // configurable notification duration
+	ConfigCreated   bool
+	ConfigPath      string
+	WatchDegraded   bool
+	Notifications   []TransientNotification
+	history         []Message
+	hasUnreadErrors bool
+	TransientDur    time.Duration // configurable notification duration
 
 	// UndoExpiresAt identifies the active undo prompt; zero hides past prompts.
 	UndoExpiresAt time.Time

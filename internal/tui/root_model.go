@@ -316,6 +316,7 @@ type Model struct {
 	filterHistorySaveFailed bool     // suppress repeated save warnings until recovery
 	filterHistory           []string // recent committed queries, shared across view filters
 	sortPreferences         map[string]sorting.SortState
+	navigationParents       map[string]navigationParent
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after

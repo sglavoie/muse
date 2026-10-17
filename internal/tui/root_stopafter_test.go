@@ -153,17 +153,14 @@ func TestStopAfterCurrentStatusBarIndicator(t *testing.T) {
 		StopAfterCurrent: true,
 	}
 	out := sb.Render(0, styles.Styles{})
-	if !strings.Contains(out, "N") {
-		t.Errorf("expected 'N' indicator in status bar, got %q", out)
+	if !strings.Contains(out, "Stop after track") {
+		t.Errorf("expected stop-after label in status bar, got %q", out)
 	}
 
-	// Without the flag, "N" should not appear as an indicator.
+	// Without the flag, "Stop after track" should not appear as an indicator.
 	sb.StopAfterCurrent = false
 	out = sb.Render(0, styles.Styles{})
-	// The letters "N" could appear in artist/title, so check more specifically
-	// by verifying the bold "  N" pattern is absent. Since render uses styled
-	// output, we just verify the flag-on case differs from flag-off.
-	if strings.Contains(out, "  N") {
-		t.Errorf("did not expect '  N' in status bar when flag is off, got %q", out)
+	if strings.Contains(out, "Stop after track") || !strings.Contains(out, "Sequential") {
+		t.Errorf("inactive stop-after state is unclear: %q", out)
 	}
 }

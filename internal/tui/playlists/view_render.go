@@ -80,16 +80,16 @@ func (v View) renderEmptyList() string {
 }
 
 // renderPlaylistRow renders one name+count row. Smart playlists show a ⚡ glyph
-// and either the evaluated track count (once known) or "(smart)" as a
+// and either the evaluated track count (once known) or "calculating…" as a
 // placeholder — TrackCount < 0 means the background evaluation has not yet
 // returned.
 func (v View) renderPlaylistRow(p db.PlaylistRow, cols Columns, isFocused bool) string {
 	name := text.Pad(p.Name, cols.Name-2)
-	count := text.PadLeft(fmt.Sprintf("(%d)", p.TrackCount), cols.Count)
+	count := text.PadLeft(text.FormatCount(p.TrackCount)+" "+text.Pluralize(p.TrackCount, "track", "tracks"), cols.Count)
 	if p.IsSmart {
 		name = text.Pad("⚡ "+p.Name, cols.Name-2)
 		if p.TrackCount < 0 {
-			count = text.PadLeft("(smart)", cols.Count)
+			count = text.PadLeft("calculating…", cols.Count)
 		}
 	}
 	line := text.FocusMarker(isFocused) + name + "  " + count

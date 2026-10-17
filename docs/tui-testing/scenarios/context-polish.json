@@ -29,6 +29,9 @@
     {"assert": {"contains": "Bob – Track G1"}},
     {"assert": {"no_layout_issues": true}},
     {"key": "enter"},
+    {"key": ":"},
+    {"text": "Show recent messages"},
+    {"key": "enter"},
     {"assert": {"contains": "blocked in fixture mode"}}
   ]
 }

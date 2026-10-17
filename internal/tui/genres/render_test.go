@@ -40,7 +40,7 @@ func TestRenderGenresCountDropsAtNarrowWidth(t *testing.T) {
 	}
 }
 
-func TestRenderGenresZeroCountHidden(t *testing.T) {
+func TestRenderGenresZeroCountLabeled(t *testing.T) {
 	v := View{
 		Level:       GenreLevel,
 		Width:       80,
@@ -49,8 +49,8 @@ func TestRenderGenresZeroCountHidden(t *testing.T) {
 	}
 	out := v.Render()
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "MysteryGenre") && strings.Contains(line, "0") {
-			t.Errorf("expected zero-count to render blank, got line: %q", line)
+		if strings.Contains(line, "MysteryGenre") && !strings.Contains(line, "0 tracks") {
+			t.Errorf("expected zero-count to be labeled, got line: %q", line)
 		}
 	}
 }

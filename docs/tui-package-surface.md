@@ -132,9 +132,9 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 159 | 41 | 117 | 1 | `tui` + 11 view packages |
-| `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
+| `tui/playback` | 61 | 40 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 118 | 34 | 83 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
+| `tui/statusbar` | 64 | 1 | 60 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 16 | 0 | 15 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1052 exported identifiers across 15 packages**: 161 reached from two or more packages, 831 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1054 exported identifiers across 15 packages**: 162 reached from two or more packages, 832 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -492,10 +492,10 @@ export must either earn a justification, be recorded in
 | `tui/playback` | `ModeIndexStopAfter` | const | `internal/tui` | root |
 | `tui/playback` | `ModeIndicator` | type | — | api |
 | `tui/playback` | `ModeIndicator.Active` | field | `tui/overlay`, `tui/statusbar` | multi |
-| `tui/playback` | `ModeIndicator.Glyph` | field | `internal/tui`, `tui/overlay`, `tui/statusbar` | multi |
+| `tui/playback` | `ModeIndicator.Glyph` | field | `internal/tui`, `tui/overlay` | multi |
 | `tui/playback` | `ModeIndicator.Key` | field | `tui/overlay`, `tui/statusbar†` | multi |
 | `tui/playback` | `ModeIndicator.Name` | field | `tui/overlay`, `tui/statusbar†` | multi |
-| `tui/playback` | `ModeIndicator.State` | field | `internal/tui`, `tui/overlay`, `tui/statusbar†` | multi |
+| `tui/playback` | `ModeIndicator.State` | field | `internal/tui`, `tui/overlay` | multi |
 | `tui/playback` | `ModeIndicators` | func | `internal/tui`, `tui/overlay`, `tui/statusbar` | multi |
 | `tui/playback` | `ModeState` | func | `internal/tui` | root |
 | `tui/playback` | `PauseChangedMsg` | type | `internal/tui`, `main` | multi |
@@ -524,7 +524,7 @@ export must either earn a justification, be recorded in
 | `tui/playback` | `RemoteActionMsg.ActionName` | field | `internal/tui`, `main` | multi |
 | `tui/playback` | `RepeatAll` | const | `internal/app`, `internal/tui`, `tui/overlay†`, `tui/statusbar†` | multi |
 | `tui/playback` | `RepeatMode` | type | `internal/app`, `internal/tui`, `tui/overlay`, `tui/statusbar` | multi |
-| `tui/playback` | `RepeatMode.DisplayString` | method | `internal/tui` | root |
+| `tui/playback` | `RepeatMode.DisplayString` | method | `internal/tui`, `tui/statusbar` | multi |
 | `tui/playback` | `RepeatMode.String` | method | `internal/app`, `internal/tui` | multi |
 | `tui/playback` | `RepeatOff` | const | `internal/app`, `internal/tui`, `tui/overlay†`, `tui/statusbar†` | multi |
 | `tui/playback` | `RepeatOne` | const | `internal/app`, `internal/tui`, `tui/overlay†`, `tui/statusbar†` | multi |
@@ -680,11 +680,13 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.ClearScanProgress` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.ConfigCreated` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.ConfigPath` | field | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.DismissErrorNotifications` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Elapsed` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.ElapsedSecs` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.HandleMissingTrack` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.HandleScanProgress` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.LongOp` | field | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.MarkMessagesRead` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.NextFadeAt` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Notifications` | field | `internal/tui†` | root (tests only) |
 | `tui/statusbar` | `StatusBar.Notify` | method | `internal/tui` | root |

@@ -40,13 +40,13 @@ func TestRenderListShowsNameAndCount(t *testing.T) {
 	if !strings.Contains(out, "Chill") {
 		t.Errorf("expected 'Chill' in output, got:\n%s", out)
 	}
-	if !strings.Contains(out, "(5)") {
+	if !strings.Contains(out, "5 tracks") {
 		t.Errorf("expected '(5)' in output, got:\n%s", out)
 	}
 	if !strings.Contains(out, "Workout") {
 		t.Errorf("expected 'Workout' in output, got:\n%s", out)
 	}
-	if !strings.Contains(out, "(12)") {
+	if !strings.Contains(out, "12 tracks") {
 		t.Errorf("expected '(12)' in output, got:\n%s", out)
 	}
 }
@@ -75,7 +75,7 @@ func TestRenderListPendingSmartCountFitsWidth(t *testing.T) {
 	if got := ansi.StringWidth(line); got != width {
 		t.Fatalf("pending smart playlist row width = %d, want %d; line=%q", got, width, line)
 	}
-	if !strings.Contains(line, "(smart)") {
+	if !strings.Contains(line, "calculating…") {
 		t.Fatalf("expected full smart placeholder to fit, got %q", line)
 	}
 }

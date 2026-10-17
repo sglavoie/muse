@@ -248,6 +248,7 @@ func (v View) renderStateStrip(total, filtered int) string {
 		}
 	}
 	counts := strip.CountsChunk{
+		Unit:      []string{"albums", "tracks"}[v.Level],
 		Filtered:  filtered,
 		Total:     total,
 		Filtering: v.FilterText != "",

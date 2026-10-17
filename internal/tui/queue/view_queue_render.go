@@ -22,7 +22,9 @@ const queueMarkerWidth = 2
 
 // Render builds the queue panel string using a 6-column layout:
 //
-//	Position (~4 chars fixed) | Title (~30% of width) | Artist (~20% of width) | Album (~20% of width) | Source (~10% of width) | Duration (~10 chars fixed)
+//	Position | Title | Artist | Album | optional Source | Duration
+//
+// Identity columns share the Library proportions; compact tables omit Album and Source.
 //
 // Proportional columns resize on WindowSizeMsg; fixed-width columns are
 // constant. Missing entries are wrapped in ANSI dim escape codes so they

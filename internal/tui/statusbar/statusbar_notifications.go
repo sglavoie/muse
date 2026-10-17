@@ -28,7 +28,8 @@ type NotifPriority uint8
 
 const (
 	NotifInfo   NotifPriority = iota // scan progress, sort, volume, mode toggles
-	NotifNormal                      // action results, errors, undo prompts
+	NotifNormal                      // action results and undo prompts
+	notifError                       // failures outrank routine confirmations
 )
 
 // notificationFadeWindow is the trailing slice of a notification's lifetime
@@ -59,7 +60,7 @@ func (s *StatusBar) PushMsg(msg string, dur time.Duration, priority NotifPriorit
 }
 
 func (s *StatusBar) pushNotification(n TransientNotification) {
-	if n.priority == NotifNormal {
+	if n.priority >= NotifNormal {
 		s.rememberMessage(n.Msg, n.Severity)
 	}
 	const maxQueue = 5
@@ -165,11 +166,14 @@ func (s *StatusBar) Notify(msg string) {
 	s.PushMsg(msg, s.NotifyDuration(), NotifNormal)
 }
 
-// NotifyError records an error with the same lifetime and priority as action results.
+// NotifyError keeps failures ahead of routine confirmations until expiry.
 func (s *StatusBar) NotifyError(msg string) {
+	if msg != "" {
+		s.hasUnreadErrors = true
+	}
 	s.pushNotification(TransientNotification{
 		Msg: msg, ExpiresAt: time.Now().Add(s.NotifyDuration()),
-		priority: NotifNormal, Severity: SeverityError,
+		priority: notifError, Severity: SeverityError,
 	})
 }
 

@@ -24,7 +24,7 @@ func TestView2RendersPlaylistsNameAndCount(t *testing.T) {
 	nm = next.(Model)
 
 	v := nm.View()
-	for _, want := range []string{"Chill", "(3)", "Workout", "(8)"} {
+	for _, want := range []string{"Chill", "3 tracks", "Workout", "8 tracks"} {
 		if !strings.Contains(v.Content, want) {
 			t.Errorf("expected %q in view 2 output, got:\n%s", want, v.Content)
 		}
