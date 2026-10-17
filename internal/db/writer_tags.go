@@ -267,6 +267,9 @@ func (w *Writer) MergeTags(sourceID, destID int64) error {
 		}
 
 		// Re-point DJ settings and seed references in the same transaction.
+		if err := redirectSmartTag(tx, sourceID, destID); err != nil {
+			return err
+		}
 		if err := remapDJTagRefs(tx, sourceID, destID); err != nil {
 			return err
 		}

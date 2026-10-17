@@ -45,6 +45,7 @@ type SmartRuleEditor struct {
 	saving       bool
 	tags         []db.TagRow
 	tagPicker    *ruleTagPicker
+	ruleTagID    int64
 
 	step editorStep
 

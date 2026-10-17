@@ -75,7 +75,7 @@ func cpCommandRowBudget(termHeight int) int {
 	}
 	nonCommandLines := 9 // borders/title/filter/padding/hint around the command area.
 	if compactPalette(termHeight) {
-		nonCommandLines--
+		nonCommandLines = 6
 	}
 	return max(termHeight-nonCommandLines, 1)
 }

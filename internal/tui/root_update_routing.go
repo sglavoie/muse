@@ -8,6 +8,10 @@ import (
 func (m Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) Model {
 	m.termWidth = msg.Width
 	m.termHeight = msg.Height
+	if m.overlay.commandPalette != nil {
+		cp := m.overlay.commandPalette.WithHeight(max(msg.Height-3, 1))
+		m.overlay.commandPalette = &cp
+	}
 	m.setViewDimensions(msg.Width, msg.Height)
 	m.clampAllScrollOffsets()
 	if m.helpVisible {

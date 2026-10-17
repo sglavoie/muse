@@ -14,6 +14,14 @@ install:
 test:
     go test -race -count=1 ./...
 
+# Verify real mpv continuity, queue replacement and gapless advance (silent output)
+test-playback:
+    MUSE_REQUIRE_MPV=1 go test -race -count=1 -tags integration -run RealMPV -timeout 5m ./internal/player/
+
+# Measure typing, rendering and sorting at 10,000 and 100,000 tracks
+bench-ui:
+    go test ./internal/tui -run '^$' -bench '^BenchmarkLibraryInteraction$' -benchmem
+
 # Run tests with verbose output
 test-v:
     go test -race -count=1 -v ./...

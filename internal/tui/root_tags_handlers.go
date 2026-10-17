@@ -57,6 +57,7 @@ func (m Model) handleTagRenamed(msg tagRenamedMsg) Model {
 		}
 	}
 	m.tagNames[msg.id] = msg.name
+	m = m.remapSmartPlaylistTag(msg.id, db.TagRow{ID: msg.id, Name: msg.name})
 	m.statusBar.Notify("Tag renamed to " + msg.name)
 	return m
 }

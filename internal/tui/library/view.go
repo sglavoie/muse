@@ -87,7 +87,7 @@ func (v Panel) tracks() []musiclib.Track {
 	if v.OverrideTracks != nil {
 		return v.OverrideTracks
 	}
-	return v.Index.Tracks()
+	return v.Index.ReadOnlyTracks()
 }
 
 // filteredMatches returns the current fuzzy-match slice and whether a filter
@@ -105,6 +105,16 @@ func (v Panel) filteredMatches(allTracks []musiclib.Track) ([]musiclib.Match, bo
 }
 
 func validMatches(matches []musiclib.Match, trackCount int) []musiclib.Match {
+	allValid := true
+	for _, match := range matches {
+		if match.TrackIndex < 0 || match.TrackIndex >= trackCount {
+			allValid = false
+			break
+		}
+	}
+	if allValid {
+		return matches
+	}
 	valid := make([]musiclib.Match, 0, len(matches))
 	for _, match := range matches {
 		if match.TrackIndex < 0 || match.TrackIndex >= trackCount {
@@ -133,11 +143,11 @@ func (v Panel) effectiveTrackCount() int {
 func (v Panel) VisibleTracks() []musiclib.Track {
 	allTracks := v.tracks()
 	if v.Filter.Text == "" {
-		return allTracks
+		return append([]musiclib.Track(nil), allTracks...)
 	}
 	matches, ok := v.filteredMatches(allTracks)
 	if !ok {
-		return allTracks
+		return append([]musiclib.Track(nil), allTracks...)
 	}
 	out := make([]musiclib.Track, 0, len(matches))
 	for _, match := range matches {

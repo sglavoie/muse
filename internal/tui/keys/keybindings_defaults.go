@@ -314,7 +314,6 @@ func registerDefaultPrimaries(r *Registry) {
 	r.addPrimary(ContextMixes, "enter", "open")
 	r.addPrimary(ContextMixes, "E", "enqueue all")
 	r.addPrimary(ContextMixes, "A", "radio")
-	r.addPrimary(ContextMixes, "/", "filter")
 	r.addPrimary(ContextMixes, "?", "help")
 
 	r.addPrimary(ContextInsights, "j/k", "nav")

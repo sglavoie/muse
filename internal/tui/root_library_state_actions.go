@@ -24,7 +24,7 @@ func (m Model) syncRecentlyAddedFromLibrary() Model {
 	}
 	m.library.SourceTracks = m.library.Index.Tracks()
 	if m.library.Fuzzy == nil {
-		m.library.Fuzzy = library.SahilmFuzzySearcher{}
+		m.library.Fuzzy = &library.CachedFuzzySearcher{}
 	}
 	if m.library.SortState.Field == sorting.SortDefault {
 		m.library.SortState = sorting.SortState{Field: sorting.SortDateAdded, Dir: sorting.SortDesc}

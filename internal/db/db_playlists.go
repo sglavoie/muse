@@ -81,7 +81,21 @@ func (d *DB) ReadPlaylists() ([]PlaylistRow, error) {
 		row.IsSmart = isSmart != 0
 		result = append(result, row)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	for i := range result {
+		if !result[i].IsSmart {
+			continue
+		}
+		// Keep broken queries editable, while presenting current tag names and
+		// canonical merge destinations for healthy rules.
+		if bound, err := bindSmartQuery(d, result[i].Query); err == nil {
+			result[i].Query = bound
+		}
+	}
+	return result, nil
 }
 
 // ReadPlaylistTracks returns all tracks for the given playlist ID ordered by

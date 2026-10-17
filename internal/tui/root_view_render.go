@@ -39,7 +39,12 @@ func (m Model) View() tea.View {
 		hintExtra = 1
 	}
 	if padding := m.termHeight - bodyLines - 2 - confirmExtra - hintExtra; padding > 0 {
-		body += strings.Repeat("\n", padding)
+		detail := m.renderFocusedIdentity()
+		if detail != "" && padding >= 3 {
+			body += strings.Repeat("\n", padding-2) + "\n" + detail
+		} else {
+			body += strings.Repeat("\n", padding)
+		}
 	}
 
 	content := body + "\n" + statusBar
@@ -246,7 +251,8 @@ func (m Model) renderFooterHint() string {
 		m.footerEnqueuesFocusedTrack():
 		mode = keys.HintModeTracks
 	}
-	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles)
+	_, _, _, track := m.focusedTrackForPalette()
+	hint := keys.RenderFooterHints(m.termWidth, m.activeViewContext(), mode, m.registry, *m.styles, track && mode != keys.HintModeFilter && mode != keys.HintModeVisual)
 	if mode == keys.HintModeFilter {
 		summary := m.filterQuerySummary()
 		room := m.termWidth - ansi.StringWidth(hint) - 3

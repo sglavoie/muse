@@ -33,12 +33,16 @@ func (e SmartRuleEditor) requestClose() (SmartRuleEditor, Action, tea.Cmd) {
 }
 
 func (e SmartRuleEditor) draftRule() db.SmartRule {
-	return db.SmartRule{Field: e.currentField(), Operator: e.currentOp(), Value: e.ruleValueInput.Value()}
+	rule := db.SmartRule{Field: e.currentField(), Operator: e.currentOp(), Value: e.ruleValueInput.Value()}
+	if rule.Field == db.FieldTag {
+		rule.TagID = e.ruleTagID
+	}
+	return rule
 }
 
 func (e SmartRuleEditor) cancelRule() (SmartRuleEditor, Action, tea.Cmd) {
 	draft := e.draftRule()
-	if draft.Field != e.initialRule.Field || draft.Operator != e.initialRule.Operator || draft.Value != e.initialRule.Value {
+	if draft.Field != e.initialRule.Field || draft.Operator != e.initialRule.Operator || draft.Value != e.initialRule.Value || draft.TagID != e.initialRule.TagID {
 		e.discard = overlay.DiscardPrompt{Active: true}
 		e.discardRule = true
 	} else {

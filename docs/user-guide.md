@@ -39,6 +39,17 @@ so tabs stay in place. Track tables put Title before Artist, followed by Album
 and Duration when applicable; compact tables give song identity priority over
 album detail. Collection counts name their units, such as `3 tracks`.
 
+Compact command palettes show six commands at the minimum terminal size. With
+an empty search, enabled commands for the current view come first; Help and Quit
+move to `F1` and `ctrl+c` footer shortcuts. Both remain searchable. Resizing keeps
+the focused command, and unavailable commands retain their explanations.
+
+Compact footers prioritize the primary action, back/cancel, track information,
+and filtering. `i` opens full track information from track lists. When a table
+leaves enough space in a window at least 24 rows tall, a two-line area above the
+footer shows the focused song's title, artist, and album independently of playback.
+It uses spare space without reducing the number of visible tracks.
+
 **Playback**
 
 The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
@@ -213,7 +224,11 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
   accepts seconds, `m:ss`, or `h:mm:ss`; favorites offer Yes/No, and Tag rules
   offer a searchable picker of existing tags with equals/not-equals matching.
   Type to search tags (including spaces), use Up/Down to move, and Enter to
-  choose. Tag rules store the tag name, so update the rule after renaming a tag.
+  choose. Tag rules keep a stable tag identity: renaming preserves membership, and merging
+  follows the destination tag, including drafts saved after the merge. Existing
+  rules are migrated automatically. Deleting a referenced tag reports a repair
+  message; undo the deletion or edit the rule to choose a replacement. A new tag
+  with the same name does not silently replace the deleted one.
   Failed saves keep the draft open for correction or retry; repeated Enter
   presses during a pending save do not create duplicate playlists.
 - Open playlists show their total entry count and duration, including repeated

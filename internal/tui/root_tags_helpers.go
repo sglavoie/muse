@@ -209,6 +209,10 @@ func (m Model) hasTag(id int64) bool {
 // reporting as unresolved rather than keep planning against a stale answer.
 func (m Model) rebuildTagCache(tags []db.TagRow) Model {
 	m.tags = tags
+	if m.overlay.smartRuleEditor != nil {
+		editor := m.overlay.smartRuleEditor.WithTags(tags)
+		m.overlay.smartRuleEditor = &editor
+	}
 	m.tagCacheErr = nil
 	m.tagNames = make(map[int64]string, len(tags))
 	m.tagColors = make(map[int64]string, len(tags))

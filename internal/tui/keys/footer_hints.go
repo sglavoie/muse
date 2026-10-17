@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -33,13 +34,18 @@ const footerHintSep = " · "
 // which is kept while the pairs before it are dropped: help is where every
 // dropped hint can still be found. Any partially-rendered pair is elided with
 // "…" so the strip never wraps.
-func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styles.Styles) string {
+func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styles.Styles, trackDetails ...bool) string {
 	if width <= 0 {
 		return ""
 	}
 	hints := r.primaryHintsForMode(ctx, mode)
 	if len(hints) == 0 {
 		return ""
+	}
+	if len(trackDetails) > 0 && trackDetails[0] {
+		hints = slices.Clone(hints)
+		at := len(hints) - 1
+		hints = slices.Insert(hints, at, primaryHint{Key: "i", Label: "info"})
 	}
 
 	const leading = "  "
@@ -50,6 +56,11 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 
 	styled, rendered := renderHintsWithinBudget(hints, avail, s)
 	if rendered < len(hints) {
+		hints = slices.Clone(hints)
+		slices.SortStableFunc(hints, func(a, b primaryHint) int {
+			return hintPriority(a) - hintPriority(b)
+		})
+		styled, rendered = renderHintsWithinBudget(hints, avail, s)
 		if kept, ok := renderHintsKeepingHelp(hints, avail, s); ok {
 			styled, rendered = kept, 1
 		}
@@ -60,6 +71,25 @@ func RenderFooterHints(width int, ctx Context, mode HintMode, r Registry, s styl
 		styled = renderTruncatedHint(truncated, hints[0].Key, s)
 	}
 	return leading + styled
+}
+
+// Essential actions survive compact windows before navigation reminders and
+// secondary operations. Full-width hints retain their familiar ordering.
+func hintPriority(h primaryHint) int {
+	switch h.Key {
+	case "enter", "e":
+		return 0
+	case "esc":
+		return 1
+	case "i":
+		return 2
+	case "/":
+		return 3
+	case "?":
+		return 5
+	default:
+		return 4
+	}
 }
 
 // renderHintsWithinBudget styles as many separated hint pairs as fit in avail

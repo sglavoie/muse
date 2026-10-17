@@ -2,7 +2,6 @@ package sorting
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -109,11 +108,10 @@ func isUnknownValue(s string) bool {
 	if s == "" {
 		return true
 	}
-	lower := strings.ToLower(s)
-	return lower == "unknown artist" ||
-		lower == "(unknown artist)" ||
-		lower == "(unknown album)" ||
-		lower == "(unknown genre)"
+	return library.CompareFolded(s, "unknown artist") == 0 ||
+		library.CompareFolded(s, "(unknown artist)") == 0 ||
+		library.CompareFolded(s, "(unknown album)") == 0 ||
+		library.CompareFolded(s, "(unknown genre)") == 0
 }
 
 // SortTracks returns a sorted copy of tracks by the given field and direction.
@@ -332,12 +330,11 @@ func CompareStringsUnknownLast(a, b string, dir SortDir) bool {
 	if aUnknown && bUnknown {
 		return false // stable
 	}
-	aLower := strings.ToLower(a)
-	bLower := strings.ToLower(b)
+	comparison := library.CompareFolded(a, b)
 	if dir == SortAsc {
-		return aLower < bLower
+		return comparison < 0
 	}
-	return aLower > bLower
+	return comparison > 0
 }
 
 func albumSortLabel(value string) string {

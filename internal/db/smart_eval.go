@@ -9,6 +9,17 @@ import (
 // returns the matching tracks in the requested order. ID and Position fields in
 // the returned rows are always 0 (smart playlists have no playlist_tracks rows).
 func (d *DB) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error) {
+	// Resolve dependencies and evaluate within one snapshot. A concurrent tag
+	// deletion must not broaden a NOT rule between validation and selection.
+	tx, err := d.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer rollback(tx)
+	q.Root, err = resolveSmartTags(tx, q.Root)
+	if err != nil {
+		return nil, err
+	}
 	var sb strings.Builder
 	var args []any
 
@@ -32,7 +43,7 @@ func (d *DB) EvalSmartPlaylist(q SmartPlaylistQuery) ([]PlaylistTrackRow, error)
 		args = append(args, q.MaxTracks)
 	}
 
-	rows, err := d.Query(sb.String(), args...)
+	rows, err := tx.Query(sb.String(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("db: eval smart playlist: %w", err)
 	}
@@ -132,13 +143,13 @@ func buildLeaf(sb *strings.Builder, args *[]any, rule SmartRule) error {
 	case FieldTag:
 		// OpEquals: track has the tag with the given name.
 		// OpNotEquals: track does NOT have the tag with the given name.
-		const subq = "EXISTS (SELECT 1 FROM track_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.track_hash = t.hash AND tg.name = ? AND tg.deleted_at IS NULL)"
+		const subq = "EXISTS (SELECT 1 FROM track_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.track_hash = t.hash AND tg.id = ? AND tg.deleted_at IS NULL)"
 		if rule.Operator == OpNotEquals {
 			sb.WriteString("NOT " + subq)
 		} else {
 			sb.WriteString(subq)
 		}
-		*args = append(*args, rule.Value)
+		*args = append(*args, rule.TagID)
 		return nil
 
 	default:

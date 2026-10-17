@@ -4,6 +4,20 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  playback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Install mpv
+        run: sudo apt-get update && sudo apt-get install -y mpv
+      - name: Verify real playback continuity
+        env:
+          MUSE_REQUIRE_MPV: "1"
+        run: go test -race -count=1 -tags integration -run RealMPV -timeout 5m ./internal/player/
   test:
     runs-on: ubuntu-latest
     steps:

@@ -118,6 +118,7 @@ func (m Model) handleTagMerged(msg tagMergedMsg) (Model, tea.Cmd) {
 		m.tagsView.TagCounts = counts
 	}
 	m.tagsView = m.tagsView.ClampCursor()
+	m = m.remapSmartPlaylistTag(msg.src.ID, msg.dest)
 	m.statusBar.Notify(
 		fmt.Sprintf("Merged %q into %q", msg.src.Name, msg.dest.Name))
 	return m, nil

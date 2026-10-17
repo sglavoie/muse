@@ -141,6 +141,7 @@ func TestDisabledCommandExplanationFollowsFocus(t *testing.T) {
 		{Name: "Show help"},
 	}, nil)
 	s := styles.NewStyles(true)
+	cp.cursor = 1 // unavailable commands follow enabled commands
 	for _, size := range [][2]int{{60, 12}, {100, 27}} {
 		out := ansi.Strip(cp.Render(size[0], size[1], s))
 		if !strings.Contains(out, "Queue is empty") {
@@ -158,7 +159,7 @@ func TestDisabledCommandExplanationFollowsFocus(t *testing.T) {
 		if cmd := cp.runFocused(); cmd != nil {
 			t.Fatal("disabled command executed")
 		}
-		moved := cp.nextCommand()
+		moved := cp.prevCommand()
 		if strings.Contains(ansi.Strip(moved.Render(size[0], size[1], s)), "Queue is empty") {
 			t.Fatal("stale reason shown for enabled command")
 		}

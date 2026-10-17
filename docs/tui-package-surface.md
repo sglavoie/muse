@@ -136,7 +136,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/overlay` | 118 | 34 | 83 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 64 | 1 | 60 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
-| `tui/smartrules` | 16 | 0 | 15 | 1 | `tui` |
+| `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
 | `tui/queue` | 79 | 18 | 60 | 1 | `tui`, `internal/app` |
 | `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1054 exported identifiers across 15 packages**: 162 reached from two or more packages, 832 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1055 exported identifiers across 15 packages**: 162 reached from two or more packages, 833 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -769,6 +769,7 @@ export must either earn a justification, be recorded in
 | `tui/smartrules` | `SmartRuleEditor.HandleKey` | method | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.IsEdit` | field | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.Name` | method | `internal/tui` | root |
+| `tui/smartrules` | `SmartRuleEditor.RemapTag` | method | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.Render` | method | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.SaveFailed` | method | `internal/tui` | root |
 | `tui/smartrules` | `SmartRuleEditor.Submit` | method | `internal/tui` | root |

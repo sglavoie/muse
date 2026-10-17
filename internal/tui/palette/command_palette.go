@@ -2,6 +2,7 @@ package palette
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -35,6 +36,7 @@ type PaletteCommand struct {
 	DisabledReason string      // recovery hint shown when the focused command is unavailable
 	Detail         string      // explanatory text shown when the command is focused
 	CurrentState   string      // setting shown in the detail line when focused
+	Relevant       bool        // belongs to the current view; boosts the empty-query list
 }
 
 // Key returns the stable key used to identify the command in the usage store.
@@ -68,6 +70,34 @@ type CommandPalette struct {
 	usage     *UsageStore
 	lastQuery string // trimmed query from previous refilter; used to reset cursor on query change
 	hasQuery  bool   // true once a refilter has run (distinguishes initial state from "" query change)
+	compact   bool
+	keepPin   string // preserve a focused Help/Quit row when shrinking a tall palette
+}
+
+// WithHeight adapts the palette without moving focus to a different command.
+func (cp CommandPalette) WithHeight(height int) CommandPalette {
+	compact := compactPalette(height)
+	if cp.compact == compact {
+		return cp
+	}
+	focused := ""
+	if cp.cursor < len(cp.Filtered) {
+		focused = cp.Filtered[cp.cursor].Key()
+	}
+	cp.compact = compact
+	cp.keepPin = ""
+	if compact && cp.cursor < len(cp.Filtered) && cp.Filtered[cp.cursor].Pinned != PinNone {
+		cp.keepPin = focused
+	}
+	cp.Refilter()
+	cp.cursor = cp.topPins
+	for i, command := range cp.Filtered {
+		if command.Key() == focused {
+			cp.cursor = i
+			break
+		}
+	}
+	return cp
 }
 
 // NewCommandPalette creates a CommandPalette with the given commands. When
@@ -83,6 +113,7 @@ func NewCommandPalette(commands []PaletteCommand, usage *UsageStore) (CommandPal
 	var cmd tea.Cmd
 	cp.Filter, cmd = filter.New().Activate()
 	cp.Refilter()
+	cp.cursor = cp.topPins
 	return cp, cmd
 }
 
@@ -95,7 +126,12 @@ func paletteCommandName(c PaletteCommand) string { return c.Name }
 
 // HandleKey processes a key press and returns the updated palette and optional Cmd.
 func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg, heights ...int) (CommandPalette, tea.Cmd) {
+	if len(heights) > 0 {
+		cp = cp.WithHeight(heights[0])
+	}
 	switch key {
+	case "f1":
+		return cp, cp.pickHelp()
 	case "esc":
 		return cp, func() tea.Msg { return CommandPaletteDismissedMsg{} }
 	case "enter":
@@ -105,17 +141,7 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg, heights ...i
 	case "down", "ctrl+j", "ctrl+n":
 		return cp.nextCommand(), nil
 	case "pgup", "pgdown":
-		height := 15
-		if len(heights) > 0 {
-			height = heights[0]
-		}
-		plan := cp.planRows(cpCommandRowBudget(height), strings.TrimSpace(cp.Filter.Text) == "")
-		step := max(plan.bodyBudget, 1)
-		if key == "pgup" {
-			step = -step
-		}
-		cp.cursor = clamp(cp.cursor+step, 0, max(len(cp.Filtered)-1, 0))
-		return cp, nil
+		return cp.page(key, heights), nil
 	default:
 		var cmd tea.Cmd
 		cp.Filter, cmd = cp.Filter.Update(msg)
@@ -164,22 +190,13 @@ func (cp CommandPalette) nextCommand() CommandPalette {
 func (cp *CommandPalette) Refilter() {
 	query := strings.TrimSpace(cp.Filter.Text)
 
-	var topPins, body, bottomPins []PaletteCommand
-	for _, c := range cp.all {
-		if query != "" {
-			body = append(body, c)
-			continue
-		}
-		switch c.Pinned {
-		case PinTop:
-			topPins = append(topPins, c)
-		case PinBottom:
-			bottomPins = append(bottomPins, c)
-		default:
-			body = append(body, c)
-		}
-	}
+	topPins, body, bottomPins := cp.commandGroups(query)
 	body = rank(body, query, paletteCommandID, paletteCommandName, func(c PaletteCommand) []string { return c.Aliases }, cp.usage)
+	if query == "" {
+		slices.SortStableFunc(body, func(a, b PaletteCommand) int {
+			return commandPriority(b) - commandPriority(a)
+		})
+	}
 
 	cp.topPins = len(topPins)
 	cp.bottomPin = len(bottomPins)
@@ -227,6 +244,7 @@ const (
 // palette. Only the height varies as the filter narrows the result list; the
 // box keeps its width and its position at the top of the screen.
 func (cp CommandPalette) Render(termWidth, termHeight int, s styles.Styles) string {
+	cp = cp.WithHeight(termHeight)
 	return overlay.RenderTopLines(cp.buildBoxLines(termWidth, termHeight, s), "", termWidth)
 }
 
@@ -246,6 +264,9 @@ type cpBoxMetrics struct {
 
 func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Styles) []string {
 	m := cp.boxMetrics(termWidth)
+	if compactPalette(termHeight) {
+		return cp.compactBoxLines(termWidth, termHeight, m, s)
+	}
 	padRow := cpBorderV + strings.Repeat(" ", m.innerWidth) + cpBorderV
 
 	lines := []string{
@@ -344,4 +365,29 @@ func (cp CommandPalette) titleLine(m cpBoxMetrics, s styles.Styles) string {
 	leftTP := titlePad / 2
 	return cpBorderV + strings.Repeat(" ", leftTP) + s.Heading.Render(displayTitle) +
 		strings.Repeat(" ", titlePad-leftTP) + cpBorderV
+}
+
+func (cp CommandPalette) commandGroups(query string) ([]PaletteCommand, []PaletteCommand, []PaletteCommand) {
+	var topPins, body, bottomPins []PaletteCommand
+	for _, c := range cp.all {
+		if query != "" {
+			body = append(body, c)
+			continue
+		}
+		if cp.compact && c.Pinned != PinNone {
+			if c.Key() == cp.keepPin {
+				body = append(body, c)
+			}
+			continue
+		}
+		switch c.Pinned {
+		case PinTop:
+			topPins = append(topPins, c)
+		case PinBottom:
+			bottomPins = append(bottomPins, c)
+		default:
+			body = append(body, c)
+		}
+	}
+	return topPins, body, bottomPins
 }

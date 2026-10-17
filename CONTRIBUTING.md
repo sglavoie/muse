@@ -41,6 +41,8 @@ Everything goes through `just`; there is no hidden setup step.
 | `just install` | `go install .` |
 | `just run [args]` | `go run . [args]` |
 | `just test` | `go test -race -count=1 ./...` |
+| `just test-playback` | real-mpv continuity tests with `-race`; mpv is required |
+| `just bench-ui` | typing, rendering, and sorting benchmarks at 10k and 100k tracks |
 | `just test-v` | the same, verbose |
 | `just test-pkg internal/tui` | tests for one package, verbose |
 | `just lint` | `go vet ./...` plus a pinned `golangci-lint run` |
@@ -63,6 +65,33 @@ an exact version in the `golangci_lint` variable at the top of the `justfile`,
 so everyone lints against the same rules. The CI lint job pins the same
 version, so a bump changes both: the `justfile` variable and the `version` of
 the lint step in `.github/workflows/ci.yml`.
+
+### Interactive performance and playback
+
+`just bench-ui` excludes fixture construction and measures an eight-character
+filter sequence (including each rendered frame), a single render, and a title
+sort. It uses deterministic synthetic libraries with accented titles. Run without
+`-race` for representative latency, and compare multiple samples on the same
+machine. These are diagnostic measurements, not wall-clock CI thresholds.
+
+A one-iteration sample on an Apple M2 Ultra during the polish pass showed:
+
+| 100,000 tracks | Before | After |
+| --- | ---: | ---: |
+| Eight-character filter sequence | 1.72 s | 345 ms |
+| Frame render | 14.0 ms | 2.0 ms |
+| Title sort | 335 ms | 137 ms |
+| Filter sequence allocations | 2.73 GB | 705 MB |
+
+The filter sample includes warming the normalization cache. Treat these numbers
+as an indicative local comparison, not a hardware-independent guarantee. Use
+`go test ./internal/tui -run '^$' -bench '^BenchmarkLibraryInteraction$' -benchmem -count=3`
+for repeated measurements.
+
+`just test-playback` runs the existing real-mpv integration tests against
+synthetic audio with null audio output. The dedicated CI playback job installs
+mpv and sets `MUSE_REQUIRE_MPV=1`, so a missing executable fails instead of
+skipping the checks. The standard unit suite remains independent of mpv.
 
 ### Pre-commit hook
 

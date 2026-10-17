@@ -40,6 +40,13 @@ func (idx *LibraryIndex) Tracks() []Track {
 	return tracks
 }
 
+// ReadOnlyTracks borrows the current index for immediate read-only UI work.
+// Do not modify or retain it across index mutations; use Tracks for a snapshot.
+func (idx *LibraryIndex) ReadOnlyTracks() []Track { return idx.tracks }
+
+// CompareFolded compares case-insensitively without allocating lowercase copies.
+func CompareFolded(a, b string) int { return foldCompare(a, b) }
+
 // IsUnknownArtist reports whether the artist field represents an unknown artist
 // (either the sentinel "Unknown Artist" or an empty string).
 func IsUnknownArtist(artist string) bool {

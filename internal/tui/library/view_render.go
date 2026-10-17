@@ -25,6 +25,9 @@ func (v Panel) Render() string {
 	if len(allTracks) == 0 && v.Filter.Text == "" && !v.TagFilterActive {
 		return v.renderEmpty()
 	}
+	if v.BucketLabel == nil && v.Width > 0 {
+		return v.renderFlatTracks(allTracks)
+	}
 
 	display := v.resolveDisplayTracks(allTracks)
 	maxRows := v.visibleRows()

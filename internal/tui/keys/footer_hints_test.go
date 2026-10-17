@@ -75,8 +75,8 @@ func TestRenderFooterHints_KeepsHelpWhenNarrow(t *testing.T) {
 			t.Errorf("width %d: strip should end with \"? help\", got %q", width, plain)
 		}
 	}
-	if got := ansi.Strip(RenderFooterHints(40, ContextLibrary, HintModeDefault, reg, s)); !strings.HasPrefix(got, "  j/k nav") {
-		t.Errorf("leading pairs should still render left to right, got %q", got)
+	if got := ansi.Strip(RenderFooterHints(40, ContextLibrary, HintModeDefault, reg, s)); !strings.HasPrefix(got, "  enter enqueue") {
+		t.Errorf("primary action should survive compact layout, got %q", got)
 	}
 }
 
@@ -119,16 +119,17 @@ func TestRenderFooterHints_TruncationFallbackKeyPops(t *testing.T) {
 	// a key that survives truncation in full should still be rendered in
 	// HelpKey, with the elided remainder in Dim.
 	reg := NewRegistry()
+	reg.primaries[primaryHintKey{ctx: ContextLibrary, mode: HintModeDefault}] = []primaryHint{{Key: "enter", Label: "enqueue"}}
 	s := styles.NewStyles(true)
 	// Width that fits the two-space indent, "j/k", a space, and an ellipsis
 	// but not the full label "nav".
-	got := RenderFooterHints(7, ContextLibrary, HintModeDefault, reg, s)
+	got := RenderFooterHints(10, ContextLibrary, HintModeDefault, reg, s)
 	if got == "" {
 		t.Fatalf("expected non-empty truncated output")
 	}
 	keyOpen := strings.Split(s.HelpKey.Render("X"), "X")[0]
-	if !strings.Contains(got, keyOpen+"j/k") {
-		t.Errorf("expected HelpKey-wrapped 'j/k' in truncated output; got %q", got)
+	if !strings.Contains(got, keyOpen+"enter") {
+		t.Errorf("expected HelpKey-wrapped 'enter' in truncated output; got %q", got)
 	}
 	if !strings.Contains(ansi.Strip(got), "…") {
 		t.Errorf("expected ellipsis in truncated output plain=%q", ansi.Strip(got))

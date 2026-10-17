@@ -1,0 +1,21 @@
+{
+  "name": "focused-track-identity",
+  "fixture": "narrow",
+  "size": "80x24",
+  "actions": [
+    {"assert": {"contains": "A Song With a Preposterously Long Title Designed"}},
+    {"assert": {"contains": "The Exceptionally Verbose Orchestra of Very Long Names"}},
+    {"assert": {"contains": "i info"}},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "j"},
+    {"assert": {"not_contains": "A Song With a Preposterously Long Title Designed"}},
+    {"assert": {"contains": "Émilie Ñoño Straße Åström"}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "i info"}},
+    {"assert": {"contains": "enter enqueue"}},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "80x24"},
+    {"assert": {"contains": "Émilie Ñoño Straße Åström"}},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

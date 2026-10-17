@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Compact command palettes show six commands at the minimum size, prioritize
+  enabled commands for the current view, and retain focus across resize. Help
+  and Quit remain searchable and have compact footer shortcuts.
+- Compact view footers preserve primary, back, information, and filter actions.
+  Mixes no longer advertises filtering before a mix is opened. Focused tracks
+  show fuller identity in spare space above the footer in taller windows.
+- Smart-playlist tag rules use stable identities, with automatic migration of
+  existing rules. Renames and merges preserve references; deleted dependencies
+  report how to repair the rule or undo deletion instead of changing its scope.
+- Large-library filtering reuses normalized text across keystrokes. Ordinary
+  track tables materialize only visible rows, and sorting avoids allocating
+  lowercase strings for every comparison.
+- CI exercises real mpv playback continuity in a dedicated job. `just
+  test-playback` runs it locally; `just bench-ui` measures typing, rendering,
+  and sorting with 10,000 and 100,000 tracks.
+
 - Collection drill-downs restore the parent's filter, sort, focused item, and
   scroll position on return, including after resizing or a library refresh.
 - All eight numbered navigation shortcuts remain visible at supported widths;

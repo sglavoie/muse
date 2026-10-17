@@ -33,6 +33,7 @@ func (m Model) paletteCommandFor(e paletteEntry) palette.PaletteCommand {
 		Category:       e.category,
 		Shortcut:       m.paletteShortcutFor(e),
 		Pinned:         e.pin,
+		Relevant:       e.ctx != keys.ContextGlobal && e.ctx == m.activeViewContext(),
 		DisabledReason: e.disabledReason,
 		Exec:           func() tea.Cmd { return func() tea.Msg { return commandPaletteActionMsg{action: e.act, view: e.view} } },
 	}

@@ -53,6 +53,7 @@ type SmartRule struct {
 	Field       RuleField       `json:"field,omitempty"`
 	Operator    RuleOperator    `json:"operator,omitempty"`
 	Value       string          `json:"value,omitempty"`
+	TagID       int64           `json:"tag_id,omitempty"` // identity; Value retains a readable label
 	Conjunction RuleConjunction `json:"conjunction,omitempty"`
 	Rules       []SmartRule     `json:"rules,omitempty"`
 }
@@ -83,6 +84,9 @@ var validOperators = map[RuleOperator]bool{
 // ValidateSmartRule returns an error if the rule tree contains unknown
 // fields/operators or violates leaf-vs-group invariants.
 func ValidateSmartRule(r SmartRule) error {
+	if r.TagID != 0 && (r.Field != FieldTag || r.TagID < -1) {
+		return fmt.Errorf("smart rule: tag_id requires a Tag rule and a valid identity")
+	}
 	isLeaf := r.Field != "" || r.Operator != "" || r.Value != ""
 	isGroup := r.Conjunction != "" || len(r.Rules) > 0
 

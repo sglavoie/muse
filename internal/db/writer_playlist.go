@@ -11,10 +11,14 @@ import (
 func (w *Writer) CreateSmartPlaylist(name, queryJSON string) (int64, error) {
 	var id int64
 	err := w.Exec(func(db *sql.DB) error {
+		bound, err := bindSmartQuery(db, queryJSON)
+		if err != nil {
+			return err
+		}
 		now := time.Now().Unix()
 		res, err := db.Exec(
 			`INSERT INTO playlists (name, query, created_at, updated_at) VALUES (?, ?, ?, ?)`,
-			name, queryJSON, now, now,
+			name, bound, now, now,
 		)
 		if err != nil {
 			return err
@@ -29,9 +33,13 @@ func (w *Writer) CreateSmartPlaylist(name, queryJSON string) (int64, error) {
 // playlist identified by id. It is a no-op if no row with that ID exists.
 func (w *Writer) UpdateSmartPlaylistQuery(id int64, name, queryJSON string) error {
 	return w.Exec(func(db *sql.DB) error {
-		_, err := db.Exec(
+		bound, err := bindSmartQuery(db, queryJSON)
+		if err != nil {
+			return err
+		}
+		_, err = db.Exec(
 			`UPDATE playlists SET name=?, query=?, updated_at=? WHERE id=?`,
-			name, queryJSON, time.Now().Unix(), id,
+			name, bound, time.Now().Unix(), id,
 		)
 		return err
 	})

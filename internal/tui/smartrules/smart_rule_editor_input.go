@@ -159,6 +159,7 @@ func (e SmartRuleEditor) prevRule() SmartRuleEditor {
 }
 
 func (e SmartRuleEditor) startNewRule() SmartRuleEditor {
+	e.ruleTagID = 0
 	e.editingRuleIdx = -1
 	e.ruleFieldIdx = 0
 	e.ruleOpIdx = 0
@@ -175,6 +176,7 @@ func (e SmartRuleEditor) startEditRule(idx int) SmartRuleEditor {
 		return e.startNewRule()
 	}
 	rule := e.rules[idx]
+	e.ruleTagID = rule.TagID
 	e.editingRuleIdx = idx
 	e.ruleFieldIdx = 0
 	for i, f := range allRuleFields {
@@ -273,6 +275,7 @@ func (e SmartRuleEditor) cycleEditSelection(delta int) SmartRuleEditor {
 		}
 		if e.currentField() == db.FieldTag {
 			e.ruleValueInput.SetValue("")
+			e.ruleTagID = 0
 		}
 	case 1:
 		e.ruleOpIdx = cycleIndex(e.ruleOpIdx, delta, len(validOpsForField(e.currentField())))
@@ -304,7 +307,8 @@ func (e SmartRuleEditor) confirmEditRule() SmartRuleEditor {
 		return e
 	}
 	e.ruleValueInput.Blur()
-	rule := db.SmartRule{Field: field, Operator: op, Value: value}
+	rule := e.draftRule()
+	rule.Operator, rule.Value = op, value
 	if e.editingRuleIdx >= 0 && e.editingRuleIdx < len(e.rules) {
 		rules := make([]db.SmartRule, len(e.rules))
 		copy(rules, e.rules)

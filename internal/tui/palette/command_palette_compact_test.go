@@ -26,11 +26,11 @@ func TestCompactPaletteSearchShowsSeveralResultsAndPages(t *testing.T) {
 		t.Fatal("unmatched pins crowded search results")
 	}
 	cp, _ = cp.HandleKey("pgdown", tea.KeyPressMsg{}, 12)
-	if cp.cursor != 4 {
-		t.Fatalf("page down focused %d, want next four-row page", cp.cursor)
+	if cp.cursor != 6 {
+		t.Fatalf("page down focused %d, want next six-row page", cp.cursor)
 	}
 	out = ansi.Strip(cp.Render(60, 12, styles.NewStyles(true)))
-	if !strings.Contains(out, "5/12") || !strings.Contains(out, cp.Filtered[cp.cursor].Name) {
+	if !strings.Contains(out, "7/12") || !strings.Contains(out, cp.Filtered[cp.cursor].Name) {
 		t.Fatal(out)
 	}
 	cp, _ = cp.HandleKey("pgup", tea.KeyPressMsg{}, 12)

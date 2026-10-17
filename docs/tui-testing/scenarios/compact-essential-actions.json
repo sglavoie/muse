@@ -1,0 +1,32 @@
+{
+  "name": "compact-essential-actions",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {"assert": {"contains": "enter enqueue"}},
+    {"assert": {"contains": "i info"}},
+    {"assert": {"contains": "/ filter"}},
+    {"assert": {"contains": "? help"}},
+    {"key": ":"},
+    {"assert": {"contains": "F1 help"}},
+    {"assert": {"contains": "ctrl+c quit"}},
+    {"assert": {"contains": "Append to queue: Track A1"}},
+    {"assert": {"contains": "Copy track info"}, "label": "sixth-command-visible"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "100x30"},
+    {"assert": {"contains": "Append to queue: Track A1"}, "label": "resize-retains-target"},
+    {"resize": "60x15"},
+    {"assert": {"contains": "Append to queue: Track A1"}},
+    {"key": "esc"}, {"key": "7"},
+    {"assert": {"not_contains": "/ filter"}},
+    {"key": "enter"},
+    {"assert": {"contains": "e enqueue"}},
+    {"assert": {"contains": "esc clear/back"}},
+    {"assert": {"contains": "/ filter"}},
+    {"assert": {"contains": "i info"}},
+    {"assert": {"contains": "? help"}},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "esc"},
+    {"assert": {"contains": "Rediscover"}}
+  ]
+}

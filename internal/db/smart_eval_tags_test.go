@@ -60,9 +60,8 @@ func TestEvalSmartPlaylist_HasTagSoftDeletedExcluded(t *testing.T) {
 	q := db.SmartPlaylistQuery{
 		Root: db.SmartRule{Field: db.FieldTag, Operator: db.OpEquals, Value: "deleted-tag"},
 	}
-	rows := evalQuery(t, d, q)
-	if len(rows) != 0 {
-		t.Errorf("got %v, want [] (soft-deleted tag should be excluded)", hashes(rows))
+	if _, err := d.EvalSmartPlaylist(q); err == nil {
+		t.Fatal("deleted tag must report a repairable dependency error")
 	}
 }
 

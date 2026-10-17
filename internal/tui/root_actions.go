@@ -416,6 +416,7 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		commands := m.BuildPaletteCommands()
 		if len(commands) > 0 {
 			cp, cmd := palette.NewCommandPalette(commands, m.paletteUsage)
+			cp = cp.WithHeight(max(m.termHeight-3, 1))
 			m.overlay.commandPalette = &cp
 			return m, cmd
 		}

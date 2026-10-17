@@ -18,10 +18,32 @@ type ruleTagPicker struct {
 	cursor int
 }
 
-// WithTags snapshots the catalog; rule values store names as the evaluator expects.
+// WithTags snapshots the catalog and refreshes labels without changing identity.
 func (e SmartRuleEditor) WithTags(tags []db.TagRow) SmartRuleEditor {
+	clean := !e.hasChanges()
 	e.tags = append([]db.TagRow(nil), tags...)
+	e.rules = refreshTagLabels(e.rules, tags)
+	if clean {
+		e = e.rememberInitial()
+	}
 	return e
+}
+
+func refreshTagLabels(rules []db.SmartRule, tags []db.TagRow) []db.SmartRule {
+	rules = append([]db.SmartRule(nil), rules...)
+	for i := range rules {
+		rules[i].Rules = refreshTagLabels(rules[i].Rules, tags)
+		if rules[i].Field != db.FieldTag {
+			continue
+		}
+		for _, tag := range tags {
+			if tag.ID == rules[i].TagID || (rules[i].TagID == 0 && strings.EqualFold(tag.Name, rules[i].Value)) {
+				rules[i].TagID, rules[i].Value = tag.ID, tag.Name
+				break
+			}
+		}
+	}
+	return rules
 }
 
 func (e SmartRuleEditor) choiceValue() bool {
@@ -82,7 +104,9 @@ func (e SmartRuleEditor) handleTagPicker(msg tea.KeyPressMsg) (SmartRuleEditor, 
 		return e, actionNone, nil
 	case "enter":
 		if len(matches) > 0 {
-			e.ruleValueInput.SetValue(matches[min(picker.cursor, len(matches)-1)].Name)
+			tag := matches[min(picker.cursor, len(matches)-1)]
+			e.ruleValueInput.SetValue(tag.Name)
+			e.ruleTagID = tag.ID
 			e.tagPicker = nil
 			e.editSubField = 0
 		}

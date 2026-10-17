@@ -63,7 +63,7 @@ func (e SmartRuleEditor) renderRulesStep(termWidth, termHeight int, s styles.Sty
 		for i, r := range e.rules {
 			marker := text.FocusMarker(i == e.ruleCursor)
 			rows = append(rows, overlay.Row{
-				Text:   marker + ruleDisplayLabel(r),
+				Text:   marker + e.ruleLabel(r),
 				Styled: i == e.ruleCursor,
 			})
 		}

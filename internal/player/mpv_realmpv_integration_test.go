@@ -45,6 +45,9 @@ const realMPVClipSecs = 1.2
 func requireMPV(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("mpv"); err != nil {
+		if os.Getenv("MUSE_REQUIRE_MPV") == "1" {
+			t.Fatal("mpv is required for this run: " + err.Error())
+		}
 		t.Skip("mpv not found on PATH: " + err.Error())
 	}
 }

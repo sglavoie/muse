@@ -1,6 +1,7 @@
 package library
 
 import (
+	"slices"
 	"time"
 
 	musiclib "github.com/sglavoie/muse/internal/library"
@@ -52,11 +53,16 @@ func (v View) SwitchMode(to LibraryMode) View {
 }
 
 func (v View) BaseTracks() []musiclib.Track {
+	return slices.Clone(v.baseTracks())
+}
+
+// baseTracks is borrowed only during synchronous view work.
+func (v View) baseTracks() []musiclib.Track {
 	var all []musiclib.Track
 	if v.SourceTracks != nil {
 		all = v.SourceTracks
 	} else {
-		all = v.Index.Tracks()
+		all = v.Index.ReadOnlyTracks()
 	}
 	if v.TagFilterHashes == nil {
 		return all
@@ -158,7 +164,7 @@ func (v View) RecomputeSortedTracks() View {
 		v.SortedTracks = nil
 		return v
 	}
-	v.SortedTracks = sorting.SortTracks(v.BaseTracks(), v.SortState.Field, v.SortState.Dir)
+	v.SortedTracks = sorting.SortTracks(v.baseTracks(), v.SortState.Field, v.SortState.Dir)
 	return v
 }
 
@@ -167,7 +173,7 @@ func (v View) RecomputeSortedTracks() View {
 // cached slice instead of re-running the fuzzy search on every frame.
 func (v View) RebuildFilterCache() View {
 	if v.Filter.Text != "" && v.Fuzzy != nil {
-		tracks := v.BaseTracks()
+		tracks := v.baseTracks()
 		if v.SortedTracks != nil {
 			tracks = v.SortedTracks
 		}

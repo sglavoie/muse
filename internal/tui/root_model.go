@@ -354,7 +354,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		appCtx:          ctx,
 		ActiveView:      viewLibrary,
 		cfg:             config.Defaults(),
-		library:         libtui.View{Fuzzy: library.SahilmFuzzySearcher{}},
+		library:         libtui.View{Fuzzy: &library.CachedFuzzySearcher{}},
 		playback:        playbackInfo{currentIndex: -1, requests: &playRequestGate{}},
 		registry:        keys.NewRegistry(),
 		styles:          &initialStyles,
