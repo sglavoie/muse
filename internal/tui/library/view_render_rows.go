@@ -83,6 +83,9 @@ func (v Panel) renderTrackRow(dt displayTrack, cols Columns, absIdx int, run row
 	dateAdded := formatDateAdded(t.CreatedAt)
 	if v.ShowPlayedAt {
 		dateAdded = formatPlayedAt(t.LastPlayedAt)
+		if cols.DateAdded == 10 {
+			dateAdded = formatDateAdded(t.LastPlayedAt)
+		}
 	}
 
 	artist, title, album := v.renderRowCells(dt, cols, st)
@@ -247,13 +250,8 @@ func (v Panel) assembleTrackNumOnlyRow(c rowCells, cols Columns, st rowState) st
 // date all carry one style; the artist/title/album cells already carry their
 // own background. Used for the focused and now-playing rows.
 func assembleUniformRow(c rowCells, cols Columns, style lipgloss.Style) string {
-	sep := style.Render("  ")
-	row := style.Render(c.marker+text.Pad(c.num, cols.TrackNum)) + sep +
-		c.artist + sep + c.title + sep + c.album + sep +
-		style.Render(text.PadLeft(c.dur, cols.Duration))
-	if cols.DateAdded > 0 {
-		row += sep + style.Render(text.Pad(c.dateAdded, cols.DateAdded))
-	}
+	row := joinTrackCells(cols, style.Render(cols.separator()), style.Render(c.marker+text.Pad(c.num, cols.TrackNum)),
+		c.artist, c.title, c.album, style.Render(text.PadLeft(c.dur, cols.Duration)), style.Render(text.Pad(c.dateAdded, cols.DateAdded)))
 	return row
 }
 
@@ -276,11 +274,8 @@ func (v Panel) assembleZebraRow(c rowCells, cols Columns, st rowState) string {
 	}
 	numPart := styles.WithZebraBg(v.Styles.TextTertiary, st.rowBg, true).Render(text.Pad(c.num, cols.TrackNum))
 	durPart := styles.WithZebraBg(v.Styles.TextTertiary, st.rowBg, true).Render(text.PadLeft(c.dur, cols.Duration))
-	sep := rb.Render("  ")
-	row := markerPart + numPart + sep + c.artist + sep + c.title + sep + c.album + sep + durPart
-	if cols.DateAdded > 0 {
-		row += sep + rb.Render(text.Pad(c.dateAdded, cols.DateAdded))
-	}
+	row := joinTrackCells(cols, rb.Render(cols.separator()), markerPart+numPart, c.artist, c.title, c.album,
+		durPart, rb.Render(text.Pad(c.dateAdded, cols.DateAdded)))
 	return row
 }
 
@@ -296,11 +291,7 @@ func (v Panel) assemblePlainRow(c rowCells, cols Columns, st rowState) string {
 	if !st.isAlbumFav && !st.sameAlbum {
 		c.album = v.Styles.TextSecondary.Render(c.album)
 	}
-	row := c.marker + v.Styles.TextTertiary.Render(text.Pad(c.num, cols.TrackNum)) + "  " +
-		c.artist + "  " + c.title + "  " + c.album + "  " +
-		v.Styles.TextTertiary.Render(text.PadLeft(c.dur, cols.Duration))
-	if cols.DateAdded > 0 {
-		row += "  " + text.Pad(c.dateAdded, cols.DateAdded)
-	}
+	row := joinTrackCells(cols, cols.separator(), c.marker+v.Styles.TextTertiary.Render(text.Pad(c.num, cols.TrackNum)),
+		c.artist, c.title, c.album, v.Styles.TextTertiary.Render(text.PadLeft(c.dur, cols.Duration)), text.Pad(c.dateAdded, cols.DateAdded))
 	return row
 }

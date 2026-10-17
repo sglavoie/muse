@@ -11,64 +11,35 @@ import (
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
-// scheduleSoftDelete cancels any in-flight purge timer from the previous undo
-// slot, calls softDeleteFn to perform the soft-delete, then schedules a
-// time.AfterFunc purge via purgeFn. Returns the cancel channel that the new
-// undo slot should store.
-func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(beforeUnix int64)) chan struct{} {
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
-		m.undo.slot.cancelPurge = nil
+// retireUndoCleanup releases the old action before another soft delete. Running
+// cleanup synchronously before the new delete prevents second-resolution purge
+// cutoffs from removing the new action's tombstones as well.
+func (m *Model) retireUndoCleanup() {
+	if m.undo.slot.cleanup != nil {
+		m.undo.slot.cleanup()
 	}
-	cancel := make(chan struct{})
-	softDeleteTime := time.Now().Unix()
+	m.undo.slot.cleanup = nil
+}
+
+// scheduleSoftDelete retains cleanup with the undo slot instead of a timer.
+func (m *Model) scheduleSoftDelete(softDeleteFn func(), purgeFn func(int64)) func() {
+	m.retireUndoCleanup()
 	softDeleteFn()
-	if purgeFn != nil {
-		time.AfterFunc(undoWindowDuration, func() {
-			select {
-			case <-cancel:
-				return
-			default:
-				purgeFn(softDeleteTime + 1)
-			}
-		})
+	before := time.Now().Unix() + 1
+	if purgeFn == nil {
+		return nil
 	}
-	return cancel
+	return func() { purgeFn(before) }
 }
 
-// scheduleStandalonePurge schedules a deferred hard-delete of soft-deleted
-// rows that are NOT tied to an undo slot (e.g. auto-deleted tags). Unlike
-// schedulePurge, it does not touch the undo slot's cancel channel, so it
-// cannot corrupt an unrelated undo operation's purge timer.
-func scheduleStandalonePurge(purgeFn func(int64) error) {
-	softDeleteTime := time.Now().Unix()
-	time.AfterFunc(undoWindowDuration, func() {
-		if err := purgeFn(softDeleteTime + 1); err != nil {
-			slog.Warn("standalone purge failed", "err", err)
-		}
-	})
-}
-
-// schedulePurge sets up a deferred purge of soft-deleted queue entries.
-// It closes any existing cancel channel on the slot, creates a new one,
-// and schedules purgeFn to run after undoWindowDuration.
+// schedulePurge holds cleanup for cut-paste or for rows removed by undo itself.
 func schedulePurge(slot *undoSlot, purgeFn func(int64) error) {
-	if slot.cancelPurge != nil {
-		close(slot.cancelPurge)
-	}
-	cancel := make(chan struct{})
-	slot.cancelPurge = cancel
-	softDeleteTime := time.Now().Unix()
-	time.AfterFunc(undoWindowDuration, func() {
-		select {
-		case <-cancel:
-			return
-		default:
-			if err := purgeFn(softDeleteTime + 1); err != nil {
-				slog.Warn("purge failed", "err", err)
-			}
+	before := time.Now().Unix() + 1
+	slot.cleanup = func() {
+		if err := purgeFn(before); err != nil {
+			slog.Warn("purge failed", "err", err)
 		}
-	})
+	}
 }
 
 // syncPlayerQueue rebuilds the player's in-memory queue from the current TUI
@@ -105,19 +76,10 @@ func (m Model) syncPlayerQueue() {
 	}
 }
 
-// setUndoSlot replaces the current undo slot and derives the status-bar
-// notification from action.description(). cancelPurge may be nil for actions
-// that do not schedule a soft-delete purge timer. Any previous slot's purge
-// channel is closed automatically so callers need not manage its lifecycle.
-func (m *Model) setUndoSlot(action undoAction, cancelPurge chan struct{}) {
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
-	}
-	m.undo.slot = undoSlot{
-		action:      action,
-		expiresAt:   time.Now().Add(undoWindowDuration),
-		cancelPurge: cancelPurge,
-	}
+// setUndoSlot replaces the last reversible action. Only its notification fades.
+func (m *Model) setUndoSlot(action undoAction, cleanup func()) {
+	m.retireUndoCleanup()
+	m.undo.slot = undoSlot{action: action, expiresAt: time.Now().Add(undoNotificationDuration), cleanup: cleanup}
 	m.statusBar.NotifyUndo(action.description(), m.undo.slot.expiresAt)
 }
 

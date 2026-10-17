@@ -43,7 +43,7 @@ func TestRenderFooterHints_IncludesAllPrimariesAtWideWidth(t *testing.T) {
 	s := styles.NewStyles(true)
 	got := RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s)
 	plain := ansi.Strip(got)
-	for _, want := range []string{"j/k", "nav", "enter", "enqueue", "N", "play-next", "/", "filter", "v", "select", "?", "help"} {
+	for _, want := range []string{"j/k", "nav", "enter", "enqueue", ":", "commands", "/", "filter", "v", "select", "?", "help"} {
 		if !strings.Contains(plain, want) {
 			t.Errorf("RenderFooterHints(wide) = %q; missing %q", plain, want)
 		}
@@ -204,7 +204,7 @@ func TestRenderFooterHints_DefaultModeMatchesCurrent(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
 	got := ansi.Strip(RenderFooterHints(200, ContextLibrary, HintModeDefault, reg, s))
-	want := []string{"j/k nav", "enter enqueue", "N play-next", "/ filter", "v select", "? help"}
+	want := []string{"j/k nav", "enter enqueue", ": commands", "/ filter", "v select", "? help"}
 	for _, w := range want {
 		if !strings.Contains(got, w) {
 			t.Errorf("default Library hint strip missing %q: %q", w, got)

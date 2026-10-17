@@ -1,0 +1,130 @@
+{
+  "name": "compact-readability",
+  "fixture": "narrow",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "`"
+    },
+    {
+      "key": "`"
+    },
+    {
+      "assert": {
+        "contains": "A Song With a Prepos"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Combining Marks and"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Alb\u2026"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": ":"
+    },
+    {
+      "text": "sort"
+    },
+    {
+      "assert": {
+        "contains": "Sort ascending"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Sort descending"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Cycle sort field"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Show help"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Quit"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "pgdown"
+    },
+    {
+      "assert": {
+        "contains": "5/"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "pgup"
+    },
+    {
+      "assert": {
+        "contains": "1/"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "?"
+    },
+    {
+      "assert": {
+        "contains": "Library"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Enqueue focused"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

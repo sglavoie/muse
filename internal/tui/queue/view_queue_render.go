@@ -100,14 +100,8 @@ func anySourcePlaylist(entries []Entry) bool {
 // queueHeaderBody renders the column headings without the leading marker
 // gutter, so the dotted underline only spans the actual data columns.
 func queueHeaderBody(cols queueColumns, hasSource bool) string {
-	body := text.Pad("#", cols.Position) + " " +
-		text.Pad("Title", cols.Title) + " " +
-		text.Pad("Artist", cols.Artist) + " " +
-		text.Pad("Album", cols.Album) + " "
-	if hasSource {
-		body += text.Pad("Source", cols.Source) + " "
-	}
-	return body + text.PadLeft("Time", cols.Duration)
+	return assembleQueueRow(" ", hasSource, "", text.Pad("#", cols.Position), text.Pad("Title", cols.Title),
+		text.Pad("Artist", cols.Artist), text.Pad("Album", cols.Album), text.Pad("Source", cols.Source), text.PadLeft("Time", cols.Duration))
 }
 
 // chunkIntoBuckets interleaves bucket headers and dividers into the rendered

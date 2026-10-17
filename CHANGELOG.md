@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Compact track tables prioritize Title and Artist, hiding secondary columns
+  and shortening History timestamps before truncating song identities.
+- Command palette searches show only matching commands, including Help and
+  Quit. Short windows use less padding; result position and Page Up/Down
+  navigation make longer result lists easier to explore.
+- Empty views show relevant recovery actions. View-specific help leads with
+  the current view's controls, and Library advertises the command palette.
+- Undo retains the latest reversible action after its notification fades.
+  Failed restores remain retryable; tombstone cleanup follows action ownership
+  instead of a timer. Undo remains local to the running session.
+- The README is a shorter introduction with linked setup, usage, and
+  architecture guides. Every committed TUI scenario now gates CI, including
+  supported-size resize stress.
+
 ### Fixed
 
 - Smart-playlist save failures preserve the draft and allow retry. Pending saves

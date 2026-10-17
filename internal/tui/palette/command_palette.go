@@ -1,6 +1,7 @@
 package palette
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -12,7 +13,7 @@ import (
 )
 
 // PalettePin identifies whether a command is pinned to the top or bottom of
-// the palette result list (regardless of filter or score order).
+// the empty-query palette result list. Search results are always ranked by match.
 type PalettePin int
 
 const (
@@ -93,7 +94,7 @@ func paletteCommandID(c PaletteCommand) string { return c.Key() }
 func paletteCommandName(c PaletteCommand) string { return c.Name }
 
 // HandleKey processes a key press and returns the updated palette and optional Cmd.
-func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPalette, tea.Cmd) {
+func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg, heights ...int) (CommandPalette, tea.Cmd) {
 	switch key {
 	case "esc":
 		return cp, func() tea.Msg { return CommandPaletteDismissedMsg{} }
@@ -103,6 +104,18 @@ func (cp CommandPalette) HandleKey(key string, msg tea.KeyPressMsg) (CommandPale
 		return cp.prevCommand(), nil
 	case "down", "ctrl+j", "ctrl+n":
 		return cp.nextCommand(), nil
+	case "pgup", "pgdown":
+		height := 15
+		if len(heights) > 0 {
+			height = heights[0]
+		}
+		plan := cp.planRows(cpCommandRowBudget(height), strings.TrimSpace(cp.Filter.Text) == "")
+		step := max(plan.bodyBudget, 1)
+		if key == "pgup" {
+			step = -step
+		}
+		cp.cursor = clamp(cp.cursor+step, 0, max(len(cp.Filtered)-1, 0))
+		return cp, nil
 	default:
 		var cmd tea.Cmd
 		cp.Filter, cmd = cp.Filter.Update(msg)
@@ -146,14 +159,17 @@ func (cp CommandPalette) nextCommand() CommandPalette {
 }
 
 // Refilter rebuilds the filtered list using subsequence-fuzzy matching with
-// MRU+frequency weighting, then clamps the cursor. Top-pinned and
-// bottom-pinned commands always appear at the anchors regardless of the
-// current filter; only the body section participates in scoring.
+// MRU+frequency weighting, then clamps the cursor. Pins anchor the empty-query list; during a search every command competes
+// on its match so unrelated pins cannot crowd out useful results.
 func (cp *CommandPalette) Refilter() {
 	query := strings.TrimSpace(cp.Filter.Text)
 
 	var topPins, body, bottomPins []PaletteCommand
 	for _, c := range cp.all {
+		if query != "" {
+			body = append(body, c)
+			continue
+		}
 		switch c.Pinned {
 		case PinTop:
 			topPins = append(topPins, c)
@@ -178,11 +194,7 @@ func (cp *CommandPalette) Refilter() {
 	// happens to share the old index (which can be a bottom pin after the body
 	// shrinks, accidentally triggering Quit on enter).
 	if cp.hasQuery && query != cp.lastQuery {
-		if len(body) > 0 {
-			cp.cursor = cp.topPins
-		} else {
-			cp.cursor = 0
-		}
+		cp.cursor = cp.topPins
 	}
 	cp.lastQuery = query
 	cp.hasQuery = true
@@ -242,11 +254,13 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 		cp.titleLine(m, s),
 		// Doubled rule below the title (Common Region + Uniform Connectedness).
 		cpCrossDoubleL + strings.Repeat(cpBorderDoubleH, m.innerWidth) + cpCrossDoubleR,
-		// Inner top padding row.
-		padRow,
+
 		cp.filterLine(m),
 		// Separator before commands.
 		cpCrossL + strings.Repeat(cpBorderH, m.innerWidth) + cpCrossR,
+	}
+	if !compactPalette(termHeight) {
+		lines = append(lines[:3], append([]string{padRow}, lines[3:]...)...)
 	}
 	lines = append(lines, cp.commandLines(cpCommandRowBudget(termHeight), m, s)...)
 	lines = append(lines,
@@ -255,7 +269,7 @@ func (cp CommandPalette) buildBoxLines(termWidth, termHeight int, s styles.Style
 		// Bottom border.
 		cpCornerBL+strings.Repeat(cpBorderH, m.innerWidth)+cpCornerBR,
 		// Hint line.
-		"  "+s.Dim.Render(text.Truncate("↑/↓ navigate · enter run · esc cancel", max(termWidth-2, 0))),
+		"  "+s.Dim.Render(text.Truncate("↑/↓ nav · PgUp/Dn page · enter run · esc close", max(min(termWidth-2, m.innerWidth), 0))),
 	)
 	return lines
 }
@@ -321,7 +335,11 @@ func (cp CommandPalette) boxMetrics(termWidth int) cpBoxMetrics {
 
 // titleLine renders the centered title row.
 func (cp CommandPalette) titleLine(m cpBoxMetrics, s styles.Styles) string {
-	displayTitle := text.Truncate(cpModalTitle, m.innerWidth)
+	title := fmt.Sprintf("Command Palette · %d results", len(cp.Filtered))
+	if len(cp.Filtered) > 0 {
+		title = fmt.Sprintf("Command Palette · %d/%d", cp.cursor+1, len(cp.Filtered))
+	}
+	displayTitle := text.Truncate(title, m.innerWidth)
 	titlePad := max(0, m.innerWidth-ansi.StringWidth(displayTitle))
 	leftTP := titlePad / 2
 	return cpBorderV + strings.Repeat(" ", leftTP) + s.Heading.Render(displayTitle) +

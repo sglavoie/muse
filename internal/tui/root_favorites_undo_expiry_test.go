@@ -9,9 +9,9 @@ import (
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
 )
 
-// TestUndoRemoveFavorite_Expired verifies that UndoMsg after the window has
-// expired shows "Nothing to undo" and does not call AddFavorite.
-func TestUndoRemoveFavorite_Expired(t *testing.T) {
+// TestUndoRemoveFavorite_AfterBannerExpiry restores the favorite even after
+// its notification has faded.
+func TestUndoRemoveFavorite_AfterBannerExpiry(t *testing.T) {
 	w := &stubFavoriteWriter{}
 	m := New(context.Background(), WithFavoriteWriter(w))
 	m.ActiveView = viewFavorites
@@ -23,7 +23,8 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 		action: undoRemoveFavoriteAction{
 			typ:   "artist",
 			value: "Bach",
-			idx:   0,
+			level: favtui.ListLevel, category: favtui.CategoryArtists,
+			idx: 0,
 		},
 		expiresAt: time.Now().Add(-1 * time.Second),
 	}
@@ -31,13 +32,13 @@ func TestUndoRemoveFavorite_Expired(t *testing.T) {
 	next, _ := m.Update(UndoMsg{})
 	nm := next.(Model)
 
-	if len(w.added) != 0 {
-		t.Fatalf("AddFavorite must not be called after expiry, got %v", w.added)
+	if len(w.added) != 1 {
+		t.Fatalf("AddFavorite must be called after expiry, got %v", w.added)
 	}
-	if len(nm.favorites.Artists) != 1 {
-		t.Fatalf("artists list must be unchanged, got %v", nm.favorites.Artists)
+	if len(nm.favorites.Artists) != 2 {
+		t.Fatalf("artist should be restored, got %v", nm.favorites.Artists)
 	}
-	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Nothing to undo") {
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Undone:") {
 		t.Errorf("expected 'Nothing to undo' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }
@@ -61,7 +62,7 @@ func TestUndoRemoveFavorite_Superseded(t *testing.T) {
 			level:    favtui.ListLevel,
 			category: favtui.CategoryArtists,
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})

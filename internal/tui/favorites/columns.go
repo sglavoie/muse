@@ -31,6 +31,11 @@ type TrackColumns struct {
 // rounding remainder. On very narrow terminals, fixed columns are reduced
 // (PlayCount, then Duration, then Position) to avoid over-allocating width.
 func ComputeTrack(totalWidth int) TrackColumns {
+	if totalWidth >= 40 && totalWidth < 80 {
+		flex := totalWidth - 2 - 3 - 7 - 3
+		artist := flex * 2 / 5
+		return TrackColumns{Marker: 2, Position: 3, Duration: 7, Title: flex - artist, Artist: artist}
+	}
 	cols := TrackColumns{
 		Marker:    trackMarkerFixed,
 		Position:  trackPosFixed,

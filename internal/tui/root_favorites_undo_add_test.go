@@ -20,7 +20,7 @@ func TestUndoAddFavorite_SingleFromLibraryView(t *testing.T) {
 
 	m.undo.slot = undoSlot{
 		action:    undoAddFavoriteAction{typ: "track", value: "hash-1"},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -46,7 +46,7 @@ func TestUndoAddFavorite_TrackHashRemoved(t *testing.T) {
 
 	m.undo.slot = undoSlot{
 		action:    undoAddFavoriteAction{typ: "track", value: "hash-1"},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -77,7 +77,7 @@ func TestUndoAddFavorite_TrackLevelKeepsDrilldownTracks(t *testing.T) {
 
 	m.undo.slot = undoSlot{
 		action:    undoAddFavoriteAction{typ: "track", value: "h1"},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -115,7 +115,7 @@ func TestUndoAddFavorite_RemovesFromViewList(t *testing.T) {
 
 	m.undo.slot = undoSlot{
 		action:    undoAddFavoriteAction{typ: "track", value: "h1"},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -146,7 +146,7 @@ func TestUndoAddFavorite_RemovesArtistFromViewList(t *testing.T) {
 
 	m.undo.slot = undoSlot{
 		action:    undoAddFavoriteAction{typ: "artist", value: "Davis"},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -184,7 +184,7 @@ func TestUndoBulkAddFavorites_RemovesFromViewList(t *testing.T) {
 			typ:    "track",
 			values: []string{"h1", "h3"},
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -210,7 +210,7 @@ func TestUndoBulkAddFavorites(t *testing.T) {
 			typ:    "track",
 			values: []string{"h1", "h2", "h3"},
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})

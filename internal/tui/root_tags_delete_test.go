@@ -55,17 +55,14 @@ func TestTagDeleteStoresCanonicalIndex(t *testing.T) {
 		t.Errorf("undo tag ID: expected 3 (Charlie), got %d", ua.tag.ID)
 	}
 
-	// The purge cancel should be set by scheduleSoftDelete.
-	if m.undo.slot.cancelPurge == nil {
-		t.Error("expected cancelPurge to be set")
+	// Cleanup stays with the retained action.
+	if m.undo.slot.cleanup == nil {
+		t.Error("expected cleanup to be set")
 	}
 }
 
-// TestTagDeletePurgeDoesNotCorruptOtherSlot verifies that tag delete uses
-// scheduleSoftDelete so the purge timer is attached to the tag delete's own
-// undo slot. A subsequent action that replaces the slot does NOT lose its
-// purge cancel channel (the old bug caused schedulePurge in the async
-// tagDeletedMsg handler to close an unrelated slot's cancel channel).
+// TestTagDeletePurgeDoesNotCorruptOtherSlot verifies that replacing a tag undo
+// releases only the old cleanup and retains the new action.
 func TestTagDeletePurgeDoesNotCorruptOtherSlot(t *testing.T) {
 	m := New(context.Background())
 	m.ActiveView = viewTags
@@ -79,63 +76,31 @@ func TestTagDeletePurgeDoesNotCorruptOtherSlot(t *testing.T) {
 	m = m.rebuildTagCache(m.tagsView.Tags)
 	m.tagsView.Cursor = 0
 
-	// Delete "Alpha" — this should set up the undo slot with a cancelPurge.
+	// Delete "Alpha" — this should set up the undo slot with a cleanup.
 	m, _ = m.handleTagDelete()
 
-	tagCancel := m.undo.slot.cancelPurge
-	if tagCancel == nil {
-		t.Fatal("expected cancelPurge to be set after tag delete")
+	if m.undo.slot.cleanup == nil {
+		t.Fatal("missing retained tag cleanup")
 	}
-
-	// Simulate a subsequent action that replaces the undo slot (e.g. a
-	// queue dequeue). setUndoSlot should close the tag's cancel channel.
-	otherCancel := make(chan struct{})
-	m.setUndoSlot(undoEnqueueAction{id: 999, entry: queue.Entry{Display: "test"}}, otherCancel)
-
-	// The tag's cancel should now be closed (setUndoSlot closes it).
-	select {
-	case <-tagCancel:
-		// Good — the old tag purge was cancelled.
-	default:
-		t.Error("expected tag delete's cancelPurge to be closed when slot was replaced")
-	}
-
-	// The new slot's cancel should still be open.
-	select {
-	case <-otherCancel:
-		t.Error("the new slot's cancelPurge should not be closed yet")
-	default:
-		// Good — still open.
+	retired := false
+	m.undo.slot.cleanup = func() { retired = true }
+	m.setUndoSlot(undoEnqueueAction{id: 999, entry: queue.Entry{Display: "test"}}, func() { t.Fatal("new cleanup ran early") })
+	if !retired || m.undo.slot.cleanup == nil {
+		t.Fatal("replacement did not transfer cleanup ownership")
 	}
 }
 
-// TestAutoDeletedTagPurgeDoesNotCorruptUndoSlot verifies that auto-deleted
-// tags (from tag toggle) use scheduleStandalonePurge, which does not touch
-// the undo slot's cancelPurge channel.
+// TestAutoDeletedTagPurgeDoesNotCorruptUndoSlot protects retained undo from
+// a background automatic deletion.
 func TestAutoDeletedTagPurgeDoesNotCorruptUndoSlot(t *testing.T) {
 	m := New(context.Background())
 
-	// Set up an undo slot with a cancel channel (simulating a pending
-	// dequeue undo).
-	existingCancel := make(chan struct{})
-	m.undo.slot = undoSlot{
-		action:      undoEnqueueAction{id: 42, entry: queue.Entry{Display: "test"}},
-		cancelPurge: existingCancel,
-	}
-
-	// Simulate receiving a tagToggledMsg with autoDeleted=true.
-	// Before the fix, this would call schedulePurge which closes the
-	// existing cancel channel. After the fix, it uses
-	// scheduleStandalonePurge which does not touch the undo slot.
+	// Set up an undo slot with cleanup that must stay dormant.
+	m.undo.slot = undoSlot{action: undoEnqueueAction{id: 42}, cleanup: func() { t.Fatal("automatic deletion purged retained undo") }}
 	msg := tagToggledMsg{tagID: 1, hashes: []string{"h1"}, wasAdd: false, autoDeleted: true}
 	m, _ = m.handleTagToggled(msg)
-
-	// The existing cancel channel should still be open.
-	select {
-	case <-existingCancel:
-		t.Error("existing undo slot cancelPurge should not be closed by auto-deleted tag purge")
-	default:
-		// Good — still open.
+	if m.undo.slot.cleanup == nil {
+		t.Fatal("automatic deletion lost retained cleanup")
 	}
 }
 

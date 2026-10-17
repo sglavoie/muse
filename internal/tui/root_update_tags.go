@@ -5,9 +5,18 @@ import (
 	tagtui "github.com/sglavoie/muse/internal/tui/tags"
 )
 
-// updateTagMsg handles tag-related messages. The boolean reports whether msg
-// was recognized; unrecognized messages fall through to the caller.
+// updateTagMsg routes tag updates without mixing picker, list, and filter state.
 func (m Model) updateTagMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+	if next, cmd, ok := m.updateTagPickerMsg(msg); ok {
+		return next, cmd, true
+	}
+	if next, cmd, ok := m.updateTagListMsg(msg); ok {
+		return next, cmd, true
+	}
+	return m.updateTagFilterMsg(msg)
+}
+
+func (m Model) updateTagPickerMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case tagtui.TagPickerDismissedMsg:
 		m.overlay.tagPicker = nil
@@ -30,19 +39,20 @@ func (m Model) updateTagMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return next, cmd, true
 
 	case emptyTagsPurgedMsg:
-		for _, id := range msg.tagIDs {
-			m = m.removeTagFromCaches(id)
-		}
+		m = m.removeTagsFromCaches(msg.tagIDs)
 
 	case allTagsRemovedMsg:
-		for _, id := range msg.autoDeletedTagIDs {
-			m = m.removeTagFromCaches(id)
-		}
-		if len(msg.autoDeletedTagIDs) > 0 && m.tagWriter != nil {
-			scheduleStandalonePurge(m.tagWriter.PurgeDeletedTags)
-		}
+		m = m.removeTagsFromCaches(msg.autoDeletedTagIDs)
+		// Leave automatic tombstones for startup; a retained undo may need them.
 		m.statusBar.Notify("All tags removed from track")
 
+	default:
+		return m, nil, false
+	}
+	return m, nil, true
+}
+func (m Model) updateTagListMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+	switch msg := msg.(type) {
 	case tagsRefreshedMsg:
 		m = m.handleTagsRefreshed(msg)
 
@@ -69,6 +79,13 @@ func (m Model) updateTagMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		next, cmd := m.handleTagMerged(msg)
 		return next, cmd, true
 
+	default:
+		return m, nil, false
+	}
+	return m, nil, true
+}
+func (m Model) updateTagFilterMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+	switch msg := msg.(type) {
 	case tagtui.TagFilterPickedMsg:
 		next, cmd := m.handleTagFilterPicked(msg)
 		return next, cmd, true
@@ -95,4 +112,11 @@ func (m Model) updateTagMsg(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	return m, nil, true
+}
+
+func (m Model) removeTagsFromCaches(ids []int64) Model {
+	for _, id := range ids {
+		m = m.removeTagFromCaches(id)
+	}
+	return m
 }

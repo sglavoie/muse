@@ -28,38 +28,27 @@ func TestCommandPaletteTopPinFirst(t *testing.T) {
 	}
 }
 
-func TestCommandPalettePinsRemainAfterFilter(t *testing.T) {
+func TestCommandPaletteSearchIncludesOnlyMatchingPins(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	cp.Filter.Text = "alpha"
-	cp.Refilter()
-	// Help (top) + Alpha (body match) + Quit (bottom)
-	if got := len(cp.Filtered); got != 3 {
-		t.Fatalf("filtered length: want 3 (pins + 1 body match), got %d", got)
-	}
-	if cp.Filtered[0].Name != "Help" {
-		t.Errorf("filtered[0]: want Help, got %q", cp.Filtered[0].Name)
-	}
-	if cp.Filtered[1].Name != "Alpha action" {
-		t.Errorf("filtered[1]: want Alpha action, got %q", cp.Filtered[1].Name)
-	}
-	if cp.Filtered[2].Name != "Quit" {
-		t.Errorf("filtered[2]: want Quit, got %q", cp.Filtered[2].Name)
+	for query, want := range map[string]string{"alpha": "Alpha action", "help": "Help", "quit": "Quit"} {
+		cp.Filter.Text = query
+		cp.Refilter()
+		if len(cp.Filtered) != 1 || cp.Filtered[0].Name != want {
+			t.Fatalf("%q: results = %v", query, cp.Filtered)
+		}
 	}
 }
 
-func TestCommandPalettePinsRemainWhenBodyEmpty(t *testing.T) {
+func TestCommandPaletteNoMatchesCannotExecute(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
+	cp.cursor = 4
 	cp.Filter.Text = "zzz"
 	cp.Refilter()
-	// Body has no match but pins still appear.
-	if got := len(cp.Filtered); got != 2 {
-		t.Fatalf("filtered length: want 2 (pins only), got %d", got)
+	if len(cp.Filtered) != 0 || cp.runFocused() != nil {
+		t.Fatal("unmatched search should not execute a pin")
 	}
-	if cp.Filtered[0].Name != "Help" {
-		t.Errorf("filtered[0]: want Help, got %q", cp.Filtered[0].Name)
-	}
-	if cp.Filtered[1].Name != "Quit" {
-		t.Errorf("filtered[1]: want Quit, got %q", cp.Filtered[1].Name)
+	if out := ansi.Strip(cp.Render(60, 12, styles.NewStyles(true))); !strings.Contains(out, "no matches") || !strings.Contains(out, "0 results") {
+		t.Fatal(out)
 	}
 }
 
@@ -117,22 +106,6 @@ func TestCommandPaletteQueryChangeResetsCursorOffBottomPin(t *testing.T) {
 	}
 	if got := cp.Filtered[cp.cursor].Name; got != "Alpha action" {
 		t.Errorf("cursor: want Alpha action (first body match), got %q", got)
-	}
-}
-
-// Regression: when the query changes and no body items match, the cursor must
-// stay within bounds and not point at a stale bottom-pin index.
-func TestCommandPaletteQueryChangeWithEmptyBodyClampsCursor(t *testing.T) {
-	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	cp.cursor = 4 // Quit
-	cp.Filter.Text = "zzz"
-	cp.Refilter()
-	// Layout is [Help, Quit]; cursor must be in range.
-	if cp.cursor < 0 || cp.cursor >= len(cp.Filtered) {
-		t.Fatalf("cursor out of range after empty-body query change: %d / %d", cp.cursor, len(cp.Filtered))
-	}
-	if cp.Filtered[cp.cursor].Name != "Help" {
-		t.Errorf("cursor: want Help (reset to 0), got %q", cp.Filtered[cp.cursor].Name)
 	}
 }
 

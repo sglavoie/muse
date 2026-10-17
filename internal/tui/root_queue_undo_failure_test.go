@@ -27,7 +27,7 @@ func TestQueueRestoreFailurePreservesStateAndAllowsRetry(t *testing.T) {
 			m.playback.currentIndex = 0
 			m.playback.currentHash = "playing"
 			m.queue.SortState = sorting.SortState{Field: sorting.SortTitle, Dir: sorting.SortAsc}
-			cancel := make(chan struct{})
+			cancel := func() { t.Fatal("retained undo was purged") }
 			m.setUndoSlot(action, cancel)
 			expires := m.undo.slot.expiresAt
 
@@ -41,14 +41,10 @@ func TestQueueRestoreFailurePreservesStateAndAllowsRetry(t *testing.T) {
 			if next.undo.slot.action == nil || next.undo.slot.expiresAt != expires {
 				t.Fatal("failed restore must retain the action and original expiry")
 			}
-			select {
-			case <-cancel:
-			default:
-				t.Fatal("original cleanup was not cancelled")
+			if next.undo.slot.cleanup == nil {
+				t.Fatal("failed restore lost cleanup")
 			}
-			if next.undo.slot.cancelPurge == nil || next.undo.slot.cancelPurge == cancel {
-				t.Fatal("failed restore must re-arm cleanup")
-			}
+
 			msg := next.statusBar.TopNotification().Msg
 			if !strings.Contains(msg, "Undo failed:") || !strings.Contains(msg, "database unavailable") {
 				t.Fatalf("failure notification = %q", msg)
@@ -78,7 +74,7 @@ func TestQueueRestoreFailurePreservesStateAndAllowsRetry(t *testing.T) {
 	}
 }
 
-func TestQueueRestoreFailureCannotRetryAfterExpiry(t *testing.T) {
+func TestQueueRestoreFailureCanRetryAfterBannerExpiry(t *testing.T) {
 	d := &stubQueueDequeuer{undoErr: errors.New("database unavailable")}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.setUndoSlot(undoDequeueAction{id: 20}, nil)
@@ -86,7 +82,7 @@ func TestQueueRestoreFailureCannotRetryAfterExpiry(t *testing.T) {
 	m.undo.slot.expiresAt = time.Now().Add(-time.Second)
 	d.undoErr = nil
 	m = m.handleUndo()
-	if len(d.undoDequeueCallIDs) != 1 || m.statusBar.TopNotification().Msg != "Nothing to undo" {
-		t.Fatal("failed undo was retried after expiry")
+	if len(d.undoDequeueCallIDs) != 2 || m.canUndo() {
+		t.Fatal("failed undo could not be retried after banner expiry")
 	}
 }

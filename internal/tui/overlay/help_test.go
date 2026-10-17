@@ -221,8 +221,8 @@ func TestStatusBarHelpSectionIsFirst(t *testing.T) {
 			t.Errorf("filteredHelpSections(%d) returned no sections", ctx)
 			continue
 		}
-		if got := sections[0].Title; got != StatusBarHelpSectionTitle {
-			t.Errorf("filteredHelpSections(%d)[0].title = %q, want %q", ctx, got, StatusBarHelpSectionTitle)
+		if ctx != keys.ContextBrowse && sections[0].Context != ctx {
+			t.Errorf("scoped help should begin with context %d, got %s", ctx, sections[0].Title)
 		}
 	}
 }

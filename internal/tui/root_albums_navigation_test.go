@@ -202,7 +202,7 @@ func TestAlbumsEmptyLibrary(t *testing.T) {
 	m = switchToAlbumsMode(m)
 
 	v := m.View()
-	if !strings.Contains(v.Content, "No albums") {
+	if !strings.Contains(v.Content, "No music to browse") {
 		t.Error("expected empty albums hint in albums view")
 	}
 }

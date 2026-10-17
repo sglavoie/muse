@@ -20,8 +20,8 @@ func TestDJApplyRefreshesUpcomingRowsInPlace(t *testing.T) {
 	// An unrelated reversible action is armed: a refresh is not a destructive
 	// gesture of the user's, so it has no business consuming their undo.
 	undo := undoSlot{
-		action:      undoDequeueAction{id: 77, entry: djRefreshRow(77, "d2", false), idx: 3},
-		cancelPurge: make(chan struct{}),
+		action:  undoDequeueAction{id: 77, entry: djRefreshRow(77, "d2", false), idx: 3},
+		cleanup: func() { t.Fatal("DJ refresh retired unrelated undo") },
 	}
 	m.undo.slot = undo
 
@@ -71,7 +71,7 @@ func TestDJApplyRefreshesUpcomingRowsInPlace(t *testing.T) {
 		t.Error("the status reports no replaced slots after a refresh that replaced some")
 	}
 	if m.undo.slot.action == nil || m.undo.slot.action.kind() != undoKindDequeue ||
-		m.undo.slot.cancelPurge != undo.cancelPurge {
+		m.undo.slot.cleanup == nil {
 		t.Error("the refresh consumed an unrelated reversible action")
 	}
 	for _, e := range msg.committed.entries {

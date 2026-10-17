@@ -198,13 +198,9 @@ func (v View) renderTrackRows(items []library.Track) string {
 // excluded from the styled body so the dotted underline starts at the first
 // data column.
 func (v View) renderTrackHeader(cols TrackColumns) string {
-	return "  " + v.Styles.ColHead.Render(
-		text.Pad("#", cols.Position)+" "+
-			text.Pad("Title", cols.Title)+" "+
-			text.Pad("Artist", cols.Artist)+" "+
-			text.Pad("Album", cols.Album)+" "+
-			text.PadLeft("Time", cols.Duration)+" "+
-			text.PadLeft("Plays", cols.PlayCount))
+	return "  " + v.Styles.ColHead.Render(joinFavoriteCells(" ", text.Pad("#", cols.Position),
+		text.Pad("Title", cols.Title), text.Pad("Artist", cols.Artist), text.Pad("Album", cols.Album),
+		text.PadLeft("Time", cols.Duration), text.PadLeft("Plays", cols.PlayCount)))
 }
 
 // anyMultiDisc reports whether the window holds a track from a disc other than
@@ -284,7 +280,7 @@ func (v View) renderFocusedTrackRow(r trackRow) string {
 	title := styles.AccentFavRender(a, v.Styles.FavoriteAccent, r.trackFav, r.title)
 	artist := styles.AccentFavRender(a, v.Styles.FavArtistAccent, r.artistFav, r.artist)
 	album := styles.AccentFavRender(a, v.Styles.FavAlbumAccent, r.albumFav, r.album)
-	return a.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + a.Render(r.dur) + sep + a.Render(r.plays)
+	return joinFavoriteCells(sep, a.Render(r.marker+r.pos), title, artist, album, a.Render(r.dur), a.Render(r.plays))
 }
 
 func (v View) renderNowPlayingTrackRow(r trackRow) string {
@@ -299,7 +295,7 @@ func (v View) renderNowPlayingTrackRow(r trackRow) string {
 	if r.albumFav {
 		album = v.Styles.NowPlayingRowFavAlbum.Render(r.album)
 	}
-	return np.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + np.Render(r.dur) + sep + np.Render(r.plays)
+	return joinFavoriteCells(sep, np.Render(r.marker+r.pos), title, artist, album, np.Render(r.dur), np.Render(r.plays))
 }
 
 // renderZebraTrackRow renders an unfocused, not-now-playing row. Selected rows
@@ -342,7 +338,7 @@ func (v View) renderZebraTrackRow(r trackRow, isOdd bool) string {
 	posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.pos)
 	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
 	sep := rb.Render(" ")
-	return markerPart + posPart + sep + r.title + sep + r.artist + sep + r.album + sep + durPart + sep + rb.Render(r.plays)
+	return joinFavoriteCells(sep, markerPart+posPart, r.title, r.artist, r.album, durPart, rb.Render(r.plays))
 }
 
 // renderPlainTrackRow renders a row with no background fill. Favorite cells
@@ -357,7 +353,7 @@ func (v View) renderPlainTrackRow(r trackRow) string {
 	if !r.albumFav {
 		r.album = v.Styles.TextSecondary.Render(r.album)
 	}
-	return r.marker + v.Styles.TextTertiary.Render(r.pos) + " " + r.title + " " + r.artist + " " + r.album + " " + v.Styles.TextTertiary.Render(r.dur) + " " + r.plays
+	return joinFavoriteCells(" ", r.marker+v.Styles.TextTertiary.Render(r.pos), r.title, r.artist, r.album, v.Styles.TextTertiary.Render(r.dur), r.plays)
 }
 
 // filterSeparator returns the line between the heading and the item list.
@@ -386,4 +382,11 @@ func (v View) selectionHeading(title string) string {
 		}
 	}
 	return v.Styles.Heading.Render(text.Truncate(title, max(0, v.Width-ansi.StringWidth(suffix))) + text.Truncate(suffix, v.Width))
+}
+
+func joinFavoriteCells(sep, pos, title, artist, album, duration, plays string) string {
+	if ansi.StringWidth(duration) == 7 && ansi.StringWidth(album) == 0 {
+		return strings.Join([]string{pos, title, artist, duration}, sep)
+	}
+	return strings.Join([]string{pos, title, artist, album, duration, plays}, sep)
 }

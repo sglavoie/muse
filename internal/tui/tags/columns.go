@@ -27,6 +27,11 @@ type TrackColumns struct {
 // in ratio 3:2:2 without forcing minimums to avoid over-allocating past
 // totalWidth.
 func ComputeTrack(totalWidth int) TrackColumns {
+	if totalWidth >= 40 && totalWidth < 80 {
+		flex := totalWidth - 2 - 7 - 2
+		artist := flex * 2 / 5
+		return TrackColumns{SelectionMarker: 2, Duration: 7, Title: flex - artist, Artist: artist}
+	}
 	fixed := selectionMarkerFixed + trackDurationFixed + trackSepCount
 	remaining := totalWidth - fixed
 	cols := TrackColumns{

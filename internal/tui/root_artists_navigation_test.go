@@ -216,7 +216,7 @@ func TestArtistsEmptyLibrary(t *testing.T) {
 	m = pressKey(m, "4")
 
 	v := m.View()
-	if !strings.Contains(v.Content, "No artists") {
+	if !strings.Contains(v.Content, "No music to browse") {
 		t.Error("expected empty artists hint in artists view")
 	}
 }

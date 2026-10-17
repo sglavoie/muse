@@ -11,43 +11,29 @@ import (
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
-// handleUndo processes the UndoMsg by reversing the most recent destructive
-// action stored in the undo slot, if one exists and has not expired.
+// handleUndo reverses the last action, regardless of its notification age.
 func (m Model) handleUndo() Model {
 	if !m.canUndo() {
 		m.statusBar.Notify("Nothing to undo")
 		return m
 	}
-	// Cancel any in-flight purge timer before delegating to perform(). This
-	// must happen first so that undo actions which schedule new purge timers
-	// do not have them immediately cancelled by the post-perform cleanup.
-	hadPurge := m.undo.slot.cancelPurge != nil
-	if hadPurge {
-		close(m.undo.slot.cancelPurge)
-		m.undo.slot.cancelPurge = nil
-	}
-	slog.Debug("queue undo", "kind", m.undo.slot.action.kind())
+	original := m.undo.slot
+	// Restored rows must not be purged. perform may create its own cleanup
+	// for newly removed rows (undoing an enqueue, for example).
+	m.undo.slot.cleanup = nil
 	var err error
-	m, err = m.undo.slot.action.perform(m)
+	m, err = original.action.perform(m)
 	if err != nil {
-		// Keep the original expiry and action so retry cannot extend the
-		// undo window. Re-arm cleanup cancelled before the attempt.
-		if hadPurge {
-			m.rearmUndoPurge()
-		}
+		m.undo.slot = original
 		slog.Warn("undo failed", "err", err)
 		m.statusBar.NotifyError("Undo failed: " + err.Error())
 		return m
 	}
+	m.retireUndoCleanup()
 	m = exitVisualMode(m)
 	m = m.resetAllSorts()
-	// Preserve any cancel channel set by perform() (e.g. enqueue undo
-	// schedules a purge timer that must be cancellable by the next
-	// destructive action).
-	pendingCancel := m.undo.slot.cancelPurge
 	m.undo.slot = undoSlot{}
 	m.statusBar.UndoExpiresAt = m.undo.slot.expiresAt
-	m.undo.slot.cancelPurge = pendingCancel
 	return m
 }
 

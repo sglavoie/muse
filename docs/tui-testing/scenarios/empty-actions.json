@@ -1,0 +1,151 @@
+{
+  "name": "empty-actions",
+  "fixture": "empty",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "1"
+    },
+    {
+      "assert": {
+        "contains": "ctrl+, folders"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter enqueue"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "2"
+    },
+    {
+      "assert": {
+        "contains": "c create"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "r rename"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "1 library"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "d remove"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "4"
+    },
+    {
+      "assert": {
+        "contains": "No music to browse"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter open"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "5"
+    },
+    {
+      "assert": {
+        "contains": "No favorites yet"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "F unfavorite"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "6"
+    },
+    {
+      "assert": {
+        "contains": "c create"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "r rename"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "7"
+    },
+    {
+      "assert": {
+        "contains": "set music directories"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "E enqueue all"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "8"
+    },
+    {
+      "assert": {
+        "contains": "1 library"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "E enqueue all"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

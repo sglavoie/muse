@@ -5,7 +5,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/desktop"
 	"github.com/sglavoie/muse/internal/library"
 	favtui "github.com/sglavoie/muse/internal/tui/favorites"
@@ -20,6 +19,8 @@ import (
 
 // updateInner handles incoming messages. Number keys switch active views;
 // Ctrl+C quits. Escape-style navigation remains delegated to the active view.
+//
+//nolint:cyclop,funlen // Each message type needs one route; behavior lives in dedicated handlers.
 func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case browseNowPlayingMsg:
@@ -29,11 +30,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showRecentMessagesMsg:
 		m = m.showRecentMessages()
 	case messagesCopiedMsg:
-		if msg.err != nil {
-			m.statusBar.NotifyError("Copy failed: " + msg.err.Error())
-		} else {
-			m.statusBar.Notify("Copied recent messages")
-		}
+		m = m.handleMessagesCopied(msg)
 
 	case tea.WindowSizeMsg:
 		m = m.handleWindowSizeMsg(msg)
@@ -74,19 +71,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case library.WatchStatusMsg:
-		// The background library pipeline reports watcher availability exactly
-		// once. On failure the watcher never delivers live change events, so
-		// mark the status bar degraded and tell the user to rely on manual
-		// rescan. A setup error and a graceful fd-exhaustion fallback are
-		// distinguished so the notification matches what actually happened.
-		if !msg.Available {
-			m.watchDegraded = true
-			if msg.Err != nil {
-				m.statusBar.NotifyError("File watcher failed to start; use manual rescan (ctrl+r)")
-			} else {
-				m.statusBar.NotifyError("File watcher unavailable; use manual rescan (ctrl+r)")
-			}
-		}
+		m = m.handleWatchStatus(msg)
 
 	case tickMsg:
 		return m.handleTickMsg()
@@ -147,19 +132,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handlePreviewStartErrorMsg(msg)
 
 	case overlay.TrackInfoMsg:
-		if msg.Err != nil {
-			m.statusBar.NotifyError("Track info failed: " + msg.Err.Error())
-		} else {
-			var userTags []db.TagRow
-			if m.tagReader != nil && msg.Hash != "" {
-				userTags, _ = m.tagReader.ReadTagsForTrack(msg.Hash)
-			}
-			info := overlay.NewTrackInfoOverlay(msg.Path, msg.Tags, msg.PlayCount, userTags)
-			if track, ok := m.library.Index.FindByHash(msg.Hash); ok {
-				info = info.WithLibraryMetadata(track)
-			}
-			m.overlay.trackInfo = &info
-		}
+		m = m.handleTrackInfoResult(msg)
 
 	case playback.TrackChangedMsg:
 		return m.handleTrackChangedMsg(msg)
@@ -303,36 +276,13 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay.goTo = nil
 
 	case overlay.GoToPickedMsg:
-		m.overlay.goTo = nil
-		switch msg.Kind {
-		case overlay.GoToArtist:
-			m = m.jumpToArtist(msg.Value)
-		case overlay.GoToAlbum:
-			m = m.jumpToAlbum(msg.Value)
-		case overlay.GoToGenre:
-			m = m.jumpToGenre(msg.Value)
-		case overlay.GoToPlaylist:
-			m = m.jumpToPlaylist(msg.Value)
-		}
+		m = m.handleGoToPicked(msg)
 
 	case palette.CommandPaletteDismissedMsg:
 		m.overlay.commandPalette = nil
 
 	case palette.CommandPalettePickedMsg:
-		m.overlay.commandPalette = nil
-		// In a fixture-backed harness run, gate key/text-driven palette
-		// selections through the same allowlist as direct command actions so a
-		// scenario cannot execute a side-effectful command (Finder, clipboard,
-		// open-directory) by opening the palette and pressing enter.
-		if m.fixtureSafeCommands && !IsSafeDirectCommand(msg.Command.Key()) {
-			name := msg.Command.Name
-			return m, func() tea.Msg {
-				return statusbar.TransientNotifyMsg(fmt.Sprintf("Command %q blocked in fixture mode", name))
-			}
-		}
-		if msg.Command.Exec != nil {
-			return m, msg.Command.Exec()
-		}
+		return m.handlePalettePicked(msg)
 
 	case RadioBatchEnqueuedMsg:
 		return m.handleRadioBatchEnqueuedMsg(msg)

@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func TestPaletteAliasesRankAfterNamesAndPreservePins(t *testing.T) {
+func TestPaletteAliasesRankAfterNames(t *testing.T) {
 	usage := NewUsageStore("")
 	for range 100 {
 		usage.Bump("alias")
@@ -24,7 +24,7 @@ func TestPaletteAliasesRankAfterNamesAndPreservePins(t *testing.T) {
 	}
 	cp.Filter.Text = "  REFRESH LIBRARY  "
 	cp.Refilter()
-	want := []string{"help", "name", "alias", "quit"}
+	want := []string{"name", "alias"}
 	if len(cp.Filtered) != len(want) {
 		t.Fatalf("results = %v", cp.Filtered)
 	}
@@ -33,7 +33,7 @@ func TestPaletteAliasesRankAfterNamesAndPreservePins(t *testing.T) {
 			t.Fatalf("result %d = %s, want %s", i, cp.Filtered[i].ID, id)
 		}
 	}
-	if cp.cursor != 1 {
+	if cp.cursor != 0 {
 		t.Fatal("query should focus the first name match")
 	}
 }

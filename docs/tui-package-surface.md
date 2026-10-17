@@ -131,7 +131,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 |---|---:|---:|---:|---:|---|
 | `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
-| `tui/keys` | 154 | 41 | 111 | 2 | `tui` + 11 view packages |
+| `tui/keys` | 158 | 41 | 116 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 39 | 21 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 118 | 34 | 83 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 62 | 1 | 58 | 3 | `tui`, `queue`, `uitest` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1047 exported identifiers across 15 packages**: 161 reached from two or more packages, 825 from exactly one, 61 from none (25 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1051 exported identifiers across 15 packages**: 161 reached from two or more packages, 830 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -459,9 +459,13 @@ export must either earn a justification, be recorded in
 | `tui/keys` | `ContextPlaylists` | const | `internal/tui`, `tui/overlay` | multi |
 | `tui/keys` | `ContextQueue` | const | `internal/tui`, `tui/overlay` | multi |
 | `tui/keys` | `ContextTags` | const | `internal/tui`, `tui/overlay` | multi |
-| `tui/keys` | `HintMode` | type | — | api |
+| `tui/keys` | `HintMode` | type | `internal/tui` | root |
+| `tui/keys` | `HintModeCollections` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeDefault` | const | `internal/tui` | root |
+| `tui/keys` | `HintModeEmpty` | const | `internal/tui` | root |
+| `tui/keys` | `HintModeEmptyTracks` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeFilter` | const | `internal/tui` | root |
+| `tui/keys` | `HintModeNoMatches` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeSelection` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeTracks` | const | `internal/tui` | root |
 | `tui/keys` | `HintModeVisual` | const | `internal/tui` | root |

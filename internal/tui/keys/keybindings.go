@@ -278,11 +278,15 @@ type primaryHint struct {
 type HintMode int
 
 const (
-	HintModeDefault   HintMode = iota // resting-state hints (no selection, no visual mode)
-	HintModeSelection                 // one or more rows are bulk-selected
-	HintModeVisual                    // visual line-selection mode is active
-	HintModeTracks                    // a collection is open at its track list
-	HintModeFilter                    // a view filter is being edited
+	HintModeDefault     HintMode = iota // resting-state hints (no selection, no visual mode)
+	HintModeSelection                   // one or more rows are bulk-selected
+	HintModeVisual                      // visual line-selection mode is active
+	HintModeTracks                      // a collection is open at its track list
+	HintModeFilter                      // a view filter is being edited
+	HintModeEmpty                       // no row is available for actions
+	HintModeEmptyTracks                 // an open collection has no tracks
+	HintModeNoMatches                   // filters hide every row
+	HintModeCollections                 // only navigation applies at this collection level
 )
 
 // primaryHintKey is the composite map key for per-context, per-mode hint sets.
@@ -316,6 +320,12 @@ func (r Registry) primaryHints(ctx Context) []primaryHint {
 // specific set wasn't customized for this view.
 func (r Registry) primaryHintsForMode(ctx Context, mode HintMode) []primaryHint {
 	// Filter input is handled before view bindings, identically in every view.
+	if mode == HintModeCollections {
+		return []primaryHint{{Key: "j/k", Label: "nav"}, {Key: "enter", Label: "open"}, {Key: ":", Label: "commands"}, {Key: "?", Label: "help"}}
+	}
+	if mode == HintModeEmpty || mode == HintModeEmptyTracks || mode == HintModeNoMatches {
+		return emptyHints(ctx, mode)
+	}
 	if mode == HintModeFilter {
 		return []primaryHint{{Key: "enter", Label: "apply"}, {Key: "esc", Label: "clear"}, {Key: "↑/↓", Label: "history"}}
 	}
@@ -427,4 +437,27 @@ func (r Registry) Resolve(viewCtx Context, key string) Action {
 		return a
 	}
 	return r.Lookup(ContextGlobal, key)
+}
+
+func emptyHints(ctx Context, mode HintMode) []primaryHint {
+	hints := []primaryHint{{Key: "1", Label: "library"}}
+	switch {
+	case mode == HintModeNoMatches:
+		hints = []primaryHint{{Key: "esc", Label: "clear/back"}, {Key: "ctrl+t", Label: "tag filter"}}
+	case mode == HintModeEmptyTracks:
+		hints = append([]primaryHint{{Key: "esc", Label: "back"}}, hints...)
+	case emptyNeedsLibrary(ctx):
+		hints = []primaryHint{{Key: "ctrl+,", Label: "folders"}, {Key: "ctrl+r", Label: "rescan"}}
+	case ctx == ContextPlaylists || ctx == ContextTags:
+		hints = []primaryHint{{Key: "c", Label: "create"}}
+	}
+	return append(hints, primaryHint{Key: ":", Label: "commands"}, primaryHint{Key: "?", Label: "help"})
+}
+
+func emptyNeedsLibrary(ctx Context) bool {
+	switch ctx {
+	case ContextLibrary, ContextBrowse, ContextArtists, ContextAlbums, ContextGenres, ContextMixes:
+		return true
+	}
+	return false
 }

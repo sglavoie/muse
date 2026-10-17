@@ -21,15 +21,15 @@ func TestPlaylistUndoFailurePreservesStateAndRetry(t *testing.T) {
 			m := newRichFixture()
 			m.playlistDeleter = pd
 			before := m.playlists
-			m.setUndoSlot(action, make(chan struct{}))
+			m.setUndoSlot(action, func() { t.Fatal("cleanup ran while undo is retained") })
 			expires := m.undo.slot.expiresAt
 			m = m.handleUndo()
 			if !reflect.DeepEqual(m.playlists, before) {
 				t.Fatal("failed undo changed playlists")
 			}
 			assertUndoFailureRetryable(t, m, expires)
-			if m.undo.slot.cancelPurge == nil {
-				t.Fatal("playlist cleanup not rearmed")
+			if m.undo.slot.cleanup == nil {
+				t.Fatal("playlist cleanup not retained")
 			}
 			pd.undoErr = nil
 			m = m.handleUndo()
@@ -51,9 +51,9 @@ func TestTagUndoFailurePreservesStateAndRetry(t *testing.T) {
 			m := newRichFixture()
 			m.tagWriter = tw
 			before := m.tagsView
-			var cancel chan struct{}
+			var cancel func()
 			if action.kind() == undoKindDeleteTag {
-				cancel = make(chan struct{})
+				cancel = func() { t.Fatal("cleanup ran while undo is retained") }
 			}
 			m.setUndoSlot(action, cancel)
 			expires := m.undo.slot.expiresAt
@@ -62,8 +62,8 @@ func TestTagUndoFailurePreservesStateAndRetry(t *testing.T) {
 				t.Fatal("failed undo changed tags")
 			}
 			assertUndoFailureRetryable(t, m, expires)
-			if cancel != nil && m.undo.slot.cancelPurge == nil {
-				t.Fatal("tag cleanup not rearmed")
+			if cancel != nil && m.undo.slot.cleanup == nil {
+				t.Fatal("tag cleanup not retained")
 			}
 			tw.undoErr = nil
 			m = m.handleUndo()

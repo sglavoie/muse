@@ -243,9 +243,7 @@ func (m Model) handleTagToggled(msg tagToggledMsg) (Model, tea.Cmd) {
 			updated := m.overlay.tagPicker.RemoveItem(msg.tagID)
 			m.overlay.tagPicker = &updated
 		}
-		if m.tagWriter != nil {
-			scheduleStandalonePurge(m.tagWriter.PurgeDeletedTags)
-		}
+		// Leave automatic tombstones for startup; a retained undo may need them.
 	}
 	return m, nil
 }

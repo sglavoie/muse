@@ -1,0 +1,147 @@
+package tui
+
+import (
+	"github.com/sglavoie/muse/internal/tui/browse"
+	favtui "github.com/sglavoie/muse/internal/tui/favorites"
+	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/styles"
+	tagtui "github.com/sglavoie/muse/internal/tui/tags"
+)
+
+// hasFooterTarget checks the displayed rows without fetching collection contents.
+func (m Model) hasFooterTarget() bool {
+	switch m.ActiveView {
+	case viewQueue:
+		return len(m.queue.FilteredEntries()) > 0
+	case viewPlaylists:
+		return m.playlistsHasFooterTarget()
+	case viewTags:
+		if _, ok := m.tagsView.FocusedTag(); ok {
+			return true
+		}
+	case viewBrowse:
+		return m.browseHasFooterTarget()
+	case viewFavorites:
+		return m.favoritesHasFooterTarget()
+	case viewMixes:
+		return m.mixesHasFooterTarget()
+	case viewInsights:
+		if !m.insights.AtTracks() {
+			return m.library.Index.Len() > 0
+		}
+	}
+	_, ok := m.focusedTrackForPreview()
+	return ok
+}
+
+func (m Model) browseHasFooterTarget() bool {
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		if _, ok := m.browse.Artists.FocusedArtist(); ok {
+			return true
+		}
+		if _, ok := m.browse.Artists.FocusedAlbum(); ok {
+			return true
+		}
+	case browse.BrowseModeAlbums:
+		if _, ok := m.browse.Albums.FocusedAlbum(); ok {
+			return true
+		}
+	case browse.BrowseModeGenres:
+		if _, ok := m.browse.Genres.FocusedGenre(); ok {
+			return true
+		}
+		if _, ok := m.browse.Genres.FocusedArtist(); ok {
+			return true
+		}
+	}
+	_, ok := m.focusedTrackForPreview()
+	return ok
+}
+
+func (m Model) emptyHintMode() keys.HintMode {
+	if m.hasCommittedFilter() || m.activeTagFilter != nil {
+		return keys.HintModeNoMatches
+	}
+	if m.emptyCollectionOpen() {
+		return keys.HintModeEmptyTracks
+	}
+	return keys.HintModeEmpty
+}
+
+// Empty library-dependent views share the same actionable card as other views.
+func (m Model) renderEmptyPrimary(display styles.Styles) (string, bool) {
+	title := ""
+	action := styles.EmptyAction{Key: "1", Label: "go to library"}
+	switch {
+	case m.ActiveView == viewBrowse && m.library.Index.Len() == 0:
+		title = "No music to browse"
+		action = styles.EmptyAction{Key: "ctrl+,", Label: "set music directories"}
+	case m.ActiveView == viewMixes && m.library.Index.Len() == 0:
+		title = "Add music to build your mixes"
+		action = styles.EmptyAction{Key: "ctrl+,", Label: "set music directories"}
+	case m.ActiveView == viewFavorites && m.favorites.Level == favtui.CategoryLevel && m.favorites.ArtistCount+m.favorites.AlbumCount+m.favorites.TrackCount == 0:
+		title = "No favorites yet"
+		action.Label = "open library, then F to favorite"
+	default:
+		return "", false
+	}
+	return display.RenderEmptyCard(m.termWidth, max(m.termHeight-5, 1), title, []styles.EmptyAction{action, {Key: "?", Label: "help"}}), true
+}
+
+func (m Model) footerOpensCollectionOnly() bool {
+	if m.ActiveView == viewFavorites && m.favorites.Level == favtui.CategoryLevel {
+		return true
+	}
+	if m.ActiveView == viewMixes && m.mixes.Level == 0 && m.mixes.SelectedMix >= 0 && m.mixes.SelectedMix < len(m.mixes.Mixes) {
+		return m.mixes.Mixes[m.mixes.SelectedMix].TrackCount == 0
+	}
+	return false
+}
+
+func (m Model) favoritesHasFooterTarget() bool {
+	if m.favorites.Level == favtui.CategoryLevel {
+		return m.favorites.ArtistCount+m.favorites.AlbumCount+m.favorites.TrackCount > 0
+	}
+	if _, ok := m.favorites.FocusedArtist(); ok {
+		return true
+	}
+	if _, ok := m.favorites.FocusedAlbum(); ok {
+		return true
+	}
+	_, ok := m.favorites.FocusedTrack()
+	return ok
+}
+func (m Model) mixesHasFooterTarget() bool {
+	if m.library.Index.Len() == 0 {
+		return false
+	}
+	if m.mixes.Level == 0 {
+		return len(m.mixes.Mixes) > 0
+	}
+	return m.mixes.FocusedTrack() != nil
+}
+
+func (m Model) emptyCollectionOpen() bool {
+	switch m.ActiveView {
+	case viewPlaylists:
+		return !m.playlists.AtListLevel()
+	case viewMixes:
+		return m.mixes.Level == 1
+	case viewTags:
+		return m.tagsView.Level == tagtui.TrackLevel
+	case viewFavorites:
+		return m.favorites.Level != favtui.CategoryLevel
+	case viewBrowse:
+		return m.library.Index.Len() > 0
+	}
+	return false
+}
+
+func (m Model) playlistsHasFooterTarget() bool {
+	if m.playlists.AtListLevel() {
+		return len(m.playlists.EffectivePlaylists()) > 0
+	}
+	_, ok := m.playlists.FocusedTrack()
+	return ok
+}

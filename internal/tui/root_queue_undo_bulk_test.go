@@ -91,9 +91,8 @@ func TestBulkDequeueSyncsPlayerIndexAfterAdjustment(t *testing.T) {
 	}
 }
 
-// TestUndoBulkDequeueExpiredIsNoOp verifies that undoing a bulk dequeue after
-// the undo window has expired shows "Nothing to undo" and does not restore entries.
-func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
+// TestUndoBulkDequeueAfterBannerExpiry restores a selection after its banner fades.
+func TestUndoBulkDequeueAfterBannerExpiry(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.ActiveView = viewQueue
@@ -109,13 +108,13 @@ func TestUndoBulkDequeueExpiredIsNoOp(t *testing.T) {
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.Entries) != 1 {
-		t.Fatalf("after expired undo: expected 1 entry, got %d", len(nm.queue.Entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("after expired undo: expected 2 entries, got %d", len(nm.queue.Entries))
 	}
-	if len(d.undoDequeueCallIDs) != 0 {
-		t.Fatalf("UndoDequeue must not be called after expiry, got %v", d.undoDequeueCallIDs)
+	if len(d.undoClearQueueCalls) != 1 {
+		t.Fatalf("UndoDequeue must be called after expiry, got %v", d.undoClearQueueCalls)
 	}
-	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Nothing to undo") {
+	if !strings.Contains(nm.statusBar.TopNotification().Msg, "Undone:") {
 		t.Fatalf("expected 'Nothing to undo' notification, got %q", nm.statusBar.TopNotification().Msg)
 	}
 }

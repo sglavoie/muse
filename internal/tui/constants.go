@@ -2,10 +2,8 @@ package tui
 
 import "time"
 
-// undoWindowDuration is the time after a destructive queue action during which
-// pressing 'u' will reverse the action. Only a single undo slot is maintained;
-// a new destructive action within the window replaces the prior slot.
-const undoWindowDuration = 10 * time.Second
+// undoNotificationDuration is the lifetime of the undo notification, not the action.
+const undoNotificationDuration = 10 * time.Second
 
 // scanBatchSize is the maximum number of tracks collected per batch before
 // returning a ScanBatchMsg to the update loop.

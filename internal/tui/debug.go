@@ -195,7 +195,7 @@ func (p DebugPanel) render(s styles.Styles) string {
 
 	undoStr := p.undoAction
 	if p.undoAction != "none" && !p.undoExpiresAt.IsZero() {
-		undoStr = fmt.Sprintf("%s (expires %s)", p.undoAction, p.undoExpiresAt.Format("15:04:05"))
+		undoStr = fmt.Sprintf("%s (banner until %s)", p.undoAction, p.undoExpiresAt.Format("15:04:05"))
 	}
 
 	insufficientStr := "no"

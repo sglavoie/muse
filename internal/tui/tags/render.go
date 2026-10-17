@@ -103,11 +103,8 @@ func (v View) renderTracks() string {
 
 // trackHeader builds the column-heading line above the track rows.
 func trackHeader(cols TrackColumns, st styles.Styles) string {
-	return strings.Repeat(" ", cols.SelectionMarker) + st.ColHead.Render(
-		text.Pad("Title", cols.Title)+" "+
-			text.Pad("Artist", cols.Artist)+" "+
-			text.Pad("Album", cols.Album)+" "+
-			text.PadLeft("Time", cols.Duration))
+	return strings.Repeat(" ", cols.SelectionMarker) + st.ColHead.Render(joinTagCells(" ", text.Pad("Title", cols.Title),
+		text.Pad("Artist", cols.Artist), text.Pad("Album", cols.Album), text.PadLeft("Time", cols.Duration)))
 }
 
 // trackRow carries one track row's pre-padded cells and visual state so each
@@ -161,7 +158,7 @@ func (v View) renderFocusedTrackRow(r trackRow) string {
 	a := v.Styles.Accent
 	sep := a.Render(" ")
 	title := styles.AccentFavRender(a, v.Styles.FavoriteAccent, r.fav, r.title)
-	return a.Render(r.marker) + title + sep + a.Render(r.artist) + sep + a.Render(r.album) + sep + a.Render(r.dur)
+	return a.Render(r.marker) + joinTagCells(sep, title, a.Render(r.artist), a.Render(r.album), a.Render(r.dur))
 }
 
 func (v View) renderNowPlayingTrackRow(r trackRow) string {
@@ -170,7 +167,7 @@ func (v View) renderNowPlayingTrackRow(r trackRow) string {
 	title := v.Styles.NowPlayingTitle.Render(r.title)
 	artist := v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(r.artist)
 	album := v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(r.album)
-	return np.Render(r.marker) + title + sep + artist + sep + album + sep + np.Render(r.dur)
+	return np.Render(r.marker) + joinTagCells(sep, title, artist, album, np.Render(r.dur))
 }
 
 // renderRestingTrackRow renders a row that is neither focused nor playing,
@@ -207,7 +204,7 @@ func (v View) renderFilledTrackRow(r trackRow, title string, rowBg color.Color) 
 	albumPart := styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(r.album)
 	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
 	sep := zb.Render(" ")
-	return markerPart + title + sep + artistPart + sep + albumPart + sep + durPart
+	return markerPart + joinTagCells(sep, title, artistPart, albumPart, durPart)
 }
 
 // renderUnfilledTrackRow renders a resting row with no row background.
@@ -215,8 +212,7 @@ func (v View) renderUnfilledTrackRow(r trackRow, title string) string {
 	if !r.fav {
 		title = v.Styles.TextPrimary.Render(title)
 	}
-	return r.marker + title + " " + v.Styles.TextPrimary.Render(r.artist) + " " +
-		v.Styles.TextSecondary.Render(r.album) + " " + v.Styles.TextTertiary.Render(r.dur)
+	return r.marker + joinTagCells(" ", title, v.Styles.TextPrimary.Render(r.artist), v.Styles.TextSecondary.Render(r.album), v.Styles.TextTertiary.Render(r.dur))
 }
 
 func renderTagLabel(dot, name string, count, width int) string {
@@ -237,4 +233,11 @@ func (v View) filterSeparator() string {
 // topFilterSeparator is like filterSeparator but without a leading newline.
 func (v View) topFilterSeparator() string {
 	return text.BuildFilterSeparator(v.SortIndicator, v.FilterActive, v.FilterText, v.FilterView, "", v.Width, false)
+}
+
+func joinTagCells(sep, title, artist, album, duration string) string {
+	if ansi.StringWidth(duration) == 7 && ansi.StringWidth(album) == 0 {
+		return strings.Join([]string{title, artist, duration}, sep)
+	}
+	return strings.Join([]string{title, artist, album, duration}, sep)
 }

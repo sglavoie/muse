@@ -53,3 +53,14 @@ func (m Model) showRecentMessages() Model {
 	m.overlay.messages = overlay.NewMessages(lines)
 	return m
 }
+
+func (m Model) handleMessagesCopied(msg messagesCopiedMsg) Model {
+
+	if msg.err != nil {
+		m.statusBar.NotifyError("Copy failed: " + msg.err.Error())
+	} else {
+		m.statusBar.Notify("Copied recent messages")
+	}
+
+	return m
+}

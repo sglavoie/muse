@@ -71,10 +71,7 @@ func assertActiveQueueLen(t *testing.T, d *db.DB, want int) []db.QueueRow {
 }
 
 func cancelRadioTestPurge(m *Model) {
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
-		m.undo.slot.cancelPurge = nil
-	}
+	m.undo.slot.cleanup = nil
 }
 
 // TestRadioBatchDiscardedWhenDisabled verifies that a RadioBatchEnqueuedMsg

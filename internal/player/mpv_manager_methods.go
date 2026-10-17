@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-// Manager manages an mpv subprocess and its JSON-IPC connection.
 // NewManager creates a Manager with the given socket path.
 // The caller is responsible for removing any stale socket file before calling
 // Start; app.Run handles this in step 2 (after the PID lockfile is acquired).

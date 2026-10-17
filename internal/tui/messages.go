@@ -38,13 +38,8 @@ const (
 // action is nil when no undo is available.
 type undoSlot struct {
 	action    undoAction
-	expiresAt time.Time
-
-	// cancelPurge is closed when this slot is superseded by a new destructive
-	// action or when undo is successfully performed. The time.AfterFunc purge
-	// callback checks this channel before running to avoid purging rows that
-	// belong to a newer undo slot.
-	cancelPurge chan struct{}
+	expiresAt time.Time // notification lifetime only; the action does not expire
+	cleanup   func()    // hard-delete tombstones once they are no longer restorable
 }
 
 // tickMsg is dispatched every second by tickCmd. It drives elapsed-time

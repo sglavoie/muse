@@ -39,7 +39,7 @@ func TestUndoRemoveFavorite_CrossCategoryCursorUnchanged(t *testing.T) {
 			level:    favtui.ListLevel,
 			category: favtui.CategoryArtists,
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})

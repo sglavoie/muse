@@ -5,7 +5,7 @@ import "testing"
 func TestComputeTrack_DoesNotOverAllocateNearMinimumBoundary(t *testing.T) {
 	for width := 43; width <= 49; width++ {
 		cols := ComputeTrack(width)
-		total := cols.SelectionMarker + cols.Title + cols.Artist + cols.Album + cols.Duration + trackSepCount
+		total := cols.SelectionMarker + cols.Title + cols.Artist + cols.Album + cols.Duration + 2
 		if total != width {
 			t.Fatalf("ComputeTrack(%d) total=%d, want %d", width, total, width)
 		}
@@ -13,7 +13,7 @@ func TestComputeTrack_DoesNotOverAllocateNearMinimumBoundary(t *testing.T) {
 }
 
 func TestComputeTrack_PreservesMinimumsWhenSpaceAllows(t *testing.T) {
-	cols := ComputeTrack(50)
+	cols := ComputeTrack(80)
 	if cols.Title < minTitleWidth {
 		t.Fatalf("Title=%d, want >=%d", cols.Title, minTitleWidth)
 	}

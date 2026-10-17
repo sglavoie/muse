@@ -2,6 +2,7 @@ package playlists
 
 import (
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/library"
 	"strings"
 
@@ -152,12 +153,8 @@ func (v View) renderTrackHeader(cols TrackColumns) string {
 	case "Duration":
 		timeHead += v.SortDir
 	}
-	return strings.Repeat(" ", cols.Marker) + v.Styles.ColHead.Render(
-		text.Pad("#", cols.Position)+" "+
-			text.Pad(titleHead, cols.Title)+" "+
-			text.Pad(artistHead, cols.Artist)+" "+
-			text.Pad(albumHead, cols.Album)+" "+
-			text.PadLeft(timeHead, cols.Duration))
+	return strings.Repeat(" ", cols.Marker) + v.Styles.ColHead.Render(joinPlaylistCells(" ", text.Pad("#", cols.Position),
+		text.Pad(titleHead, cols.Title), text.Pad(artistHead, cols.Artist), text.Pad(albumHead, cols.Album), text.PadLeft(timeHead, cols.Duration)))
 }
 
 // trackRow holds the pre-padded cells of one track row together with the
@@ -219,7 +216,7 @@ func (v View) renderFocusedTrackRow(r trackRow) string {
 	title := styles.AccentFavRender(a, v.Styles.FavoriteAccent, r.trackFav, r.title)
 	artist := styles.AccentFavRender(a, v.Styles.FavArtistAccent, r.artistFav, r.artist)
 	album := styles.AccentFavRender(a, v.Styles.FavAlbumAccent, r.albumFav, r.album)
-	return a.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + a.Render(r.dur)
+	return joinPlaylistCells(sep, a.Render(r.marker+r.pos), title, artist, album, a.Render(r.dur))
 }
 
 func (v View) renderNowPlayingTrackRow(r trackRow) string {
@@ -234,7 +231,7 @@ func (v View) renderNowPlayingTrackRow(r trackRow) string {
 	if r.albumFav {
 		album = v.Styles.NowPlayingRowFavAlbum.Render(r.album)
 	}
-	return np.Render(r.marker+r.pos) + sep + title + sep + artist + sep + album + sep + np.Render(r.dur)
+	return joinPlaylistCells(sep, np.Render(r.marker+r.pos), title, artist, album, np.Render(r.dur))
 }
 
 // renderZebraTrackRow renders an unfocused, not-now-playing row. Selected rows
@@ -277,7 +274,7 @@ func (v View) renderZebraTrackRow(r trackRow, isOdd bool) string {
 	posPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.pos)
 	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
 	sep := zb.Render(" ")
-	return markerPart + posPart + sep + r.title + sep + r.artist + sep + r.album + sep + durPart
+	return joinPlaylistCells(sep, markerPart+posPart, r.title, r.artist, r.album, durPart)
 }
 
 // renderPlainTrackRow renders a row with no background fill. Favorite cells
@@ -292,7 +289,7 @@ func (v View) renderPlainTrackRow(r trackRow) string {
 	if !r.albumFav {
 		r.album = v.Styles.TextSecondary.Render(r.album)
 	}
-	return r.marker + v.Styles.TextTertiary.Render(r.pos) + " " + r.title + " " + r.artist + " " + r.album + " " + v.Styles.TextTertiary.Render(r.dur)
+	return joinPlaylistCells(" ", r.marker+v.Styles.TextTertiary.Render(r.pos), r.title, r.artist, r.album, v.Styles.TextTertiary.Render(r.dur))
 }
 
 // visibleWindow returns the [start, end) row window for the playlists panel.
@@ -304,4 +301,12 @@ func visibleWindow(scrollOffset, cursor, itemCount, maxRows int) (int, int) {
 		return 0, 0
 	}
 	return layout.VisibleWindowForCursor(clamp(cursor, 0, itemCount-1), scrollOffset, itemCount, maxRows, nil)
+}
+
+func joinPlaylistCells(sep, pos, title, artist, album, duration string) string {
+	cells := []string{pos, title, artist}
+	if ansi.StringWidth(album) > 0 || ansi.StringWidth(duration) == trackDurationFixed {
+		cells = append(cells, album)
+	}
+	return strings.Join(append(cells, duration), sep)
 }

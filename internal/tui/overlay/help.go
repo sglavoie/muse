@@ -58,7 +58,7 @@ type HelpSection struct {
 type HelpOverlay struct{}
 
 // StatusBarHelpSectionTitle names the legend section decoding the status bar's
-// mode cluster. It is pinned first in every help mode, so both
+// mode cluster. It follows the current view’s actions in scoped help; both
 // helpSectionsTable and FilteredHelpSections reference it by this constant.
 const StatusBarHelpSectionTitle = "Status bar indicators"
 
@@ -70,11 +70,10 @@ func HelpSections() []HelpSection { return slices.Clone(helpSectionsTable) }
 
 // FilteredHelpSections returns only sections whose context is contextGlobal or
 // matches ctx. This powers the "view-specific" help mode toggled with "?".
-// The status-bar legend stays pinned first here too, so it keeps the same
-// position in both help modes.
+// View actions come first; the status legend and global reference follow.
 func FilteredHelpSections(ctx keys.Context) []HelpSection {
 	all := HelpSections()
-	// Legend first, then the view-specific sections, then global sections.
+	// View-specific sections first, then the legend and global sections.
 	var pinned, viewSpecific, global []HelpSection
 	for _, sec := range all {
 		// Skip the context switch entirely: the legend is contextGlobal, so
@@ -92,8 +91,8 @@ func FilteredHelpSections(ctx keys.Context) []HelpSection {
 		}
 	}
 	out := make([]HelpSection, 0, len(pinned)+len(viewSpecific)+len(global))
-	out = append(out, pinned...)
 	out = append(out, viewSpecific...)
+	out = append(out, pinned...)
 	out = append(out, global...)
 	return out
 }

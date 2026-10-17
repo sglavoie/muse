@@ -357,10 +357,10 @@ func TestMixesViewFilteredHelp(t *testing.T) {
 	if len(sections) < 2 {
 		t.Fatalf("expected at least two help sections for contextMixes, got %d", len(sections))
 	}
-	if sections[0].Title != overlay.StatusBarHelpSectionTitle {
+	if sections[1].Title != overlay.StatusBarHelpSectionTitle {
 		t.Errorf("expected the pinned %q section first, got %q", overlay.StatusBarHelpSectionTitle, sections[0].Title)
 	}
-	if sections[1].Title != "Mixes" {
+	if sections[0].Title != "Mixes" {
 		t.Errorf("expected Mixes section after the pinned legend, got %q", sections[1].Title)
 	}
 }

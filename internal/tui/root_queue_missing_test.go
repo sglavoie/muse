@@ -79,8 +79,8 @@ func TestSelectMissingTrackRemovesEntry(t *testing.T) {
 	if len(dequeuer.dequeueTrackSoftCalls) != 1 || dequeuer.dequeueTrackSoftCalls[0] != 42 {
 		t.Errorf("DequeueTrackSoft calls = %v, want [42]", dequeuer.dequeueTrackSoftCalls)
 	}
-	if len(dequeuer.purgeBeforeCalls) != 1 {
-		t.Errorf("PurgeDeletedQueueEntries calls = %d, want 1", len(dequeuer.purgeBeforeCalls))
+	if len(dequeuer.purgeBeforeCalls) != 0 {
+		t.Errorf("PurgeDeletedQueueEntries calls = %d, want 0 (retained undo must be safe)", len(dequeuer.purgeBeforeCalls))
 	}
 }
 

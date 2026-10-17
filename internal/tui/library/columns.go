@@ -16,7 +16,7 @@ const (
 )
 
 // Columns holds the computed character widths for each track list column.
-// All widths are in Unicode code points (runes), not bytes.
+// All widths are terminal display columns, not bytes.
 type Columns struct {
 	SelectionMarker int // fixed: selectionMarkerFixed chars ('●'/' ' + space)
 	TrackNum        int // fixed: trackNumFixed chars
@@ -43,6 +43,9 @@ func (c Columns) IsTrackNumOnly() bool {
 // When totalWidth is too small for the full layout, only TrackNum is set and
 // the remaining fields are zero, signalling a degenerate (no-column) render.
 func Compute(totalWidth int) Columns {
+	if totalWidth >= 40 && totalWidth < 80 {
+		return compactColumns(totalWidth, 0)
+	}
 	minWidth := selectionMarkerFixed + trackNumFixed + durationFixed + sepCount
 	if totalWidth <= minWidth {
 		return computeDegenerate(totalWidth)
@@ -76,6 +79,9 @@ func ComputeWithPlayedAt(totalWidth int) Columns {
 }
 
 func computeWithDateCol(totalWidth, dateColWidth int) Columns {
+	if totalWidth >= 40 && totalWidth < 80+dateColWidth {
+		return compactColumns(totalWidth, 10)
+	}
 	minWidth := selectionMarkerFixed + trackNumFixed + durationFixed + dateColWidth + sepCountWithDate
 	if totalWidth <= minWidth {
 		return computeDegenerate(totalWidth)
@@ -103,4 +109,23 @@ func computeDegenerate(totalWidth int) Columns {
 		SelectionMarker: selection,
 		TrackNum:        max(0, totalWidth-selection),
 	}
+}
+
+// Compact tables trade album and timestamp detail for readable song identities.
+func compactColumns(width, dateWidth int) Columns {
+	separators := 3
+	if dateWidth > 0 {
+		separators++
+	}
+	flex := max(width-2-3-7-dateWidth-separators, 0)
+	artist := flex * 2 / 5
+	return Columns{SelectionMarker: 2, TrackNum: 3, Duration: 7,
+		Artist: artist, Title: flex - artist, DateAdded: dateWidth}
+}
+
+func (c Columns) separator() string {
+	if c.TrackNum == 3 && c.Duration == 7 {
+		return " "
+	}
+	return "  "
 }

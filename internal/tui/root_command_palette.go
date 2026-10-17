@@ -10,7 +10,7 @@ func (m Model) handleCommandPaletteKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd
 	if msg.String() == "ctrl+c" {
 		return m.markQuitting(), tea.Quit, true
 	}
-	updated, cmd := m.overlay.commandPalette.HandleKey(msg.String(), msg)
+	updated, cmd := m.overlay.commandPalette.HandleKey(msg.String(), msg, max(m.termHeight-3, 1))
 	m.overlay.commandPalette = &updated
 	return m, cmd, true
 }

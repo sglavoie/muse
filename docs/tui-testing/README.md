@@ -209,6 +209,8 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `compact-readability.json` | `narrow` | Readable History titles, compact palette results and paging, scoped help, and resizing at 60×15. |
+| `empty-actions.json` | `empty` | All eight empty views offer useful recovery actions and omit unavailable row actions. |
 | `smart-playlist-editing.json` | `rich` | Settings discard protection, smart-rule validation, duration parsing, favorites, and tag selection at 60×15. |
 | `draft-protection.json` | `rich` | Edited metadata and Auto-DJ drafts require an explicit discard choice, including at 60×15. |
 | `usability-followup.json` | `rich` | Playlist hints, clear selection, persistent Help footer, and Album Artist at 60×15. |
@@ -228,12 +230,10 @@ Each observation is normalized JSON:
 | `autodj-panel.json` | `rich` | Walks the Auto-DJ panel's Tune, Preview, and Recipes tabs at 100×30 and again at the minimum supported size, then closes it with `esc`. |
 | `insights-data-health.json` | `health` | Every Data Health finding, drilling one to its tracks, bulk-editing it, and merging a genre collision until the Rhythm banner clears. |
 
-The baseline, primary-view, overlay, command-palette, layout-regression,
-narrow/long-text, and Auto-DJ panel scenarios are stable and gated in `go test`.
-`resize-stress.json` is kept for manual bug discovery across a wider range of
-supported terminal sizes. The Insights scenarios take timed waits for the
-background snapshot load, so they are run from the command line rather than
-gated in `go test`.
+Every JSON scenario in this directory is discovered automatically and must pass
+in `go test`, including resize stress and Insights. New scenarios cannot be
+silently omitted from CI. Readability scenarios also check useful text and
+recovery hints, alongside overflow checks.
 
 ### Example
 

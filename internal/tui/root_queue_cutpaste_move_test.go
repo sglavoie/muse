@@ -201,11 +201,9 @@ func TestCutPasteMultipleCursorPointsAtLastPasted(t *testing.T) {
 	}
 }
 
-// TestCutPastePreservesPurgeCancelChannel verifies that a cut-paste preserves the
-// purge cancel channel so that the soft-deleted originals are eventually purged.
-// Before the fix, setUndoSlot(..., nil) would close the cancel channel created by
-// schedulePurge, permanently preventing the purge timer from firing.
-func TestCutPastePreservesPurgeCancelChannel(t *testing.T) {
+// TestCutPasteRetainsCleanupUntilSuperseded keeps originals restorable until
+// another action takes ownership of undo, then reclaims their tombstones.
+func TestCutPasteRetainsCleanupUntilSuperseded(t *testing.T) {
 	qa := &stubQueueAppender{}
 	be := &stubBatchEnqueuer{}
 	dequeuer := &stubQueueDequeuer{}
@@ -226,18 +224,12 @@ func TestCutPastePreservesPurgeCancelChannel(t *testing.T) {
 	msg := cmd().(QueuePastedMsg)
 	m = m.handleQueuePastedMsg(msg)
 
-	// The undo slot should have a non-nil cancelPurge channel - this is the
-	// channel that keeps the purge timer alive for the soft-deleted originals.
-	if m.undo.slot.cancelPurge == nil {
-		t.Fatal("cut-paste undo slot should have a non-nil cancelPurge channel; " +
-			"without it the purge timer for soft-deleted originals is immediately cancelled")
+	if m.undo.slot.cleanup == nil || len(dequeuer.purgeBeforeCalls) != 0 {
+		t.Fatal("cut-paste must retain original rows for undo")
 	}
-	// The channel should not be closed (select on it should not succeed).
-	select {
-	case <-m.undo.slot.cancelPurge:
-		t.Fatal("cancelPurge channel should not be closed")
-	default:
-		// expected: channel is open
+	m.setUndoSlot(undoClearAction{}, nil)
+	if len(dequeuer.purgeBeforeCalls) != 1 {
+		t.Fatal("superseding cut-paste must release its tombstones")
 	}
 }
 

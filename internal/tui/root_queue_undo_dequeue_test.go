@@ -46,9 +46,8 @@ func TestUndoMsgRestoresDequeueWithinWindow(t *testing.T) {
 	}
 }
 
-// TestUndoMsgIsNoOpAfterWindowExpiry verifies that UndoMsg received after the
-// 5-second window has elapsed is a no-op.
-func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
+// TestUndoMsgRestoresAfterBannerExpiry proves that only the banner expires.
+func TestUndoMsgRestoresAfterBannerExpiry(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
 	m.queue.Entries = []queue.Entry{
@@ -63,16 +62,16 @@ func TestUndoMsgIsNoOpAfterWindowExpiry(t *testing.T) {
 	next, _ = nm.Update(UndoMsg{})
 	nm = next.(Model)
 
-	if len(nm.queue.Entries) != 1 {
-		t.Fatalf("undo after expiry: expected 1 entry (no restore), got %d", len(nm.queue.Entries))
+	if len(nm.queue.Entries) != 2 {
+		t.Fatalf("undo after expiry: expected 2 restored entries, got %d", len(nm.queue.Entries))
 	}
-	if len(d.undoDequeueCallIDs) != 0 {
-		t.Fatalf("undo after expiry: UndoDequeue must not be called, got calls=%v", d.undoDequeueCallIDs)
+	if len(d.undoDequeueCallIDs) != 1 {
+		t.Fatalf("undo after expiry: UndoDequeue must be called, got calls=%v", d.undoDequeueCallIDs)
 	}
 }
 
 // TestNewDestructiveActionReplacesUndoSlot verifies that a second destructive
-// action before the first undo window expires overwrites the undo slot.
+// action replaces the first undo slot regardless of notification age.
 func TestNewDestructiveActionReplacesUndoSlot(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	m := New(context.Background(), WithQueueDequeuer(d))
@@ -236,7 +235,7 @@ func TestUndoDequeueEnsuresCursorVisibility(t *testing.T) {
 	m.undoer = undoer
 	m.undo.slot = undoSlot{
 		action:    undoDequeueAction{id: dequeued.ID, entry: dequeued, idx: 15},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -348,7 +347,7 @@ func TestUndoDequeueClampsCursorWithActiveFilter(t *testing.T) {
 	m.undoer = undoer
 	m.undo.slot = undoSlot{
 		action:    undoDequeueAction{id: dequeued.ID, entry: dequeued, idx: 10},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})

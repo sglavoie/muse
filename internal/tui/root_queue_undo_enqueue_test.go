@@ -21,7 +21,7 @@ func TestUndoEnqueueClampsScrollOffset(t *testing.T) {
 	}
 	m.undo.slot = undoSlot{
 		action:    undoEnqueueAction{id: 20, entry: m.queue.Entries[1], idx: 1},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 	m.queue.ScrollOffset = 1
 	m.queue.Cursor = 1
@@ -56,7 +56,7 @@ func TestUndoBatchEnqueueClampsScrollOffset(t *testing.T) {
 			startIdx:     1,
 			playlistName: "test",
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 	m.queue.ScrollOffset = 2
 	m.queue.Cursor = 2
@@ -84,7 +84,7 @@ func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 	}
 	m.undo.slot = undoSlot{
 		action:    undoEnqueueAction{id: 20, entry: m.queue.Entries[1], idx: 1},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -97,18 +97,13 @@ func TestUndoEnqueueSchedulesPurge(t *testing.T) {
 	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")
 	}
-	if nm.undo.slot.cancelPurge == nil {
-		t.Fatal("cancelPurge must be preserved after undo so the purge timer can be cancelled by a future action")
-	}
-	select {
-	case <-nm.undo.slot.cancelPurge:
-		t.Fatal("cancelPurge must not be closed — the purge timer should still be able to fire")
-	default:
+	if nm.undo.slot.cleanup != nil || len(d.purgeBeforeCalls) != 1 {
+		t.Fatal("undo enqueue must finish cleanup synchronously")
 	}
 }
 
 // TestUndoBatchEnqueueSchedulesPurge verifies that undoing a batch enqueue
-// schedules a purge that is not immediately cancelled.
+// reclaims the removed rows after undo has finished.
 func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 	d := &stubQueueDequeuer{}
 	be := &stubBatchEnqueuer{}
@@ -123,7 +118,7 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 			count:    2,
 			startIdx: 0,
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -133,13 +128,8 @@ func TestUndoBatchEnqueueSchedulesPurge(t *testing.T) {
 		t.Fatalf("undo batch enqueue must call DequeueTracksSoft once, got %d calls",
 			len(be.dequeueTracksSoftIDs))
 	}
-	if nm.undo.slot.cancelPurge == nil {
-		t.Fatal("cancelPurge must be preserved after undo so the purge timer can be cancelled by a future action")
-	}
-	select {
-	case <-nm.undo.slot.cancelPurge:
-		t.Fatal("cancelPurge must not be closed — the purge timer should still be able to fire")
-	default:
+	if nm.undo.slot.cleanup != nil || len(d.purgeBeforeCalls) != 1 {
+		t.Fatal("undo enqueue must finish cleanup synchronously")
 	}
 	if nm.undo.slot.action != nil {
 		t.Fatal("undo slot must be cleared after successful undo")

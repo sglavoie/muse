@@ -173,7 +173,8 @@ func (s *StatusBar) NotifyError(msg string) {
 	})
 }
 
-// NotifyUndo links a prompt to the exact deadline of the current undo action.
+// NotifyUndo links a fading prompt to the current undo action; its deadline
+// controls only the banner, not how long the action can be undone.
 func (s *StatusBar) NotifyUndo(msg string, expiresAt time.Time) {
 	s.UndoExpiresAt = expiresAt
 	s.pushNotification(TransientNotification{

@@ -1,7 +1,6 @@
 package statusbar
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -32,20 +31,20 @@ func TestErrorSeveritySurvivesBannerExpiry(t *testing.T) {
 	}
 }
 
-func TestUndoCountdownBelongsToItsNotification(t *testing.T) {
+func TestUndoBannerIdentityAndLifetime(t *testing.T) {
 	s := StatusBar{}
 	deadline := time.Now().Add(time.Minute)
 	s.NotifyUndo("Removed track · u to undo", deadline)
-	if got := s.withUndoCountdown(s.TopNotification()); !strings.Contains(got, "s)") {
-		t.Fatalf("undo countdown missing: %q", got)
+	if got := s.TopNotification().Msg; got != "Removed track · u to undo" {
+		t.Fatalf("undo prompt missing: %q", got)
 	}
 	s.NotifyError("Export failed")
-	if got := s.withUndoCountdown(s.TopNotification()); got != "Export failed" {
+	if got := s.TopNotification().Msg; got != "Export failed" {
 		t.Fatalf("unrelated error acquired a countdown: %q", got)
 	}
 	// After the unrelated banner expires, the same undo remains available.
 	s.Notifications[1].ExpiresAt = time.Now().Add(-time.Second)
-	if got := s.withUndoCountdown(s.TopNotification()); !strings.Contains(got, "u to undo (") {
+	if got := s.TopNotification().Msg; got != "Removed track · u to undo" {
 		t.Fatalf("undo did not return: %q", got)
 	}
 	// A newer undo supersedes the old prompt, even if its banner expires first.

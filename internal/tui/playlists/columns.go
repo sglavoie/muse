@@ -51,6 +51,11 @@ type TrackColumns struct {
 // remainder. When the terminal is too narrow, Title is clamped to 1 and
 // Artist to 0.
 func ComputeTrack(totalWidth int) TrackColumns {
+	if totalWidth >= 40 && totalWidth < 80 {
+		flex := totalWidth - 2 - 3 - 7 - 3
+		artist := flex * 2 / 5
+		return TrackColumns{Marker: 2, Position: 3, Duration: 7, Title: flex - artist, Artist: artist}
+	}
 	minWidth := trackMarkerFixed + trackPosFixed + trackDurationFixed + trackSepCount + 1
 	if totalWidth <= minWidth {
 		return TrackColumns{

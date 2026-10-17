@@ -269,7 +269,7 @@ func registerDefaultPrimaries(r *Registry) {
 	// binding lives in contextGlobal so we don't double-register.
 	r.addPrimary(ContextLibrary, "j/k", "nav")
 	r.addPrimary(ContextLibrary, "enter", "enqueue")
-	r.addPrimary(ContextLibrary, "N", "play-next")
+	r.addPrimary(ContextLibrary, ":", "commands")
 	r.addPrimary(ContextLibrary, "/", "filter")
 	r.addPrimary(ContextLibrary, "v", "select")
 	r.addPrimary(ContextLibrary, "?", "help")

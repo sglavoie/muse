@@ -28,12 +28,12 @@ func TestPaletteUndoAvailabilityAndDescription(t *testing.T) {
 		t.Fatalf("unexpected undo: %+v", c)
 	}
 	m.undo.slot.expiresAt = time.Now().Add(-time.Second)
-	if find().IsEnabled() {
-		t.Fatal("expired undo should be disabled")
+	if !find().IsEnabled() {
+		t.Fatal("undo remains available after its banner fades")
 	}
-	// Execution still checks expiry even if a command was selected earlier.
+	// The action remains executable after the banner fades.
 	m = m.handleUndo()
-	if m.statusBar.TopNotification().Msg != "Nothing to undo" {
-		t.Fatal("expired action executed")
+	if m.canUndo() {
+		t.Fatal("successful undo should consume the action")
 	}
 }

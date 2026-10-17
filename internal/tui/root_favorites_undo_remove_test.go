@@ -34,7 +34,7 @@ func TestUndoRemoveFavorite_SingleFromFavoritesView(t *testing.T) {
 			level:    favtui.ListLevel,
 			category: favtui.CategoryArtists,
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -74,7 +74,7 @@ func TestUndoRemoveFavorite_TrackHashRestored(t *testing.T) {
 			value: "hash-1",
 			idx:   -1, // not from Favorites view
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -111,7 +111,7 @@ func TestUndoRemoveFavorite_TrackLevelKeepsDrilldownTrack(t *testing.T) {
 			idx:   0,
 			level: favtui.TrackLevel,
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})
@@ -142,7 +142,7 @@ func TestUndoRemoveFavorite_FromNonFavoritesView(t *testing.T) {
 			value: "Miles Davis",
 			idx:   -1,
 		},
-		expiresAt: time.Now().Add(undoWindowDuration),
+		expiresAt: time.Now().Add(undoNotificationDuration),
 	}
 
 	next, _ := m.Update(UndoMsg{})

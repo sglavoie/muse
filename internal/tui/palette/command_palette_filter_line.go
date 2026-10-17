@@ -72,9 +72,14 @@ func cpCommandRowBudget(termHeight int) int {
 	if termHeight <= 0 {
 		return 1 << 30
 	}
-	const nonCommandLines = 9 // borders/title/filter/padding/hint around the command area.
+	nonCommandLines := 9 // borders/title/filter/padding/hint around the command area.
+	if compactPalette(termHeight) {
+		nonCommandLines--
+	}
 	return max(termHeight-nonCommandLines, 1)
 }
+
+func compactPalette(height int) bool { return height > 0 && height < 20 }
 
 func clamp(v, lo, hi int) int {
 	if v < lo {
@@ -142,7 +147,7 @@ func (p *cpRowPlan) fitBody(budget, pinned, bodyCount int) int {
 		return bodyCount
 	}
 	bodyBudget := budget - fixed
-	if bodyBudget < 0 {
+	if bodyBudget < min(bodyCount, 3) {
 		p.topBodySep = false
 		p.header = false
 		p.bodyBottomSep = false

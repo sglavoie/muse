@@ -2,7 +2,6 @@ package tui
 
 import (
 	"log/slog"
-	"time"
 
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
@@ -146,17 +145,14 @@ func (m Model) handleClearQueueMsg() Model {
 // does not set up an undo slot — the enqueue that follows will create its own.
 func (m Model) clearQueueForReplace() Model {
 	m = m.supersedeRadioBatch()
+	m.retireUndoCleanup()
 	if len(m.queue.Entries) > 0 && m.undoer != nil {
 		go func(undoer queueDequeuer) {
-			if _, err := undoer.ClearQueueSoft(); err == nil {
-				if err := undoer.PurgeDeletedQueueEntries(time.Now().Unix() + 1); err != nil {
-					slog.Error("purge deleted queue entries failed", "err", err)
-				}
+			// Startup sweeps these tombstones; asynchronous purges can race undo.
+			if _, err := undoer.ClearQueueSoft(); err != nil {
+				slog.Warn("clear queue for replace failed", "err", err)
 			}
 		}(m.undoer)
-	}
-	if m.undo.slot.cancelPurge != nil {
-		close(m.undo.slot.cancelPurge)
 	}
 	m.undo.slot = undoSlot{}
 	m.statusBar.UndoExpiresAt = m.undo.slot.expiresAt
@@ -253,6 +249,7 @@ func (m Model) resumeExhaustedPlayback(insertPos int) Model {
 // soft-deletes them in the DB, adjusts the playback index, and syncs the
 // player. It returns the removed entries and their indices.
 func (m *Model) removeCutOriginals(cutIDs []int64) ([]queue.Entry, []int) {
+	m.retireUndoCleanup()
 	cutIDSet := make(map[int64]struct{}, len(cutIDs))
 	for _, id := range cutIDs {
 		cutIDSet[id] = struct{}{}
@@ -333,15 +330,15 @@ func (m *Model) setupPasteUndo(pastedIDs []int64, pastedEntries []queue.Entry, c
 			prePasteIndices[i] = ri
 		}
 	}
-	// Preserve the cancel channel set by schedulePurge above so that
-	// setUndoSlot does not immediately cancel the pending purge of the
+	// Preserve the cleanup set by schedulePurge above so that
+	// setUndoSlot does not immediately run the pending cleanup of the
 	// soft-deleted originals.
-	cutPurgeCancel := m.undo.slot.cancelPurge
-	m.undo.slot.cancelPurge = nil // prevent setUndoSlot from closing it
+	cutCleanup := m.undo.slot.cleanup
+	m.undo.slot.cleanup = nil // transfer ownership to the new undo slot
 	m.setUndoSlot(undoCutPasteAction{
 		pastedIDs:       pastedIDs,
 		originalEntries: removedOriginals,
 		originalIndices: prePasteIndices,
 		count:           len(pastedEntries),
-	}, cutPurgeCancel)
+	}, cutCleanup)
 }

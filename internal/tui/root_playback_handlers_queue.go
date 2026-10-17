@@ -2,7 +2,6 @@ package tui
 
 import (
 	"log/slog"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
@@ -29,7 +28,7 @@ func (m Model) handleMissingTrackMsg(msg playback.MissingTrackMsg) Model {
 // file is gone (detected by the pre-flight stat in actionSelect or already
 // flagged .Missing by the watcher). It shows a warning, splices the entry
 // out of the in-memory queue, syncs the player queue, and returns a Cmd
-// that hard-deletes the row from the database (no undo slot — restoring a
+// that soft-deletes the row from the database (no undo slot — restoring a
 // reference to a file that disappeared off disk would only re-create the
 // same grayed-out entry).
 func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMsg) (Model, tea.Cmd) {
@@ -79,9 +78,8 @@ func (m Model) handleMissingTrackSelectedMsg(msg playback.MissingTrackSelectedMs
 			slog.Warn("remove missing: soft-delete failed", "id", id, "err", err)
 			return nil
 		}
-		if err := undoer.PurgeDeletedQueueEntries(time.Now().Unix() + 1); err != nil {
-			slog.Warn("remove missing: purge failed", "id", id, "err", err)
-		}
+		// Startup reclaims this tombstone; broad cleanup here could purge an unrelated undo.
+
 		return nil
 	}
 }

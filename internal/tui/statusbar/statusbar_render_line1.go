@@ -2,9 +2,7 @@ package statusbar
 
 import (
 	"fmt"
-	"math"
 	"strings"
-	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -23,23 +21,11 @@ func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
 		segments = append(segments, notifErr.Render(" File watcher unavailable — press ctrl+r to rescan manually "))
 	}
 	if top := s.TopNotification(); top.Msg != "" {
-		msg := s.withUndoCountdown(top)
+		msg := top.Msg
 		style := notificationStyle(top.Severity, top.isFading(), notif, notifErr)
 		segments = append(segments, style.Render(" "+msg+" "))
 	}
 	return strings.Join(segments, ctx.r(" "))
-}
-
-// withUndoCountdown appends the seconds left on an open undo window to msg.
-func (s StatusBar) withUndoCountdown(n TransientNotification) string {
-	if n.undoExpiresAt.IsZero() || !n.undoExpiresAt.Equal(s.UndoExpiresAt) {
-		return n.Msg
-	}
-	remaining := time.Until(s.UndoExpiresAt)
-	if remaining <= 0 {
-		return n.Msg
-	}
-	return fmt.Sprintf("%s (%ds)", n.Msg, int(math.Ceil(remaining.Seconds())))
 }
 
 // notificationStyle picks the error or ordinary notification style, faded

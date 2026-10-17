@@ -1,5 +1,10 @@
 package queue
 
+import (
+	"github.com/charmbracelet/x/ansi"
+	"strings"
+)
+
 type queueColumns struct {
 	Position int
 	Title    int
@@ -16,6 +21,11 @@ func computeQueueColumns(totalWidth int, hasSource bool) queueColumns {
 		durWidth    = 10
 	)
 	cols := queueColumns{Position: posWidth, Duration: durWidth}
+	if totalWidth >= 40 && totalWidth < 80 {
+		flex := totalWidth - 2 - 3 - 7 - 3
+		artist := flex * 2 / 5
+		return queueColumns{Position: 3, Duration: 7, Title: flex - artist, Artist: artist}
+	}
 
 	sepCount := 4
 	weights := []int{40, 20, 20}
@@ -94,8 +104,12 @@ func distributeQueueFlex(total int, weights []int) []int {
 // assembleQueueRow joins pre-styled queue row columns using sep as the column
 // separator. When hasSource is false the source column is omitted entirely.
 func assembleQueueRow(sep string, hasSource bool, marker, pos, title, artist, album, source, dur string) string {
-	if hasSource {
-		return marker + pos + sep + title + sep + artist + sep + album + sep + source + sep + dur
+	cells := []string{marker + pos, title, artist}
+	if ansi.StringWidth(album) > 0 {
+		cells = append(cells, album)
 	}
-	return marker + pos + sep + title + sep + artist + sep + album + sep + dur
+	if hasSource && ansi.StringWidth(source) > 0 {
+		cells = append(cells, source)
+	}
+	return strings.Join(append(cells, dur), sep)
 }

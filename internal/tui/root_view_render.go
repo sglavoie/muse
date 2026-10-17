@@ -197,6 +197,9 @@ func (m Model) renderPrimaryBody() string {
 }
 
 func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon string) string {
+	if body, ok := m.renderEmptyPrimary(display); ok {
+		return body
+	}
 	switch m.ActiveView {
 	case viewLibrary:
 		return m.library.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
@@ -232,6 +235,10 @@ func (m Model) renderFooterHint() string {
 		mode = keys.HintModeVisual
 	case m.activeViewSelectionCount() > 0:
 		mode = keys.HintModeSelection
+	case !m.hasFooterTarget():
+		mode = m.emptyHintMode()
+	case m.footerOpensCollectionOnly():
+		mode = keys.HintModeCollections
 	case m.ActiveView == viewMixes && m.mixes.Level == 1,
 		m.ActiveView == viewPlaylists && !m.playlists.AtListLevel():
 		mode = keys.HintModeTracks
