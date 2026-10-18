@@ -15,6 +15,7 @@ const (
 	undoNone                         undoKind = iota
 	undoKindEnqueue                           // single track added via TrackEnqueuedMsg
 	undoKindDequeue                           // single track removed via DequeueTrackMsg
+	undoKindReplaceQueue                      // queue replaced transactionally
 	undoKindClear                             // all tracks removed via ClearQueueMsg
 	undoKindDeletePlaylist                    // playlist soft-deleted via actionPlaylistDelete at ListLevel
 	undoKindRemovePlaylistTrack               // track soft-removed via actionPlaylistDelete at TrackLevel

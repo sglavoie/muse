@@ -146,6 +146,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case libtui.TrackEnqueuedMsg:
 		m = m.handleTrackEnqueuedMsg(msg)
 
+	case queueReplaceRequestedMsg:
+		m = m.handleQueueReplace(msg)
+
 	case BatchEnqueuedMsg:
 		m = m.handleBatchEnqueuedMsg(msg)
 

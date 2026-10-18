@@ -1,0 +1,85 @@
+{
+  "name": "queue-replacement-undo",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "x"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "Charlie"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "2 selected"
+      }
+    },
+    {
+      "key": "shift+enter"
+    },
+    {
+      "wait": "100ms"
+    },
+    {
+      "assert": {
+        "contains": "Queue replaced"
+      }
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "2 tracks"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Track A1"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Track A2"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "u"
+    },
+    {
+      "wait": "100ms"
+    },
+    {
+      "assert": {
+        "contains": "3 tracks"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Track D1"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

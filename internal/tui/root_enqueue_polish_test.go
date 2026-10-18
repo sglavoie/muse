@@ -81,44 +81,65 @@ func TestTrackListEnqueueUsesHiddenSelection(t *testing.T) {
 			m.insights.TrackView = m.insights.TrackView.RebuildFilterCache()
 		}},
 	} {
-		for _, palette := range []bool{false, true} {
-			t.Run(tc.name+map[bool]string{false: "/Enter", true: "/palette"}[palette], func(t *testing.T) {
-				be := &stubBatchEnqueuer{}
-				m := New(t.Context(), WithBatchEnqueuer(be))
-				m.termWidth, m.termHeight = 60, 15
-				tc.setup(&m)
-				command := queuePaletteCommand(t, m, "queue.enqueue.focused")
-				if !command.IsEnabled() || !strings.Contains(command.Detail, "2 selected tracks") {
-					t.Fatalf("wrong palette scope: %+v", command)
-				}
-				if hint := ansi.Strip(m.renderFooterHint()); !strings.Contains(hint, "enqueue 2 selected") || !strings.Contains(hint, "X clear") {
-					t.Fatalf("wrong footer: %s", hint)
-				}
-				var next tea.Model
-				var cmd tea.Cmd
-				if palette {
-					next, cmd = m.Update(command.Exec()())
-				} else {
-					next, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-				}
-				if cmd == nil {
-					t.Fatal("missing enqueue command")
-				}
-				msg, ok := cmd().(BatchEnqueuedMsg)
-				if !ok || msg.Err != nil {
-					t.Fatalf("enqueue result: %#v", msg)
-				}
-				assertTrackHashes(t, be.appendTracksCalls[0], "one", "two")
-				updated := next.(Model)
-				if updated.activeViewSelectionCount() != 0 {
-					t.Fatal("selection not consumed")
-				}
-				if !updated.hasCommittedFilter() {
-					t.Fatal("filter was cleared")
-				}
-			})
+		for _, id := range []string{"queue.enqueue.focused", "queue.play_next", "queue.enqueue.replace"} {
+			for _, palette := range []bool{false, true} {
+				t.Run(tc.name+"/"+id+map[bool]string{false: "/Enter", true: "/palette"}[palette], func(t *testing.T) {
+					be := &stubBatchEnqueuer{}
+					store := &replacementStore{}
+					m := New(t.Context(), WithBatchEnqueuer(be), WithQueueWriter(store))
+					m.termWidth, m.termHeight = 60, 15
+					tc.setup(&m)
+					command := queuePaletteCommand(t, m, id)
+					if !command.IsEnabled() || !strings.Contains(command.Detail, "2 selected tracks") {
+						t.Fatalf("wrong palette scope: %+v", command)
+					}
+					if hint := ansi.Strip(m.renderFooterHint()); !strings.Contains(hint, "enqueue 2 selected") || !strings.Contains(hint, "X clear") {
+						t.Fatalf("wrong footer: %s", hint)
+					}
+					var next tea.Model
+					var cmd tea.Cmd
+					if palette {
+						next, cmd = m.Update(command.Exec()())
+					} else {
+						key := tea.KeyPressMsg{Code: tea.KeyEnter}
+						if id == "queue.play_next" {
+							key = tea.KeyPressMsg{Code: 'N', Text: "N"}
+						}
+						if id == "queue.enqueue.replace" {
+							key.Mod = tea.ModShift
+						}
+						next, cmd = m.Update(key)
+					}
+					if cmd == nil {
+						t.Fatal("missing enqueue command")
+					}
+					updated := next.(Model)
+					switch msg := cmd().(type) {
+					case BatchEnqueuedMsg:
+						if msg.Err != nil {
+							t.Fatal(msg.Err)
+						}
+						assertTrackHashes(t, be.appendTracksCalls[0], "one", "two")
+						if msg.PlayNext != (id == "queue.play_next") {
+							t.Fatal("wrong queue placement")
+						}
+					case queueReplaceRequestedMsg:
+						updated = updated.handleQueueReplace(msg)
+						assertTrackHashes(t, store.tracks, "one", "two")
+					default:
+						t.Fatalf("unexpected result %T", msg)
+					}
+					if updated.activeViewSelectionCount() != 0 {
+						t.Fatal("selection not consumed")
+					}
+					if !updated.hasCommittedFilter() {
+						t.Fatal("filter was cleared")
+					}
+				})
+			}
 		}
 	}
+
 }
 
 func TestPlaylistSelectionEnqueueKeepsOccurrencesAndSort(t *testing.T) {

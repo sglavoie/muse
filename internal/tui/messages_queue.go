@@ -11,6 +11,7 @@ import (
 
 // BatchEnqueuedMsg carries the result of a batch enqueue operation.
 type BatchEnqueuedMsg struct {
+	PlayNext     bool
 	Entries      []queue.Entry
 	QueueIDs     []int64
 	WasEmpty     bool

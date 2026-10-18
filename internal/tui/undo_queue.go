@@ -254,6 +254,7 @@ func (m Model) softRemoveQueueEntries(ids []int64, warnMsg string) Model {
 // undoBatchEnqueueAction reverts a batch enqueue from a playlist
 // (undoKindBatchEnqueue).
 type undoBatchEnqueueAction struct {
+	playNext     bool
 	ids          []int64
 	count        int
 	startIdx     int
@@ -263,6 +264,9 @@ type undoBatchEnqueueAction struct {
 func (a undoBatchEnqueueAction) kind() undoKind { return undoKindBatchEnqueue }
 
 func (a undoBatchEnqueueAction) description() string {
+	if a.playNext {
+		return fmt.Sprintf("Queued next: %d %s — press u to undo", a.count, text.Pluralize(a.count, "track", "tracks"))
+	}
 	return fmt.Sprintf("Added %d %s from %s — press u to undo",
 		a.count, text.Pluralize(a.count, "track", "tracks"), a.playlistName)
 }

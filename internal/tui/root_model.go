@@ -159,6 +159,8 @@ type Model struct {
 	debugViewport viewport.Model // scrollable viewport for the debug panel
 	debugPrevView viewID         // the view that was active before debug was opened
 
+	queueReplacementPending bool
+
 	// player is the playback backend. It may be nil when playback is not
 	// available (e.g. in tests that do not exercise playback).
 	player              playPauser

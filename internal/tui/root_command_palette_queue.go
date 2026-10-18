@@ -18,7 +18,7 @@ func (m Model) describeQueueCommand(cmd palette.PaletteCommand) palette.PaletteC
 	if !cmd.IsEnabled() {
 		return cmd
 	}
-	if cmd.ID == "queue.enqueue.focused" && m.atEnqueueTrackLevel() && m.activeViewSelectionCount() > 0 {
+	if m.atEnqueueTrackLevel() && m.activeViewSelectionCount() > 0 {
 		return m.describeSelectedQueueCommand(cmd)
 	}
 	return m.describeFocusedQueueCommand(cmd)
@@ -29,7 +29,22 @@ func (m Model) describeSelectedQueueCommand(cmd palette.PaletteCommand) palette.
 	if count == 0 {
 		return unavailableQueueCommand(cmd, "No selected tracks available")
 	}
-	cmd.Detail = fmt.Sprintf("Append %d selected %s to queue", count, text.Pluralize(count, "track", "tracks"))
+	switch cmd.ID {
+	case "queue.play_next":
+		cmd.Name = fmt.Sprintf("Play %d selected next", count)
+		cmd.Detail = fmt.Sprintf("Play %d selected %s next", count, text.Pluralize(count, "track", "tracks"))
+	case "queue.enqueue.replace":
+		cmd.Name = fmt.Sprintf("Replace queue with %d selected", count)
+		cmd.Detail = fmt.Sprintf("Replace queue with %d selected %s", count, text.Pluralize(count, "track", "tracks"))
+	default:
+		cmd.Detail = fmt.Sprintf("Append %d selected %s to queue", count, text.Pluralize(count, "track", "tracks"))
+	}
+	if hidden := count - m.visibleEnqueueSelectionCount(); hidden > 0 {
+		cmd.Detail += fmt.Sprintf(" · %d hidden", hidden)
+	}
+	if cmd.ID == "queue.enqueue.replace" {
+		cmd.Detail += " · undo restores previous queue"
+	}
 	return cmd
 }
 
@@ -45,7 +60,7 @@ func (m Model) describeFocusedQueueCommand(cmd palette.PaletteCommand) palette.P
 	case "queue.play_next":
 		cmd.Detail = "Play next: " + target
 	case "queue.enqueue.replace":
-		cmd.Detail = "Clear queue and enqueue: " + target
+		cmd.Detail = "Replace queue with: " + target + " · undo restores previous queue"
 	}
 	if m.activeViewSelectionCount() > 0 {
 		cmd.Detail += " · focused track only"

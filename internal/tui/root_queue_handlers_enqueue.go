@@ -2,6 +2,7 @@ package tui
 
 import (
 	"log/slog"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/player"
@@ -87,9 +88,19 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		return m
 	}
 	batchStartIdx := len(m.queue.Entries)
-	m.queue.Entries = append(m.queue.Entries, msg.Entries...)
+	if msg.PlayNext {
+		batchStartIdx = min(max(m.playNextIndex(), 0), len(m.queue.Entries))
+		m.queue.Entries = slices.Insert(slices.Clone(m.queue.Entries), batchStartIdx, msg.Entries...)
+		if m.playback.currentIndex >= batchStartIdx {
+			m.playback.currentIndex += len(msg.Entries)
+		}
+		m.syncPlayerQueue()
+		m.persistQueueOrder()
+	} else {
+		m.queue.Entries = append(m.queue.Entries, msg.Entries...)
+	}
 	m = m.preserveQueueSort()
-	if appender, ok := m.player.(playerQueueAppender); ok {
+	if appender, ok := m.player.(playerQueueAppender); ok && !msg.PlayNext {
 		for _, entry := range msg.Entries {
 			appender.AppendToQueue(queueTrackFromEntry(entry))
 		}
@@ -101,6 +112,7 @@ func (m Model) handleBatchEnqueuedMsg(msg BatchEnqueuedMsg) Model {
 		m = m.resumeExtendedQueueByRequest(batchStartIdx)
 	}
 	m.setUndoSlot(undoBatchEnqueueAction{
+		playNext:     msg.PlayNext,
 		ids:          msg.QueueIDs,
 		count:        len(msg.Entries),
 		startIdx:     batchStartIdx,

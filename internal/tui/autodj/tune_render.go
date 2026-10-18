@@ -107,7 +107,7 @@ func innerWidth(termWidth int) int {
 func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, status []StatusLine) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-2, 0)
-	title, titleWidth := tabBarTitle(tabTune, s)
+	title, titleWidth := tabBarTitle(tabTune, s, inner)
 	lines := boxHeaderRendered(title, titleWidth, inner)
 
 	rowLines, statusLines := p.splitBudget(termHeight, p.statusLines(status))
@@ -123,8 +123,7 @@ func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, sta
 		}
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
-	return append(lines, "  "+s.Dim.Render(
-		text.CompactHints(p.hint(end-start < int(rowCount)), inner, "ctrl+s", "esc", "enter")))
+	return appendPanelHints(lines, p.hint(end-start < int(rowCount)), inner, termHeight, s)
 }
 
 // splitBudget divides the vertical space between the rows and the explanation
@@ -262,4 +261,12 @@ func centerBox(boxLines []string, termWidth, termHeight int) string {
 		b.WriteString(prefix + line + "\n")
 	}
 	return b.String()
+}
+
+// appendPanelHints spends unused rows on complete key/label pairs.
+func appendPanelHints(lines []string, hint string, width, height int, s styles.Styles) []string {
+	for _, line := range text.HintLines(hint, width, height-len(lines), "ctrl+s", "esc", "j/k", "enter", "tab") {
+		lines = append(lines, "  "+s.Dim.Render(line))
+	}
+	return lines
 }

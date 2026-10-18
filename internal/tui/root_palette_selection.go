@@ -57,3 +57,19 @@ func (m Model) visibleFavoriteSelectionCount() int {
 	}
 	return count
 }
+
+func (m Model) visibleEnqueueSelectionCount() int {
+	if m.ActiveView == viewPlaylists {
+		count := 0
+		for _, row := range m.playlists.DisplayTracks() {
+			if _, ok := m.playlists.SelectedTrackIDs[row.ID]; ok {
+				count++
+			}
+		}
+		return count
+	}
+	if m.ActiveView == viewFavorites {
+		return m.visibleFavoriteSelectionCount()
+	}
+	return m.visibleSelectedTrackCount()
+}

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace queue commits removal and insertion atomically before changing playback.
+  Failed saves preserve the queue and selection; undo restores the previous queue
+  with its original identities and provenance, and attempts to resume playback.
+- Play next and Replace queue honor selected tracks across track lists, including
+  hidden selections and duplicate playlist entries. Palette labels describe their
+  scope. Insights and Mixes expose the same queue actions as other track lists.
+- Settings and Auto-DJ use spare rows for complete keyboard hints and identify tab
+  navigation in their headers. Settings explains focused values and when they apply.
+- Auto-DJ Preview leads with proposed tracks, pins the batch summary and discovery
+  balance while scrolling, and shows the visible line range.
+- Data Health shows repair actions and affected counts instead of bars, with
+  advisory findings marked for review and a contextual footer.
+
 - Library enqueue, play-next, and replace actions preserve the filter and focus.
 - Enter enqueues selected tracks across Library, Browse, Playlists, Favorites,
   Tags, and Insights, including hidden selections and duplicate playlist entries.

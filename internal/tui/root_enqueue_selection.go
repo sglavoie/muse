@@ -18,7 +18,7 @@ func (m Model) atEnqueueTrackLevel() bool {
 
 func (m Model) handleSelectedEnqueueAction(action keys.Action) (Model, tea.Cmd, bool) {
 	switch action {
-	case keys.ActionLibraryEnqueue, keys.ActionPlaylistOpen, keys.ActionArtistOpen,
+	case keys.ActionPlayNext, keys.ActionLibraryEnqueue, keys.ActionPlaylistOpen, keys.ActionArtistOpen,
 		keys.ActionAlbumOpen, keys.ActionGenreOpen, keys.ActionFavoritesOpen,
 		keys.ActionTagOpen, keys.ActionInsightsOpen:
 	default:
@@ -44,6 +44,14 @@ func (m Model) handleSelectedEnqueueAction(action keys.Action) (Model, tea.Cmd, 
 		_, source, _, _, _ = m.resolvePlaylistForEnqueue()
 	}
 	cmd := m.batchEnqueueTracksCmd(tracks, source, queueSourceName(source))
+	if action == keys.ActionPlayNext {
+		appendCmd := cmd
+		cmd = func() tea.Msg {
+			result := appendCmd().(BatchEnqueuedMsg)
+			result.PlayNext = true
+			return result
+		}
+	}
 	m = exitVisualMode(m).clearActiveViewSelection()
 	return m, cmd, true
 }

@@ -3,22 +3,17 @@ package tui
 // paletteAliases supplies a small search vocabulary without changing command
 // names, IDs, shortcuts, usage tracking, or availability checks.
 func paletteAliases(id string) []string {
-	switch id {
-	case "messages.show":
-		return []string{"errors"}
-	case "playback.seek.start":
-		return []string{"restart song"}
-	case "track.reveal":
-		return []string{"locate file"}
-	case "library.rescan":
-		return []string{"refresh library", "scan music"}
-	case "audio.toggle.eq":
-		return []string{"eq"}
-	case "radio.toggle":
-		return []string{"auto-dj", "autodj", "auto dj"}
-	case "autodj.tune":
-		return []string{"tune radio", "autodj", "auto dj"}
-	default:
-		return nil
-	}
+	return paletteSearchAliases[id]
+}
+
+var paletteSearchAliases = map[string][]string{
+	"queue.play_next":       {"play focused track next", "play tracks next"},
+	"queue.enqueue.replace": {"replace queue with track", "replace queue with tracks"},
+	"messages.show":         {"errors"},
+	"playback.seek.start":   {"restart song"},
+	"track.reveal":          {"locate file"},
+	"library.rescan":        {"refresh library", "scan music"},
+	"audio.toggle.eq":       {"eq"},
+	"radio.toggle":          {"auto-dj", "autodj", "auto dj"},
+	"autodj.tune":           {"tune radio", "autodj", "auto dj"},
 }

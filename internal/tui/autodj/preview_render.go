@@ -1,6 +1,7 @@
 package autodj
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -21,18 +22,24 @@ const continuationIndent = 2
 func (p TunePanel) buildPreviewLines(termWidth, termHeight int, s styles.Styles, v Preview) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-2, 0)
-	title, titleWidth := tabBarTitle(tabPreview, s)
+	title, titleWidth := tabBarTitle(tabPreview, s, inner)
 	lines := boxHeaderRendered(title, titleWidth, inner)
 
-	body := wrapPreview(v.previewLines(p.tagNames()), content)
-	start, end := previewWindow(len(body), p.previewOffset, termHeight)
+	pinned, body := v.presentationLines(p.tagNames(), content)
+	for _, line := range pinned {
+		lines = append(lines, boxBorderV+" "+s.Heading.Render(text.Pad(line.Text, content))+" "+boxBorderV)
+	}
+	start, end := previewWindow(len(body), p.previewOffset, termHeight-len(pinned))
 	for i := start; i < end; i++ {
 		lines = append(lines, boxBorderV+" "+toneStyle(body[i].Tone, s).Render(
 			text.Pad(text.Truncate(body[i].Text, content), content))+" "+boxBorderV)
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
-	return append(lines, "  "+s.Dim.Render(
-		text.CompactHints(previewHint(end-start < len(body), p.CommitLabel()), inner, "ctrl+s", "esc")))
+	hint := previewHint(end-start < len(body), p.CommitLabel())
+	if end-start < len(body) {
+		hint = strings.Replace(hint, "j/k scrolls", fmt.Sprintf("j/k scrolls %d–%d/%d", start+1, end, len(body)), 1)
+	}
+	return appendPanelHints(lines, hint, inner, termHeight, s)
 }
 
 // previewWindow returns the half-open range of wrapped lines to draw.
@@ -116,12 +123,15 @@ func previewHint(scrolled bool, commit string) string {
 // tabBarTitle renders the overlay title with the active tab marked, and reports
 // the display width of the plain text behind it so the border arithmetic does
 // not have to measure escape sequences.
-func tabBarTitle(active panelTab, s styles.Styles) (string, int) {
+func tabBarTitle(active panelTab, s styles.Styles, inner int) (string, int) {
 	const name = " Auto-DJ "
 	rendered := s.Heading.Render(name)
 	width := ansi.StringWidth(name)
 	for i := range int(tabCount) {
 		label := " " + tabLabels[i] + " "
+		if panelTab(i) == active {
+			label = "[" + tabLabels[i] + "]"
+		}
 		width += ansi.StringWidth(label)
 		if panelTab(i) == active {
 			rendered += s.ActiveTab.Render(label)
@@ -129,5 +139,40 @@ func tabBarTitle(active panelTab, s styles.Styles) (string, int) {
 		}
 		rendered += s.TextTertiary.Render(label)
 	}
+	if hint := " · tab/⇧tab tabs"; width+ansi.StringWidth(hint) <= inner {
+		rendered += s.Dim.Render(hint)
+		width += ansi.StringWidth(hint)
+	}
 	return rendered, width
+}
+
+func (v Preview) presentationLines(names map[int64]string, content int) ([]StatusLine, []StatusLine) {
+	logical := v.previewLines(names)
+	if v.Status != PreviewReady {
+		return nil, wrapPreview(logical, content)
+	}
+	discovery := 0
+	for _, track := range v.Tracks {
+		if track.Discovery.IsDiscovery() {
+			discovery++
+		}
+	}
+	summary := []previewLine{
+		{text: fmt.Sprintf("Would add %d tracks · after %d queued", len(v.Tracks), len(v.Ahead)+v.AheadMore)},
+		{text: fmt.Sprintf("%d discovery · %d familiar · target %d discovery", discovery, len(v.Tracks)-discovery, v.DiscoveryTarget)},
+	}
+	if v.Replanning {
+		summary = append(summary, previewLine{text: "Inputs moved — replanning…", tone: ToneWarn})
+	} else if v.Stale {
+		summary = append(summary, previewLine{text: "Inputs moved — press r to replan", tone: ToneWarn})
+	}
+	pinned := wrapPreview(summary, content)
+	batchSummary := v.batchSummary()
+	filtered := make([]previewLine, 0, len(logical))
+	for _, line := range logical {
+		if line.text != batchSummary {
+			filtered = append(filtered, line)
+		}
+	}
+	return pinned, wrapPreview(filtered, content)
 }

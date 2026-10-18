@@ -13,7 +13,7 @@ import (
 func (p TunePanel) buildRecipesLines(termWidth, termHeight int, s styles.Styles) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-2, 0)
-	title, titleWidth := tabBarTitle(tabRecipes, s)
+	title, titleWidth := tabBarTitle(tabRecipes, s, inner)
 	lines := boxHeaderRendered(title, titleWidth, inner)
 
 	logical, focus := p.recipeLines()
@@ -24,8 +24,7 @@ func (p TunePanel) buildRecipesLines(termWidth, termHeight int, s styles.Styles)
 			text.Pad(text.Truncate(body[i].Text, content), content))+" "+boxBorderV)
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
-	return append(lines, "  "+s.Dim.Render(
-		text.CompactHints(p.recipeHint(end-start < len(body)), inner, "ctrl+s", "esc", "enter")))
+	return appendPanelHints(lines, p.recipeHint(end-start < len(body)), inner, termHeight, s)
 }
 
 // recipeLines assembles the page and reports which logical line the cursor is

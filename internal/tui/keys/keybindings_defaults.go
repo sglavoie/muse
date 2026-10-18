@@ -195,6 +195,7 @@ func registerGenresBindings(r *Registry) {
 func registerTagsBindings(r *Registry) {
 	r.registerNavigation(ContextTags)
 	r.register(ContextTags, "enter", ActionTagOpen)
+	r.register(ContextTags, "shift+enter", ActionLibraryEnqueueReplace)
 	r.register(ContextTags, "backspace", ActionTagBack)
 	r.register(ContextTags, "h", ActionTagBack)
 	r.register(ContextTags, "c", ActionTagCreate)
@@ -215,6 +216,7 @@ func registerTagsBindings(r *Registry) {
 func registerMixesBindings(r *Registry) {
 	r.registerNavigation(ContextMixes)
 	r.register(ContextMixes, "enter", ActionMixOpen)
+	r.register(ContextMixes, "shift+enter", ActionLibraryEnqueueReplace)
 	r.register(ContextMixes, "esc", ActionMixBack)
 	r.register(ContextMixes, "e", ActionLibraryEnqueue)
 	r.register(ContextMixes, "E", ActionMixEnqueueAll)
@@ -231,6 +233,8 @@ func registerMixesBindings(r *Registry) {
 func registerInsightsBindings(r *Registry) {
 	r.registerNavigation(ContextInsights)
 	r.register(ContextInsights, "enter", ActionInsightsOpen)
+	r.register(ContextInsights, "N", ActionPlayNext)
+	r.register(ContextInsights, "shift+enter", ActionLibraryEnqueueReplace)
 	r.register(ContextInsights, "esc", ActionInsightsBack)
 	r.register(ContextInsights, "`", ActionInsightsPanelNext)
 	r.register(ContextInsights, "~", ActionInsightsPanelPrev)

@@ -36,6 +36,33 @@ func CompactHints(hint string, width int, essentialKeys ...string) string {
 	return strings.Join(out, sep)
 }
 
+// HintLines uses spare vertical space without splitting key/label pairs. The
+// first line always contains the essential actions, even when only one fits.
+func HintLines(hint string, width, rows int, essentialKeys ...string) []string {
+	var lines []string
+	remaining := strings.Split(hint, " · ")
+	for range min(max(rows, 1), 2) {
+		line := CompactHints(strings.Join(remaining, " · "), width, essentialKeys...)
+		if line == "" {
+			break
+		}
+		lines = append(lines, line)
+		kept := strings.Split(line, " · ")
+		var rest []string
+		for _, pair := range remaining {
+			found := false
+			for _, used := range kept {
+				found = found || pair == used
+			}
+			if !found {
+				rest = append(rest, pair)
+			}
+		}
+		remaining = rest
+	}
+	return lines
+}
+
 // FocusMarker reserves the same two-column gutter in lists and pickers as in
 // track tables. Selection checkboxes and playback icons remain separate states.
 func FocusMarker(focused bool) string {

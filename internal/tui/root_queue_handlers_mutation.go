@@ -140,31 +140,6 @@ func (m Model) handleClearQueueMsg() Model {
 	return m
 }
 
-// clearQueueForReplace silently clears the queue and stops playback so that a
-// subsequent enqueue becomes the only entry. Unlike handleClearQueueMsg this
-// does not set up an undo slot — the enqueue that follows will create its own.
-func (m Model) clearQueueForReplace() Model {
-	m = m.supersedeRadioBatch()
-	m.retireUndoCleanup()
-	if len(m.queue.Entries) > 0 && m.undoer != nil {
-		go func(undoer queueDequeuer) {
-			// Startup sweeps these tombstones; asynchronous purges can race undo.
-			if _, err := undoer.ClearQueueSoft(); err != nil {
-				slog.Warn("clear queue for replace failed", "err", err)
-			}
-		}(m.undoer)
-	}
-	m.undo.slot = undoSlot{}
-	m.statusBar.UndoExpiresAt = m.undo.slot.expiresAt
-	m = m.resetQueueState()
-	m = m.resetPlaybackState()
-	if setter, ok := m.player.(playerQueueSetter); ok {
-		setter.SetQueue(nil)
-	}
-	m.queueDirty = false
-	return m
-}
-
 // handleQueuePastedMsg splices pasted entries into the queue, syncs the player,
 // and adjusts the playback index.
 func (m Model) handleQueuePastedMsg(msg QueuePastedMsg) Model {

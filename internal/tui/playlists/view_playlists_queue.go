@@ -11,11 +11,6 @@ func (v PlaylistsView) EnqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen
 	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, v.sourcePlaylistName(), -1)
 }
 
-func (v PlaylistsView) PlayNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
-	track, ok := v.FocusedTrack()
-	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, v.sourcePlaylistName(), insertAfter)
-}
-
 func (v PlaylistsView) sourcePlaylistName() string {
 	if v.ListCursor >= 0 && v.ListCursor < len(v.Playlists) {
 		return v.Playlists[v.ListCursor].Name

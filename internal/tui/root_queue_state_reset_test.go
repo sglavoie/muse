@@ -88,30 +88,6 @@ func TestTickDoesNotUpdateElapsedWhenIdle(t *testing.T) {
 	}
 }
 
-// TestClearQueueForReplaceClearsFilter verifies that clearQueueForReplace
-// deactivates the queue filter so the replacement entry is always visible.
-func TestClearQueueForReplaceClearsFilter(t *testing.T) {
-	m := New(context.Background())
-	m.queue.Entries = []queue.Entry{
-		{ID: 1, Path: "/a.flac", Hash: "aaa", Display: "A", Artist: "Art", Title: "A"},
-		{ID: 2, Path: "/b.flac", Hash: "bbb", Display: "B", Artist: "Brt", Title: "B"},
-	}
-	m.queue.Filter.Active = true
-	m.queue.Filter.Text = "art"
-
-	m = m.clearQueueForReplace()
-
-	if m.queue.Filter.Active {
-		t.Error("filter.Active must be false after clearQueueForReplace")
-	}
-	if m.queue.Filter.Text != "" {
-		t.Errorf("filter.Text must be empty after clearQueueForReplace, got %q", m.queue.Filter.Text)
-	}
-	if len(m.queue.Entries) != 0 {
-		t.Errorf("queue entries must be empty after clearQueueForReplace, got %d", len(m.queue.Entries))
-	}
-}
-
 // TestPlayQueueIndexMsgClearsStateOnFailure verifies that when PlayFromIndex
 // fails, the TUI clears stale status bar and playback fields via the async
 // playFromIndexResultMsg round-trip.

@@ -125,7 +125,7 @@ func TestBulkActionFavoritesListLevelTracks(t *testing.T) {
 // TestEnqueueReplaceFromTags verifies that the enqueue-replace action from the
 // Tags view calls enqueueFocusedTrack.
 func TestEnqueueReplaceFromTags(t *testing.T) {
-	qa := &fakeQueueAppender{}
+	qa := &uitestQueueStore{}
 	m := New(context.Background(), WithQueueWriter(qa), WithLibraryTracks(sampleLibraryTracks()))
 	m.ActiveView = viewTags
 	m.tagsView.Level = tagtui.TrackLevel

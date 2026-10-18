@@ -1,0 +1,83 @@
+{
+  "name": "health-repair-actions",
+  "fixture": "health",
+  "size": "100x30",
+  "actions": [
+    {
+      "key": "8"
+    },
+    {
+      "key": "~"
+    },
+    {
+      "assert": {
+        "contains": "m merge genres"
+      }
+    },
+    {
+      "assert": {
+        "contains": "M edit missing titles"
+      }
+    },
+    {
+      "assert": {
+        "contains": "enter inspect durations"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Review: Alice"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "\u2588"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "M edit missing titles"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enqueue all"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "M"
+    },
+    {
+      "assert": {
+        "overlay": "metadata_editor"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    }
+  ]
+}

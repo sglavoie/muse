@@ -240,3 +240,25 @@ func TestWrapTextKeepsOverlongWords(t *testing.T) {
 		t.Fatalf("wrapped = %v, want the trailing word kept", lines)
 	}
 }
+
+func TestPreviewKeepsProposalSummaryVisibleWhileScrolling(t *testing.T) {
+	p := previewPanel(t)
+	v := readyPreview()
+	v.Ahead = []QueuedTrack{{Label: "Existing song", DJ: true}}
+	out := plain(p.Render(60, 12, styles.NewStyles(true), nil, v))
+	for _, want := range []string{"Would add 5 tracks", "after 1 queued", "2 discovery", "3 familiar", "1. Amy", "j/k scrolls 1–"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %s:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Existing song") {
+		t.Fatal("existing queue displaced the proposed songs")
+	}
+	for range 40 {
+		p, _ = press(t, p, "j")
+	}
+	bottom := plain(p.Render(60, 12, styles.NewStyles(true), nil, v))
+	if !strings.Contains(bottom, "Would add 5 tracks") || !strings.Contains(bottom, "2 discovery") || !strings.Contains(bottom, "finished listens only") {
+		t.Fatalf("lost pinned summary or scroll content:\n%s", bottom)
+	}
+}

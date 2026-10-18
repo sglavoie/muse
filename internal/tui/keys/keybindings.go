@@ -157,9 +157,9 @@ const (
 
 	// Library-local actions.
 	ActionLibraryEnqueue        // enter: append the focused or selected tracks to the play queue
-	ActionLibraryEnqueueReplace // shift+enter: clear queue and enqueue focused track
+	ActionLibraryEnqueueReplace // shift+enter: replace queue with selected or focused tracks
 	ActionLibraryFilterClear    // esc: clear a committed filter in the library view
-	ActionPlayNext              // 'N': insert the focused track right after the currently playing track
+	ActionPlayNext              // 'N': insert selected or focused tracks after the current track
 
 	// Queue-local actions.
 	ActionCursorUp

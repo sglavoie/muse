@@ -1,0 +1,165 @@
+{
+  "name": "dialog-guidance",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "ctrl+,"
+    },
+    {
+      "assert": {
+        "contains": "tab/\u21e7tab tabs"
+      }
+    },
+    {
+      "assert": {
+        "contains": "e excluded"
+      }
+    },
+    {
+      "assert": {
+        "contains": "d delete"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "Volume used when Muse starts"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "key": "ctrl+a"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "wait": "100ms"
+    },
+    {
+      "assert": {
+        "contains": "Would add 3 tracks"
+      }
+    },
+    {
+      "assert": {
+        "contains": "after 3 queued"
+      }
+    },
+    {
+      "assert": {
+        "contains": "3 discovery"
+      }
+    },
+    {
+      "assert": {
+        "contains": "1. Alice"
+      }
+    },
+    {
+      "assert": {
+        "contains": "j/k scrolls 1\u2013"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "Would add 3 tracks"
+      }
+    },
+    {
+      "assert": {
+        "contains": "3 discovery"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

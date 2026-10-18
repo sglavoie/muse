@@ -33,10 +33,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	for _, fields := range changes {
 		count += changedCount(fields)
 	}
-	title := " ⚙ Settings "
-	if count > 0 {
-		title = fmt.Sprintf("Settings · %d unsaved %s", count, text.Pluralize(count, "change", "changes"))
-	}
+	title := o.title(count)
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
@@ -76,11 +73,16 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 		lines = o.renderFieldsTab(lines, contentWidth, termHeight, s)
 	}
 
+	// Hints get spare rows before explanatory copy does.
+	hints := text.HintLines(o.keyHint(), boxInner, termHeight-len(lines)-1, "ctrl+s", "esc", "enter", "tab/⇧tab", "j/k")
+	lines = o.appendDescription(lines, contentWidth, termHeight-len(lines)-1-len(hints), s)
 	// Bottom border.
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
-	hint := text.CompactHints(o.keyHint(), termWidth, "ctrl+s", "esc", "enter", "j/k")
-	return overlay.RenderTopLines(lines, hint, termWidth)
+	for _, hint := range hints {
+		lines = append(lines, s.Dim.Render(hint))
+	}
+	return overlay.RenderTopLines(lines, "", termWidth)
 }
 
 func (o SettingsOverlay) keyHint() string {
@@ -282,4 +284,14 @@ func (o SettingsOverlay) renderEQStateRow(lines []string, contentWidth int, pres
 		return append(lines, overlay.BorderV+"  "+body+strings.Repeat(" ", pad)+"  "+overlay.BorderV)
 	}
 	return lines
+}
+
+func (o SettingsOverlay) title(changes int) string {
+	if changes > 0 {
+		return fmt.Sprintf("Settings · %d unsaved %s", changes, text.Pluralize(changes, "change", "changes"))
+	}
+	if !o.editingText() {
+		return "Settings · tab/⇧tab tabs"
+	}
+	return " ⚙ Settings "
 }

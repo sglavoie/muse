@@ -232,6 +232,15 @@ func (m Model) renderFooterHint() string {
 	if m.hasActiveOverlay() || !m.showFooterHints {
 		return ""
 	}
+	if m.ActiveView == viewInsights {
+		if finding := m.insights.FocusedHealthRow(); finding != nil {
+			hint := finding.ActionHint() + " · enter inspect · j/k nav · `/~ panel · ? help"
+			if strings.HasPrefix(finding.ActionHint(), "enter ") {
+				hint = finding.ActionHint() + " · j/k nav · `/~ panel · ? help"
+			}
+			return m.styles.Dim.Render(text.CompactHints(hint, m.termWidth, strings.Fields(finding.ActionHint())[0], "?"))
+		}
+	}
 	mode := keys.HintModeDefault
 	switch {
 	case m.activeFilterOps() != nil:

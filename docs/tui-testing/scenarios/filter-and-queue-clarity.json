@@ -144,7 +144,7 @@
     },
     {
       "assert": {
-        "contains": "focused track only"
+        "contains": "Play 2 selected tracks next"
       }
     },
     {
@@ -166,7 +166,7 @@
     },
     {
       "assert": {
-        "contains": "Clear queue and enqueue"
+        "contains": "Replace queue with 2 selected"
       }
     },
     {

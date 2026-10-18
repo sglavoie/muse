@@ -243,11 +243,6 @@ func (v FavoritesView) EnqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen
 	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
 
-func (v FavoritesView) PlayNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
-	track, ok := v.FocusedTrack()
-	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", insertAfter)
-}
-
 // RecomputeFavoritesSort re-sorts the owned slices for the current level.
 func (v FavoritesView) RecomputeFavoritesSort() FavoritesView {
 	if v.SortState.Field == sorting.SortDefault {

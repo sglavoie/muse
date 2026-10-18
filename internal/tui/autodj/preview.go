@@ -141,10 +141,9 @@ type previewLine struct {
 }
 
 // previewLines assembles the page in reading order: what the batch is for, what
-// plays before it, the batch itself, then everything qualifying it.
+// the proposed songs, qualifying evidence, then the existing queue.
 func (v Preview) previewLines(names map[int64]string) []previewLine {
 	lines := []previewLine{{text: v.headline(), tone: ToneInfo}}
-	lines = append(lines, v.aheadLines(names)...)
 	switch v.Status {
 	case PreviewIdle:
 		return append(lines, previewLine{
@@ -157,6 +156,7 @@ func (v Preview) previewLines(names map[int64]string) []previewLine {
 	}
 	lines = append(lines, v.batchLines(names)...)
 	lines = append(lines, v.outcomeLines(names)...)
+	lines = append(lines, v.aheadLines(names)...)
 	return append(lines, v.evidenceLines()...)
 }
 

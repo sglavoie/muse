@@ -138,9 +138,9 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
-| `tui/queue` | 79 | 18 | 60 | 1 | `tui`, `internal/app` |
-| `tui/browse` | 85 | 0 | 84 | 1 | `tui` |
-| `tui/insights` | 134 | 0 | 129 | 5 | `tui` |
+| `tui/queue` | 79 | 18 | 61 | 0 | `tui`, `internal/app` |
+| `tui/browse` | 82 | 0 | 81 | 1 | `tui` |
+| `tui/insights` | 135 | 0 | 130 | 5 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/autodj` | 100 | 0 | 96 | 4 | `tui` |
 | `tui/uitest` | 72 | 0 | 35 | 37 | `main` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1055 exported identifiers across 15 packages**: 162 reached from two or more packages, 833 from exactly one, 60 from none (24 `api`, 3 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1053 exported identifiers across 15 packages**: 162 reached from two or more packages, 832 from exactly one, 59 from none (24 `api`, 2 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -882,7 +882,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.FocusedEntryIndex` | method | `internal/tui` | root |
 | `tui/queue` | `View.HandleAction` | method | `internal/tui` | root |
 | `tui/queue` | `View.HasSelection` | method | `internal/tui` | root |
-| `tui/queue` | `View.Height` | field | `internal/tui†` | root (tests only) |
+| `tui/queue` | `View.Height` | field | `internal/tui` | root |
 | `tui/queue` | `View.IsSavingAsPlaylist` | method | `internal/tui` | root |
 | `tui/queue` | `View.MarkMissing` | method | `internal/tui` | root |
 | `tui/queue` | `View.MarkMissingByHash` | method | `internal/tui` | root |
@@ -899,7 +899,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.ScrollOffset` | field | `internal/tui` | root |
 | `tui/queue` | `View.ScrollToNowPlaying` | method | `internal/tui` | root |
 | `tui/queue` | `View.SelectedHashes` | method | `internal/tui` | root |
-| `tui/queue` | `View.SetSize` | method | — | iface: internal/tui.resizable |
+| `tui/queue` | `View.SetSize` | method | `internal/tui` | root |
 | `tui/queue` | `View.SortState` | field | `internal/tui` | root |
 | `tui/queue` | `View.StartSaveAsPlaylist` | method | `internal/tui` | root |
 | `tui/queue` | `View.TagFilterHashes` | field | `internal/tui` | root |
@@ -907,7 +907,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.UpdateSaveInput` | method | `internal/tui` | root |
 | `tui/queue` | `View.UpdateSaveInputMsg` | method | `internal/tui` | root |
 | `tui/queue` | `View.VisibleRows` | method | `internal/tui` | root |
-| `tui/queue` | `View.Width` | field | `internal/tui†` | root (tests only) |
+| `tui/queue` | `View.Width` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView` | type | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.AlbumCounts` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Albums` | field | `internal/tui` | root |
@@ -922,7 +922,6 @@ export must either earn a justification, be recorded in
 | `tui/browse` | `AlbumsView.Height` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Level` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.OpenTracks` | method | `internal/tui` | root |
-| `tui/browse` | `AlbumsView.PlayNextFocusedTrack` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.RecomputeAlbumsSort` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.ScrollOffset` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.SelectedAlbum` | field | `internal/tui` | root |
@@ -947,7 +946,6 @@ export must either earn a justification, be recorded in
 | `tui/browse` | `ArtistsView.Level` | field | `internal/tui` | root |
 | `tui/browse` | `ArtistsView.OpenAlbums` | method | `internal/tui` | root |
 | `tui/browse` | `ArtistsView.OpenTracks` | method | `internal/tui` | root |
-| `tui/browse` | `ArtistsView.PlayNextFocusedTrack` | method | `internal/tui` | root |
 | `tui/browse` | `ArtistsView.RecomputeArtistsSort` | method | `internal/tui` | root |
 | `tui/browse` | `ArtistsView.ScrollOffset` | field | `internal/tui` | root |
 | `tui/browse` | `ArtistsView.SelectedAlbum` | field | `internal/tui` | root |
@@ -984,7 +982,6 @@ export must either earn a justification, be recorded in
 | `tui/browse` | `GenresView.Level` | field | `internal/tui` | root |
 | `tui/browse` | `GenresView.OpenArtists` | method | `internal/tui` | root |
 | `tui/browse` | `GenresView.OpenTracks` | method | `internal/tui` | root |
-| `tui/browse` | `GenresView.PlayNextFocusedTrack` | method | `internal/tui` | root |
 | `tui/browse` | `GenresView.RecomputeGenresSort` | method | `internal/tui` | root |
 | `tui/browse` | `GenresView.ScrollOffset` | field | `internal/tui` | root |
 | `tui/browse` | `GenresView.SelectedArtist` | field | `internal/tui` | root |
@@ -1030,6 +1027,7 @@ export must either earn a justification, be recorded in
 | `tui/insights` | `HealthMissingMetadata` | const | `internal/tui†` | root (tests only) |
 | `tui/insights` | `HealthPlaceholderGenre` | const | `internal/tui†` | root (tests only) |
 | `tui/insights` | `HealthRow` | type | `internal/tui` | root |
+| `tui/insights` | `HealthRow.ActionHint` | method | `internal/tui` | root |
 | `tui/insights` | `HealthRow.Canonical` | field | `internal/tui` | root |
 | `tui/insights` | `HealthRow.Hashes` | field | `internal/tui` | root |
 | `tui/insights` | `HealthRow.Kind` | field | `internal/tui` | root |

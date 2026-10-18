@@ -290,3 +290,8 @@ func (d *uitestDismissals) DismissTrack(string) error   { return nil }
 func (d *uitestDismissals) UndismissTrack(string) error { return nil }
 
 func (t *uitestTags) RestoreTrackTagBulk([]string, int64) error { return nil }
+
+func (s *uitestQueueStore) ReplaceQueue(_ []int64, tracks []library.Track, source string) ([]int64, error) {
+	return s.AppendTracks(tracks, source)
+}
+func (s *uitestQueueStore) UndoReplaceQueue(_, _ []int64) error { return nil }

@@ -64,9 +64,9 @@ func TestQueuePaletteDescribesActualTargets(t *testing.T) {
 	m.library.Filter = filter.State{Text: "Charlie"}
 	m.library = m.library.RebuildFilterCache()
 	want := map[string]string{
-		"queue.enqueue.focused": "Append 2 selected tracks to queue",
-		"queue.play_next":       "Play next: Track D1 — Charlie · focused track only",
-		"queue.enqueue.replace": "Clear queue and enqueue: Track D1 — Charlie · focused track only",
+		"queue.enqueue.focused": "Append 2 selected tracks to queue · 2 hidden",
+		"queue.play_next":       "Play 2 selected tracks next · 2 hidden",
+		"queue.enqueue.replace": "Replace queue with 2 selected tracks · 2 hidden · undo restores previous queue",
 	}
 	for id, detail := range want {
 		cmd := queuePaletteCommand(t, m, id)
@@ -80,7 +80,7 @@ func TestQueuePaletteDescribesActualTargets(t *testing.T) {
 		t.Fatalf("reopened command retained old selection: %+v", cmd)
 	}
 	m.library.SelectedHashes = map[string]struct{}{"h1": {}}
-	if got := queuePaletteCommand(t, m, "queue.enqueue.focused").Detail; got != "Append 1 selected track to queue" {
+	if got := queuePaletteCommand(t, m, "queue.enqueue.focused").Detail; got != "Append 1 selected track to queue · 1 hidden" {
 		t.Fatalf("single selection detail = %q", got)
 	}
 }

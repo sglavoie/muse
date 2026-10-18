@@ -2,6 +2,7 @@ package insights
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -442,10 +443,18 @@ func (v View) renderRow(s styles.Styles, row Row, focused bool) string {
 	width := max(v.width-2, 1)
 
 	var body string
-	if v.compact() || row.Drill == DrillDormant {
+	switch {
+	case row.Drill == DrillHealth:
+		note := row.note
+		if index, err := strconv.Atoi(row.Key); err == nil && index >= 0 && index < len(v.Health) && width >= 78 {
+			note += " · " + v.Health[index].ActionHint()
+		}
+		labelW := max(width-ansi.StringWidth(note)-2, 1)
+		body = text.Pad(text.Truncate(row.Label, labelW), labelW) + "  " + note
+	case v.compact() || row.Drill == DrillDormant:
 		labelW := max(width-len(row.note)-2, 1)
 		body = text.Pad(text.Truncate(row.Label, labelW), labelW) + "  " + row.note
-	} else {
+	default:
 		bars := chart.BarList([]chart.BarRow{{Label: row.Label, Value: row.fraction, Note: row.note}},
 			chart.BarListOptions{Width: width, Max: 1}, chart.FromStyles(s))
 		if len(bars) > 0 {

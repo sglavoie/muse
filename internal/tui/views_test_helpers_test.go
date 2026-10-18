@@ -3,7 +3,6 @@ package tui
 import (
 	"testing"
 
-	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/queue"
 )
 
@@ -17,16 +16,4 @@ func stubFileExistsTrue(t *testing.T) {
 	saved := queue.FileExists
 	queue.FileExists = func(string) bool { return true }
 	t.Cleanup(func() { queue.FileExists = saved })
-}
-
-// fakeQueueAppender records enqueue calls for testing.
-type fakeQueueAppender struct {
-	tracks []library.Track
-	nextID int64
-}
-
-func (f *fakeQueueAppender) AppendTrack(t library.Track, _ string) (int64, error) {
-	f.nextID++
-	f.tracks = append(f.tracks, t)
-	return f.nextID, nil
 }

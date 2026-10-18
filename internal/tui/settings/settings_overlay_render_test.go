@@ -195,7 +195,14 @@ func TestStereoWideRenderShowsTenthUnit(t *testing.T) {
 func settingsHintLine(t *testing.T, o SettingsOverlay) string {
 	t.Helper()
 	lines := strings.Split(strings.TrimRight(ansi.Strip(o.Render(200, 40, styles.NewStyles(true))), "\n"), "\n")
-	return strings.TrimSpace(lines[len(lines)-1])
+	var hints []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "│") && !strings.HasPrefix(line, "╭") && !strings.HasPrefix(line, "╰") && !strings.HasPrefix(line, "├") {
+			hints = append(hints, line)
+		}
+	}
+	return strings.Join(hints, " · ")
 }
 
 // TestSettingsHintsShareWordingAndOrder guards that every Settings tab words
@@ -220,7 +227,7 @@ func TestSettingsHintsShareWordingAndOrder(t *testing.T) {
 	cases["Display primary color"] = primary
 
 	for name, o := range cases {
-		hint := settingsHintLine(t, o)
+		hint := o.keyHint()
 		order := []string{"tab/⇧tab tabs", "j/k navigate", "ctrl+s save", "esc "}
 		if strings.Contains(hint, "h/l") {
 			order = []string{"tab/⇧tab tabs", "j/k navigate", "h/l adjust", "ctrl+s save", "esc "}

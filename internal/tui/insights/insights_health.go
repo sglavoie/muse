@@ -241,23 +241,55 @@ func qualityHasIssue(q insightsdata.Quality, kind insightsdata.IssueKind) bool {
 	return false
 }
 
-// healthRows renders the precomputed findings as briefing rows. The bar is the
-// share of the library a finding touches, so the panel ranks by blast radius
-// rather than by section order.
+// healthRows retains stable drill identities while presenting repair tasks.
 func (v View) healthRows() []Row {
-	total := max(v.Snap.Coverage.TotalTracks, 1)
 	rows := make([]Row, 0, len(v.Health))
 	for i, h := range v.Health {
+		label := h.Label
+		if h.advisory() {
+			label = "Review: " + label
+		}
 		rows = append(rows, Row{
-			Section:  h.Section,
-			Label:    h.Label,
-			note:     h.note,
-			fraction: float64(len(h.Hashes)) / float64(total),
-			Drill:    DrillHealth,
-			Key:      strconv.Itoa(i),
+			Section: h.Section,
+			Label:   label,
+			note:    healthTrackNote(len(h.Hashes)),
+			Drill:   DrillHealth,
+			Key:     strconv.Itoa(i),
 		})
 	}
 	return rows
+}
+
+// Advisory findings need inspection before assuming the metadata is wrong.
+func (h HealthRow) advisory() bool {
+	return h.Kind != HealthGenreCollision && h.Kind != HealthMissingMetadata
+}
+
+// ActionHint names an existing control appropriate to this finding.
+func (h HealthRow) ActionHint() string {
+	switch h.Kind {
+	case HealthGenreCollision:
+		return "m merge genres"
+	case HealthMissingMetadata:
+		switch h.Label {
+		case "No title":
+			return "M edit missing titles"
+		case "No artist":
+			return "M edit missing artists"
+		case "No album":
+			return "M edit missing albums"
+		default:
+			return "M edit missing genres"
+		}
+	case HealthPlaceholderGenre:
+		return "M review genre tags"
+	case HealthUnverifiedDuration:
+		return "enter inspect durations"
+	case HealthArtistDuplicate:
+		return "enter compare artists"
+	default:
+		return "enter inspect candidates"
+	}
 }
 
 // healthAffectedTracks counts the distinct tracks named by at least one

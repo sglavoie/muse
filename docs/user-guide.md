@@ -305,10 +305,16 @@ current setting in the palette’s detail line. Undo describes the change it wil
 reverse, even after its notification fades. It becomes unavailable after a
 successful undo or when no reversible action has been recorded.
 
-Queue commands describe their target in the palette's detail line. Library enqueue
-reports the selected-track count; Play next and Replace queue identify the focused
-track and explicitly say when a bulk selection will not be used. Replace also
-states that it clears the queue. Commands needing a track are unavailable at
+Queue commands describe their target in the palette's detail line. Enqueue, Play next (`N`), and Replace queue (`shift+enter`) all use the
+selection when present, including hidden tracks and separate playlist occurrences;
+otherwise they use the focused track. Palette details state the count and how
+many are hidden. Play next keeps the selected display order. Replacement saves
+atomically before switching playback; failure preserves the queue, selection,
+and previous undo. Undo restores the replaced queue, including its original row
+identities, order, and Auto-DJ provenance, and attempts to resume its playing or
+paused track at the saved position. A failed database restore stays retryable.
+If another queue write or playback transition is pending, replacement asks you
+to retry once it settles. Commands needing a track are unavailable at
 collection level or when there are no matching tracks.
 The metadata command follows the same targets as `M`, including artist and album
 renaming in Browse, bulk selections, and Data Health findings. Its detail line
@@ -400,3 +406,23 @@ A `! errors · :` indicator remains after banners fade, until you open that
 history. Errors arriving after you open it remain unread; reopen to inspect
 them. A successful undo retry retires its old failure banner without deleting
 the history.
+
+### Dialog guidance and Data Health
+
+Settings and Auto-DJ use a second hint line when space permits, keeping complete
+key/action pairs together. Their tab headers identify Tab/Shift+Tab navigation.
+Settings uses spare space below its fields to explain the focused value, its
+units, and whether it previews live, applies on save, or affects the next launch.
+
+Auto-DJ Preview leads with the proposed batch and keeps its track count,
+discovery balance, and existing-queue count visible while scrolling. The footer
+shows the visible line range. The existing queue and its explanations follow
+the proposed tracks.
+
+Data Health presents findings as repair rows with affected-track counts and
+contextual actions. `m` merges genre variants after confirmation; `M` opens the
+metadata editor for a finding's tracks; Enter opens the affected tracks for
+inspection. Rows prefixed **Review:** are advisory, such as possible artist
+duplicates or durations that have not been verified, rather than confirmed
+metadata errors. At narrow widths the focused finding's action stays in the
+footer.

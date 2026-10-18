@@ -289,8 +289,3 @@ func (v ArtistsView) EnqueueFocusedTrack(qa libtui.QueueAppender, prevQueueLen i
 	track, ok := v.FocusedTrack()
 	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", -1)
 }
-
-func (v ArtistsView) PlayNextFocusedTrack(qa libtui.QueueAppender, prevQueueLen, insertAfter int) tea.Cmd {
-	track, ok := v.FocusedTrack()
-	return libtui.EnqueueTrackCmd(track, ok, qa, prevQueueLen, "", insertAfter)
-}

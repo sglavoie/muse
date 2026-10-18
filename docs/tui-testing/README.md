@@ -209,6 +209,9 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `dialog-guidance.json` | `rich` | Spare-row hints, focused Settings explanations, and a pinned proposal-first Auto-DJ preview. |
+| `health-repair-actions.json` | `health` | Repair actions, advisory labels, metadata editing, and narrow contextual footers. |
+| `queue-replacement-undo.json` | `rich` | Replace from a hidden selection and restore the previous queue with undo. |
 | `everyday-polish.json` | `rich` | Filter retention after enqueue, selection counts, compact actions, collection headings, and Settings change markers. |
 | `independent-row-markers.json` | `playback` | Focus, selection, and playback remain distinguishable together at compact and ordinary sizes. |
 | `navigation-context.json` | `rich` | Numbered navigation and filtered collection return paths at compact and ordinary widths. |
