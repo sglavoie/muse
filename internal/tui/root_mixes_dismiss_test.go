@@ -1,7 +1,9 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/db"
@@ -13,6 +15,7 @@ func TestMixesDismissRoundTrip(t *testing.T) {
 	stub := &stubDismissalWriter{}
 	m := setupMixesAtTrackLevel(WithDismissalWriter(stub))
 
+	m = enterVisualMode(m)
 	m, cmd := m.handleMixDismiss()
 	if cmd == nil {
 		t.Fatal("expected non-nil cmd from handleMixDismiss")
@@ -28,6 +31,9 @@ func TestMixesDismissRoundTrip(t *testing.T) {
 	}
 
 	m = m.handleMixDismissedMsg(msg)
+	if m.visual.active || m.activeViewSelectionCount() != 0 {
+		t.Fatal("dismissal left a stale visual selection")
+	}
 
 	if _, found := m.dismissedHashes["mx1"]; !found {
 		t.Error("expected mx1 in dismissedHashes after dismiss")
@@ -50,7 +56,10 @@ func TestMixesDismissRoundTrip(t *testing.T) {
 func TestMixesUndismissRoundTrip(t *testing.T) {
 	stub := &stubDismissalWriter{}
 	m := setupMixesAtTrackLevel(WithDismissalWriter(stub))
-	m.dismissedHashes = map[string]struct{}{"mx1": {}}
+	m = m.handleMixDismissedMsg(mixDismissedMsg{hash: "mx1"})
+	if m.mixes.FocusedTrack().Hash == "mx1" {
+		t.Fatal("dismissed track remained focused")
+	}
 
 	m, cmd := m.handleMixUndismiss()
 	if cmd == nil {
@@ -179,5 +188,49 @@ func TestMixesDismissPreservesCursorAndSort(t *testing.T) {
 	}
 	if len(m.mixes.TrackView.SortedTracks) != 2 {
 		t.Errorf("sortedTracks length: got %d, want 2", len(m.mixes.TrackView.SortedTracks))
+	}
+}
+
+type failingMixRestore struct {
+	stubDismissalWriter
+	err error
+}
+
+func (s *failingMixRestore) UndismissTrack(hash string) error {
+	if s.err != nil {
+		return s.err
+	}
+	return s.stubDismissalWriter.UndismissTrack(hash)
+}
+
+func TestMixRestoreAfterEmptyListAndFailedWrite(t *testing.T) {
+	writer := &failingMixRestore{err: errors.New("database unavailable")}
+	m := setupMixesAtTrackLevel(WithDismissalWriter(writer))
+	for _, track := range sampleMixTracks() {
+		m = m.handleMixDismissedMsg(mixDismissedMsg{hash: track.Hash})
+	}
+	if len(m.mixes.TrackView.SourceTracks) != 0 {
+		t.Fatal("mix should be empty")
+	}
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'D', Text: "D"})
+	if cmd == nil {
+		t.Fatal("D cannot restore from empty mix")
+	}
+	next, _ = next.Update(cmd())
+	m = next.(Model)
+	if m.lastMixDismissed != "mx3" {
+		t.Fatal("failed write lost retry target")
+	}
+	writer.err = nil
+	next, cmd = m.Update(tea.KeyPressMsg{Code: 'D', Text: "D"})
+	next, reload := next.Update(cmd())
+	m = next.(Model)
+	if m.lastMixDismissed != "" || reload == nil {
+		t.Fatal("restore did not clear target and reload mix")
+	}
+	next, _ = m.Update(reload())
+	m = next.(Model)
+	if len(m.mixes.TrackView.SourceTracks) != 1 || m.mixes.TrackView.SourceTracks[0].Hash != "mx3" {
+		t.Fatal("restored recommendation missing")
 	}
 }

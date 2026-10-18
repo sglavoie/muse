@@ -18,7 +18,7 @@ test:
 test-playback:
     MUSE_REQUIRE_MPV=1 go test -race -count=1 -tags integration -run RealMPV -timeout 5m ./internal/player/
 
-# Measure typing, rendering and sorting at 10,000 and 100,000 tracks
+# Measure typing, individual keystrokes, rendering and sorting at 10k/100k tracks
 bench-ui:
     go test ./internal/tui -run '^$' -bench '^BenchmarkLibraryInteraction$' -benchmem
 

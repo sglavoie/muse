@@ -20,7 +20,7 @@ func (m Model) handleSelectedEnqueueAction(action keys.Action) (Model, tea.Cmd, 
 	switch action {
 	case keys.ActionPlayNext, keys.ActionLibraryEnqueue, keys.ActionPlaylistOpen, keys.ActionArtistOpen,
 		keys.ActionAlbumOpen, keys.ActionGenreOpen, keys.ActionFavoritesOpen,
-		keys.ActionTagOpen, keys.ActionInsightsOpen:
+		keys.ActionTagOpen, keys.ActionInsightsOpen, keys.ActionMixOpen:
 	default:
 		return m, nil, false
 	}

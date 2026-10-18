@@ -65,6 +65,21 @@ func (m Model) bulkActionTracks() []library.Track {
 		return m.bulkFavoriteTracks()
 	case viewTags:
 		return m.bulkTagTracks()
+	case viewMixes:
+		if m.mixes.Level == 1 {
+			view := m.mixes.TrackView
+			tracks := view.SortedTracks
+			if tracks == nil {
+				tracks = view.BaseTracks()
+			}
+			if len(view.SelectedHashes) > 0 {
+				return collectSelectedTracks(tracks, view.SelectedHashes)
+			}
+			if track, ok := view.Panel().FocusedTrack(); ok {
+				return []library.Track{track}
+			}
+		}
+		return nil
 	case viewInsights:
 		return m.insightsBulkTracks()
 	default:

@@ -49,7 +49,7 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 		},
 	}
 
-	wantNames := [4]string{"Repeat", "Shuffle", "Stop after current", "Radio (Auto-DJ)"}
+	wantNames := [4]string{"Repeat", "Shuffle", "Stop after current", "Auto-DJ"}
 	wantKeys := [4]string{"r", "z", "ctrl+n", "A"}
 
 	for _, tc := range cases {

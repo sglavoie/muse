@@ -65,3 +65,30 @@ func TestResizePreservesFocusedHelpAndQuit(t *testing.T) {
 		}
 	}
 }
+
+func TestListeningPriorityKeepsUsageAndExplicitRemovalSearch(t *testing.T) {
+	usage := NewUsageStore("")
+	usage.Bump("next")
+	for range 10 {
+		usage.Bump("dismiss")
+	}
+	commands := []PaletteCommand{
+		{ID: "enqueue", Name: "Enqueue tracks", Intent: IntentListening},
+		{ID: "next", Name: "Play tracks next", Intent: IntentListening},
+		{ID: "dismiss", Name: "Dismiss track", Intent: IntentRemoval, Relevant: true},
+		{ID: "ordinary", Name: "Create playlist"},
+		{ID: "disabled", Name: "Show track info", Intent: IntentListening, Enabled: func() bool { return false }},
+	}
+	cp, _ := NewCommandPalette(commands, usage)
+	want := []string{"next", "enqueue", "ordinary", "dismiss", "disabled"}
+	for i, id := range want {
+		if cp.Filtered[i].ID != id {
+			t.Fatalf("position %d: got %s want %s", i, cp.Filtered[i].ID, id)
+		}
+	}
+	cp.Filter.Text = "dismiss"
+	cp.Refilter()
+	if len(cp.Filtered) != 1 || cp.Filtered[0].ID != "dismiss" {
+		t.Fatal("explicit search lost removal action")
+	}
+}

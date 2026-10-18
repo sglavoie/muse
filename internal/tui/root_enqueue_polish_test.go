@@ -73,6 +73,15 @@ func TestTrackListEnqueueUsesHiddenSelection(t *testing.T) {
 			m.tagsView.SelectedHashes = selection()
 			m.tagsView.Filter = query
 		}},
+		{"mixes", func(m *Model) {
+			m.ActiveView = viewMixes
+			m.mixes.Level = 1
+			m.mixes.TrackView.SourceTracks = tracks
+			m.mixes.TrackView.Fuzzy = library.SahilmFuzzySearcher{}
+			m.mixes.TrackView.SelectedHashes = selection()
+			m.mixes.TrackView.Filter = query
+			m.mixes.TrackView = m.mixes.TrackView.RebuildFilterCache()
+		}},
 		{"insights", func(m *Model) {
 			m.ActiveView = viewInsights
 			m.insights.OpenDrill("Test", tracks)

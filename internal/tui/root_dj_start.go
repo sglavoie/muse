@@ -42,7 +42,7 @@ func (m Model) djStartFromCollection(label string, tracks []library.Track, now t
 	m = m.radioSetEnabled(true)
 
 	m, seedLabel := m.djStartFromTracks(label, tracks, now)
-	m.statusBar.PushMsg("Radio: seeded from "+seedLabel,
+	m.statusBar.PushMsg("Auto-DJ: seeded from "+seedLabel,
 		time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	return m.startRadioEnqueueCmd()
 }

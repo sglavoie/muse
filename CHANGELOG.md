@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Mixes uses the same Enter, x/X, and visual selection controls as other track
+  lists. Enqueue, play-next, and replace honor hidden selections; dismissal moves
+  to d/D, with D restoring the last successful dismissal even after focus moves.
+  Help and compact footers describe the new controls.
+- Empty-query command palettes put ordinary listening actions first and removal
+  actions later, retaining usage ranking within each group and explicit search.
+- Auto-DJ preview shortages report actual substitutions and undersized batches;
+  single-track summaries use the singular. Visible mode and Insights labels use
+  consistent names, with older terminology retained as palette search aliases.
+- Empty Library cards, footers, and idle status share recovery guidance for
+  unconfigured folders, scanning, empty folders, and scan errors. Scan progress
+  remains visible when the queue is empty.
+- Filtering avoids per-candidate heap escapes, repeated result-slice growth, and
+  individual highlight allocations. Per-keystroke benchmarks cover broad,
+  field-specific, and no-match queries alongside complete typing sequences.
+
 - Replace queue commits removal and insertion atomically before changing playback.
   Failed saves preserve the queue and selection; undo restores the previous queue
   with its original identities and provenance, and attempts to resume playback.

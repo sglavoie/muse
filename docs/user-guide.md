@@ -40,7 +40,10 @@ and Duration when applicable; compact tables give song identity priority over
 album detail. Collection counts name their units, such as `3 tracks`.
 
 Compact command palettes show six commands at the minimum terminal size. With
-an empty search, enabled commands for the current view come first; Help and Quit
+an empty search, enabled listening actions (enqueue, play next, preview, and
+track information) come first, followed by other commands for the current view.
+Removal actions come after other enabled commands. Usage ranks commands within
+these groups, while explicit searches rank by the query; Help and Quit
 move to `F1` and `ctrl+c` footer shortcuts. Both remain searchable. Resizing keeps
 the focused command, and unavailable commands retain their explanations.
 
@@ -59,7 +62,7 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 `DJ`; enabled states remain distinguishable without color.
 
 
-- **Radio mode / Auto-DJ** (`A`) — muse keeps the queue fed by scoring
+- **Auto-DJ** (`A`) — muse keeps the queue fed by scoring
   candidate tracks against what you have been listening to, avoiding recent
   history. It can be seeded from a mix, from an Insights row, or from whatever
   you have selected (`:` → _Start Auto-DJ from selection_).
@@ -84,7 +87,7 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
     have since deleted — are shown as unusable rather than silently widened.
 
   The DJ only ever touches rows it added. Tracks you queued yourself are left
-  alone by a re-tune, and so is the one playing. Radio mode and the tuned
+  alone by a re-tune, and so is the one playing. Auto-DJ and the tuned
   settings survive a restart: muse restores the session, its seed, and its
   discovery balance, and keeps filling from where it left off.
 - **Queue duration at a glance** — the Queue header shows time remaining in the
@@ -150,7 +153,7 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
   clearing, and undo. Corrections survive rescans and restarts. TSV exports include
   `album_artist`; importing an older export without that column leaves it unchanged.
 - Enter enqueues selected tracks in Library, open playlists, Browse track lists,
-  Favorites track lists, Tags, and Insights. With no selection it enqueues the
+  Favorites track lists, Tags, Mixes, and Insights. With no selection it enqueues the
   focused track. Footers show the selected count, and the command palette offers
   the same action. Hidden selections remain included; repeated playlist entries
   remain separate. Enter still opens collections and plays the focused Queue row.
@@ -176,8 +179,9 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
   matches unless the exact name already exists (ignoring case). Long lists scroll
   to keep the focused row visible; Page Up/Down moves a page and the heading
   shows the visible range.
-- Bulk selection (`x` / `X`) and visual line selection (`v`) in every list view
-  except Mixes, where `x` / `X` dismiss and restore a recommendation instead.
+- Bulk selection (`x` / `X`) and visual line selection (`v`) in every track list, including Mixes. In Mixes, `d` dismisses the focused
+  recommendation and `D` restores the last dismissal in the current session.
+  `x` / `X` always manage selection.
 - Favorites selections survive filtering and sorting. Headings show selected and
   hidden counts; bulk actions include hidden selections. Navigating to another
   Favorites list clears the selection.
@@ -368,7 +372,7 @@ just enough to get moving.
 | `enter` | Enqueue / open the focused row |
 | `x` / `X` / `v` | Toggle bulk selection / clear selection / visual line mode |
 | `r` / `z` | Cycle repeat mode / toggle shuffle |
-| `A` | Toggle radio mode (Auto-DJ) |
+| `A` | Toggle Auto-DJ |
 | `ctrl+a` | Tune Auto-DJ — presets, discovery, filters, plus its Preview and Recipes tabs |
 | `F` | Favorite the focused track, album, or artist |
 | `t` / `ctrl+t` | Manage tags / filter views by tag |
@@ -426,3 +430,12 @@ inspection. Rows prefixed **Review:** are advisory, such as possible artist
 duplicates or durations that have not been verified, rather than confirmed
 metadata errors. At narrow widths the focused finding's action stays in the
 footer.
+
+Empty Library screens use the same recovery action in the card, footer, and
+status bar: add a folder when unconfigured, check folders and exclusions when
+no music was found, or check folders after a scan error. During a scan, progress
+and the cancel action remain visible even with an empty queue.
+
+Auto-DJ previews distinguish a quota substitution from an undersized batch.
+They report how many extra tracks from the other category were actually added;
+a shortfall does not imply that the missing tracks were replaced.

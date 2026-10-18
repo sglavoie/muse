@@ -65,6 +65,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleScanDoneMsg()
 
 	case library.ScanErrorMsg:
+		m.scanFailed = true
 		m.statusBar.NotifyError(fmt.Sprintf("Scan error: %v", msg.Err))
 		if m.scanErrCh != nil {
 			return m, waitForScanErr(m.scanErrCh)
@@ -332,6 +333,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case mixUndismissedMsg:
 		m = m.handleMixUndismissedMsg(msg)
+		return m, m.reloadOpenMixCmd()
 
 	case mixUndismissErrorMsg:
 		m.statusBar.NotifyError("Undismiss failed: " + msg.err.Error())

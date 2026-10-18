@@ -396,8 +396,7 @@ func (m Model) handleVolume(sign int) (tea.Model, tea.Cmd, bool) {
 // "<label>: <state> (<glyph>)" — e.g. "Shuffle: on (S)" — so the notification
 // teaches the letter the status-bar cluster shows. State and glyph are read
 // from modeIndicators, which is why they cannot drift from the cluster; the
-// label stays caller-supplied because these notifications predate the indicator
-// names and say "Radio mode" where the indicator says "Radio (Auto-DJ)".
+// label is supplied by the action using the same visible mode names.
 func (m Model) modeToggleMsg(label string, index int) string {
 	ind := playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)[index]
 	return label + ": " + ind.State + " (" + ind.Glyph + ")"

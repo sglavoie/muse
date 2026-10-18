@@ -209,6 +209,7 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `mixes-listening-polish.json` | `rich` | Mixes selection, hidden-selection enqueue, visual selection, and listening-first palette at compact and ordinary sizes. |
 | `dialog-guidance.json` | `rich` | Spare-row hints, focused Settings explanations, and a pinned proposal-first Auto-DJ preview. |
 | `health-repair-actions.json` | `health` | Repair actions, advisory labels, metadata editing, and narrow contextual footers. |
 | `queue-replacement-undo.json` | `rich` | Replace from a hidden selection and restore the previous queue with undo. |

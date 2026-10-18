@@ -42,3 +42,28 @@ func TestCachedSearchCanBeShared(t *testing.T) {
 	}
 	group.Wait()
 }
+
+func TestSearchHighlightStorageRemainsIndependent(t *testing.T) {
+	search := &CachedFuzzySearcher{}
+	tracks := []Track{{Title: "Cafe\u0301"}, {Title: "Café"}}
+	first := search.Search("cafe", tracks)
+	if len(first) != 2 {
+		t.Fatal(first)
+	}
+	if !reflect.DeepEqual(first[0].MatchedIndexes, []int{1, 2, 3, 4, 5}) {
+		t.Fatal("combining accent lost", first[0])
+	}
+	original := append([]int(nil), first[1].MatchedIndexes...)
+	first[0].MatchedIndexes[0] = 99
+	first[0].MatchedIndexes = append(first[0].MatchedIndexes, 42)
+	if !reflect.DeepEqual(first[1].MatchedIndexes, original) {
+		t.Fatal("matches share writable spans")
+	}
+	_ = search.Search("a", tracks)
+	if !reflect.DeepEqual(first[1].MatchedIndexes, original) {
+		t.Fatal("later search mutated prior results")
+	}
+	if got := search.Search("missing", tracks); got == nil || len(got) != 0 {
+		t.Fatal("no matches must remain a completed non-nil result")
+	}
+}

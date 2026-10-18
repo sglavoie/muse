@@ -5,7 +5,7 @@ package playback
 // overlay and the toggle notifications can never disagree.
 type ModeIndicator struct {
 	Glyph  string // "R"/"1", "S", "N", "D"
-	Name   string // "Repeat", "Shuffle", "Stop after current", "Radio (Auto-DJ)"
+	Name   string // "Repeat", "Shuffle", "Stop after current", "Auto-DJ"
 	State  string // "all"/"one"/"off" for repeat, "on"/"off" for the rest
 	Key    string // the global keybinding that toggles this mode
 	Active bool
@@ -32,7 +32,7 @@ func ModeIndicators(repeat RepeatMode, shuffle, stopAfter, radio bool) []ModeInd
 		{Glyph: repeatGlyph, Name: "Repeat", State: repeat.DisplayString(), Key: "r", Active: repeat != RepeatOff},
 		{Glyph: "S", Name: "Shuffle", State: ModeState(shuffle), Key: "z", Active: shuffle},
 		{Glyph: "N", Name: "Stop after current", State: ModeState(stopAfter), Key: "ctrl+n", Active: stopAfter},
-		{Glyph: "D", Name: "Radio (Auto-DJ)", State: ModeState(radio), Key: "A", Active: radio},
+		{Glyph: "D", Name: "Auto-DJ", State: ModeState(radio), Key: "A", Active: radio},
 	}
 }
 

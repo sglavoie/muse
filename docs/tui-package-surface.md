@@ -134,7 +134,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/keys` | 159 | 41 | 117 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 61 | 40 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 118 | 34 | 83 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 64 | 1 | 60 | 3 | `tui`, `queue`, `uitest` |
+| `tui/statusbar` | 65 | 1 | 61 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1053 exported identifiers across 15 packages**: 162 reached from two or more packages, 832 from exactly one, 59 from none (24 `api`, 2 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1054 exported identifiers across 15 packages**: 162 reached from two or more packages, 833 from exactly one, 59 from none (24 `api`, 2 `iface`, 33 `json`). 77 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -683,6 +683,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.DismissErrorNotifications` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Elapsed` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.ElapsedSecs` | field | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.EmptyQueueHint` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.HandleMissingTrack` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.HandleScanProgress` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.LongOp` | field | `internal/tui` | root |

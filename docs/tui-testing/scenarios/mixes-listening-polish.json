@@ -1,0 +1,139 @@
+{
+  "name": "mixes-listening-polish",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "7"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "wait": "100ms"
+    },
+    {
+      "assert": {
+        "contains": "enter enqueue"
+      }
+    },
+    {
+      "key": "x"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "key": "x"
+    },
+    {
+      "assert": {
+        "contains": "enqueue 2 selected"
+      }
+    },
+    {
+      "assert": {
+        "contains": "X clear"
+      }
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "t:Track D1"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "contains": "2 hidden"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "wait": "100ms"
+    },
+    {
+      "assert": {
+        "not_contains": "enqueue 2 selected"
+      }
+    },
+    {
+      "assert": {
+        "contains": "t:Track D1"
+      }
+    },
+    {
+      "key": ":"
+    },
+    {
+      "assert": {
+        "contains": "Enqueue focused or selected"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Dismiss track"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "Clear queue"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "v"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "X clear"
+      }
+    },
+    {
+      "key": "X"
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "5 tracks"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

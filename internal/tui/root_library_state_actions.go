@@ -79,6 +79,7 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 			m.library.SortedTracks = nil
 			m.scanCh = ch
 			m.scanning = true
+			m.scanFailed = false
 			m.scanned = 0
 			m.scanTotal = 0
 			m.longOp = statusbar.LongOpState{Active: true, Label: "Scan", StartedAt: time.Now()}

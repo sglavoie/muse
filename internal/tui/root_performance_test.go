@@ -36,6 +36,25 @@ func BenchmarkLibraryInteraction(b *testing.B) {
 					}
 				}
 			})
+			// Measure each edit with its preceding query already applied. This
+			// exposes broad-query latency that an aggregate sequence can hide.
+			for _, query := range []string{"e", "etude", "etude 09", "t:etude number 09", "not-found"} {
+				b.Run("key/"+query, func(b *testing.B) {
+					base := pressSlash(m)
+					runes := []rune(query)
+					for _, r := range runes[:len(runes)-1] {
+						base, _, _ = base.handleFilterKeyPress(tea.KeyPressMsg{Code: r, Text: string(r)})
+					}
+					key := tea.KeyPressMsg{Code: runes[len(runes)-1], Text: string(runes[len(runes)-1])}
+					// Warm the normalization cache even when running this sub-benchmark alone.
+					_, _, _ = base.handleFilterKeyPress(key)
+					b.ReportAllocs()
+					for b.Loop() {
+						next, _, _ := base.handleFilterKeyPress(key)
+						_ = next.View()
+					}
+				})
+			}
 			b.Run("render", func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {

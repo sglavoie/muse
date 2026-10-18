@@ -9,7 +9,7 @@
     {"key": "j"}, {"key": "j"}, {"assert": {"view": "Insights"}, "label": "j-does-not-fall-through-to-queue"},
     {"key": "k"}, {"key": "k"}, {"assert": {"view": "Insights"}, "label": "k-does-not-fall-through-to-queue"},
 
-    {"key": "A"}, {"wait": "500ms"}, {"assert": {"status_contains": "Radio: seeded from"}, "label": "radio-seeded-from-row"},
+    {"key": "A"}, {"wait": "500ms"}, {"assert": {"status_contains": "Auto-DJ: seeded from"}, "label": "autodj-seeded-from-row"},
 
     {"key": "v"}, {"assert": {"status_contains": "Visual selection needs a track list"}, "label": "v-refuses-on-the-briefing"},
 

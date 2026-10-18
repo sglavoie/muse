@@ -52,6 +52,8 @@ func activeViewCursor(m Model) int {
 		return m.favorites.Cursor
 	case viewTags:
 		return m.tagsView.Cursor
+	case viewMixes:
+		return m.mixes.TrackView.Cursor
 	case viewInsights:
 		return m.insights.TrackView.Cursor
 	}
@@ -100,12 +102,9 @@ func enterVisualMode(m Model) Model {
 			return m
 		}
 	case viewMixes:
-		// Visual mode is not yet wired through takeSnapshot/selectRange for
-		// Mixes (no cases in updateVisualSelection or restoreSnapshot).
-		// Allowing enter would leave stale visualState that the footer-hint
-		// strip misreads as HintModeVisual while no selection is actually being
-		// built. Guard at every level until the full wiring lands.
-		return m
+		if m.mixes.Level != 1 {
+			return m
+		}
 	}
 
 	cursor := activeViewCursor(m)
@@ -187,6 +186,10 @@ func visualListLen(m Model) int {
 		if m.tagsView.Level == tagtui.TrackLevel {
 			return len(m.tagsView.DisplayTracks())
 		}
+	case viewMixes:
+		if m.mixes.Level == 1 {
+			return m.mixes.TrackView.TrackCount()
+		}
 	case viewInsights:
 		if m.insights.AtTracks() {
 			return m.insights.TrackView.TrackCount()
@@ -225,6 +228,8 @@ func takeSnapshot(m Model) selectionSnapshot {
 		snap.favKeys = cloneStringSet(m.favorites.SelectedItems)
 	case viewTags:
 		snap.hashes = cloneStringSet(m.tagsView.SelectedHashes)
+	case viewMixes:
+		snap.hashes = cloneStringSet(m.mixes.TrackView.SelectedHashes)
 	case viewInsights:
 		snap.hashes = cloneStringSet(m.insights.TrackView.SelectedHashes)
 	}
@@ -255,6 +260,8 @@ func restoreSnapshot(m Model) Model {
 		m.favorites.SelectedItems = cloneStringSet(m.visual.snapshot.favKeys)
 	case viewTags:
 		m.tagsView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
+	case viewMixes:
+		m.mixes.TrackView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	case viewInsights:
 		m.insights.TrackView.SelectedHashes = cloneStringSet(m.visual.snapshot.hashes)
 	}
@@ -316,6 +323,10 @@ func selectRange(m Model, lo, hi int) Model {
 				m.favorites.SelectedItems = make(map[string]struct{})
 			}
 			m.favorites.SelectedItems[rows[i]] = struct{}{}
+		}
+	case viewMixes:
+		if m.mixes.Level == 1 {
+			m.mixes.TrackView = libSelectRange(m.mixes.TrackView, lo, hi)
 		}
 	case viewInsights:
 		if m.insights.AtTracks() {

@@ -23,6 +23,16 @@ const (
 	PinBottom            // anchor at the bottom of the list (e.g. Quit)
 )
 
+// CommandIntent orders an empty-query palette by the kind of task. Search
+// still ranks solely by the user's query; usage ranks commands within a tier.
+type CommandIntent int
+
+const (
+	IntentOrdinary CommandIntent = iota
+	IntentListening
+	IntentRemoval
+)
+
 // PaletteCommand describes a single entry in the command palette.
 type PaletteCommand struct {
 	ID             string // stable identifier for usage tracking; falls back to Name when empty
@@ -36,7 +46,8 @@ type PaletteCommand struct {
 	DisabledReason string      // recovery hint shown when the focused command is unavailable
 	Detail         string      // explanatory text shown when the command is focused
 	CurrentState   string      // setting shown in the detail line when focused
-	Relevant       bool        // belongs to the current view; boosts the empty-query list
+	Intent         CommandIntent
+	Relevant       bool // belongs to the current view; boosts the empty-query list
 }
 
 // Key returns the stable key used to identify the command in the usage store.

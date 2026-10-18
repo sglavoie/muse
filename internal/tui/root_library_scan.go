@@ -133,6 +133,7 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 	// them missing. Report the truncation and leave the deletion step alone.
 	truncated := m.scanOutcome.Err()
 	if truncated != nil {
+		m.scanFailed = true
 		slog.Error("rescan incomplete: skipping deletion reconciliation", "err", truncated)
 		m.statusBar.NotifyError("Rescan incomplete: some files could not be hashed; deletions were not reconciled")
 	}

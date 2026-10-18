@@ -224,10 +224,11 @@ func TestPreviewReportsAShortBatchAsACount(t *testing.T) {
 
 func TestPreviewReportsARelaxedDiscoveryQuota(t *testing.T) {
 	v := readyPreview()
+	v.DiscoveryTarget = 4
 	v.Shortages = radio.Shortages{{Kind: radio.ShortageDiscovery, Want: 4, Got: 2}}
 
 	assertContains(t, previewText(v),
-		"Only 2 of 4 discovery tracks were available; familiar tracks filled the rest.")
+		"Only 2 of 4 discovery tracks were available. Added 2 extra familiar tracks instead.")
 }
 
 func TestPreviewSeparatesAFailureFromAnEmptyResult(t *testing.T) {
@@ -281,4 +282,51 @@ func TestPreviewRendersAnUnexplainedSelectionHonestly(t *testing.T) {
 	v.Tracks = []PreviewTrack{{Label: "Amy – One", Discovery: radio.DiscoveryFamiliar}}
 
 	assertContains(t, previewText(v), "no evidence recorded")
+}
+
+func TestPreviewShortageDoesNotInventSubstitutions(t *testing.T) {
+	for _, tc := range []struct {
+		name                                          string
+		discovery, familiar, wantDiscovery, wantBatch int
+		extra                                         string
+	}{
+		{"one requested", 0, 0, 1, 1, ""},
+		{"only discovery", 1, 0, 2, 5, ""},
+		{"both short", 1, 1, 2, 5, ""},
+		{"partial substitution", 1, 4, 4, 6, "Added 2 extra familiar tracks instead."},
+		{"familiar substitution", 4, 0, 2, 5, "Added 2 extra discovery tracks instead."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := Preview{Status: PreviewReady, DiscoveryTarget: tc.wantDiscovery}
+			for range tc.discovery {
+				v.Tracks = append(v.Tracks, PreviewTrack{Discovery: radio.DiscoveryNever})
+			}
+			for range tc.familiar {
+				v.Tracks = append(v.Tracks, PreviewTrack{Discovery: radio.DiscoveryFamiliar})
+			}
+			v.Shortages = radio.Shortages{{Kind: radio.ShortageBatch, Want: tc.wantBatch, Got: len(v.Tracks)}}
+			if tc.discovery < tc.wantDiscovery {
+				v.Shortages = append(v.Shortages, radio.Shortage{Kind: radio.ShortageDiscovery, Want: tc.wantDiscovery, Got: tc.discovery})
+			}
+			if tc.familiar < tc.wantBatch-tc.wantDiscovery {
+				v.Shortages = append(v.Shortages, radio.Shortage{Kind: radio.ShortageFamiliar, Want: tc.wantBatch - tc.wantDiscovery, Got: tc.familiar})
+			}
+			page := previewText(v)
+			assertAbsent(t, page, "filled the rest")
+			if tc.wantDiscovery == 1 {
+				assertContains(t, page, "Only 0 of 1 discovery track was available.")
+			}
+			if tc.extra == "" {
+				assertAbsent(t, page, "instead")
+			} else {
+				assertContains(t, page, tc.extra)
+			}
+			pinned, _ := v.presentationLines(nil, 56)
+			if len(v.Tracks) == 1 {
+				if len(pinned) == 0 || !strings.Contains(pinned[0].Text, "Would add 1 track ·") {
+					t.Fatalf("singular summary: %+v", pinned)
+				}
+			}
+		})
+	}
 }

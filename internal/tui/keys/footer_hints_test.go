@@ -190,11 +190,12 @@ func TestRenderFooterHints_VisualMode(t *testing.T) {
 func TestRenderFooterHints_VisualFallsBackToDefaultWhenUnregistered(t *testing.T) {
 	reg := NewRegistry()
 	s := styles.NewStyles(true)
-	// contextMixes has no visual-mode hints registered — should fall back to default.
-	got := ansi.Strip(RenderFooterHints(200, ContextMixes, HintModeVisual, reg, s, false, 0))
-	def := ansi.Strip(RenderFooterHints(200, ContextMixes, HintModeDefault, reg, s, false, 0))
-	if got != def {
-		t.Errorf("expected visual mode to fall back to default for contextMixes; got=%q want=%q", got, def)
+	// Use a context with only a default hint to exercise the fallback.
+	reg.addPrimary(ContextGlobal, "?", "help")
+	got := ansi.Strip(RenderFooterHints(200, ContextGlobal, HintModeVisual, reg, s, false, 0))
+	def := ansi.Strip(RenderFooterHints(200, ContextGlobal, HintModeDefault, reg, s, false, 0))
+	if def == "" || got != def {
+		t.Errorf("expected visual mode to fall back to default for contextGlobal; got=%q want=%q", got, def)
 	}
 }
 

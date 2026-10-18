@@ -189,7 +189,7 @@ func TestModesLegendRendersAsOverlayBody(t *testing.T) {
 	if !strings.Contains(plain, "Playback Modes") {
 		t.Errorf("expected the legend title in the rendered body, got:\n%s", plain)
 	}
-	if !strings.Contains(plain, "Radio (Auto-DJ)") {
+	if !strings.Contains(plain, "Auto-DJ") {
 		t.Errorf("expected a legend row in the rendered body, got:\n%s", plain)
 	}
 }

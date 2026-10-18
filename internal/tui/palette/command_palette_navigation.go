@@ -33,8 +33,14 @@ func commandPriority(command PaletteCommand) int {
 	if !command.IsEnabled() {
 		return 0
 	}
-	if command.Relevant {
-		return 2
+	if command.Intent == IntentListening {
+		return 4
 	}
-	return 1
+	if command.Intent == IntentRemoval {
+		return 1
+	}
+	if command.Relevant {
+		return 3
+	}
+	return 2
 }

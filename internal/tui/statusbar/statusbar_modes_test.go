@@ -57,7 +57,7 @@ func TestModeIndicatorsDescribeToggleKeys(t *testing.T) {
 		{"Repeat", "r", keys.ActionRepeatCycle},
 		{"Shuffle", "z", keys.ActionShuffleToggle},
 		{"Stop after current", "ctrl+n", keys.ActionStopAfterCurrent},
-		{"Radio (Auto-DJ)", "A", keys.ActionRadioToggle},
+		{"Auto-DJ", "A", keys.ActionRadioToggle},
 	}
 	indicators := playback.ModeIndicators(playback.RepeatOff, false, false, false)
 	if len(indicators) != len(want) {

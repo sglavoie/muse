@@ -11,6 +11,10 @@ import (
 
 // handleMixOpen drills into the track list for the focused mix.
 func (m Model) handleMixOpen() (Model, tea.Cmd) {
+	if m.ActiveView == viewMixes && m.mixes.Level == 1 {
+		next, cmd, _ := m.handleLibraryEnqueueAction()
+		return next.(Model), cmd
+	}
 	if m.ActiveView != viewMixes || m.mixes.Level != 0 {
 		return m, nil
 	}
@@ -26,6 +30,9 @@ func (m Model) handleMixOpen() (Model, tea.Cmd) {
 func (m Model) handleMixBack() Model {
 	if m.ActiveView != viewMixes {
 		return m
+	}
+	if m.visual.active {
+		return exitVisualMode(m)
 	}
 	m.mixes.Back()
 	return m

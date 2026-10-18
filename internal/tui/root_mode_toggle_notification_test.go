@@ -60,7 +60,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 
 	t.Run("radio", func(t *testing.T) {
 		m := New(context.Background())
-		for i, w := range []string{"Radio mode: on (D)", "Radio mode: off (D)"} {
+		for i, w := range []string{"Auto-DJ: on (D)", "Auto-DJ: off (D)"} {
 			next, _, handled := m.handlePlaybackKeyAction(keys.ActionRadioToggle)
 			if !handled {
 				t.Fatalf("press %d: actionRadioToggle not handled", i+1)

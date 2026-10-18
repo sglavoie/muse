@@ -207,6 +207,10 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 	}
 	switch m.ActiveView {
 	case viewLibrary:
+		if m.showsEmptyLibrary() {
+			title, action := m.emptyLibraryGuidance()
+			return display.RenderEmptyCard(m.library.Width, m.library.Height, title, []styles.EmptyAction{action})
+		}
 		return m.library.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewPlaylists:
 		return m.playlists.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
@@ -231,6 +235,10 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 func (m Model) renderFooterHint() string {
 	if m.hasActiveOverlay() || !m.showFooterHints {
 		return ""
+	}
+	if m.showsEmptyLibrary() {
+		_, action := m.emptyLibraryGuidance()
+		return m.styles.Dim.Render(text.CompactHints(action.Key+" "+action.Label+" · : commands · ? help", m.termWidth, action.Key, "?"))
 	}
 	if m.ActiveView == viewInsights {
 		if finding := m.insights.FocusedHealthRow(); finding != nil {

@@ -238,13 +238,17 @@ func (r *queueRowRenderer) cells(e Entry, absIdx int, isFocused, isNowPlaying bo
 	_, artistFav := r.favArtists[e.Artist]
 	_, albumFav := r.favAlbums[library.AlbumKey(library.Track{Album: e.Album,
 		AlbumArtist: e.AlbumArtist, Artist: e.Artist, Path: e.Path})]
+	source := e.SourcePlaylist
+	if e.DJOwned {
+		source = "Auto-DJ"
+	}
 	return queueRow{
 		marker:    text.RowMarker(e.Selected, isFocused, isNowPlaying, npIcon),
 		pos:       text.PadLeft(fmt.Sprintf("%d", absIdx+1), r.cols.Position),
 		title:     text.FavPrefix(e.Title, r.cols.Title, trackFav),
 		artist:    text.FavPrefix(e.Artist, r.cols.Artist, artistFav),
 		album:     text.FavPrefix(e.Album, r.cols.Album, albumFav),
-		source:    padQueue(e.SourcePlaylist, r.cols.Source),
+		source:    padQueue(source, r.cols.Source),
 		dur:       text.PadLeft(text.FormatDurationMs(e.DurationMs), r.cols.Duration),
 		trackFav:  trackFav,
 		artistFav: artistFav,

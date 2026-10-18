@@ -299,14 +299,12 @@ func TestPlaylistsRShadowsGlobalRepeat(t *testing.T) {
 	}
 }
 
-// TestMixesLeavesVisualAndBulkUnbound guards that Mixes does not bind v or a:
-// Mixes has neither visual nor bulk selection, so both keys were silently
-// swallowed there while help advertised them.
-func TestMixesLeavesVisualAndBulkUnbound(t *testing.T) {
-	reg := NewRegistry()
-	for _, key := range []string{"v", "a"} {
-		if got := reg.Resolve(ContextMixes, key); got != ActionNone {
-			t.Errorf("Resolve(ContextMixes, %q) = %v, want ActionNone", key, got)
+// Mixes shares selection keys with the other track lists; dismissal has its own keys.
+func TestMixesSelectionAndDismissalKeys(t *testing.T) {
+	r := NewRegistry()
+	for key, want := range map[string]Action{"v": ActionVisualMode, "a": ActionBulkAction, "x": ActionBulkSelectionToggle, "X": ActionClearSelection, "d": ActionMixDismiss, "D": ActionMixUndismiss} {
+		if got := r.Resolve(ContextMixes, key); got != want {
+			t.Errorf("%s: got %v want %v", key, got, want)
 		}
 	}
 }

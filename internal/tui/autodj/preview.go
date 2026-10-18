@@ -284,7 +284,7 @@ func discoveryLabel(class radio.DiscoveryClass) string {
 func (v Preview) outcomeLines(names map[int64]string) []previewLine {
 	var lines []previewLine
 	for _, s := range v.Shortages {
-		lines = append(lines, previewLine{text: shortageText(s), tone: ToneWarn})
+		lines = append(lines, previewLine{text: v.shortageText(s), tone: ToneWarn})
 	}
 	if v.Outcome == radio.PlanOutcomeEmpty || v.Outcome == radio.PlanOutcomeBlocked {
 		for _, r := range v.Reasons {
@@ -323,20 +323,41 @@ func (v Preview) rejectionLines(names map[int64]string) []previewLine {
 	return lines
 }
 
-// shortageText states one unfilled quota as a count, not as a judgement.
-func shortageText(s radio.Shortage) string {
-	switch s.Kind {
-	case radio.ShortageDiscovery:
-		return fmt.Sprintf("Only %d of %d discovery %s were available; familiar tracks filled the rest.",
-			s.Got, s.Want, text.Pluralize(s.Want, "track", "tracks"))
-	case radio.ShortageFamiliar:
-		return fmt.Sprintf("Only %d of %d familiar %s were available; discovery tracks filled the rest.",
-			s.Got, s.Want, text.Pluralize(s.Want, "track", "tracks"))
-	case radio.ShortageBatch:
-		return fmt.Sprintf("Only %d of %d %s could be selected from the eligible candidates.",
-			s.Got, s.Want, text.Pluralize(s.Want, "track", "tracks"))
+// shortageText describes the completed batch, including any actual substitution.
+func (v Preview) shortageText(s radio.Shortage) string {
+	if s.Kind == radio.ShortageBatch {
+		return fmt.Sprintf("Only %d of %d %s could be selected from the eligible candidates.", s.Got, s.Want, text.Pluralize(s.Want, "track", "tracks"))
 	}
-	return fmt.Sprintf("%s quota short: %d of %d.", s.Kind, s.Got, s.Want)
+	if s.Kind != radio.ShortageDiscovery && s.Kind != radio.ShortageFamiliar {
+		return fmt.Sprintf("%s quota short: %d of %d.", s.Kind, s.Got, s.Want)
+	}
+	label, other := "discovery", "familiar"
+	if s.Kind == radio.ShortageFamiliar {
+		label, other = other, label
+	}
+	message := fmt.Sprintf("Only %d of %d %s %s %s available.", s.Got, s.Want, label,
+		text.Pluralize(s.Want, "track", "tracks"), text.Pluralize(s.Want, "was", "were"))
+	// Compare actual counts with both original quotas. A short batch may
+	// contain opposite-class tracks without having substituted any extras.
+	requested := len(v.Tracks)
+	if batch, ok := v.Shortages.Get(radio.ShortageBatch); ok {
+		requested = batch.Want
+	}
+	oppositeTarget := max(0, requested-v.DiscoveryTarget)
+	if s.Kind == radio.ShortageFamiliar {
+		oppositeTarget = v.DiscoveryTarget
+	}
+	opposite := 0
+	for _, track := range v.Tracks {
+		if track.Discovery.IsDiscovery() == (s.Kind == radio.ShortageFamiliar) {
+			opposite++
+		}
+	}
+	replacements := min(s.Missing(), max(0, opposite-oppositeTarget))
+	if replacements > 0 {
+		message += fmt.Sprintf(" Added %d extra %s %s instead.", replacements, other, text.Pluralize(replacements, "track", "tracks"))
+	}
+	return message
 }
 
 // evidenceLines reports what the ranking could not read, and states the one

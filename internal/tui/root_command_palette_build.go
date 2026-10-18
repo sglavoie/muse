@@ -345,6 +345,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 			cmds[i].Detail = detail
 		}
 		cmds[i].Aliases = paletteAliases(cmds[i].ID)
+		cmds[i].Intent = paletteCommandIntent(cmds[i].ID)
 		if state, ok := states[cmds[i].ID]; ok {
 			cmds[i].CurrentState = state
 		}

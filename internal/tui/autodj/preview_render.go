@@ -158,7 +158,7 @@ func (v Preview) presentationLines(names map[int64]string, content int) ([]Statu
 		}
 	}
 	summary := []previewLine{
-		{text: fmt.Sprintf("Would add %d tracks · after %d queued", len(v.Tracks), len(v.Ahead)+v.AheadMore)},
+		{text: fmt.Sprintf("Would add %d %s · after %d queued", len(v.Tracks), text.Pluralize(len(v.Tracks), "track", "tracks"), len(v.Ahead)+v.AheadMore)},
 		{text: fmt.Sprintf("%d discovery · %d familiar · target %d discovery", discovery, len(v.Tracks)-discovery, v.DiscoveryTarget)},
 	}
 	if v.Replanning {

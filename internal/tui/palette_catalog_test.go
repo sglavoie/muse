@@ -359,12 +359,12 @@ func TestPaletteCatalogNamesFollowNamingRules(t *testing.T) {
 }
 
 // TestPaletteCategoriesAreKnown asserts every category rendered in the palette
-// comes from the closed vocabulary and stays within the 5-column budget the
+// comes from the closed vocabulary and stays within the 8-column budget the
 // category column is sized against.
 func TestPaletteCategoriesAreKnown(t *testing.T) {
 	for category, meaning := range paletteCategories {
-		if w := ansi.StringWidth(category); w > 5 {
-			t.Errorf("category %q is %d columns, over the 5-column budget", category, w)
+		if w := ansi.StringWidth(category); w > 8 {
+			t.Errorf("category %q is %d columns, over the 8-column budget", category, w)
 		}
 		if meaning == "" {
 			t.Errorf("category %q has no description", category)

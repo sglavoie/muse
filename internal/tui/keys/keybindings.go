@@ -232,13 +232,13 @@ const (
 
 	// Mixes-local actions.
 	ActionSwitchMixes       // '7': switch to Mixes view
-	ActionMixOpen           // enter: drill into mix track list
+	ActionMixOpen           // enter: open mix or enqueue selected/focused tracks
 	ActionMixBack           // esc: go back from track list to mix list
 	ActionMixEnqueueAll     // 'E': enqueue all tracks from the focused mix
 	ActionSaveMixAsPlaylist // 'S': save current mix as a static playlist
 	ActionMixRadioSeed      // 'A': start radio seeded from the focused mix's aggregate metadata
-	ActionMixDismiss        // 'x': dismiss focused track from recommendations
-	ActionMixUndismiss      // 'X': undismiss focused track
+	ActionMixDismiss        // 'd': dismiss focused track from recommendations
+	ActionMixUndismiss      // 'D': restore the last successful dismissal
 
 	// Insights-local actions.
 	ActionSwitchInsights       // '8': switch to Insights view

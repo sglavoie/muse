@@ -221,8 +221,12 @@ func registerMixesBindings(r *Registry) {
 	r.register(ContextMixes, "e", ActionLibraryEnqueue)
 	r.register(ContextMixes, "E", ActionMixEnqueueAll)
 	r.register(ContextMixes, "N", ActionPlayNext)
-	r.register(ContextMixes, "x", ActionMixDismiss)
-	r.register(ContextMixes, "X", ActionMixUndismiss)
+	r.register(ContextMixes, "x", ActionBulkSelectionToggle)
+	r.register(ContextMixes, "X", ActionClearSelection)
+	r.register(ContextMixes, "v", ActionVisualMode)
+	r.register(ContextMixes, "a", ActionBulkAction)
+	r.register(ContextMixes, "d", ActionMixDismiss)
+	r.register(ContextMixes, "D", ActionMixUndismiss)
 	r.registerWithReason(ContextMixes, "s", ActionSortCycle,
 		"one-key sort cycle at mix track level; stays stop on the mix list (ctrl+s remains available)")
 	r.register(ContextMixes, "S", ActionSaveMixAsPlaylist)
@@ -317,7 +321,7 @@ func registerDefaultPrimaries(r *Registry) {
 	r.addPrimary(ContextMixes, "j/k", "nav")
 	r.addPrimary(ContextMixes, "enter", "open")
 	r.addPrimary(ContextMixes, "E", "enqueue all")
-	r.addPrimary(ContextMixes, "A", "radio")
+	r.addPrimary(ContextMixes, "A", "Auto-DJ")
 	r.addPrimary(ContextMixes, "?", "help")
 
 	r.addPrimary(ContextInsights, "j/k", "nav")
@@ -344,9 +348,9 @@ func registerTrackModePrimaries(r *Registry) {
 	r.addPrimaryMode(ContextPlaylists, HintModeTracks, "?", "help")
 
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "j/k", "nav")
-	r.addPrimaryMode(ContextMixes, HintModeTracks, "e", "enqueue")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "enter", "enqueue")
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "E", "enqueue all")
-	r.addPrimaryMode(ContextMixes, HintModeTracks, "esc", "clear/back")
+	r.addPrimaryMode(ContextMixes, HintModeTracks, "esc", "back")
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "/", "filter")
 	r.addPrimaryMode(ContextMixes, HintModeTracks, "?", "help")
 }
@@ -395,6 +399,10 @@ func registerSelectionModePrimaries(r *Registry) {
 	r.addPrimaryMode(ContextTags, HintModeSelection, "X", "clear")
 	r.addPrimaryMode(ContextTags, HintModeSelection, "?", "help")
 
+	for _, hint := range []struct{ key, label string }{{"enter", "enqueue"}, {"a", "bulk action"}, {"t", "tag"}, {"X", "clear"}, {"?", "help"}} {
+		r.addPrimaryMode(ContextMixes, HintModeSelection, hint.key, hint.label)
+	}
+
 	r.addPrimaryMode(ContextInsights, HintModeSelection, "enter", "enqueue")
 	r.addPrimaryMode(ContextInsights, HintModeSelection, "a", "bulk action")
 	r.addPrimaryMode(ContextInsights, HintModeSelection, "t", "tag")
@@ -410,7 +418,7 @@ func registerVisualModePrimaries(r *Registry) {
 	for _, ctx := range []Context{
 		ContextLibrary, ContextQueue, ContextPlaylists,
 		ContextBrowse, ContextArtists, ContextAlbums, ContextGenres,
-		ContextFavorites, ContextTags,
+		ContextFavorites, ContextTags, ContextMixes,
 	} {
 		r.addPrimaryMode(ctx, HintModeVisual, "j/k", "extend")
 		r.addPrimaryMode(ctx, HintModeVisual, "v", "exit")

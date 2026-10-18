@@ -32,6 +32,7 @@ type StatusBar struct {
 	StopAfterCurrent bool
 	VisualMode       bool
 	QueueEmpty       bool
+	EmptyQueueHint   string
 
 	// Elapsed and total are pre-formatted MM:SS strings injected by
 	// renderStatusBar. Both must be non-empty to show the time display.

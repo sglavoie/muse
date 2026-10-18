@@ -1,6 +1,9 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"slices"
+)
 
 // loadDismissedSet reads dismissed track hashes from the database and returns
 // them as a set. Returns nil when reader is nil or on error.
@@ -65,12 +68,17 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 		m.dismissedHashes = make(map[string]struct{})
 	}
 	m.dismissedHashes[msg.hash] = struct{}{}
+	m.lastMixDismissed = msg.hash
 	// A dismissal is a heavy scoring penalty in the planner, so the set is an
 	// Auto-DJ input as much as a mix filter.
 	m.djInvalidate()
+	delete(m.mixes.TrackView.SelectedHashes, msg.hash)
+	if m.visual.view == viewMixes {
+		m = exitVisualMode(m)
+	}
 
 	for id, tracks := range m.mixes.CachedMixes {
-		m.mixes.CachedMixes[id] = removeTrackByHash(tracks, msg.hash)
+		m.mixes.CachedMixes[id] = removeTrackByHash(slices.Clone(tracks), msg.hash)
 	}
 	if tracks, ok := m.mixes.CachedMixes[m.mixes.ActiveMix]; ok {
 		// Refresh the track view if currently open on this mix, preserving
@@ -81,18 +89,19 @@ func (m Model) handleMixDismissedMsg(msg mixDismissedMsg) Model {
 			m.mixes.TrackView = m.mixes.TrackView.RefreshView().ClampCursor()
 		}
 	}
-	m.statusBar.Notify("Dismissed — won't appear in future mixes")
+	m.statusBar.Notify("Dismissed — D restores this recommendation")
 	return m
 }
 
-// handleMixUndismiss undismisses the focused track at level 1. The track
-// reappears on the next mix load.
+// handleMixUndismiss restores the last successful dismissal, even after focus
+// moved or the mix became empty. Failed writes keep the target available to retry.
 func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
-	if m.ActiveView != viewMixes || m.mixes.Level != 1 {
+	if m.ActiveView != viewMixes {
 		return m, nil
 	}
-	t := m.mixes.FocusedTrack()
-	if t == nil {
+	hash := m.lastMixDismissed
+	if hash == "" {
+		m.statusBar.Notify("No recommendation to restore")
 		return m, nil
 	}
 	dw := m.dismissalWriter
@@ -100,7 +109,6 @@ func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
 		m.statusBar.Notify("Dismissal not available")
 		return m, nil
 	}
-	hash := t.Hash
 	return m, func() tea.Msg {
 		if err := dw.UndismissTrack(hash); err != nil {
 			return mixUndismissErrorMsg{err: err}
@@ -112,7 +120,17 @@ func (m Model) handleMixUndismiss() (Model, tea.Cmd) {
 // handleMixUndismissedMsg removes the hash from in-memory dismissedHashes.
 func (m Model) handleMixUndismissedMsg(msg mixUndismissedMsg) Model {
 	delete(m.dismissedHashes, msg.hash)
+	if m.lastMixDismissed == msg.hash {
+		m.lastMixDismissed = ""
+	}
 	m.djInvalidate()
-	m.statusBar.Notify("Undismissed — will reappear on next mix load")
+	m.statusBar.Notify("Recommendation restored")
 	return m
+}
+
+func (m Model) reloadOpenMixCmd() tea.Cmd {
+	if m.ActiveView == viewMixes && m.mixes.Level == 1 {
+		return m.loadMixCmd(m.mixes.ActiveMix)
+	}
+	return nil
 }

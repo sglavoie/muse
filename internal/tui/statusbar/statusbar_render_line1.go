@@ -28,7 +28,7 @@ func (s StatusBar) renderRightZone(ctx statusBarRenderContext) string {
 	}
 	// Full messages remain in Recent Messages. Bound this zone so a long
 	// filesystem error cannot displace the song and its playback modes.
-	if ctx.width > 0 && (s.Title != "" || s.Artist != "") {
+	if ctx.width > 0 && (s.Title != "" || s.Artist != "" || (s.QueueEmpty && s.EmptyQueueHint != "")) {
 		return ansi.Truncate(strings.Join(segments, ctx.r(" · ")), max(12, ctx.width/3), "…")
 	}
 

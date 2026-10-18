@@ -42,7 +42,7 @@ func TestCompactMixHintsKeepBackAndHideUnavailableFilter(t *testing.T) {
 	m.mixes.TrackView.Index.BulkLoad(richLibraryTracks())
 	m = m.handleWindowSizeMsg(tea.WindowSizeMsg{Width: 60, Height: 15})
 	hint := ansi.Strip(m.renderFooterHint())
-	for _, essential := range []string{"e enqueue", "esc", "/ filter", "? help"} {
+	for _, essential := range []string{"enter enqueue", "esc", "/ filter", "? help"} {
 		if !strings.Contains(hint, essential) {
 			t.Fatalf("missing %s: %s", essential, hint)
 		}

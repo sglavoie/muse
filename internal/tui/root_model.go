@@ -84,10 +84,11 @@ type Model struct {
 	scanWriteOutcome *library.StageOutcome
 	// scanErrCh carries non-fatal walk errors from the initial diff scan.
 	// It is already closed when Init() runs; drained once on startup.
-	scanErrCh <-chan library.ScanErrorMsg
-	scanning  bool
-	scanned   int
-	scanTotal int // estimated total from the parallel counting goroutine
+	scanErrCh  <-chan library.ScanErrorMsg
+	scanFailed bool
+	scanning   bool
+	scanned    int
+	scanTotal  int // estimated total from the parallel counting goroutine
 	// scanCancel cancels the per-scan context derived from m.appCtx. Set when
 	// a scan starts; cleared on completion or user-initiated cancel. nil when
 	// no scan is in progress.
@@ -190,6 +191,7 @@ type Model struct {
 	recReader           recommendationReader         // may be nil; set via WithRecommendationReader
 	dismissalReader     dismissalReader              // may be nil; set via WithDismissalReader
 	dismissalWriter     dismissalWriter              // may be nil; set via WithDismissalWriter
+	lastMixDismissed    string                       // most recent successful dismissal in this session
 	dismissedHashes     map[string]struct{}          // set of dismissed track hashes
 	cacheReader         cachedMixReader              // may be nil; set via WithCacheReader
 	cacheRebuilder      recommendationCacheRebuilder // may be nil; set via WithCacheRebuilder

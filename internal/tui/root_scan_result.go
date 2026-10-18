@@ -17,6 +17,7 @@ type scanFinishedMsg struct {
 
 func (m Model) handleScanFinishedMsg(msg scanFinishedMsg) Model {
 	if msg.err != nil {
+		m.scanFailed = true
 		summary := strings.Replace(msg.summary, "Scan complete", "Scan finished with save errors", 1)
 		if summary == "" {
 			summary = "Scan save failed"

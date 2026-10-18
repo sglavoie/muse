@@ -53,7 +53,7 @@ func TestViewRendersNormalContentAtMinimumSize(t *testing.T) {
 	if strings.Contains(content, "Terminal window is too small") {
 		t.Fatalf("minimum supported size should render normal content:\n%s", content)
 	}
-	if !strings.Contains(content, "Library") {
+	if !strings.Contains(content, "No music found in your folders") {
 		t.Fatalf("expected normal library content at minimum size, got:\n%s", content)
 	}
 }

@@ -23,7 +23,16 @@ func (m Model) RenderStatusBar() string {
 	sb.ConfigCreated = m.configCreated
 	sb.WatchDegraded = m.watchDegraded
 	sb.QueueEmpty = len(m.queue.Entries) == 0
+	if m.library.Index.Len() == 0 {
+		title, action := m.emptyLibraryGuidance()
+		sb.EmptyQueueHint = action.Key + " · " + title
+	} else if m.ActiveView == viewLibrary {
+		sb.EmptyQueueHint = "Queue is empty — select a track and press Enter"
+	}
 	if (m.playback.state == playback.StatePlaying || m.playback.state == playback.StatePaused) && m.playback.currentIndex >= 0 && m.playback.currentIndex < len(m.queue.Entries) {
+		if m.queue.Entries[m.playback.currentIndex].DJOwned {
+			sb.PlaylistSource = "Auto-DJ"
+		}
 		sb.QueuePosition = fmt.Sprintf("%d of %d", m.playback.currentIndex+1, len(m.queue.Entries))
 	} else {
 		sb.QueuePosition = ""
@@ -67,6 +76,8 @@ func (m Model) activeViewSelectionCount() int {
 		return len(m.favorites.SelectedItems)
 	case viewTags:
 		return len(m.tagsView.SelectedHashes)
+	case viewMixes:
+		return len(m.mixes.TrackView.SelectedHashes)
 	case viewInsights:
 		return len(m.insights.TrackView.SelectedHashes)
 	}

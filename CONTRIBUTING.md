@@ -42,7 +42,7 @@ Everything goes through `just`; there is no hidden setup step.
 | `just run [args]` | `go run . [args]` |
 | `just test` | `go test -race -count=1 ./...` |
 | `just test-playback` | real-mpv continuity tests with `-race`; mpv is required |
-| `just bench-ui` | typing, rendering, and sorting benchmarks at 10k and 100k tracks |
+| `just bench-ui` | typing, individual keystrokes, rendering, and sorting at 10k and 100k tracks |
 | `just test-v` | the same, verbose |
 | `just test-pkg internal/tui` | tests for one package, verbose |
 | `just lint` | `go vet ./...` plus a pinned `golangci-lint run` |
@@ -69,24 +69,35 @@ the lint step in `.github/workflows/ci.yml`.
 ### Interactive performance and playback
 
 `just bench-ui` excludes fixture construction and measures an eight-character
-filter sequence (including each rendered frame), a single render, and a title
-sort. It uses deterministic synthetic libraries with accented titles. Run without
-`-race` for representative latency, and compare multiple samples on the same
-machine. These are diagnostic measurements, not wall-clock CI thresholds.
+filter sequence (including every rendered frame), individual keystrokes, a
+single render, and a title sort at 10,000 and 100,000 tracks. Single-keystroke
+cases warm the normalization cache and cover broad matches, a field-specific
+query, and no matches. Run without `-race` for representative latency.
 
-A one-iteration sample on an Apple M2 Ultra during the polish pass showed:
+A local follow-up sample on an Apple M2 Ultra compared the same eight-character
+sequence before and after the allocation pass:
 
 | 100,000 tracks | Before | After |
 | --- | ---: | ---: |
-| Eight-character filter sequence | 1.72 s | 345 ms |
-| Frame render | 14.0 ms | 2.0 ms |
-| Title sort | 335 ms | 137 ms |
-| Filter sequence allocations | 2.73 GB | 705 MB |
+| First sequence, cold normalization cache | 374 ms | 270 ms |
+| Cold sequence allocation | 706 MB | 299 MB |
+| Warm sequence, mean of the next two samples | 306 ms | 233 ms |
+| Warm sequence allocation | 580 MB | 173 MB |
+| Warm sequence allocations | 1.51 million | 107 thousand |
 
-The filter sample includes warming the normalization cache. Treat these numbers
-as an indicative local comparison, not a hardware-independent guarantee. Use
+The profile identified growing result slices, a heap-allocated candidate result,
+and individual highlight slices as the main allocation costs. The matcher now
+reserves result storage once on the first match and builds independent highlight
+spans in blocks. No-match searches allocate no result storage. Search semantics
+and metadata cache invalidation remain unchanged.
+
+The new individual-keystroke cases took approximately 20–34 ms at 100,000 tracks
+in this sample. Frame rendering remained about 1.8 ms. These are diagnostic local
+measurements, not hardware-independent guarantees or CI thresholds; other work
+on the machine can affect timings. The comparison used `-benchtime=1x -count=3`
+to distinguish the first cold sequence from subsequent warm sequences. Use
 `go test ./internal/tui -run '^$' -bench '^BenchmarkLibraryInteraction$' -benchmem -count=3`
-for repeated measurements.
+for longer repeated measurements, which amortize cache warmup.
 
 `just test-playback` runs the existing real-mpv integration tests against
 synthetic audio with null audio output. The dedicated CI playback job installs

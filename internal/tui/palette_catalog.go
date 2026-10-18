@@ -11,45 +11,39 @@ import (
 // Naming rules for palette entries, enforced by
 // TestPaletteCatalogNamesFollowNamingRules:
 //
-//  1. Imperative verb first — "Show listening stats", not "Listening stats".
+//  1. Imperative verb first — for example, "Show track info".
 //  2. No trailing punctuation, except a trailing "…" marking an entry that
 //     opens a picker or modal instead of acting immediately.
 //  3. At most maxPaletteNameWidth columns wide.
 //  4. Category drawn from paletteCategories.
 //
-// maxPaletteNameWidth is a readability cap, not the layout ceiling. A palette
-// row costs len(Name) + 6 + (widest shortcut + 2) + (widest category + 3)
-// columns (command_palette.go:230-259), and innerWidth is clamped to
-// termWidth-4, so with the widest bound key ("shift+enter", 11 columns) and a
-// 5-column category a name only starts truncating past 89 columns at the
-// 120x50 command-palette-search scenario, or 69 at the 100x30 palette step of
-// layout-regressions-rich. 32 keeps the whole box at 61 columns — about half
-// the 120-column reference terminal — with two columns of headroom over the
-// longest name in the palette today.
+// maxPaletteNameWidth keeps static action names readable alongside category
+// labels and shortcuts. The renderer budgets those columns and truncates names
+// to the available terminal width independently of this catalog cap.
 //
 // Dynamic names such as "Enqueue tag: " + tag are data-dependent and cannot be
 // capped here; only static catalog names are checked.
 const maxPaletteNameWidth = 32
 
 // paletteCategories is the closed category vocabulary, mapping each category to
-// what it covers. Categories are at most 5 columns because the category column
+// what it covers. Categories are at most 8 columns because the category column
 // is sized from the widest one (command_palette.go:236-245).
 var paletteCategories = map[string]string{
-	"app":   "app-wide settings, stats and undo",
-	"dev":   "developer and diagnostic tools",
-	"file":  "files, directories and the clipboard",
-	"lib":   "library data: scanning, metadata, refresh",
-	"list":  "playlists and smart playlists",
-	"mix":   "generated mixes and recommendations",
-	"mode":  "toggles that change a persistent mode",
-	"nav":   "jumping to a view, mode or row",
-	"play":  "playback transport, volume and info",
-	"queue": "the play queue and its contents",
-	"sort":  "sort field and direction",
-	"stats": "listening insights and library coverage",
-	"tag":   "tags and tag filtering",
-	"trk":   "the focused track",
-	"view":  "the active view's own presentation",
+	"app":      "app-wide settings, stats and undo",
+	"dev":      "developer and diagnostic tools",
+	"file":     "files, directories and the clipboard",
+	"lib":      "library data: scanning, metadata, refresh",
+	"list":     "playlists and smart playlists",
+	"mix":      "generated mixes and recommendations",
+	"mode":     "toggles that change a persistent mode",
+	"nav":      "jumping to a view, mode or row",
+	"play":     "playback transport, volume and info",
+	"queue":    "the play queue and its contents",
+	"sort":     "sort field and direction",
+	"Insights": "listening insights and library coverage",
+	"tag":      "tags and tag filtering",
+	"trk":      "the focused track",
+	"view":     "the active view's own presentation",
 }
 
 // paletteEntry describes a command-palette entry backed by a keybinding
@@ -89,7 +83,7 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionQuit, id: "app.quit", name: "Quit", ctx: keys.ContextGlobal, pin: palette.PinBottom},
 
 	{act: keys.ActionDebug, id: "debug.show", name: "Show debug panel", category: "dev", ctx: keys.ContextGlobal},
-	{act: keys.ActionRadioToggle, id: "radio.toggle", name: "Toggle radio mode", category: "mode", ctx: keys.ContextGlobal},
+	{act: keys.ActionRadioToggle, id: "radio.toggle", name: "Toggle Auto-DJ", category: "mode", ctx: keys.ContextGlobal},
 	{act: keys.ActionAutoDJTune, id: "autodj.tune", name: "Tune Auto-DJ…", category: "mode", ctx: keys.ContextGlobal},
 
 	{act: keys.ActionRepeatCycle, id: "playback.repeat.cycle", name: "Cycle repeat mode", category: "mode", ctx: keys.ContextGlobal},
@@ -188,19 +182,19 @@ var paletteCatalog = []paletteEntry{
 
 	{act: keys.ActionMixEnqueueAll, id: "mix.enqueue_all", name: "Enqueue mix tracks", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
 	{act: keys.ActionSaveMixAsPlaylist, id: "mix.save_as_playlist", name: "Save mix as playlist", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionMixRadioSeed, id: "mix.radio.seed", name: "Start radio from mix", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionMixDismiss, id: "mix.dismiss", name: "Dismiss track from mix", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
-	{act: keys.ActionMixUndismiss, id: "mix.undismiss", name: "Undismiss track", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionMixRadioSeed, id: "mix.radio.seed", name: "Start Auto-DJ from mix", category: "mix", ctx: keys.ContextMixes, disabledReason: "Open Mixes first", enabled: activeViewIs(viewMixes)},
+	{act: keys.ActionMixDismiss, id: "mix.dismiss", name: "Dismiss track from mix", category: "mix", ctx: keys.ContextMixes, disabledReason: "Focus a track in Mixes", enabled: func(m Model) bool { return m.ActiveView == viewMixes && m.mixes.FocusedTrack() != nil }},
+	{act: keys.ActionMixUndismiss, id: "mix.undismiss", name: "Restore last dismissed track", category: "mix", ctx: keys.ContextMixes, disabledReason: "Dismiss a recommendation in this session first", enabled: func(m Model) bool { return m.ActiveView == viewMixes && m.lastMixDismissed != "" }},
 
-	{act: keys.ActionInsightsPanelNext, id: "insights.panel.next", name: "Next insights panel", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsPanelPrev, id: "insights.panel.previous", name: "Previous insights panel", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsWindowNext, id: "insights.window.next", name: "Next window or bucket size", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsWindowPrev, id: "insights.window.previous", name: "Previous window or bucket size", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsEnqueueAll, id: "insights.enqueue_all", name: "Enqueue tracks behind row", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsRadioSeed, id: "insights.radio.seed", name: "Start radio from insight row", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsSavePlaylist, id: "insights.save_as_playlist", name: "Save insight tracks as playlist", category: "stats", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
-	{act: keys.ActionInsightsMergeGenre, id: "insights.merge_genre", name: "Merge genre spellings", category: "stats", ctx: keys.ContextInsights, disabledReason: "Select a genre collision in Data Health", enabled: insightsHasGenreCollision},
+	{act: keys.ActionInsightsPanelNext, id: "insights.panel.next", name: "Next Insights panel", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsPanelPrev, id: "insights.panel.previous", name: "Previous Insights panel", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsWindowNext, id: "insights.window.next", name: "Next window or bucket size", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsWindowPrev, id: "insights.window.previous", name: "Previous window or bucket size", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsEnqueueAll, id: "insights.enqueue_all", name: "Enqueue tracks from Insights row", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsRadioSeed, id: "insights.radio.seed", name: "Start Auto-DJ from Insights row", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsSavePlaylist, id: "insights.save_as_playlist", name: "Save Insights tracks as playlist", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	{act: keys.ActionInsightsMergeGenre, id: "insights.merge_genre", name: "Merge genre spellings", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Select a genre collision in Data Health", enabled: insightsHasGenreCollision},
 }
 
 // playbackHasTrack reports whether a track is loaded, gating catalog entries

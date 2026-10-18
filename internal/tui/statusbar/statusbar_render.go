@@ -111,10 +111,14 @@ func (s StatusBar) Render(width int, st styles.Styles) string {
 	ctx := newStatusBarRenderContext(width, st, s.PlaybackState)
 	right := s.renderRightZone(ctx)
 	if s.PlaybackState == playback.StateIdle && s.QueueEmpty {
-		return ctx.rightAlign(ctx.r("Queue is empty — press 1 to browse Library"), right) + "\n" + ctx.dimLine()
+		hint := s.EmptyQueueHint
+		if hint == "" {
+			hint = "Queue is empty — press 1 to browse Library"
+		}
+		return ctx.rightAlign(ctx.r(hint), right) + "\n" + s.renderLine2(ctx)
 	}
 	if s.PlaybackState == playback.StateIdle && s.Artist == "" && s.Title == "" {
-		return ctx.rightAlign("", right) + "\n" + ctx.dimLine()
+		return ctx.rightAlign("", right) + "\n" + s.renderLine2(ctx)
 	}
 	return s.renderLine1(ctx, right) + "\n" + s.renderLine2(ctx)
 }

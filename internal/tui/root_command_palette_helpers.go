@@ -92,3 +92,15 @@ func revealFilePaletteName(goos string) string {
 	}
 	return "Open containing folder"
 }
+
+// Keep everyday listening ahead of edits and removal in the unfiltered palette.
+func paletteCommandIntent(id string) palette.CommandIntent {
+	switch id {
+	case "queue.enqueue.focused", "queue.play_next", "track.info", "track.preview", "playback.toggle", "mix.enqueue_all", "playlist.enqueue_all", "tag.enqueue_all", "insights.enqueue_all":
+		return palette.IntentListening
+	case "queue.clear", "queue.dequeue", "queue.cut", "queue.enqueue.replace", "playlist.delete", "tag.delete", "mix.dismiss", "queue.dedup":
+		return palette.IntentRemoval
+	default:
+		return palette.IntentOrdinary
+	}
+}
