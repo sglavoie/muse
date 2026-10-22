@@ -7,14 +7,10 @@ import (
 	"github.com/sglavoie/muse/internal/db"
 )
 
-// openMigratedDB opens a fresh DB and applies all migrations.
+// openMigratedDB opens an isolated copy of the migrated empty database.
 func openMigratedDB(t *testing.T) *db.DB {
 	t.Helper()
-	d := openTestDB(t)
-	if err := db.Migrate(d.DB); err != nil {
-		t.Fatalf("Migrate: %v", err)
-	}
-	return d
+	return openMigratedTestDB(t)
 }
 
 // insertTrack inserts a minimal tracks row and returns the hash.

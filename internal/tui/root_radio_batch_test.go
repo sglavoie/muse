@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/testdb"
 )
 
 type failOnceRadioBatchEnqueuer struct {
@@ -286,22 +287,12 @@ func assertRadioCleanupRecovered(t *testing.T, m Model, d *db.DB) {
 
 func newRadioBatchDBModel(t *testing.T) (Model, *db.DB) {
 	t.Helper()
-	d, err := db.Open(filepath.Join(t.TempDir(), "radio-batch.db"))
-	if err != nil {
-		t.Fatalf("open DB: %v", err)
-	}
-	if err := db.Migrate(d.DB); err != nil {
-		d.Close()
-		t.Fatalf("migrate DB: %v", err)
-	}
+	d := testdb.Open(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	w := db.NewWriter(ctx, d.DB)
 	t.Cleanup(func() {
 		cancel()
 		w.Wait()
-		if err := d.Close(); err != nil {
-			t.Errorf("close DB: %v", err)
-		}
 	})
 
 	m := seedRadioBatchDBModel(t, d, w)

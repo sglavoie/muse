@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/sglavoie/muse/internal/tui/uitest"
 )
@@ -34,18 +36,25 @@ func TestCommittedScenarios_Gated(t *testing.T) {
 		name := filepath.Base(path)
 		t.Run(name, func(t *testing.T) {
 			scenario := loadScenario(t, name)
-			result, err := uitest.RunScenario(scenario, uitest.RunOptions{})
-			if err != nil {
-				t.Fatalf("setup error: %v", err)
-			}
-			if !result.OK {
-				reason := "unknown"
-				if result.Error != nil {
-					reason = result.Error.Reason
+			// Exercise the real timer-driven commands without waiting for cursor
+			// blinks and command-drain deadlines in wall-clock time.
+			synctest.Test(t, func(t *testing.T) {
+				// Discarded commands still finish their finite timers. Let them
+				// complete before the bubble exits (and its clock stops).
+				defer time.Sleep(time.Hour)
+				result, err := uitest.RunScenario(scenario, uitest.RunOptions{})
+				if err != nil {
+					t.Fatalf("setup error: %v", err)
 				}
-				t.Fatalf("scenario %q failed at action %d: %s", name,
-					actionIndex(result), reason)
-			}
+				if !result.OK {
+					reason := "unknown"
+					if result.Error != nil {
+						reason = result.Error.Reason
+					}
+					t.Fatalf("scenario %q failed at action %d: %s", name,
+						actionIndex(result), reason)
+				}
+			})
 		})
 	}
 }

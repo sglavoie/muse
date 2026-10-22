@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -82,7 +83,9 @@ func TestCollectionTrackFiltersMatchAcrossViews(t *testing.T) {
 			} {
 				m := newRichFixture()
 				setup(&m)
-				m = typeText(pressSlash(m), tc.query)
+				// This matrix checks completed queries. Paste through Update;
+				// typed input is exercised by the history and literal-slash tests.
+				m = pasteFilterQuery(m, tc.query)
 				if got := m.filterRowKeys(); !slices.Equal(got, tc.want) {
 					t.Fatalf("%q: got %v, want %v", tc.query, got, tc.want)
 				}
@@ -141,11 +144,17 @@ func TestCollectionFilenameAccentFilters(t *testing.T) {
 			for _, query := range []string{"cafe", "cafe a:bjork", "a:BJORK"} {
 				m := newRichFixture()
 				setup(&m)
-				m = typeText(pressSlash(m), query)
+				m = pasteFilterQuery(m, query)
 				if got := m.filterRowKeys(); !slices.Equal(got, []string{"accent"}) {
 					t.Fatalf("%q: %v", query, got)
 				}
 			}
 		})
 	}
+}
+
+func pasteFilterQuery(m Model, query string) Model {
+	m = pressSlash(m)
+	next, _ := m.Update(tea.PasteMsg{Content: query})
+	return next.(Model)
 }

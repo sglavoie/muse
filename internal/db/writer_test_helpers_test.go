@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/testdb"
 )
 
 func openTestDB(t *testing.T) *db.DB {
@@ -21,11 +22,7 @@ func openTestDB(t *testing.T) *db.DB {
 
 func openMigratedTestDB(t *testing.T) *db.DB {
 	t.Helper()
-	d := openTestDB(t)
-	if err := db.Migrate(d.DB); err != nil {
-		t.Fatalf("Migrate: %v", err)
-	}
-	return d
+	return testdb.Open(t)
 }
 
 func seedTrack(t *testing.T, d *db.DB, hash, path string) {

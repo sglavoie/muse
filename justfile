@@ -14,6 +14,10 @@ install:
 test:
     go test -race -count=1 ./...
 
+# Fast local feedback; reuse passing results and leave race checking to test/CI
+test-fast:
+    go test ./...
+
 # Verify real mpv continuity, queue replacement and gapless advance (silent output)
 test-playback:
     MUSE_REQUIRE_MPV=1 go test -race -count=1 -tags integration -run RealMPV -timeout 5m ./internal/player/

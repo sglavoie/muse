@@ -41,6 +41,7 @@ Everything goes through `just`; there is no hidden setup step.
 | `just install` | `go install .` |
 | `just run [args]` | `go run . [args]` |
 | `just test` | `go test -race -count=1 ./...` |
+| `just test-fast` | `go test ./...`; cached local feedback without race instrumentation |
 | `just test-playback` | real-mpv continuity tests with `-race`; mpv is required |
 | `just bench-ui` | typing, individual keystrokes, rendering, and sorting at 10k and 100k tracks |
 | `just test-v` | the same, verbose |
@@ -53,7 +54,8 @@ Everything goes through `just`; there is no hidden setup step.
 | `just tidy` | `go mod tidy` |
 | `just clean` | remove the binary and coverage reports |
 
-Before opening a pull request, run:
+Use `just test-fast` while iterating; it reuses passing test results when their
+inputs have not changed. Before opening a pull request, run:
 
 ```sh
 just fmt-check

@@ -3,7 +3,7 @@ package tui
 import (
 	"context"
 	"testing"
-	"time"
+	"testing/synctest"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -176,52 +176,31 @@ func TestSessionTickMsgReschedulesCmd(t *testing.T) {
 // executes each sub-cmd concurrently. The test extracts and runs only the
 // write sub-cmd to confirm the correct value is captured.
 func TestSessionTickMsgWritesPositionWhenPlaying(t *testing.T) {
-	sw := &stubSessionWriter{}
-	m := New(context.Background(), WithSessionWriter(sw))
-	m.playback.state = playback.StatePlaying
-	m.playback.currentHash = "abc123"
-	m.playback.elapsedSecs = 45.5 // 45500 ms
+	synctest.Test(t, func(t *testing.T) {
+		sw := &stubSessionWriter{}
+		m := New(context.Background(), WithSessionWriter(sw))
+		m.playback.state = playback.StatePlaying
+		m.playback.currentHash = "abc123"
+		m.playback.elapsedSecs = 45.5 // 45500 ms
 
-	_, cmd := m.Update(sessionTickMsg{})
-	if cmd == nil {
-		t.Fatal("sessionTickMsg while playing: expected non-nil cmd")
-	}
-
-	// cmd() returns a tea.BatchMsg containing [sessionTickCmd, writeCmd].
-	// Execute each sub-cmd in a goroutine with a short timeout so the
-	// blocking timer cmd is skipped while the write cmd runs to completion.
-	batchMsg := cmd()
-	batch, ok := batchMsg.(tea.BatchMsg)
-	if !ok {
-		t.Fatalf("expected tea.BatchMsg, got %T", batchMsg)
-	}
-	for _, subcmd := range batch {
-		if subcmd == nil {
-			continue
+		_, cmd := m.Update(sessionTickMsg{})
+		if cmd == nil {
+			t.Fatal("sessionTickMsg while playing: expected non-nil cmd")
 		}
-		done := make(chan struct{})
-		go func(c tea.Cmd) {
-			c()
-			close(done)
-		}(subcmd)
-		select {
-		case <-done:
-			// completed quickly — this is the write cmd
-		case <-time.After(2 * time.Second):
-			// timed out — this is the blocking tick timer; skip it
+		// Run both the scheduled tick and the write to completion. The timer
+		// advances virtual time, so no timeout or abandoned goroutine is needed.
+		drainCmd(cmd)
+		if len(sw.positionCalls) != 1 {
+			t.Fatalf("expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
 		}
-	}
-
-	if len(sw.positionCalls) != 1 {
-		t.Fatalf("expected 1 UpdateSessionPosition call, got %d", len(sw.positionCalls))
-	}
-	got := sw.positionCalls[0]
-	if got.hash != "abc123" {
-		t.Fatalf("expected hash %q, got %q", "abc123", got.hash)
-	}
-	if got.positionMs != 45500 {
-		t.Fatalf("expected positionMs 45500, got %d", got.positionMs)
-	}
+		got := sw.positionCalls[0]
+		if got.hash != "abc123" {
+			t.Fatalf("expected hash %q, got %q", "abc123", got.hash)
+		}
+		if got.positionMs != 45500 {
+			t.Fatalf("expected positionMs 45500, got %d", got.positionMs)
+		}
+	})
 }
 
 // TestSessionTickMsgSkipsWriteWhenNotPlaying verifies that sessionTickMsg does
