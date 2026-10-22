@@ -138,10 +138,11 @@ final class SurfaceInputTests: XCTestCase {
     private var window: NSWindow!
     private var view: Ghostty.SurfaceView!
     private var scriptURL: URL!
+    private var configURL: URL?
 
     /// Starts a surface whose program enables kitty disambiguation, puts its
     /// tty in raw mode, and prints every byte it reads as `xx.`.
-    private func startByteDump() throws {
+    private func startByteDump(optionAsAlt: Bool? = nil) throws {
         let script = """
         #!/bin/sh
         printf '\\033[>1u'
@@ -158,7 +159,13 @@ final class SurfaceInputTests: XCTestCase {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
 
         let overrides = Ghostty.ConfigOverrides(command: scriptURL)
-        ghostty = Ghostty.App { Ghostty.Config(userConfig: nil, overrides: overrides) }
+        if let optionAsAlt {
+            let url = scriptURL.appendingPathExtension("conf")
+            try "macos-option-as-alt = \(optionAsAlt)\n".write(to: url, atomically: true, encoding: .utf8)
+            configURL = url
+        }
+        let userConfig = configURL
+        ghostty = Ghostty.App { Ghostty.Config(userConfig: userConfig, overrides: overrides) }
         let app = try XCTUnwrap(ghostty.app)
         window = NSWindow(
             contentRect: NSRect(x: -10_000, y: -10_000, width: 800, height: 500),
@@ -181,6 +188,8 @@ final class SurfaceInputTests: XCTestCase {
         window = nil
         ghostty = nil
         if let scriptURL { try? FileManager.default.removeItem(at: scriptURL) }
+        if let configURL { try? FileManager.default.removeItem(at: configURL) }
+        configURL = nil
     }
 
     private func screenText() -> String {
@@ -250,13 +259,19 @@ final class SurfaceInputTests: XCTestCase {
 
     func testComposedTextIsSentAsUTF8() throws {
         try requireUSLayout()
-        try startByteDump()
+        try startByteDump(optionAsAlt: true)
         // A layout key producing an accented character sends its UTF-8.
         try press(key(Self.kVKE, "é"), expecting: "c3.a9.")
         try press(key(0x08, "ç", ignoring: "c"), expecting: "c3.a7.")
-        // Unset macos-option-as-alt detects US layouts as option-as-alt, so
-        // Option+c is alt+c, exactly as Ghostty.app sends it, not ç.
+        // Explicit option-as-alt must send alt+c. Do not depend on the host's
+        // layout detection to choose a default for an embedded Ghostty surface.
         try press(key(0x08, "ç", ignoring: "c", mods: .option), expecting: "1b.5b.39.39.3b.33.75.")
+    }
+
+    func testOptionCanProduceComposedTextWhenAltIsDisabled() throws {
+        try requireUSLayout()
+        try startByteDump(optionAsAlt: false)
+        try press(key(0x08, "ç", ignoring: "c", mods: .option), expecting: "c3.a7.")
     }
 
     func testPreeditIsNotSentUntilCommitted() throws {

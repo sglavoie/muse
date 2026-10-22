@@ -39,6 +39,10 @@ lint:
     go vet ./...
     go run {{golangci_lint}} run
 
+# Check reachable Go vulnerabilities against the current advisory database
+security:
+    go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
 # Show complexity violations ignoring the debt list
 lint-complexity:
     go run {{golangci_lint}} run -c .golangci-complexity.yml ./...
@@ -73,6 +77,15 @@ mac-app configuration="Debug":
 # Run the muse.app XCTest suite with xcodebuild test (outside CI)
 mac-test:
     ./macos/scripts/test-app.sh
+
+# Record the real desktop app with generated music in an isolated demo library
+mac-demo:
+    python3 macos/scripts/record-demo.py
+
+# Render the README's animated vector tour (requires uv; no desktop UI)
+readme-demo: build
+    python3 scripts/capture_readme_demo.py
+    uv run scripts/render_terminal_svg.py --animate macos/build/demo/readme-frames.json docs/demo/muse-tour.svg
 
 # Build the Release muse.app and install it to /Applications (outside CI)
 mac-install: (mac-app "Release")

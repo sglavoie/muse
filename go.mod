@@ -12,8 +12,8 @@ require (
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/zeebo/blake3 v0.2.4
 	go.uber.org/goleak v1.3.0
-	golang.org/x/text v0.34.0
-	golang.org/x/tools v0.42.0
+	golang.org/x/text v0.39.0
+	golang.org/x/tools v0.47.0
 	modernc.org/sqlite v1.46.1
 )
 
@@ -41,9 +41,9 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
-	golang.org/x/mod v0.33.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	modernc.org/libc v1.68.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

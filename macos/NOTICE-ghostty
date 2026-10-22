@@ -1,4 +1,4 @@
-The Swift sources under TTApp/Ghostty/ are ported and trimmed from Ghostty's
+The Swift sources under MuseApp/Ghostty/ are ported and trimmed from Ghostty's
 macOS app (https://github.com/ghostty-org/ghostty, the tag GHOSTTY_VERSION
 pins), distributed under the following license:
 

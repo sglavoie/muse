@@ -46,6 +46,7 @@ Everything goes through `just`; there is no hidden setup step.
 | `just test-v` | the same, verbose |
 | `just test-pkg internal/tui` | tests for one package, verbose |
 | `just lint` | `go vet ./...` plus a pinned `golangci-lint run` |
+| `just security` | reachable Go vulnerability scan using the current advisory database |
 | `just fmt` | `gofmt -w .` |
 | `just fmt-check` | fails if anything needs formatting |
 | `just cover` | coverage profile, HTML report, and the total |
@@ -58,7 +59,11 @@ Before opening a pull request, run:
 just fmt-check
 just lint
 just test
+just security
 ```
+
+The pinned linter currently requires Go 1.26; with a newer Go installation,
+run `GOTOOLCHAIN=go1.26.8 just lint` to select a compatible toolchain.
 
 The full suite runs with `-race`; keep it that way. golangci-lint is pinned to
 an exact version in the `golangci_lint` variable at the top of the `justfile`,
@@ -129,6 +134,8 @@ above; run them by hand when you touch `macos/`:
 | `just mac-app [Debug\|Release]` | builds `macos/build/muse.app`; Release bundles a versioned `muse` |
 | `just mac-test` | the `MuseAppTests` XCTest suite |
 | `just mac-install` | a Release build, signed, installed to `/Applications` |
+| `just mac-demo` | drives and records an isolated desktop demo; see [capture setup](docs/demo/README.md) |
+| `just readme-demo` | regenerates the animated README SVG from the headless TUI harness; requires Python 3 and `uv` |
 
 A change under `macos/` ships with a passing `just mac-test`. Go files Zig
 fetches into `macos/.cache` are gitignored, so `just fmt-check` never sees them.
@@ -187,6 +194,8 @@ regressions.
   locally too, on both the code and the tests you touched.
 
 ## Reporting bugs
+
+Report vulnerabilities through [SECURITY.md](SECURITY.md), not public issues.
 
 Open an issue with the output of `muse check`, your OS and terminal, the muse
 version (`muse --version`), and the steps to reproduce. If the TUI rendered

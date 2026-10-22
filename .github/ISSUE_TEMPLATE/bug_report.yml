@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible problem with muse or muse.app.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, follow SECURITY.md instead.
+        Review diagnostics for personal paths and metadata before posting.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS version, terminal or desktop app, and output of `muse --version` and `muse check`.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest example you can reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting evidence
+      description: Optional screenshots, sanitized logs, or a `muse tui-test` scenario. Please do not upload copyrighted music.

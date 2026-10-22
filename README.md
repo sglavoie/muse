@@ -1,6 +1,8 @@
 # muse
 
-muse is a terminal music player for a local music library. It drives
+muse is a keyboard-driven music player for your local library, available in
+the terminal on macOS and Linux and as a [macOS desktop app](#macos-app).
+It drives
 [mpv](https://mpv.io) over a Unix IPC socket for playback, keeps a SQLite index
 of your files built from [ExifTool](https://exiftool.org) or ffprobe metadata,
 and renders everything through a
@@ -10,7 +12,11 @@ listening-insights dashboard, and a steerable Auto-DJ that keeps picking the
 next track for you. It is keyboard-driven throughout — press `?` at any time for the
 full keybinding reference.
 
-![Muse Library view rendered from the rich test fixture](docs/muse-library.svg)
+[![muse keyboard tour: library filtering, queue, playback controls, and Auto-DJ](docs/demo/muse-tour.svg)](docs/demo/README.md)
+
+A vector tour of muse's real interface, driven with fixture data.
+[View the macOS desktop capture](docs/demo/muse-desktop.png) ·
+[Reproduce the demos](docs/demo/README.md)
 
 ## Quick start
 
@@ -30,8 +36,9 @@ full keybinding reference.
    filter, `3` to see the queue, and `?` for help. To diagnose setup problems,
    run `muse check` from a terminal.
 
-The preview above uses fictional library data from the
-[fixture harness](docs/tui-testing/README.md); it needs no music files or mpv.
+The animated tour uses the [fixture harness](docs/tui-testing/README.md), which
+needs no music files or mpv. The separate desktop capture uses fictional
+metadata and synthesized audio.
 
 ## Features
 
@@ -130,6 +137,19 @@ just mac-install
 
 See the [macOS app guide](macos/README.md) for prerequisites and preferences.
 
+### Demos
+
+`just readme-demo` exports frames from the real TUI and renders the animated SVG
+above. Its vector text stays sharp when enlarged, captions explain the keys,
+and reduced-motion preferences hold the opening frame. It requires Python 3
+and `uv` and opens no desktop windows.
+
+`just mac-demo` automatically drives the desktop app through library browsing,
+artist filtering, playback, queue management, and Auto-DJ, then records a video,
+a local GIF, and a desktop still. It uses generated audio and fictional metadata in a disposable
+library. See [recording the desktop demo](docs/demo/README.md) for setup and
+the capture workflow.
+
 ## Platform support
 
 macOS and Linux are supported. Windows is not currently supported; see
@@ -153,11 +173,16 @@ Use `just` to list build and development recipes. Before submitting changes:
 just fmt-check
 just lint
 just test
+just security
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), the
 [TUI fixture harness](docs/tui-testing/README.md), and the
 [changelog](CHANGELOG.md).
+
+For vulnerabilities, follow [SECURITY.md](SECURITY.md). The
+[publication checklist](docs/open-source-readiness.md) tracks the remaining
+work before the first public launch.
 
 ## License
 

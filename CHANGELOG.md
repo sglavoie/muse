@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Update golang.org/x/text to v0.39.0 to address GO-2026-5970 in Unicode
+  normalization, and add a reachable-vulnerability check to CI.
+
+### Added
+
+- Open-source contribution templates, security reporting guidance, dependency
+  update automation, and a public-launch checklist.
+- `just readme-demo` to generate a sharp, captioned animated SVG from the real
+  TUI with fixture data, including reduced-motion support.
+- `just mac-demo` to drive and record the desktop app using generated music
+  and a disposable library, with text checks for each captured scene.
+
 ### Changed
 
 - Mixes uses the same Enter, x/X, and visual selection controls as other track

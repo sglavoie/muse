@@ -1,0 +1,17 @@
+name: Feature request
+description: Discuss a change before starting substantial implementation work.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe your workflow and where it falls short today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change and alternatives
+      description: Include any workarounds you have tried.
+    validations:
+      required: true
