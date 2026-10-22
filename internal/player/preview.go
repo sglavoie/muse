@@ -138,8 +138,7 @@ func (p *PreviewPlayer) LoadAndPlay(path string) error {
 		}
 		return err
 	}
-	_, err := client.SendCommand(cmdLoadfile, path, "replace", 0, "pause=no")
-	return err
+	return client.loadFileReplace(path, "pause=no")
 }
 
 // TogglePause toggles the preview player's pause state.

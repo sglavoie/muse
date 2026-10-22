@@ -55,7 +55,7 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	m.mu.Unlock()
 
 	err := m.admitPlaylist(func(c *IPCClient) error {
-		if _, err := c.SendCommand(cmdLoadfile, entry.Path, "replace", 0, "pause=no"); err != nil {
+		if err := c.loadFileReplace(entry.Path, "pause=no"); err != nil {
 			return err
 		}
 		// mpv has executed the load, so the start-file this expectation is

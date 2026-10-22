@@ -12,7 +12,7 @@ func (m *Manager) LoadFilePaused(path string, positionMs int64) error {
 	}
 	elapsedSecs := float64(positionMs) / 1000.0
 	return m.admit(func(c *IPCClient) error {
-		if _, err := c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=yes", elapsedSecs)); err != nil {
+		if err := c.loadFileReplace(path, fmt.Sprintf("start=%g,pause=yes", elapsedSecs)); err != nil {
 			return err
 		}
 		// loadfile with "pause=yes" forces mpv into the paused state; eagerly
@@ -41,7 +41,7 @@ func (m *Manager) loadFileAt(path string, elapsed float64, paused bool) error {
 	if paused {
 		pauseOpt = "yes"
 	}
-	if _, err := c.SendCommand(cmdLoadfile, path, "replace", 0, fmt.Sprintf("start=%g,pause=%s", elapsed, pauseOpt)); err != nil {
+	if err := c.loadFileReplace(path, fmt.Sprintf("start=%g,pause=%s", elapsed, pauseOpt)); err != nil {
 		return err
 	}
 	// The resume reinstates the entry the outage interrupted, so the traversal
