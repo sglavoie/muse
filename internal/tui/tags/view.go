@@ -94,6 +94,8 @@ func (v View) Render() string {
 	}
 	unfiltered := v
 	unfiltered.FilterText = ""
-	heading := strip.Collection(v.Width, "Tags", "tag", len(v.EffectiveTags()), len(unfiltered.EffectiveTags()), v.Styles)
+	rows, _ := v.createRowBudget()
+	start, end := v.visibleWindow(len(v.EffectiveTags()), rows)
+	heading := strip.Collection(v.Width, "Tags", "tag", len(v.EffectiveTags()), len(unfiltered.EffectiveTags()), v.Styles, start, end)
 	return heading + "\n" + v.renderTags()
 }

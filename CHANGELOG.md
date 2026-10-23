@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Auto-DJ keeps warnings and unapplied changes visible in compact windows, marks
+  edited controls, explains Discovery and anchoring, and labels empty exclusions
+  as none. Tune shows its visible settings range when scrolling.
+- The command palette opens with up to eight suggested actions grouped by task;
+  typing searches every command, including unavailable and removal actions.
+- Metadata editing shows long focused drafts in spare rows, states that audio
+  files stay unchanged, and accepts ctrl+s alongside Enter to save.
+- Library, Queue, Browse, Playlists, Favorites, and Tags show visible record ranges
+  when scrolling, including accurate counts around bucket headings and dividers.
+
 - Broad command searches favor navigation and inspection; explicit action names
   retain their search ranking.
 - Track Info opens stored metadata immediately, enriches it with file details,

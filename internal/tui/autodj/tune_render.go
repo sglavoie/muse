@@ -2,11 +2,13 @@ package autodj
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/radio"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -47,14 +49,13 @@ const (
 	boxCrossR   = "┤"
 
 	// labelWidth is the left column. "Include artists" is the longest label.
-	labelWidth = 16
+	labelWidth = 17
 
 	// chromeLines counts the title, tabs, borders, and one footer row.
 	chromeLines = 7
 
-	// minRowLines is the smallest row window worth showing. Below it the status
-	// block is dropped instead, because a panel that cannot show the settings is
-	// not a settings panel.
+	// minRowLines is the row budget before optional status is dropped.
+	// Critical feedback may use one of these rows.
 	minRowLines = 3
 
 	// maxStatusLines bounds the explanation block so a long-winded outcome
@@ -98,9 +99,9 @@ func innerWidth(termWidth int) int {
 func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, status []StatusLine) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-4, 0)
-	lines := panelHeader(tabTune, s, inner)
+	lines := p.panelHeader(tabTune, s, inner)
 
-	rowLines, statusLines := p.splitBudget(overlay.PanelContentHeight(termHeight), p.statusLines(status))
+	rowLines, statusLines := p.splitBudget(overlay.PanelContentHeight(termHeight), p.tuneStatusLines(status))
 	start, end := p.rowWindow(rowLines)
 	for r := start; r < end; r++ {
 		lines = append(lines, p.renderRow(row(r), content, s))
@@ -113,7 +114,7 @@ func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, sta
 		}
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
-	return appendPanelHints(lines, p.hint(end-start < int(rowCount)), inner, termHeight, s)
+	return appendPanelHints(lines, p.rangeHint(start, end), inner, termHeight, s)
 }
 
 // splitBudget divides the vertical space between the rows and the explanation
@@ -129,7 +130,8 @@ func (p TunePanel) splitBudget(termHeight int, status []StatusLine) (int, []Stat
 	shown := min(len(status), maxStatusLines)
 	// The block costs a separator on top of its own lines, and it only earns
 	// that cost while enough rows still fit to make the panel usable.
-	for shown > 0 && budget-shown-1 < minRowLines {
+	minimum := p.minimumTuneRows(status)
+	for shown > 0 && budget-shown-1 < minimum {
 		shown--
 	}
 	if shown == 0 {
@@ -157,7 +159,11 @@ func (p TunePanel) rowWindow(size int) (int, int) {
 func (p TunePanel) renderRow(r row, content int, s styles.Styles) string {
 	label := strings.Repeat(" ", labelWidth)
 	if rowLabels[r] != "" {
-		label = text.Pad(rowLabels[r], labelWidth)
+		name := rowLabels[r]
+		if p.rowDirty(r) {
+			name = "*" + name
+		}
+		label = text.Pad(name, labelWidth)
 	}
 	body := text.FocusMarker(int(r) == p.cursor) + text.Pad(label+p.rowValue(r), content)
 	if int(r) == p.cursor {
@@ -166,8 +172,8 @@ func (p TunePanel) renderRow(r row, content int, s styles.Styles) string {
 	return boxBorderV + body + "  " + boxBorderV
 }
 
-// statusLines assembles what the panel has to say about the draft, ahead of
-// whatever the root model has to say about the session.
+// statusLines orders feedback by severity, keeping draft feedback first
+// within each severity. Root errors must survive compact windows too.
 func (p TunePanel) statusLines(fromRoot []StatusLine) []StatusLine {
 	var lines []StatusLine
 	if p.err != nil {
@@ -187,7 +193,9 @@ func (p TunePanel) statusLines(fromRoot []StatusLine) []StatusLine {
 		lines = append(lines, StatusLine{
 			Text: "Unapplied changes — ctrl+s to " + strings.ToLower(p.CommitLabel()), Tone: ToneWarn})
 	}
-	return append(lines, fromRoot...)
+	lines = append(lines, fromRoot...)
+	slices.SortStableFunc(lines, func(a, b StatusLine) int { return int(b.Tone) - int(a.Tone) })
+	return lines
 }
 
 // hint returns the widest key legend that fits the box.
@@ -259,4 +267,39 @@ func appendPanelHints(lines []string, hint string, width, height int, s styles.S
 		lines = append(lines, "  "+s.Dim.Render(line))
 	}
 	return lines
+}
+
+// A compact window reserves feedback before optional explanations.
+func (p TunePanel) tuneStatusLines(fromRoot []StatusLine) []StatusLine {
+	lines := p.statusLines(fromRoot)
+	switch p.focusedRow() {
+	case rowDiscovery:
+		lines = append(lines, StatusLine{Text: fmt.Sprintf("Share of picks unheard in the last %d days.", radio.DiscoveryCutoffDays)})
+	case rowAnchor:
+		lines = append(lines, StatusLine{Text: "Score picks near the starting or current track."})
+	}
+	return lines
+}
+
+func (p TunePanel) rangeHint(start, end int) string {
+	hint := p.hint(end-start < int(rowCount))
+	if end-start < int(rowCount) {
+		hint = strings.Replace(hint, "j/k scrolls", fmt.Sprintf("j/k scrolls %d–%d of %d", start+1, end, rowCount), 1)
+	}
+	return hint
+}
+
+func (p TunePanel) minimumTuneRows(status []StatusLine) int {
+	if len(status) == 0 {
+		return minRowLines
+	}
+	if status[0].Tone != ToneInfo || p.busy {
+		return 2
+	}
+	switch p.focusedRow() {
+	case rowDiscovery, rowAnchor:
+		return 2
+	default:
+		return minRowLines
+	}
 }

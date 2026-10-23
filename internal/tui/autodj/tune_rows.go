@@ -96,7 +96,10 @@ func (p TunePanel) rowValue(r row) string {
 	case rowDiscovery:
 		return fmt.Sprintf("‹ %d%% ›", p.draft.DiscoveryPercent)
 	case rowAnchor:
-		return "‹ " + p.draft.Anchor.Label() + " ›"
+		if p.draft.Anchor == radio.AnchorFollow {
+			return "‹ Follow current track ›"
+		}
+		return "‹ Stay near starting track ›"
 	case rowCommit:
 		return p.commitButton()
 	}
@@ -119,6 +122,9 @@ func (p TunePanel) commitButton() string {
 func (p TunePanel) summarizeField(fr filterRow) string {
 	labels := p.fieldLabels(fr)
 	if len(labels) == 0 {
+		if fr.exclude {
+			return "none"
+		}
 		return "any"
 	}
 	return fmt.Sprintf("%d · %s", len(labels), strings.Join(labels, ", "))

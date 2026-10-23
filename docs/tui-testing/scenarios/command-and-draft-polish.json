@@ -1,0 +1,116 @@
+{
+  "name": "Shortlist and persistent Auto-DJ draft feedback",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": ":"
+    },
+    {
+      "assert": {
+        "contains": "1/8 suggested"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Listening"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Type to search all"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Append to queue: Track A1"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "text": "Create smart playlist"
+    },
+    {
+      "assert": {
+        "contains": "Create smart playlist"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "ctrl+a"
+    },
+    {
+      "key": "j"
+    },
+    {
+      "assert": {
+        "contains": "last 90 days"
+      }
+    },
+    {
+      "assert": {
+        "contains": "1\u20132 of 10"
+      }
+    },
+    {
+      "key": "right"
+    },
+    {
+      "assert": {
+        "contains": "Unapplied changes"
+      }
+    },
+    {
+      "assert": {
+        "contains": "*Discovery"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "contains": "Stay near starting track"
+      }
+    },
+    {
+      "assert": {
+        "contains": "none"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "Unapplied changes"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

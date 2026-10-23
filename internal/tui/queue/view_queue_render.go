@@ -10,6 +10,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/tui/buckets"
 	"github.com/sglavoie/muse/internal/tui/filter"
+	"github.com/sglavoie/muse/internal/tui/layout"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
@@ -37,8 +38,7 @@ func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState pla
 	}
 
 	maxRows := v.VisibleRows()
-	start := min(v.ScrollOffset, len(entries))
-	end := min(len(entries), start+maxRows)
+	start, end := layout.VisibleWindow(v.ScrollOffset, len(entries), maxRows)
 
 	hasSource := anySourcePlaylist(entries)
 	cols := computeQueueColumns(v.Width, hasSource)
@@ -57,16 +57,18 @@ func (v View) Render(s styles.Styles, currentPlayingIndex int, playbackState pla
 		favAlbums:           favAlbums,
 		timeline:            newTimelineRanks(timeline, len(v.Entries)),
 	}
-	lines := make([]string, end-start)
-	for i := range lines {
-		lines[i] = clampQueueLine(r.renderRow(entries[start+i], start+i), v.Width)
+	bodyLines, drawn := v.renderWindow(r, entries, start, end, maxRows)
+	// Bucket headings can consume the focused row's slot. Re-anchor on that
+	// row rather than letting a resize clamp it behind the last heading.
+	if v.Cursor >= start+drawn && v.Cursor < end {
+		start = v.Cursor
+		end = min(len(entries), start+maxRows)
+		bodyLines, drawn = v.renderWindow(r, entries, start, end, maxRows)
 	}
-
-	bodyLines := v.chunkIntoBuckets(s, lines, entries, start, maxRows)
-	if end == len(entries) {
+	if start+drawn == len(entries) {
 		bodyLines = append(bodyLines, s.Dim.Render("— end of queue —"))
 	}
-	return v.assemblePanel(s, header, bodyLines, len(entries), v.timelineActive(timeline))
+	return v.assemblePanel(s, header, bodyLines, len(entries), v.timelineActive(timeline), start, start+drawn)
 }
 
 // renderEmpty renders the placeholder shown when no entry is visible, which
@@ -108,9 +110,9 @@ func queueHeaderBody(cols queueColumns, hasSource bool) string {
 
 // chunkIntoBuckets interleaves bucket headers and dividers into the rendered
 // rows when the active sort field defines buckets.
-func (v View) chunkIntoBuckets(s styles.Styles, lines []string, entries []Entry, start, maxRows int) []string {
+func (v View) chunkIntoBuckets(s styles.Styles, lines []string, entries []Entry, start, maxRows int) ([]string, int) {
 	if !sorting.SortFieldHasBuckets(v.SortState.Field) {
-		return lines
+		return lines, len(lines)
 	}
 	labels := make([]string, len(lines))
 	for i := range lines {
@@ -120,7 +122,7 @@ func (v View) chunkIntoBuckets(s styles.Styles, lines []string, entries []Entry,
 	if len(labels) > 0 {
 		sticky = labels[0]
 	}
-	return buckets.Chunk(lines, labels, buckets.ChunkOptions{
+	return buckets.ChunkWithCount(lines, labels, buckets.ChunkOptions{
 		StickyBucket:     sticky,
 		MaxRows:          maxRows,
 		DividerEvery:     buckets.DividerEvery,
@@ -131,9 +133,9 @@ func (v View) chunkIntoBuckets(s styles.Styles, lines []string, entries []Entry,
 
 // assemblePanel stacks the optional state strip, the header, the body, and the
 // save-as-playlist prompt into the final panel string.
-func (v View) assemblePanel(s styles.Styles, header string, bodyLines []string, filtered int, timelineActive bool) string {
+func (v View) assemblePanel(s styles.Styles, header string, bodyLines []string, filtered int, timelineActive bool, window ...int) string {
 	out := header + "\n" + strings.Join(bodyLines, "\n")
-	if stripLine := v.renderStateStrip(s, len(v.Entries), filtered, timelineActive); stripLine != "" {
+	if stripLine := v.renderStateStrip(s, len(v.Entries), filtered, timelineActive, window...); stripLine != "" {
 		out = stripLine + "\n" + out
 	}
 	if v.SavingAsPlaylist {
@@ -372,4 +374,12 @@ func styleOr(fav, plain lipgloss.Style, isFav bool) lipgloss.Style {
 		return fav
 	}
 	return plain
+}
+
+func (v View) renderWindow(r queueRowRenderer, entries []Entry, start, end, maxRows int) ([]string, int) {
+	lines := make([]string, end-start)
+	for i := range lines {
+		lines[i] = clampQueueLine(r.renderRow(entries[start+i], start+i), v.Width)
+	}
+	return v.chunkIntoBuckets(r.s, lines, entries, start, maxRows)
 }

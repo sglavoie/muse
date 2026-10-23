@@ -14,7 +14,7 @@ import (
 // the view label, sort, filter, and counts. total is the full track
 // count before filtering; filtered is the count after filtering is
 // applied (equal to total when no filter is active).
-func (v Panel) renderStateStrip(total, filtered int) string {
+func (v Panel) renderStateStrip(total, filtered int, window ...int) string {
 	label := v.StripViewLabel
 	if label == "" {
 		label = "Library"
@@ -33,6 +33,9 @@ func (v Panel) renderStateStrip(total, filtered int) string {
 		Filtered:  filtered,
 		Total:     total,
 		Filtering: v.Filter.Text != "",
+	}
+	if len(window) == 2 {
+		counts.WindowStart, counts.WindowEnd = window[0], window[1]
 	}
 	var sel *strip.SelectionChunk
 	if n := len(v.SelectedHashes); n > 0 {

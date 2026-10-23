@@ -41,13 +41,20 @@ type ChunkOptions struct {
 //     bucket header or divider cannot fit alongside its data row within
 //     the remaining budget, it is skipped (the data row still renders).
 func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
+	lines, _ := ChunkWithCount(dataRows, bucketLabels, opts)
+	return lines
+}
+
+// ChunkWithCount also returns how many data rows survived headers and dividers.
+func ChunkWithCount(dataRows, bucketLabels []string, opts ChunkOptions) ([]string, int) {
 	if len(dataRows) != len(bucketLabels) {
 		// Defensive: fall back to plain data when caller mismatches.
 		if opts.MaxRows > 0 && len(dataRows) > opts.MaxRows {
-			return dataRows[:opts.MaxRows]
+			return dataRows[:opts.MaxRows], opts.MaxRows
 		}
-		return dataRows
+		return dataRows, len(dataRows)
 	}
+	drawn := 0
 	c := newChunker(opts, len(dataRows))
 	c.emitStickyHeader(len(dataRows))
 	for i := 0; i < len(dataRows) && i < len(bucketLabels); i++ {
@@ -65,8 +72,9 @@ func Chunk(dataRows, bucketLabels []string, opts ChunkOptions) []string {
 			c.emitDivider()
 		}
 		c.emitRow(dataRows[i])
+		drawn++
 	}
-	return c.out
+	return c.out, drawn
 }
 
 // chunker accumulates Chunk's output while tracking the remaining line budget

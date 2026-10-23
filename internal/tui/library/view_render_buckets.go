@@ -11,9 +11,9 @@ import (
 
 // chunkIntoBuckets interleaves bucket headers and dividers into the rendered
 // rows, returning them unchanged when bucketing is off.
-func (v Panel) chunkIntoBuckets(lines []string, display []displayTrack, start, maxRows int) []string {
+func (v Panel) chunkIntoBuckets(lines []string, display []displayTrack, start, maxRows int) ([]string, int) {
 	if v.BucketLabel == nil {
-		return lines
+		return lines, len(lines)
 	}
 	labels := make([]string, len(lines))
 	for i := range lines {
@@ -23,7 +23,7 @@ func (v Panel) chunkIntoBuckets(lines []string, display []displayTrack, start, m
 	if len(labels) > 0 {
 		sticky = labels[0]
 	}
-	return buckets.Chunk(lines, labels, buckets.ChunkOptions{
+	return buckets.ChunkWithCount(lines, labels, buckets.ChunkOptions{
 		StickyBucket:     sticky,
 		MaxRows:          maxRows,
 		DividerEvery:     buckets.DividerEvery,

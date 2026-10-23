@@ -37,7 +37,7 @@ func (v Panel) renderFlatTracks(tracks []musiclib.Track) string {
 		date = "Played"
 	}
 	header := strings.Repeat(" ", cols.SelectionMarker) + v.Styles.ColHead.Render(renderRow("#", "Artist", "Title", "Album", "Time", date, cols))
-	out := v.renderStateStrip(len(tracks), count) + "\n" + header
+	out := v.renderStateStrip(len(tracks), count, start, end) + "\n" + header
 	if count == 0 {
 		return out + "\n" + v.renderNoMatches()
 	}

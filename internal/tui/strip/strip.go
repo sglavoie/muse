@@ -45,10 +45,12 @@ type FilterChunk struct {
 // renders the total, followed by Unit when supplied. A zero Total suppresses
 // the chunk entirely.
 type CountsChunk struct {
-	Unit      string // plural item name, e.g. tracks or albums; empty for legacy callers
-	Filtered  int
-	Total     int
-	Filtering bool
+	// Window is the half-open range of data rows actually rendered.
+	WindowStart, WindowEnd int
+	Unit                   string // plural item name, e.g. tracks or albums; empty for legacy callers
+	Filtered               int
+	Total                  int
+	Filtering              bool
 }
 
 // SelectionChunk describes the optional "selected" chip rendered between

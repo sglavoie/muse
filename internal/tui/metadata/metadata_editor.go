@@ -255,7 +255,7 @@ func (e Editor) HandleKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 
 func (e Editor) handleFormKey(msg tea.KeyPressMsg) (Editor, Action, tea.Cmd) {
 	switch msg.String() {
-	case "enter":
+	case "enter", "ctrl+s":
 		return e, ActionSave, nil
 	case "esc":
 		return e.requestCancel()

@@ -13,6 +13,8 @@ func TestPaletteStateUsesDetailLine(t *testing.T) {
 	for _, width := range []int{60, 100} {
 		cmd := PaletteCommand{ID: "toggle", Name: "Toggle queue follow", CurrentState: "On"}
 		cp, _ := NewCommandPalette([]PaletteCommand{cmd}, nil)
+		cp.Filter.Text = "Toggle"
+		cp.Refilter()
 		out := ansi.Strip(cp.Render(width, 15, styles.NewStyles(true)))
 		if !strings.Contains(out, "Current: On") {
 			t.Fatalf("missing state at width %d: %s", width, out)
@@ -25,6 +27,8 @@ func TestPaletteStateUsesDetailLine(t *testing.T) {
 		cmd.Enabled = func() bool { return false }
 		cmd.DisabledReason = "Unavailable now"
 		cp, _ = NewCommandPalette([]PaletteCommand{cmd}, nil)
+		cp.Filter.Text = "Toggle"
+		cp.Refilter()
 		disabled := ansi.Strip(cp.Render(width, 15, styles.NewStyles(true)))
 		if strings.Contains(disabled, "Current:") || !strings.Contains(disabled, cmd.DisabledReason) {
 			t.Fatal("disabled reason must take precedence over state")

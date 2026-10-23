@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sglavoie/muse/internal/db"
+	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -89,6 +90,7 @@ func (v View) renderTracks() string {
 
 	maxRows := v.visibleRows()
 	start, end := v.visibleWindow(len(items), maxRows)
+	heading = strip.WithWindow(heading, v.Width, start, end, len(items), v.Styles)
 	window := items[start:end]
 
 	lines := make([]string, len(window))

@@ -210,6 +210,9 @@ Each observation is normalized JSON:
 
 | Scenario | Fixture | Notes |
 | -------- | ------- | ----- |
+| `queue-visible-range.json` | `rich` | Queue record ranges at the beginning and end, disappearing when all records fit after resize. |
+| `command-and-draft-polish.json` | `rich` | Suggested commands, full search, persistent compact Auto-DJ warnings, changed fields, and explanations. |
+| `metadata-draft-preview.json` | `narrow` | Long focused draft, unchanged-file scope, ctrl+s save, and resize. |
 | `mixes-listening-polish.json` | `rich` | Mixes selection, hidden-selection enqueue, visual selection, and listening-first palette at compact and ordinary sizes. |
 | `dialog-guidance.json` | `rich` | Spare-row hints, focused Settings explanations, and a pinned proposal-first Auto-DJ preview. |
 | `health-repair-actions.json` | `health` | Repair actions, advisory labels, metadata editing, and narrow contextual footers. |

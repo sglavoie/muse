@@ -31,7 +31,8 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	lines = append(lines, overlay.CornerTL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerTR)
 
 	// Title row (centered).
-	title := e.boxTitle()
+	title := strings.TrimSpace(e.boxTitle()) + " · files unchanged"
+	title = text.Truncate(title, boxInner)
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
@@ -47,30 +48,18 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 		contextRows = 1
 	}
 
+	if termHeight-contextRows >= len(renderFields)+6+len(strings.Split(e.hintLine(), "\n")) {
+		lines = append(lines, overlay.BorderV+s.Dim.Render(text.Pad("  Updates muse only; audio files unchanged.", boxInner))+overlay.BorderV)
+		contextRows++
+	}
+
 	// Field rows.
 	lines = append(lines, e.fieldRowLines(renderFields, valueWidth, termHeight-contextRows, s)...)
 
 	// Bottom border.
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
-	// Hint.
-	hints := strings.Split(e.hintLine(), "\n")
-	if len(lines)+len(hints) > termHeight {
-		changed := 0
-		for _, i := range renderFields {
-			if e.Dirty[i] {
-				changed++
-			}
-		}
-		hints = []string{"  tab fields · enter save · esc cancel", fmt.Sprintf("  ctrl+r reset · %d changed", changed)}
-		if e.IsBulk() {
-			hints[1] += " · ctrl+d clear"
-		}
-		if e.focused == FieldDuration {
-			hints[1] = fmt.Sprintf("  s/m:ss/h:mm:ss · %d changed · ctrl+r reset", changed)
-		}
-	}
-	lines = append(lines, hints...)
+	lines = append(lines, e.renderHints(renderFields, boxInner, termHeight-len(lines))...)
 
 	return overlay.RenderTopLines(lines, "", termWidth)
 }
@@ -119,11 +108,16 @@ func (e Editor) fieldRowLines(renderFields []int, valueWidth, termHeight int, s 
 	labels := e.fieldLabels()
 	remainingContinuationLines := metadataEditorContinuationBudget(termHeight-strings.Count(e.hintLine(), "\n"), len(renderFields))
 
+	draftLines := e.focusedDraftLines(valueWidth, remainingContinuationLines)
+	remainingContinuationLines -= len(draftLines)
 	var lines []string
 	for _, i := range renderFields {
 		if Field(i) == e.focused {
 			row := e.focusedFieldRow(i, labels[i], valueWidth)
 			lines = append(lines, overlay.BorderV+s.Accent.Render(row)+overlay.BorderV)
+			if len(draftLines) > 0 {
+				lines = append(lines, valueFieldRows("Draft:", draftLines, valueWidth)...)
+			}
 			continue
 		}
 		value := e.Fields[i].Value()
@@ -170,9 +164,9 @@ func valueFieldRows(label string, wrapLines []string, valueWidth int) []string {
 
 // hintLine returns the key hint printed under the box.
 func (e Editor) hintLine() string {
-	hint := "  tab/shift+tab fields · enter save · esc cancel"
+	hint := "  tab/shift+tab fields · ctrl+s/enter save · esc cancel"
 	if e.mode != ModeDefault {
-		hint = "  enter save · esc cancel"
+		hint = "  ctrl+s/enter save · esc cancel"
 	}
 	if e.IsBulk() {
 		hint += "\n  ctrl+d clear field · ctrl+r reset · * applies"
@@ -181,7 +175,7 @@ func (e Editor) hintLine() string {
 	}
 	if e.focused == FieldDuration {
 		if e.IsBulk() {
-			hint = "  tab/shift+tab fields · enter save · esc cancel\n  ctrl+d clear · ctrl+r reset · s/m:ss/h:mm:ss"
+			hint = "  tab/shift+tab fields · ctrl+s/enter save · esc cancel\n  ctrl+d clear · ctrl+r reset · s/m:ss/h:mm:ss"
 		} else {
 			hint += " · s/m:ss/h:mm:ss"
 		}
@@ -269,4 +263,39 @@ func (e Editor) requestCancel() (Editor, Action, tea.Cmd) {
 		return e, actionNone, nil
 	}
 	return e, ActionCancel, nil
+}
+
+func (e Editor) renderHints(renderFields []int, boxInner, availableRows int) []string {
+	hints := strings.Split(e.hintLine(), "\n")
+	if len(hints) > availableRows {
+		changed := 0
+		for _, i := range renderFields {
+			if e.Dirty[i] {
+				changed++
+			}
+		}
+		hints = []string{"  tab fields · ctrl+s/enter save · esc cancel", fmt.Sprintf("  ctrl+r reset · %d changed", changed)}
+		if e.IsBulk() {
+			hints[1] += " · ctrl+d clear"
+		}
+		if e.focused == FieldDuration {
+			hints[1] = fmt.Sprintf("  s/m:ss/h:mm:ss · %d changed · ctrl+r reset", changed)
+		}
+	}
+	for i, hint := range hints {
+		if ansi.StringWidth(hint) > boxInner {
+			hints[i] = strings.Replace(hint, "tab/shift+tab", "tab", 1)
+		}
+	}
+	return hints
+
+}
+
+// Give the active draft spare rows before wrapping the other fields.
+func (e Editor) focusedDraftLines(valueWidth, availableRows int) []string {
+	value := e.Fields[e.focused].Value()
+	if ansi.StringWidth(value) <= valueWidth || availableRows <= 0 {
+		return nil
+	}
+	return metadataEditorValueLines(value, valueWidth, availableRows-1)
 }

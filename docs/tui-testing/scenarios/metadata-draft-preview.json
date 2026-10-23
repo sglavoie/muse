@@ -1,0 +1,79 @@
+{
+  "name": "Metadata draft preview and consistent save shortcut",
+  "fixture": "narrow",
+  "size": "80x24",
+  "actions": [
+    {
+      "key": "M"
+    },
+    {
+      "assert": {
+        "contains": "Draft:"
+      }
+    },
+    {
+      "assert": {
+        "contains": "A Song With a Preposterously Long Title"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Updates muse only; audio files unchanged."
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s/enter save"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "files unchanged"
+      }
+    },
+    {
+      "assert": {
+        "contains": "ctrl+s/enter save"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "contains": "Draft:"
+      }
+    },
+    {
+      "key": "ctrl+s"
+    },
+    {
+      "assert": {
+        "not_contains": "Edit Metadata"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Library"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

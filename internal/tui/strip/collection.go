@@ -11,7 +11,7 @@ import (
 
 // Collection labels the current collection and its visible/total item count,
 // including zero, using the same alignment as the track-list state strip.
-func Collection(width int, label, unit string, visible, total int, s styles.Styles) string {
+func Collection(width int, label, unit string, visible, total int, s styles.Styles, window ...int) string {
 	plural := unit + "s"
 	if unit == "mix" {
 		plural = "mixes"
@@ -22,6 +22,12 @@ func Collection(width int, label, unit string, visible, total int, s styles.Styl
 	count := fmt.Sprintf("%d %s", total, text.Pluralize(total, unit, plural))
 	if visible != total {
 		count = fmt.Sprintf("%d/%d %s", visible, total, text.Pluralize(total, unit, plural))
+	}
+	if len(window) == 2 {
+		counts := CountsChunk{Total: total, Filtered: visible, Filtering: visible != total, WindowStart: window[0], WindowEnd: window[1]}
+		if position := counts.windowLabel(); position != "" {
+			count = position
+		}
 	}
 	if width <= 0 {
 		return s.TextSecondary.Render(label) + " · " + s.Dim.Render(count)

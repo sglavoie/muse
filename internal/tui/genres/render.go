@@ -258,7 +258,9 @@ func (v View) renderStateStrip(total, filtered int) string {
 		hint = "esc ←"
 	}
 	sortChunk := strip.SortChunk{Label: v.StripSortLabel, Indicator: v.StripSortIndicator}
+	start, end, _ := v.renderWindow(filtered)
 	counts := strip.CountsChunk{
+		WindowStart: start, WindowEnd: end,
 		Unit:      []string{"genres", "artists", "tracks"}[v.Level],
 		Filtered:  filtered,
 		Total:     total,

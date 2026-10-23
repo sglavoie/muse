@@ -14,7 +14,7 @@ import (
 func (p TunePanel) buildRecipesLines(termWidth, termHeight int, s styles.Styles) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-4, 0)
-	lines := panelHeader(tabRecipes, s, inner)
+	lines := p.panelHeader(tabRecipes, s, inner)
 
 	logical, focus := p.recipeLines()
 	body, focusLine := wrapRecipeLines(logical, focus, content)

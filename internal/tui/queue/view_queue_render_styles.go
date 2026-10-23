@@ -16,7 +16,7 @@ import (
 // is applied (equal to total when no filter is active). timelineActive
 // says whether rows are ordered by the live shuffled traversal, which the
 // label announces so the numbering is not mistaken for storage order.
-func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineActive bool) string {
+func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineActive bool, window ...int) string {
 	var sortChunk strip.SortChunk
 	if v.SortState.Field != sorting.SortDefault {
 		sortChunk = strip.SortChunk{
@@ -36,7 +36,10 @@ func (v View) renderStateStrip(s styles.Styles, total, filtered int, timelineAct
 		Unit:      "tracks",
 		Filtered:  filtered,
 		Total:     total,
-		Filtering: v.Filter.Text != "",
+		Filtering: v.Filter.Text != "" || filtered != total,
+	}
+	if len(window) == 2 {
+		counts.WindowStart, counts.WindowEnd = window[0], window[1]
 	}
 	sel := v.selectionSummary()
 	return strip.Render(v.Width, []string{queueStripLabel(v.SortState.Field, timelineActive)}, sortChunk, f, counts, sel, v.RemainingLabel, s)

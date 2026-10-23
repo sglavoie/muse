@@ -123,14 +123,11 @@ func TestCommandPaletteSameQueryDoesNotResetCursor(t *testing.T) {
 	}
 }
 
-func TestCommandPaletteRenderShowsCategoryPrefix(t *testing.T) {
+func TestCommandPaletteUsesSectionsInsteadOfCategoryPrefixes(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	s := styles.NewStyles(true)
-	out := ansi.Strip(cp.Render(80, 24, s))
-	for _, cat := range []string{"[play]", "[ nav]", "[ lib]"} {
-		if !strings.Contains(out, cat) {
-			t.Errorf("rendered output should contain category prefix %q", cat)
-		}
+	out := ansi.Strip(cp.Render(80, 24, styles.NewStyles(true)))
+	if !strings.Contains(out, "Other actions") || strings.Contains(out, "[play]") || !strings.Contains(out, "Type to search all") {
+		t.Fatal(out)
 	}
 }
 
@@ -141,7 +138,13 @@ func TestDisabledCommandExplanationFollowsFocus(t *testing.T) {
 		{Name: "Show help"},
 	}, nil)
 	s := styles.NewStyles(true)
-	cp.cursor = 1 // unavailable commands follow enabled commands
+	cp.Filter.Text = "e" // Search includes both commands, including unavailable ones.
+	cp.Refilter()
+	for i, command := range cp.Filtered {
+		if command.Name == "Clear queue" {
+			cp.cursor = i
+		}
+	}
 	for _, size := range [][2]int{{60, 12}, {100, 27}} {
 		out := ansi.Strip(cp.Render(size[0], size[1], s))
 		if !strings.Contains(out, "Queue is empty") {
@@ -159,7 +162,12 @@ func TestDisabledCommandExplanationFollowsFocus(t *testing.T) {
 		if cmd := cp.runFocused(); cmd != nil {
 			t.Fatal("disabled command executed")
 		}
-		moved := cp.prevCommand()
+		moved := cp
+		for i, command := range moved.Filtered {
+			if command.Name == "Show help" {
+				moved.cursor = i
+			}
+		}
 		if strings.Contains(ansi.Strip(moved.Render(size[0], size[1], s)), "Queue is empty") {
 			t.Fatal("stale reason shown for enabled command")
 		}

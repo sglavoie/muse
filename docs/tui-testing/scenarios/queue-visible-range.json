@@ -1,0 +1,105 @@
+{
+  "name": "Queue visible record range follows scrolling and resize",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "contains": "of 15"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "G"
+    },
+    {
+      "assert": {
+        "contains": "15 of 15"
+      }
+    },
+    {
+      "assert": {
+        "contains": "end of queue"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x40"
+    },
+    {
+      "assert": {
+        "not_contains": "of 15"
+      }
+    },
+    {
+      "assert": {
+        "contains": "15 tracks"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "of 15"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

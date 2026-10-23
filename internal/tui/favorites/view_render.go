@@ -71,6 +71,7 @@ func (v View) renderList() string {
 	}
 
 	start, end := v.visibleWindow(len(items))
+	heading = v.headingWithWindow(heading, start, end, len(items))
 	st := v.categoryStyling()
 	labels := library.AlbumDisplayLabels(v.Albums)
 	lines := make([]string, end-start)
@@ -174,6 +175,8 @@ func (v View) renderTrackList() string {
 		return heading + v.filterSeparator() + "(no matches)"
 	}
 
+	start, end := v.visibleWindow(len(items))
+	heading = v.headingWithWindow(heading, start, end, len(items))
 	return heading + v.filterSeparator() + v.renderTrackRows(items)
 }
 
@@ -188,6 +191,8 @@ func (v View) renderTracks() string {
 		return heading + v.filterSeparator() + "(no matches)"
 	}
 
+	start, end := v.visibleWindow(len(items))
+	heading = v.headingWithWindow(heading, start, end, len(items))
 	return heading + v.filterSeparator() + v.renderTrackRows(items)
 }
 
@@ -398,4 +403,12 @@ func joinFavoriteCells(sep, pos, title, artist, album, duration, plays string) s
 		return strings.Join([]string{pos, title, artist, duration}, sep)
 	}
 	return strings.Join([]string{pos, title, artist, album, duration, plays}, sep)
+}
+
+func (v View) headingWithWindow(heading string, start, end, total int) string {
+	label := strip.WindowLabel(start, end, total)
+	if len(v.SelectedItems) > 0 && ansi.StringWidth(heading)+len(label)+2 > v.Width {
+		return heading
+	}
+	return strip.WithWindow(heading, v.Width, start, end, total, v.Styles)
 }

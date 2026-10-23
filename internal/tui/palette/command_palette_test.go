@@ -133,10 +133,11 @@ func TestCommandPaletteEnterSkipsDisabledCommand(t *testing.T) {
 		{Name: "Disabled cmd", Enabled: func() bool { return false }},
 	}
 	cp, _ := NewCommandPalette(cmds, nil)
-	// Disabled commands remain discoverable below enabled commands.
-	cp.cursor = 1
-	if cp.Filtered[1].Name != "Disabled cmd" {
-		t.Fatalf("expected Disabled cmd at index 1, got %q", cp.Filtered[1].Name)
+	// Disabled commands remain discoverable through search.
+	cp.Filter.Text = "Disabled"
+	cp.Refilter()
+	if len(cp.Filtered) != 1 || cp.Filtered[0].Name != "Disabled cmd" {
+		t.Fatal(cp.Filtered)
 	}
 	_, cmd := cp.HandleKey("enter", tea.KeyPressMsg{})
 	if cmd != nil {

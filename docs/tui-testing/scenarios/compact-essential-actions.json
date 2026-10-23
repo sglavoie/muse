@@ -11,7 +11,7 @@
     {"assert": {"contains": "F1 help"}},
     {"assert": {"contains": "ctrl+c quit"}},
     {"assert": {"contains": "Append to queue: Track A1"}},
-    {"assert": {"contains": "Copy file path"}, "label": "sixth-command-visible"},
+    {"assert": {"contains": "Show track info"}, "label": "listening-actions-visible"},
     {"assert": {"no_layout_issues": true}},
     {"resize": "100x30"},
     {"assert": {"contains": "Append to queue: Track A1"}, "label": "resize-retains-target"},

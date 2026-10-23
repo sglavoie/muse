@@ -54,7 +54,8 @@ func (v Panel) Render() string {
 	}
 
 	lines := v.renderRows(display, start, end, cols)
-	out := v.chunkIntoBuckets(lines, display, start, maxRows)
+	out, drawn := v.chunkIntoBuckets(lines, display, start, maxRows)
+	stripLine = v.renderStateStrip(len(allTracks), len(display), start, start+drawn)
 	return stripLine + "\n" + header + "\n" + strings.Join(out, "\n")
 }
 

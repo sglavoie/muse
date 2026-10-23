@@ -37,7 +37,7 @@ type PaletteCommand struct {
 	ID             string // stable identifier for usage tracking; falls back to Name when empty
 	Name           string
 	Aliases        []string // search-only synonyms; display-name matches rank first
-	Category       string   // short tag rendered dim before Name, from paletteCategories; empty for pins / uncategorized
+	Category       string   // command family used by the catalog
 	Shortcut       string   // optional keyboard shortcut shown right-aligned in the palette
 	Pinned         PalettePin
 	Exec           func() tea.Cmd
@@ -82,7 +82,8 @@ type CommandPalette struct {
 
 // NewCommandPalette creates a CommandPalette with the given commands. When
 // usage is non-nil the initial body order (empty filter) is most-used first;
-// otherwise the order is alphabetical within each intent tier. Help and Quit
+// otherwise the order is alphabetical within each intent tier. The initial
+// shortlist contains up to eight enabled, non-removal commands. Help and Quit
 // live in the footer and remain searchable. Text input is activated immediately.
 func NewCommandPalette(commands []PaletteCommand, usage *UsageStore) (CommandPalette, tea.Cmd) {
 	cp := CommandPalette{
@@ -178,6 +179,12 @@ func (cp *CommandPalette) Refilter() {
 		})
 	}
 
+	if query == "" {
+		body = slices.DeleteFunc(body, func(c PaletteCommand) bool {
+			return !c.IsEnabled() || c.Intent == IntentRemoval || strings.HasPrefix(c.ID, "tag.enqueue.")
+		})
+		body = body[:min(len(body), 8)]
+	}
 	cp.Filtered = body
 
 	// When the query changes, reset the cursor to the first body match so the
@@ -225,7 +232,6 @@ const (
 type cpBoxMetrics struct {
 	innerWidth       int // space between the vertical borders
 	contentWidth     int // space available to a row's text
-	maxCategoryWidth int // widest category tag across the filtered commands
 	maxShortcutWidth int // widest shortcut across the filtered commands
 }
 
@@ -249,23 +255,18 @@ func (c PaletteCommand) detailText() string {
 	return ""
 }
 
-// boxMetrics sizes the box from the title and every command's name, shortcut
-// and category tag, then clamps it to the terminal width. The full command list
+// boxMetrics sizes the box from the title, command names, and shortcuts,
+// then clamps it to the terminal width. The full command list
 // — not the filtered one — fixes the columns so the box keeps one width (and
 // one set of column positions) as the user types.
 func (cp CommandPalette) boxMetrics(termWidth int) cpBoxMetrics {
 	var m cpBoxMetrics
 	for _, c := range cp.all {
 		m.maxShortcutWidth = max(m.maxShortcutWidth, ansi.StringWidth(c.Shortcut))
-		m.maxCategoryWidth = max(m.maxCategoryWidth, ansi.StringWidth(c.Category))
 	}
 	shortcutExtra := 0
 	if m.maxShortcutWidth > 0 {
 		shortcutExtra = m.maxShortcutWidth + 2 // 2-space gap between name and shortcut
-	}
-	categoryExtra := 0
-	if m.maxCategoryWidth > 0 {
-		categoryExtra = m.maxCategoryWidth + 3 // "[" + cat + "] "
 	}
 
 	// The +4 / +6 budgets = 2 borders + 2 cells inner padding (1 each side at
@@ -273,7 +274,7 @@ func (cp CommandPalette) boxMetrics(termWidth int) cpBoxMetrics {
 	// trailing spaces) so rows sit two cells away from the vertical borders.
 	inner := max(cpMinInner, ansi.StringWidth(cpModalTitle)+4)
 	for _, c := range cp.all {
-		inner = max(inner, ansi.StringWidth(c.Name)+6+shortcutExtra+categoryExtra)
+		inner = max(inner, ansi.StringWidth(c.Name)+6+shortcutExtra)
 	}
 	if maxInner := termWidth - 4; termWidth > 0 && inner > maxInner {
 		inner = maxInner

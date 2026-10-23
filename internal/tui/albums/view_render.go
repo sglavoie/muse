@@ -247,7 +247,9 @@ func (v View) renderStateStrip(total, filtered int) string {
 			f.InputView = v.FilterView
 		}
 	}
+	start, end := layout.VisibleWindow(v.ScrollOffset, filtered, v.visibleRows())
 	counts := strip.CountsChunk{
+		WindowStart: start, WindowEnd: end,
 		Unit:      []string{"albums", "tracks"}[v.Level],
 		Filtered:  filtered,
 		Total:     total,

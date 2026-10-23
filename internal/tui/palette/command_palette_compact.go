@@ -14,6 +14,9 @@ func (cp CommandPalette) compactBoxLines(width, height int, m cpBoxMetrics, s st
 	if len(cp.Filtered) > 0 {
 		title = fmt.Sprintf("Command Palette · %d/%d", cp.cursor+1, len(cp.Filtered))
 	}
+	if strings.TrimSpace(cp.Filter.Text) == "" {
+		title = fmt.Sprintf("Command Palette · %d/%d suggested", min(cp.cursor+1, len(cp.Filtered)), len(cp.Filtered))
+	}
 	lines := []string{compactRule(title, cpCornerTL, cpCornerTR, m.innerWidth), cp.filterLine(m), cpCrossL + strings.Repeat(cpBorderH, m.innerWidth) + cpCrossR}
 	lines = append(lines, cp.commandLines(cpCommandRowBudget(height), m, s)...)
 	reason := ""
@@ -22,7 +25,7 @@ func (cp CommandPalette) compactBoxLines(width, height int, m cpBoxMetrics, s st
 	}
 	return append(lines, s.Dim.Render(compactRule(reason, cpCornerBL, cpCornerBR, m.innerWidth)),
 		"  "+s.Dim.Render(text.Truncate("↑/↓ pgup/pgdown · enter run · esc close", max(width-2, 0))),
-		"  "+s.Dim.Render(text.Truncate("F1 help · ctrl+c quit", max(width-2, 0))))
+		"  "+s.Dim.Render(text.Truncate("Type to search all · F1 help · ctrl+c quit", max(width-2, 0))))
 }
 
 func compactRule(label, left, right string, width int) string {

@@ -21,7 +21,7 @@ func TestCompactPalettePrioritizesRunnableContextAndPreservesResizeTarget(t *tes
 		t.Fatal(cp.Filtered)
 	}
 	out := ansi.Strip(cp.Render(60, 12, styles.NewStyles(true)))
-	if strings.Count(out, "Action ") < 5 || !strings.Contains(out, "F1 help · ctrl+c quit") {
+	if strings.Count(out, "Action ") < 3 || !strings.Contains(out, "F1 help · ctrl+c quit") {
 		t.Fatal(out)
 	}
 	if len(strings.Split(strings.TrimSuffix(out, "\n"), "\n")) > 12 {
@@ -79,7 +79,7 @@ func TestListeningPriorityKeepsUsageAndExplicitRemovalSearch(t *testing.T) {
 		{ID: "disabled", Name: "Show track info", Intent: IntentListening, Enabled: func() bool { return false }},
 	}
 	cp, _ := NewCommandPalette(commands, usage)
-	want := []string{"next", "enqueue", "ordinary", "dismiss", "disabled"}
+	want := []string{"next", "enqueue", "ordinary"}
 	for i, id := range want {
 		if cp.Filtered[i].ID != id {
 			t.Fatalf("position %d: got %s want %s", i, cp.Filtered[i].ID, id)

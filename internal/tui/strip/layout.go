@@ -121,6 +121,10 @@ func buildFilterValue(filter FilterChunk) string {
 }
 
 func buildCountsPlain(counts CountsChunk) string {
+	if position := counts.windowLabel(); position != "" {
+		return position
+	}
+
 	unit := counts.Unit
 	if counts.Total == 1 {
 		unit = strings.TrimSuffix(unit, "s")
@@ -311,4 +315,16 @@ func (l *stripLayout) fitBreadcrumb() {
 		l.breadcrumb = bc
 		l.crumbWidths[lastIndex] = ansi.StringWidth(last)
 	}
+}
+
+func (counts CountsChunk) windowLabel() string {
+	visible := counts.Total
+	if counts.Filtering {
+		visible = counts.Filtered
+	}
+	position := WindowLabel(counts.WindowStart, counts.WindowEnd, visible)
+	if position != "" && counts.Filtering && counts.Filtered != counts.Total {
+		position += fmt.Sprintf(" · %d total", counts.Total)
+	}
+	return position
 }

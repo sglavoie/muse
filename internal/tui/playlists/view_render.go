@@ -130,6 +130,7 @@ func (v View) renderTracks() string {
 	header := v.renderTrackHeader(cols)
 
 	start, end := visibleWindow(v.ScrollOffset, v.Cursor, len(v.Tracks), v.visibleRows())
+	heading = strip.WithWindow(v.renderTrackHeading(), v.Width, start, end, len(v.Tracks), v.Styles) + "\n" + v.renderTrackSummary()
 	focusCursor := clamp(v.Cursor, 0, len(v.Tracks)-1)
 
 	lines := make([]string, end-start)
@@ -313,5 +314,6 @@ func joinPlaylistCells(sep, pos, title, artist, album, duration string) string {
 }
 
 func (v View) listHeading() string {
-	return strip.Collection(v.Width, "Playlists", "playlist", len(v.Playlists), max(len(v.Playlists), v.totalPlaylists), v.Styles)
+	start, end := visibleWindow(v.ScrollOffset, v.Cursor, len(v.Playlists), v.visibleRows())
+	return strip.Collection(v.Width, "Playlists", "playlist", len(v.Playlists), max(len(v.Playlists), v.totalPlaylists), v.Styles, start, end)
 }

@@ -23,7 +23,7 @@ const continuationIndent = 2
 func (p TunePanel) buildPreviewLines(termWidth, termHeight int, s styles.Styles, v Preview) []string {
 	inner := innerWidth(termWidth)
 	content := max(inner-4, 0)
-	lines := panelHeader(tabPreview, s, inner)
+	lines := p.panelHeader(tabPreview, s, inner)
 
 	pinned, body := v.presentationLines(p.tagNames(), content)
 	maxPinned := max(0, overlay.PanelContentHeight(termHeight)-previewChromeLines-1)
@@ -176,8 +176,12 @@ func (v Preview) presentationLines(names map[int64]string, content int) ([]Statu
 	return pinned, wrapPreview(filtered, content)
 }
 
-func panelHeader(active panelTab, s styles.Styles, inner int) []string {
-	lines := boxHeader("Auto-DJ · tab/shift+tab tabs", inner, s)
+func (p TunePanel) panelHeader(active panelTab, s styles.Styles, inner int) []string {
+	title := "Auto-DJ"
+	if p.Dirty() {
+		title += " *"
+	}
+	lines := boxHeader(title+" · tab/shift+tab tabs", inner, s)
 	tabs := tabBarTitle(active, s)
 	lines = append(lines, boxBorderV+"  "+text.Pad(tabs, inner-4)+"  "+boxBorderV,
 		boxCrossL+strings.Repeat(boxBorderH, inner)+boxCrossR)
