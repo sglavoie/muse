@@ -142,6 +142,10 @@ when the XDG variables are unset:
 | Log | `$XDG_STATE_HOME/muse/muse.log` | `~/.local/state/muse/muse.log` |
 | Sockets and PID lock | `$XDG_RUNTIME_DIR/muse/` | a user-specific directory under `$TMPDIR` |
 
+Browsing context is saved in `browsing_session.json` beside `muse.db` on exit.
+To reset the startup view, quit muse and remove that JSON file; the library,
+queue, and playback session stay intact.
+
 On first run muse creates the `muse` config directory with mode `0o700` and
 writes a commented `config.toml` into it. The only setting you must change is
 `music_directories`:

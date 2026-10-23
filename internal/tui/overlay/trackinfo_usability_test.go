@@ -54,7 +54,7 @@ func TestTrackInfoScrollPreservesAllContent(t *testing.T) {
 
 func TestTrackInfoLibraryAndFileValues(t *testing.T) {
 	info := NewTrackInfoOverlay("/song.flac", map[string]any{"Title": "Old title", "Artist": "Same artist", "Genre": "Rock", "AlbumArtist": "File album artist"}, 0, nil)
-	info = info.WithLibraryMetadata(library.Track{Title: "Correct title", Artist: "Same artist", Album: "New album", Genre: "", AlbumArtist: "Various Artists"})
+	info = info.withLibraryMetadata(library.Track{Title: "Correct title", Artist: "Same artist", Album: "New album", Genre: "", AlbumArtist: "Various Artists"})
 	rows := make(map[string]string)
 	for _, row := range info.rows {
 		if row.Label != "" {

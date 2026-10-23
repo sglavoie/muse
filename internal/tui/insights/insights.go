@@ -17,11 +17,6 @@ const insightsCompactWidth = 70
 // room to say something.
 const insightsBriefingMinHeight = 26
 
-// insightsProseMinHeight is the view height below which Coverage drops its
-// cross-reference paragraph. The paragraph wraps to three lines at narrow
-// widths, which is most of a short panel's budget.
-const insightsProseMinHeight = 14
-
 // insightsMinBodyRows is how many scrollable rows a panel header must leave
 // behind it, and insightsMinHeaderLines is the floor the header keeps even when
 // that is impossible — enough for its blank line and its headline.

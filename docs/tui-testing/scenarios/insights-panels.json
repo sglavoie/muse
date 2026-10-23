@@ -5,7 +5,7 @@
   "actions": [
     {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"},
     {"assert": {"no_layout_issues": true}, "label": "briefing"},
-    {"assert": {"contains": "Dusty artists"}, "label": "coverage-body"},
+    {"assert": {"contains": "Artists to explore"}, "label": "coverage-body"},
     {"assert": {"contains": "all-time (fixed)"}, "label": "coverage-ignores-window"},
     {"key": "w"}, {"assert": {"status_contains": "always all-time"}, "label": "fixed-panel-says-so"},
 
@@ -45,7 +45,7 @@
     {"key": "esc"}, {"assert": {"contains": "First heard"}, "label": "back-to-discovery"},
 
     {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "data-health"},
-    {"key": "`"}, {"assert": {"contains": "Dusty artists"}, "label": "wraps-forward-to-coverage"},
+    {"key": "`"}, {"assert": {"contains": "Artists to explore"}, "label": "wraps-forward-to-coverage"},
     {"key": "~"}, {"assert": {"no_layout_issues": true}, "label": "wraps-back-to-data-health"},
 
     {"key": "`"}, {"key": "`"}, {"assert": {"contains": "‹w›"}, "label": "rhythm-honours-window"},

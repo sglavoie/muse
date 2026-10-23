@@ -37,6 +37,9 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 		}
 	}
 	// Normal help overlay mode.
+	if next, cmd, ok := m.handleInfoTransport(msg); ok {
+		return next, cmd, true
+	}
 	switch msg.String() {
 	case "ctrl+c":
 		// Fall through to global key handling for quit.
@@ -79,11 +82,11 @@ func (m Model) handleHelpKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 
 // renderHelpFooter stays outside the scrollable content so recovery keys remain visible.
 func (m Model) renderHelpFooter() string {
-	hints := "j/k scroll · / search · ? all/view · Esc close"
+	hints := "j/k scroll · / search · ? all/view · esc close"
 	if m.helpSearchFilter.Active {
-		hints = "Enter apply · Esc clear"
+		hints = "enter apply · esc clear"
 	} else if m.helpSearchFilter.Text != "" {
-		hints = "/ search · ? all/context · Esc clear"
+		hints = "/ search · ? all/context · esc clear"
 	}
 	position := fmt.Sprintf("%d%%", int(m.helpViewport.ScrollPercent()*100))
 	room := max(0, m.termWidth-len(position)-3)

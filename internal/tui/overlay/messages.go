@@ -74,6 +74,6 @@ func (v MessagesOverlay) Render(width, height int, s styles.Styles) string {
 		heading = fmt.Sprintf("Recent messages — lines %d–%d/%d", start+1, start+len(body), len(lines))
 	}
 	title := s.Heading.Render(text.Truncate(heading, width))
-	hint := s.Dim.Render(text.Truncate("j/k scroll · y copy all · q/esc close", width))
+	hint := s.Dim.Render(text.Truncate("esc close · space play/pause · j/k scroll · y copy all", width))
 	return title + "\n" + strings.Join(body, "\n") + "\n" + hint
 }

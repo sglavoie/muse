@@ -280,7 +280,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 		ID:       "tag.filter.open",
 		Name:     "Filter by tag…",
 		Category: "tag",
-		Shortcut: "ctrl+t",
+		Shortcut: m.tagFilterShortcut(true),
 		Exec: func() tea.Cmd {
 			return func() tea.Msg { return openTagFilterPickerMsg{} }
 		},
@@ -292,7 +292,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 			ID:       "tag.filter.clear",
 			Name:     "Clear tag filter",
 			Category: "tag",
-			Shortcut: "ctrl+t",
+			Shortcut: m.tagFilterShortcut(false),
 			Exec: func() tea.Cmd {
 				return func() tea.Msg { return clearTagFilterMsg{} }
 			},

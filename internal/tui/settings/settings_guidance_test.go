@@ -13,7 +13,7 @@ func TestLibrarySettingsUsesSpareRowsForControls(t *testing.T) {
 	o := NewSettingsOverlay(config.Defaults(), []string{"/music"})
 	for _, size := range [][2]int{{60, 12}, {80, 21}} {
 		out := ansi.Strip(o.Render(size[0], size[1], styles.NewStyles(true)))
-		for _, want := range []string{"tab/⇧tab tabs", "e excluded", "a add", "d delete", "ctrl+s save", "esc cancel"} {
+		for _, want := range []string{"tab/shift+tab tabs", "e excluded", "a add", "d delete", "ctrl+s save", "esc cancel"} {
 			if !strings.Contains(out, want) {
 				t.Fatalf("missing %s at %v:\n%s", want, size, out)
 			}

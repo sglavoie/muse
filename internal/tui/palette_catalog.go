@@ -78,7 +78,7 @@ type paletteEntry struct {
 // reason; TestPaletteCatalogCoversRegistryActions enforces that.
 var paletteCatalog = []paletteEntry{
 	{act: keys.ActionClearSelection, id: "selection.clear", name: "Clear selection", category: "view", ctx: keys.ContextLibrary, preferKey: "X", disabledReason: "Select rows first", enabled: func(m Model) bool { return m.activeViewSelectionCount() > 0 }},
-	// Pinned anchors (Serial Position Effect): Help at top, Quit at bottom.
+	// Footer shortcuts: always available and included in explicit searches.
 	{act: keys.ActionHelp, id: "help.show", name: "Show help", ctx: keys.ContextGlobal, pin: palette.PinTop},
 	{act: keys.ActionQuit, id: "app.quit", name: "Quit", ctx: keys.ContextGlobal, pin: palette.PinBottom},
 

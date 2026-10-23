@@ -21,7 +21,7 @@ func (cp CommandPalette) compactBoxLines(width, height int, m cpBoxMetrics, s st
 		reason = cp.Filtered[cp.cursor].detailText()
 	}
 	return append(lines, s.Dim.Render(compactRule(reason, cpCornerBL, cpCornerBR, m.innerWidth)),
-		"  "+s.Dim.Render(text.Truncate("↑/↓ PgUp/Dn · enter run · esc close", max(width-2, 0))),
+		"  "+s.Dim.Render(text.Truncate("↑/↓ pgup/pgdown · enter run · esc close", max(width-2, 0))),
 		"  "+s.Dim.Render(text.Truncate("F1 help · ctrl+c quit", max(width-2, 0))))
 }
 

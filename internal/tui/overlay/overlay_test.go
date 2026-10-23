@@ -64,7 +64,7 @@ func TestOverlayBoxRender_CentersHintIndependently(t *testing.T) {
 	}
 }
 
-func TestOverlayBoxRender_VerticalCentering(t *testing.T) {
+func TestOverlayBoxRender_TopAnchored(t *testing.T) {
 	box := Box{
 		Title: " T ",
 		Rows:  []Row{{Text: "x"}},
@@ -79,8 +79,8 @@ func TestOverlayBoxRender_VerticalCentering(t *testing.T) {
 			break
 		}
 	}
-	if blankCount < 5 {
-		t.Errorf("expected vertical centering padding (>= 5 blank lines), got %d", blankCount)
+	if blankCount != 0 {
+		t.Errorf("expected a stable top anchor, got %d blank lines", blankCount)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestOverlayBoxRender_MaxInnerWidthClampNoBorderMisalign(t *testing.T) {
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " ")
 		if strings.HasPrefix(trimmed, CornerTL) || strings.HasPrefix(trimmed, CornerBL) ||
-			strings.HasPrefix(trimmed, BorderV) || strings.HasPrefix(trimmed, crossDoubleL) {
+			strings.HasPrefix(trimmed, BorderV) || strings.HasPrefix(trimmed, CrossL) {
 			bordered = append(bordered, trimmed)
 		}
 	}
@@ -183,7 +183,7 @@ func TestOverlayBoxRender_TinyMaxInnerWidthNoBorderMisalign(t *testing.T) {
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " ")
 		if strings.HasPrefix(trimmed, CornerTL) || strings.HasPrefix(trimmed, CornerBL) ||
-			strings.HasPrefix(trimmed, BorderV) || strings.HasPrefix(trimmed, crossDoubleL) {
+			strings.HasPrefix(trimmed, BorderV) || strings.HasPrefix(trimmed, CrossL) {
 			bordered = append(bordered, trimmed)
 		}
 	}

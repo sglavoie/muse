@@ -77,6 +77,15 @@ func AlbumLabel(key string) string {
 	return title
 }
 
+// AlbumDisplayLabel uses the same disambiguation as the parent collection.
+// A removed or legacy key still gets a readable title without exposing paths.
+func AlbumDisplayLabel(key string, siblings []string) string {
+	if label, ok := AlbumDisplayLabels(siblings)[key]; ok {
+		return label
+	}
+	return AlbumDisplayLabels([]string{key})[key]
+}
+
 // AlbumMatches supports old title-only references while new UI paths always
 // pass an identity. This also lets unresolved legacy favorites remain visible.
 func AlbumMatches(t Track, key string) bool {

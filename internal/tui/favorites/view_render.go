@@ -178,7 +178,7 @@ func (v View) renderTrackList() string {
 }
 
 func (v View) renderTracks() string {
-	heading := v.selectionHeading(library.AlbumLabel(v.DrilldownName))
+	heading := v.selectionHeading(library.AlbumDisplayLabel(v.DrilldownName, v.Albums))
 
 	items := v.EffectiveTracks()
 	if len(v.DrilldownTracks) == 0 {

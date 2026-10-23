@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Broad command searches favor navigation and inspection; explicit action names
+  retain their search ranking.
+- Track Info opens stored metadata immediately, enriches it with file details,
+  and remains useful when inspection fails. Late results cannot reopen a closed
+  panel or replace a newer inspection.
+- Long metadata inputs show hidden-text indicators, and focused-song details
+  wrap into up to four spare rows without displacing the track table.
+- Insights charts share columns within each section and cap bar lengths.
+- Settings and Auto-DJ share stable frames and pinned footers across tabs.
+  Informational dialogs and metadata editors use a consistent top anchor.
+- Help, the playback legend, and mode notifications use the status bar's readable
+  names. Tab hints consistently spell `shift+tab`.
+
+- Informational overlays retain playback controls while open. Now Playing
+  reflects pause and stop immediately; text editors retain their input keys.
+- Command palettes use a compact layout at every size, keep Help and Quit in
+  the footer and search, and only advertise shortcuts valid in the current view.
+- Focused-song details are labeled separately from playback, whose title takes
+  visual priority over mode and source labels.
+- Album breadcrumbs and favorite-album headings retain the concise,
+  disambiguated labels shown in their parent lists.
+- Insights Coverage leads with unheard tracks and duration, with shorter,
+  neutral headings and no projected library completion date.
+- Exiting and reopening muse restores the current browsing location, including
+  nested collections, filters, sort, focus, and viewport. Deleted targets fall
+  back safely; user input cancels pending restoration without changing playback.
+
 ### Security
 
 - Update golang.org/x/text to v0.39.0 to address GO-2026-5970 in Unicode

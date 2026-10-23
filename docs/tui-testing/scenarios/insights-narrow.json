@@ -6,7 +6,7 @@
     {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"},
     {"assert": {"not_contains": "Nothing to measure yet"}, "label": "narrow-fixture-has-history"},
     {"assert": {"no_layout_issues": true}, "label": "coverage"},
-    {"assert": {"contains": "Dusty artists"}, "label": "coverage-body-survives"},
+    {"assert": {"contains": "Artists to explore"}, "label": "coverage-body-survives"},
 
     {"key": "`"}, {"assert": {"no_layout_issues": true}, "label": "rhythm"},
     {"assert": {"contains": "Hour of day"}, "label": "rhythm-body-survives"},

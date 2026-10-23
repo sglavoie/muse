@@ -26,11 +26,6 @@ const (
 	CornerBR = "╯"
 	CrossL   = "├"
 	CrossR   = "┤"
-	// Doubled rule below modal titles strengthens Common Region by visually
-	// detaching the title from the body.
-	borderDoubleH = "═"
-	crossDoubleL  = "╞"
-	crossDoubleR  = "╡"
 )
 
 // Row represents a single content row inside a Box.
@@ -41,7 +36,7 @@ type Row struct {
 	Blank  bool   // if true, render an empty row (Text is ignored)
 }
 
-// Box is a reusable centered-box renderer shared by all overlay types.
+// Box is a reusable top-anchored renderer for informational overlays.
 type Box struct {
 	Title         string // e.g. " ♪ Preview ", " ♪ Now Playing "
 	Rows          []Row  // content rows between the title separator and bottom border
@@ -49,9 +44,7 @@ type Box struct {
 	MaxInnerWidth int    // if > 0, clamp inner width to this value
 }
 
-// Render produces a vertically and horizontally centered box string.
-// The caller passes the current terminal dimensions so the box is positioned
-// in the middle of the screen.
+// Render produces a horizontally centered box anchored to the top of the screen.
 func (o Box) Render(termWidth, termHeight int, s styles.Styles) string {
 	rows := o.rowsForHeight(termHeight)
 	maxLabelW := boxLabelWidth(rows)
@@ -63,8 +56,8 @@ func (o Box) Render(termWidth, termHeight int, s styles.Styles) string {
 		// Top border.
 		CornerTL + strings.Repeat(BorderH, innerWidth) + CornerTR,
 		o.titleLine(innerWidth, s),
-		// Doubled rule below the title (Common Region + Uniform Connectedness).
-		crossDoubleL + strings.Repeat(borderDoubleH, innerWidth) + crossDoubleR,
+		// Shared single rule below the title.
+		CrossL + strings.Repeat(BorderH, innerWidth) + CrossR,
 		// Inner top padding row.
 		padRow,
 	}
@@ -78,7 +71,7 @@ func (o Box) Render(termWidth, termHeight int, s styles.Styles) string {
 		CornerBL+strings.Repeat(BorderH, innerWidth)+CornerBR,
 	)
 
-	return RenderCenteredLines(boxLines, o.Hint, termWidth, termHeight)
+	return RenderTopLines(boxLines, o.Hint, termWidth)
 }
 
 // boxLabelWidth is the display width of the widest row label, which fixes the

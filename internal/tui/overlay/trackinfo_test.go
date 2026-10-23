@@ -32,10 +32,10 @@ func TestTrackInfoOverlayRender(t *testing.T) {
 	if !strings.Contains(out, "Artist") {
 		t.Error("expected artist in output")
 	}
-	if !strings.Contains(out, "y to copy path") {
+	if !strings.Contains(out, "y copy path") {
 		t.Error("expected copy-path hint")
 	}
-	if !strings.Contains(out, "i or esc to dismiss") {
+	if !strings.Contains(out, "esc close") {
 		t.Error("expected dismiss hint")
 	}
 }

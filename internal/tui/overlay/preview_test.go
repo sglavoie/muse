@@ -73,7 +73,7 @@ func TestPreviewOverlayRender_TitleOnly(t *testing.T) {
 	}
 }
 
-func TestPreviewOverlayRender_CenteredVertically(t *testing.T) {
+func TestPreviewOverlayRender_TopAnchored(t *testing.T) {
 	p := PreviewOverlay{Artist: "A", Title: "B"}
 	s := newTestStyles()
 	out := p.Render(80, 40, s)
@@ -88,8 +88,8 @@ func TestPreviewOverlayRender_CenteredVertically(t *testing.T) {
 			break
 		}
 	}
-	if blankCount < 5 {
-		t.Errorf("expected vertical centering padding (>= 5 blank lines), got %d", blankCount)
+	if blankCount != 0 {
+		t.Errorf("expected a stable top anchor, got %d blank lines", blankCount)
 	}
 }
 

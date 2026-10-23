@@ -49,7 +49,7 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 		},
 	}
 
-	wantNames := [4]string{"Repeat", "Shuffle", "Stop after current", "Auto-DJ"}
+	wantNames := [4]string{"Repeat", "Shuffle", "Stop after track", "Auto-DJ"}
 	wantKeys := [4]string{"r", "z", "ctrl+n", "A"}
 
 	for _, tc := range cases {
@@ -57,7 +57,7 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 			out := ansi.Strip(tc.overlay.Render(tc.termWidth, tc.termHeight, newTestStyles()))
 
 			for i, name := range wantNames {
-				line, nameAt := legendRowFor(t, out, name)
+				line, _ := legendRowFor(t, out, name)
 
 				// name, live state and key share one padded value zone.
 				want := text.Pad(name, modesLegendNameWidth) + text.Pad(tc.wantStates[i], modesLegendStateWidth) + wantKeys[i]
@@ -65,17 +65,12 @@ func TestModesLegendOverlay_RendersEveryIndicator(t *testing.T) {
 					t.Errorf("row %d: line %q does not contain %q", i, line, want)
 				}
 
-				// The glyph is the row label, left of the name.
-				label := line[:nameAt]
-				if !strings.Contains(label, tc.wantGlyphs[i]) {
-					t.Errorf("row %d: glyph %q missing from label zone %q", i, tc.wantGlyphs[i], label)
-				}
 			}
 
 			if !strings.Contains(out, "Playback Modes") {
 				t.Errorf("expected title in output:\n%s", out)
 			}
-			if !strings.Contains(out, "; or esc to dismiss") {
+			if !strings.Contains(out, "esc close") {
 				t.Errorf("expected dismiss hint in output:\n%s", out)
 			}
 
@@ -98,10 +93,10 @@ func TestModesLegendOverlay_StylesGlyphsWithSemanticPalette(t *testing.T) {
 	out := o.Render(100, 30, st)
 
 	want := map[string]string{
-		"repeat":    st.ModeRepeat.Render("R"),
-		"shuffle":   st.ModeShuffle.Render("S"),
-		"stopAfter": st.ModeStopAfter.Render("N"),
-		"radio":     st.ModeRadio.Render("D"),
+		"repeat":    st.ModeRepeat.Render(text.Pad("Repeat", modesLegendNameWidth)),
+		"shuffle":   st.ModeShuffle.Render(text.Pad("Shuffle", modesLegendNameWidth)),
+		"stopAfter": st.ModeStopAfter.Render(text.Pad("Stop after track", modesLegendNameWidth)),
+		"radio":     st.ModeRadio.Render(text.Pad("Auto-DJ", modesLegendNameWidth)),
 	}
 	for mode, glyph := range want {
 		if !strings.Contains(out, glyph) {
@@ -117,12 +112,12 @@ func TestModesLegendOverlay_DimsInactiveGlyphs(t *testing.T) {
 	o := ModesLegendOverlay{Repeat: playback.RepeatOff, Shuffle: false, StopAfter: false, Radio: false}
 	out := o.Render(100, 30, st)
 
-	for _, glyph := range []string{"R", "S", "N", "D"} {
-		if !strings.Contains(out, st.TextTertiary.Render(glyph)) {
+	for _, glyph := range []string{"Repeat", "Shuffle", "Stop after track", "Auto-DJ"} {
+		if !strings.Contains(out, st.TextTertiary.Render(text.Pad(glyph, modesLegendNameWidth))) {
 			t.Errorf("expected dimmed glyph %q for an inactive mode", glyph)
 		}
 	}
-	if strings.Contains(out, st.ModeShuffle.Render("S")) {
+	if strings.Contains(out, st.ModeShuffle.Render(text.Pad("Shuffle", modesLegendNameWidth))) {
 		t.Error("inactive shuffle glyph must not use the active accent style")
 	}
 }

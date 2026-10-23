@@ -110,7 +110,7 @@ func TestNowPlayingOverlay_UnknownTrack(t *testing.T) {
 func TestNowPlayingOverlay_DismissHint(t *testing.T) {
 	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StatePlaying}
 	out := ansi.Strip(n.Render(80, 24, newTestStyles()))
-	if !strings.Contains(out, "I or esc to dismiss") {
+	if !strings.Contains(out, "esc close") {
 		t.Error("expected dismiss hint")
 	}
 }

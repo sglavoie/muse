@@ -10,7 +10,6 @@ import (
 
 	insightsdata "github.com/sglavoie/muse/internal/insights"
 	"github.com/sglavoie/muse/internal/library"
-	"github.com/sglavoie/muse/internal/tui/chart"
 	"github.com/sglavoie/muse/internal/tui/strip"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
@@ -63,14 +62,14 @@ func (v View) coverageRows() []Row {
 		}
 	}
 
-	appendShelves("Dusty artists", c.DustyArtists, DrillUnheardArtist)
-	appendShelves("Untouched albums", untouched, DrillUnheardAlbum)
-	appendShelves("Dusty albums", dusty, DrillUnheardAlbum)
+	appendShelves("Artists to explore", c.DustyArtists, DrillUnheardArtist)
+	appendShelves("Unheard albums", untouched, DrillUnheardAlbum)
+	appendShelves("More from your albums", dusty, DrillUnheardAlbum)
 	appendShelves("Genre coverage", v.GenreCoverage, DrillUnheardGenre)
 
 	for _, t := range v.Dormant {
 		rows = append(rows, Row{
-			Section: "Dormant tracks",
+			Section: "Listen again",
 			Label:   fmt.Sprintf("%s — %s", t.Artist, t.Title),
 			note:    "last " + relativeDayLabel(t.LastPlayedAt, v.Snap.LastPlayAt),
 			Drill:   DrillDormant,
@@ -359,49 +358,15 @@ func (v View) headerBudget() int {
 
 func (v View) coverageHeaderLines(s styles.Styles) []string {
 	c := v.Snap.Coverage
-	w := max(v.width, 1)
-	pal := chart.FromStyles(s)
-
-	lines := []string{
+	return []string{
 		"",
-		s.TextPrimary.Render(fmt.Sprintf("In %d %s you played %s %s. You own %s.",
-			v.Snap.SpanDays, text.Pluralize(v.Snap.SpanDays, "day", "days"),
-			text.FormatCount(c.HeardTracks), text.Pluralize(c.HeardTracks, "track", "tracks"),
-			text.FormatCount(c.TotalTracks))),
-		"",
-	}
-	if !v.compact() {
-		lines = append(lines, chart.Ratio(float64(c.HeardTracks), float64(c.TotalTracks), w, pal))
-	}
-	lines = append(lines,
-		s.TextSecondary.Render(fmt.Sprintf("heard %s · unheard %s · %s unheard",
-			text.FormatCount(c.HeardTracks), text.FormatCount(c.UnheardTracks),
+		s.TextPrimary.Render(fmt.Sprintf("%s unheard %s · %s",
+			text.FormatCount(c.UnheardTracks), text.Pluralize(c.UnheardTracks, "track", "tracks"),
 			text.FormatListeningTime(int(c.UnheardSecs)))),
+		s.TextSecondary.Render(fmt.Sprintf("%s of %s tracks heard · enter to explore",
+			text.FormatCount(c.HeardTracks), text.FormatCount(c.TotalTracks))),
 		"",
-	)
-	if v.Height >= insightsProseMinHeight {
-		for _, l := range strings.Split(ansi.Wrap(v.coverageReadLine(), w, " "), "\n") {
-			lines = append(lines, s.Dim.Render(l))
-		}
-		lines = append(lines, "")
 	}
-	return lines
-}
-
-// coverageReadLine is the cross-reference that makes Coverage land: the size of
-// the unheard part measured against everything actually listened to.
-func (v View) coverageReadLine() string {
-	c := v.Snap.Coverage
-	if c.ListenedSecs <= 0 {
-		return "Nothing listened to yet — every track below is still unopened."
-	}
-	sized := fmt.Sprintf("That unheard part is %.0f%% the size of everything you have listened to.",
-		c.UnheardVsHeard*100)
-	if c.MonthsToFinish <= 0 {
-		return sized + " Not enough first-play history to project a finish date."
-	}
-	return sized + fmt.Sprintf(" At the current discovery rate you would finish it in %s.",
-		formatMonths(c.MonthsToFinish))
 }
 
 func (v View) renderPanel(s styles.Styles) string {
@@ -417,6 +382,7 @@ func (v View) renderPanel(s styles.Styles) string {
 
 	// Section headers occupy body lines too, so the budget is spent as lines are
 	// emitted rather than sliced off the row list up front.
+	bars := sectionBarBodies(rows, max(v.width-2, 1), s)
 	budget := v.BodyRows()
 	section := ""
 	for i := v.ScrollOffset; i < len(rows) && budget > 0; i++ {
@@ -432,13 +398,13 @@ func (v View) renderPanel(s styles.Styles) string {
 				break
 			}
 		}
-		lines = append(lines, v.renderRow(s, row, i == v.Cursor))
+		lines = append(lines, v.renderRow(s, row, i == v.Cursor, bars[i]))
 		budget--
 	}
 	return strings.Join(lines, "\n")
 }
 
-func (v View) renderRow(s styles.Styles, row Row, focused bool) string {
+func (v View) renderRow(s styles.Styles, row Row, focused bool, chartBody ...string) string {
 	cursor := text.FocusMarker(focused)
 	width := max(v.width-2, 1)
 
@@ -452,14 +418,13 @@ func (v View) renderRow(s styles.Styles, row Row, focused bool) string {
 		labelW := max(width-ansi.StringWidth(note)-2, 1)
 		body = text.Pad(text.Truncate(row.Label, labelW), labelW) + "  " + note
 	case v.compact() || row.Drill == DrillDormant:
-		labelW := max(width-len(row.note)-2, 1)
+		labelW := max(width-ansi.StringWidth(row.note)-2, 1)
 		body = text.Pad(text.Truncate(row.Label, labelW), labelW) + "  " + row.note
 	default:
-		bars := chart.BarList([]chart.BarRow{{Label: row.Label, Value: row.fraction, Note: row.note}},
-			chart.BarListOptions{Width: width, Max: 1}, chart.FromStyles(s))
-		if len(bars) > 0 {
-			body = bars[0]
+		if len(chartBody) > 0 {
+			body = chartBody[0]
 		}
+
 	}
 	if focused {
 		// The bar is already styled; strip it so the focus background covers the
@@ -467,23 +432,6 @@ func (v View) renderRow(s styles.Styles, row Row, focused bool) string {
 		return s.Accent.Render(cursor + text.Truncate(ansi.Strip(body), width))
 	}
 	return s.TextTertiary.Render(cursor) + body
-}
-
-// formatMonths renders a fractional month count as years and months.
-func formatMonths(months float64) string {
-	total := int(months + 0.5)
-	if total <= 0 {
-		return "under a month"
-	}
-	years, rest := total/12, total%12
-	switch {
-	case years > 0 && rest > 0:
-		return fmt.Sprintf("%d %s %d %s", years, text.Pluralize(years, "year", "years"), rest, text.Pluralize(rest, "month", "months"))
-	case years > 0:
-		return fmt.Sprintf("%d %s", years, text.Pluralize(years, "year", "years"))
-	default:
-		return fmt.Sprintf("%d %s", rest, text.Pluralize(rest, "month", "months"))
-	}
 }
 
 // renderPanelSelector leaves the scrollable content room in ordinary terminals.

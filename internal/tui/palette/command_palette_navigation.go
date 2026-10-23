@@ -1,8 +1,6 @@
 package palette
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -20,8 +18,7 @@ func (cp CommandPalette) page(key string, heights []int) CommandPalette {
 	if len(heights) > 0 {
 		height = heights[0]
 	}
-	plan := cp.planRows(cpCommandRowBudget(height), strings.TrimSpace(cp.Filter.Text) == "")
-	step := max(plan.bodyBudget, 1)
+	step := min(cpCommandRowBudget(height), max(len(cp.Filtered), 1))
 	if key == "pgup" {
 		step = -step
 	}

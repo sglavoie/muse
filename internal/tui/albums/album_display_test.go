@@ -27,7 +27,7 @@ func TestAlbumLabelsStayDisambiguatedWhenFiltering(t *testing.T) {
 	v.SelectedAlbum = a
 	v.Tracks = []library.Track{{Title: "Song", Album: "Live", Path: "/music/alice/live/1.flac"}}
 	v.FilterText = ""
-	if out := ansi.Strip(v.Render()); !strings.Contains(out, "/music/alice/live") {
-		t.Fatalf("drill-down lost the full release path:\n%s", out)
+	if out := ansi.Strip(v.Render()); !strings.Contains(out, "Live — alice/live") || strings.Contains(out, "/music/") {
+		t.Fatalf("drill-down lost the concise release label:\n%s", out)
 	}
 }

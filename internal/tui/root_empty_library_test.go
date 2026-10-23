@@ -87,7 +87,6 @@ func TestMixKeysSelectWithoutDismissing(t *testing.T) {
 func TestMixPaletteLeadsWithListeningAndKeepsRemovalSearchable(t *testing.T) {
 	m := setupMixesAtTrackLevel()
 	cp, _ := palette.NewCommandPalette(m.BuildPaletteCommands(), nil)
-	cp = cp.WithHeight(12)
 	if cp.Filtered[0].ID != "queue.enqueue.focused" {
 		t.Fatalf("first action: %s", cp.Filtered[0].ID)
 	}

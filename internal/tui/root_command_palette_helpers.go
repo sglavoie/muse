@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/palette"
+	"strings"
 )
 
 // focusedTrackForPalette returns the path, artist, and title of the track
@@ -45,22 +46,29 @@ func (m Model) paletteCommandFor(e paletteEntry) palette.PaletteCommand {
 	return m.describeMetadataCommand(cmd)
 }
 
-// paletteShortcutFor returns the key to advertise for a catalog entry:
-// preferKey when set, otherwise the first key bound to the action in the
-// entry's own context, falling back to contextGlobal.
+// Advertise only shortcuts that execute this action in the current view.
+// Palette commands may navigate to another view, but their keys do not.
 func (m Model) paletteShortcutFor(e paletteEntry) string {
-	if e.preferKey != "" {
-		return e.preferKey
+	if e.view != 0 && e.view != m.ActiveView {
+		return ""
 	}
-	if bound := m.registry.KeysFor(e.ctx, e.act); len(bound) > 0 {
-		return bound[0]
-	}
-	if e.ctx != keys.ContextGlobal {
-		if bound := m.registry.KeysFor(keys.ContextGlobal, e.act); len(bound) > 0 {
-			return bound[0]
+	candidates := []string{e.preferKey}
+	candidates = append(candidates, m.registry.KeysFor(e.ctx, e.act)...)
+	candidates = append(candidates, m.registry.KeysFor(keys.ContextGlobal, e.act)...)
+	for _, key := range candidates {
+		if key != "" && m.resolveKey(key) == e.act {
+			return key
 		}
 	}
 	return ""
+}
+
+// The same key opens a tag filter or clears it, depending on current state.
+func (m Model) tagFilterShortcut(open bool) string {
+	if open != (m.activeTagFilter == nil) {
+		return ""
+	}
+	return m.paletteShortcutFor(paletteEntry{act: keys.ActionTagFilter, ctx: keys.ContextGlobal})
 }
 
 // paletteMessageCmd returns a command with a stable explicit identifier that
@@ -95,7 +103,12 @@ func revealFilePaletteName(goos string) string {
 
 // Keep everyday listening ahead of edits and removal in the unfiltered palette.
 func paletteCommandIntent(id string) palette.CommandIntent {
+	if strings.HasPrefix(id, "nav.") {
+		return palette.IntentInspect
+	}
 	switch id {
+	case "queue.summary", "playback.nowplaying.info", "messages.show", "help.modes_legend", "queue.jump.nowplaying":
+		return palette.IntentInspect
 	case "queue.enqueue.focused", "queue.play_next", "track.info", "track.preview", "playback.toggle", "mix.enqueue_all", "playlist.enqueue_all", "tag.enqueue_all", "insights.enqueue_all":
 		return palette.IntentListening
 	case "queue.clear", "queue.dequeue", "queue.cut", "queue.enqueue.replace", "playlist.delete", "tag.delete", "mix.dismiss", "queue.dedup":

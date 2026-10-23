@@ -54,3 +54,26 @@ func TestEverySettingsTabKeepsFocusAndExitControlsAtMinimumHeight(t *testing.T) 
 		}
 	}
 }
+
+func TestSettingsFrameAndFooterStayPutAcrossTabs(t *testing.T) {
+	o := NewSettingsOverlay(config.Defaults(), []string{"/music"})
+	for _, size := range [][2]int{{60, 12}, {80, 21}, {120, 37}} {
+		bottom := -1
+		for tab := tabLibrary; tab < tabCount; tab++ {
+			o.Tab = tab
+			out := ansi.Strip(o.Render(size[0], size[1], styles.NewStyles(true)))
+			lines := strings.Split(out, "\n")
+			if !strings.Contains(lines[0], "╭") || !strings.Contains(lines[1], "Settings") {
+				t.Fatal(out)
+			}
+			for i, line := range lines {
+				if strings.Contains(line, "╰") {
+					if bottom >= 0 && i != bottom {
+						t.Fatalf("tab %d moved footer: %s", tab, out)
+					}
+					bottom = i
+				}
+			}
+		}
+	}
+}

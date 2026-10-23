@@ -8,7 +8,7 @@ import (
 )
 
 func TestCompactHintsPreservesEssentialWholePairs(t *testing.T) {
-	const hint = "j/k scrolls · enter edit · tab/⇧tab tabs · ctrl+s save · esc cancel"
+	const hint = "j/k scrolls · enter edit · tab/shift+tab tabs · ctrl+s save · esc cancel"
 	for _, width := range []int{27, 40, 56, 60, 80} {
 		got := CompactHints(hint, width, "ctrl+s", "esc")
 		if ansi.StringWidth(got) > width || strings.Contains(got, "…") {

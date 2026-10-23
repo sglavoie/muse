@@ -9,6 +9,12 @@ import (
 // are value-receiver helpers that cannot return a tea.Cmd, and updateInner's
 // many early returns make this the only point that observes all of them.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if resume, ok := msg.(browsingResumeMsg); ok {
+		return m.resumeBrowsing(resume)
+	}
+	if _, key := msg.(tea.KeyPressMsg); key {
+		m.cancelBrowsingRestore()
+	}
 	next, cmd := m.updateInner(msg)
 	// Every branch of updateInner returns this Model.
 	updated := next.(Model)

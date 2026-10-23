@@ -228,9 +228,9 @@ func TestSettingsHintsShareWordingAndOrder(t *testing.T) {
 
 	for name, o := range cases {
 		hint := o.keyHint()
-		order := []string{"tab/⇧tab tabs", "j/k navigate", "ctrl+s save", "esc "}
+		order := []string{"tab/shift+tab tabs", "j/k navigate", "ctrl+s save", "esc "}
 		if strings.Contains(hint, "h/l") {
-			order = []string{"tab/⇧tab tabs", "j/k navigate", "h/l adjust", "ctrl+s save", "esc "}
+			order = []string{"tab/shift+tab tabs", "j/k navigate", "h/l adjust", "ctrl+s save", "esc "}
 		}
 		last := -1
 		for _, want := range order {

@@ -23,7 +23,7 @@ func (t TrackInfoOverlay) wrappedRows(width int) []Row {
 			wrapWidth = valueWidth
 		}
 		value := strings.ReplaceAll(ansi.Strip(row.Text), "\t", "    ")
-		for i, line := range strings.Split(ansi.Hardwrap(value, wrapWidth, true), "\n") {
+		for i, line := range strings.Split(ansi.Wrap(value, wrapWidth, " "), "\n") {
 			if row.Label != "" {
 				label := ""
 				if i == 0 {

@@ -131,9 +131,9 @@ func (o SettingsOverlay) displayHint() string {
 		return "#RGB or #RRGGBB · blank for default · enter apply · esc back"
 	}
 	if o.cursor == displayPrimary {
-		return "enter edit · r reset · tab/⇧tab tabs · j/k navigate · ctrl+s save · esc cancel"
+		return "enter edit · r reset · tab/shift+tab tabs · j/k navigate · ctrl+s save · esc cancel"
 	}
-	return "tab/⇧tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+	return "tab/shift+tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 }
 
 // settingsRowWindow reserves the box chrome, footer and any inline editor.

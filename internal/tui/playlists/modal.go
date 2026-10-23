@@ -287,7 +287,7 @@ func (m DestinationPickerModal) innerWidth(termWidth int, labels []string, modal
 
 func (m DestinationPickerModal) keyHint(termWidth int) string {
 	// Keybinding hint outside the box.
-	hint := "  / search · j/k · PgUp/Dn · enter choose"
+	hint := "  / search · j/k · pgup/pgdown · enter choose"
 	switch {
 	case m.search.Active:
 		hint = "  enter apply · esc clear"

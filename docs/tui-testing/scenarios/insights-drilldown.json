@@ -4,7 +4,7 @@
   "size": "100x30",
   "actions": [
     {"key": "8"}, {"assert": {"view": "Insights"}}, {"wait": "500ms"},
-    {"assert": {"contains": "Dusty artists"}, "label": "briefing-lists-shelves"},
+    {"assert": {"contains": "Artists to explore"}, "label": "briefing-lists-shelves"},
 
     {"key": "j"}, {"key": "j"}, {"assert": {"view": "Insights"}, "label": "j-does-not-fall-through-to-queue"},
     {"key": "k"}, {"key": "k"}, {"assert": {"view": "Insights"}, "label": "k-does-not-fall-through-to-queue"},
@@ -15,7 +15,7 @@
 
     {"key": "enter"}, {"assert": {"no_layout_issues": true}, "label": "drilled-into-alice"},
     {"assert": {"contains": "Track A2"}, "label": "unheard-alice-tracks"},
-    {"assert": {"not_contains": "Dusty artists"}, "label": "briefing-replaced-by-tracks"},
+    {"assert": {"not_contains": "Artists to explore"}, "label": "briefing-replaced-by-tracks"},
 
     {"key": "v"}, {"assert": {"contains": "1 selected"}, "label": "v-enters-visual-at-track-level"},
     {"key": "j"}, {"assert": {"contains": "2 selected"}, "label": "visual-range-grows-with-j"},
@@ -25,7 +25,7 @@
 
     {"key": "E"}, {"wait": "500ms"}, {"assert": {"status_contains": "Added 2 tracks from Alice"}, "label": "enqueue-all-drilled"},
 
-    {"key": "esc"}, {"assert": {"contains": "Dusty artists"}, "label": "esc-returns-to-briefing"},
+    {"key": "esc"}, {"assert": {"contains": "Artists to explore"}, "label": "esc-returns-to-briefing"},
     {"assert": {"view": "Insights"}, "label": "esc-stays-in-insights"},
 
     {"key": "j"}, {"key": "j"}, {"key": "enter"},

@@ -2,7 +2,9 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -12,31 +14,33 @@ import (
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
-// TrackInfoMsg carries the result of an async exiftool invocation.
+// TrackInfoMsg carries the result of an asynchronous file metadata probe.
 type TrackInfoMsg struct {
-	Path      string
-	Hash      string
-	Tags      map[string]any
-	Err       error
-	PlayCount int
+	Request uint64
+	Path    string
+	Tags    map[string]any
+	Err     error
 }
 
-// TrackInfoCmd returns a tea.Cmd that extracts all exiftool tags for path.
-func TrackInfoCmd(ctx context.Context, path, hash string, playCount int) tea.Cmd {
+// TrackInfoCmd extracts file tags through the configured metadata backend.
+func TrackInfoCmd(ctx context.Context, path string, request uint64) tea.Cmd {
 	return func() tea.Msg {
 		tags, err := library.ExtractAllTags(ctx, path)
-		return TrackInfoMsg{Path: path, Hash: hash, Tags: tags, Err: err, PlayCount: playCount}
+		return TrackInfoMsg{Request: request, Path: path, Tags: tags, Err: trackInfoError(err)}
 	}
 }
 
-// TrackInfoOverlay renders a centered overlay showing detailed file metadata.
+// TrackInfoOverlay renders stored metadata with asynchronously loaded file details.
 type TrackInfoOverlay struct {
-	Path   string
-	rows   []Row
-	offset int
+	Request  uint64
+	track    library.Track
+	userTags []db.TagRow
+	Path     string
+	rows     []Row
+	offset   int
 }
 
-// Render produces a centered overlay string for the track info.
+// Render produces a top-anchored, scrollable track information panel.
 func (t TrackInfoOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	rows := t.wrappedRows(termWidth)
 	visible := max(1, termHeight-7)
@@ -52,7 +56,7 @@ func (t TrackInfoOverlay) Render(termWidth, termHeight int, s styles.Styles) str
 	box := Box{
 		Title:         title,
 		Rows:          rows[start:end],
-		Hint:          "j/k scroll · y to copy path · i or esc to dismiss",
+		Hint:          "esc close · space play/pause · j/k scroll · y copy path",
 		MaxInnerWidth: termWidth - 10,
 	}
 	return box.Render(termWidth, termHeight, s)
@@ -138,4 +142,15 @@ func NewTrackInfoOverlay(path string, tags map[string]any, playCount int, userTa
 	}
 
 	return TrackInfoOverlay{Path: path, rows: rows}
+}
+
+// Preserve the extractor's explanation rather than showing only an exit code.
+func trackInfoError(err error) error {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		if detail := strings.TrimSpace(string(exitErr.Stderr)); detail != "" {
+			return fmt.Errorf("%s: %w", detail, err)
+		}
+	}
+	return err
 }

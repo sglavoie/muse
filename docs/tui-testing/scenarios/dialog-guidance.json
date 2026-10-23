@@ -8,7 +8,7 @@
     },
     {
       "assert": {
-        "contains": "tab/\u21e7tab tabs"
+        "contains": "tab/shift+tab tabs"
       }
     },
     {

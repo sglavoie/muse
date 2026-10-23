@@ -59,48 +59,51 @@ func TestTrackInfoKeyReturnsCmd(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected non-nil command for track info")
 	}
-	// Overlay should not be set yet — it's set when trackInfoMsg arrives.
-	if nm.overlay.trackInfo != nil {
-		t.Fatal("overlay should not be set before trackInfoMsg arrives")
+	// Stored metadata is available before the probe completes.
+	if nm.overlay.trackInfo == nil {
+		t.Fatal("overlay should open before trackInfoMsg arrives")
 	}
 }
 
 // TestTrackInfoMsgSuccess verifies that receiving a trackInfoMsg with tags
 // sets the overlay.
 func TestTrackInfoMsgSuccess(t *testing.T) {
-	m := New(context.Background())
+	m := startTrackInfoForTest(t)
 
 	tags := map[string]any{
 		"Title":  "Song",
 		"Artist": "Band",
 	}
-	next, _ := m.Update(overlay.TrackInfoMsg{Path: "/music/song.flac", Tags: tags})
+	next, _ := m.Update(overlay.TrackInfoMsg{Request: 1, Path: "/music/test.flac", Tags: tags})
 	nm := next.(Model)
 
 	if nm.overlay.trackInfo == nil {
 		t.Fatal("expected trackInfo overlay to be set")
 	}
-	if nm.overlay.trackInfo.Path != "/music/song.flac" {
-		t.Errorf("expected path '/music/song.flac', got %q", nm.overlay.trackInfo.Path)
+	if nm.overlay.trackInfo.Path != "/music/test.flac" {
+		t.Errorf("expected path '/music/test.flac', got %q", nm.overlay.trackInfo.Path)
 	}
 }
 
 // TestTrackInfoMsgError verifies that receiving a trackInfoMsg with an error
-// shows a notification and does not set the overlay.
+// retains library metadata and explains the unavailable file details.
 func TestTrackInfoMsgError(t *testing.T) {
-	m := New(context.Background())
+	m := startTrackInfoForTest(t)
 
 	next, _ := m.Update(overlay.TrackInfoMsg{
-		Path: "/music/song.flac",
-		Err:  errors.New("exiftool failed"),
+		Request: 1, Path: "/music/test.flac",
+		Err: errors.New("exiftool failed"),
 	})
 	nm := next.(Model)
 
-	if nm.overlay.trackInfo != nil {
-		t.Fatal("expected no overlay on error")
+	if nm.overlay.trackInfo == nil {
+		t.Fatal("failed probe discarded stored metadata")
 	}
-	if nm.statusBar.TopNotification().Msg == "" {
-		t.Fatal("expected error notification")
+	out := nm.overlay.trackInfo.Render(100, 30, *nm.styles)
+	for _, want := range []string{"Test Song", "File details unavailable: exiftool failed"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %s: %s", want, out)
+		}
 	}
 }
 
@@ -207,11 +210,11 @@ func TestTrackInfoPathUnknown(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("expected nil command for unknown path")
 	}
-	if nm.overlay.trackInfo != nil {
-		t.Fatal("expected no overlay for unknown path")
+	if nm.overlay.trackInfo == nil {
+		t.Fatal("expected stored metadata even without a path")
 	}
-	if nm.statusBar.TopNotification().Msg != "Track path unknown" {
-		t.Fatalf("expected 'Track path unknown' notification, got %q", nm.statusBar.TopNotification().Msg)
+	if !strings.Contains(nm.overlay.trackInfo.Render(100, 30, *nm.styles), "track path unknown") {
+		t.Fatal("missing path explanation")
 	}
 }
 
@@ -237,9 +240,9 @@ func TestTrackInfoYankPath(t *testing.T) {
 }
 
 func TestTrackInfoUsesIndexedMetadataAndScrolls(t *testing.T) {
-	m := setupTrackInfoModel(t)
+	m := startTrackInfoForTest(t)
 	m.termWidth, m.termHeight = 60, 15
-	next, _ := m.Update(overlay.TrackInfoMsg{Hash: "h1", Path: "/music/test.flac", Tags: map[string]any{"Title": "Original title", "Comment": strings.Repeat("Comment ", 30)}})
+	next, _ := m.Update(overlay.TrackInfoMsg{Request: 1, Path: "/music/test.flac", Tags: map[string]any{"Title": "Original title", "Comment": strings.Repeat("Comment ", 30)}})
 	m = next.(Model)
 	first := m.View().Content
 	if !strings.Contains(first, "Test Song") {
@@ -251,5 +254,62 @@ func TestTrackInfoUsesIndexedMetadataAndScrolls(t *testing.T) {
 	}
 	if m.View().Content != first {
 		t.Fatal("scroll mutated previous model")
+	}
+}
+
+func startTrackInfoForTest(t *testing.T) Model {
+	t.Helper()
+	m := setupTrackInfoModel(t)
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	return next.(Model)
+}
+
+func TestTrackInfoLateResultsNeverReopenOrOverwrite(t *testing.T) {
+	m := startTrackInfoForTest(t)
+	result := overlay.TrackInfoMsg{Request: 1, Path: "/music/test.flac", Tags: map[string]any{"Comment": "STALE"}}
+	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = next.(Model)
+	m = m.handleTrackInfoResult(result)
+	if m.overlay.trackInfo != nil {
+		t.Fatal("dismissed info reopened")
+	}
+	next, _ = m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	m = next.(Model)
+	before := m.overlay.trackInfo.Render(100, 30, *m.styles)
+	m = m.handleTrackInfoResult(result)
+	if m.overlay.trackInfo.Render(100, 30, *m.styles) != before {
+		t.Fatal("older request replaced new inspection of same track")
+	}
+	result.Request = 2
+	result.Path = "/music/other.flac"
+	m = m.handleTrackInfoResult(result)
+	if m.overlay.trackInfo.Render(100, 30, *m.styles) != before {
+		t.Fatal("different track replaced inspection")
+	}
+}
+
+func TestTrackInfoFixtureNeverProbesFiles(t *testing.T) {
+	m, err := BuildFixture(FixtureNarrow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	m = next.(Model)
+	if cmd != nil || m.overlay.trackInfo == nil {
+		t.Fatal("fixture must open stored info without probing a file")
+	}
+}
+
+func TestTrackInfoCanInspectMissingQueueFile(t *testing.T) {
+	m := setupTrackInfoModel(t)
+	m.queue.Entries[0].Missing = true
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	m = next.(Model)
+	if m.overlay.trackInfo == nil || cmd == nil {
+		t.Fatal("missing file prevented stored metadata from opening")
+	}
+	out := m.overlay.trackInfo.Render(100, 30, *m.styles)
+	if !strings.Contains(out, "Test Song") || !strings.Contains(out, "/music/test.flac") {
+		t.Fatal(out)
 	}
 }

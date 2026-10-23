@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -48,15 +49,8 @@ const (
 	// labelWidth is the left column. "Include artists" is the longest label.
 	labelWidth = 16
 
-	// maxInnerWidth caps the box on a wide terminal. The Preview page's
-	// explanations are the widest thing the overlay draws, and they read badly
-	// stretched across a full-screen terminal; narrower terminals get whatever
-	// they have.
-	maxInnerWidth = 76
-
-	// chromeLines is the top border, the title, its separator, the bottom
-	// border, and the hint line — everything a box costs before any content.
-	chromeLines = 5
+	// chromeLines counts the title, tabs, borders, and one footer row.
+	chromeLines = 7
 
 	// minRowLines is the smallest row window worth showing. Below it the status
 	// block is dropped instead, because a panel that cannot show the settings is
@@ -68,7 +62,7 @@ const (
 	maxStatusLines = 3
 )
 
-// Render produces the centered overlay body. An open picker takes the whole
+// Render produces a fixed, top-anchored panel. An open picker takes the whole
 // overlay: it is modal, so showing the rows behind it would invite editing them.
 //
 // Both the status block and the preview are passed in at render time rather than
@@ -86,31 +80,27 @@ func (p TunePanel) Render(
 	if p.prompt != nil {
 		return centerBox(p.buildPromptLines(termWidth, s), termWidth, termHeight)
 	}
+	termHeight = overlay.PanelHeight(termHeight)
 	switch p.tab {
 	case tabPreview:
-		return centerBox(p.buildPreviewLines(termWidth, termHeight, s, preview), termWidth, termHeight)
+		return overlay.RenderPanelLines(p.buildPreviewLines(termWidth, termHeight, s, preview), termWidth, termHeight)
 	case tabRecipes:
-		return centerBox(p.buildRecipesLines(termWidth, termHeight, s), termWidth, termHeight)
+		return overlay.RenderPanelLines(p.buildRecipesLines(termWidth, termHeight, s), termWidth, termHeight)
 	}
-	return centerBox(p.buildBoxLines(termWidth, termHeight, s, status), termWidth, termHeight)
+	return overlay.RenderPanelLines(p.buildBoxLines(termWidth, termHeight, s, status), termWidth, termHeight)
 }
 
 // innerWidth returns the box's content width for the given terminal width.
 func innerWidth(termWidth int) int {
-	width := maxInnerWidth
-	if maxInner := termWidth - 4; termWidth > 0 && width > maxInner {
-		width = maxInner
-	}
-	return max(width, 1)
+	return overlay.PanelInnerWidth(termWidth)
 }
 
 func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, status []StatusLine) []string {
 	inner := innerWidth(termWidth)
-	content := max(inner-2, 0)
-	title, titleWidth := tabBarTitle(tabTune, s, inner)
-	lines := boxHeaderRendered(title, titleWidth, inner)
+	content := max(inner-4, 0)
+	lines := panelHeader(tabTune, s, inner)
 
-	rowLines, statusLines := p.splitBudget(termHeight, p.statusLines(status))
+	rowLines, statusLines := p.splitBudget(overlay.PanelContentHeight(termHeight), p.statusLines(status))
 	start, end := p.rowWindow(rowLines)
 	for r := start; r < end; r++ {
 		lines = append(lines, p.renderRow(row(r), content, s))
@@ -118,8 +108,8 @@ func (p TunePanel) buildBoxLines(termWidth, termHeight int, s styles.Styles, sta
 	if len(statusLines) > 0 {
 		lines = append(lines, boxCrossL+strings.Repeat(boxBorderH, inner)+boxCrossR)
 		for _, line := range statusLines {
-			lines = append(lines, boxBorderV+" "+toneStyle(line.Tone, s).Render(
-				text.Pad(text.Truncate(line.Text, content), content))+" "+boxBorderV)
+			lines = append(lines, boxBorderV+"  "+toneStyle(line.Tone, s).Render(
+				text.Pad(text.Truncate(line.Text, content), content))+"  "+boxBorderV)
 		}
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
@@ -169,11 +159,11 @@ func (p TunePanel) renderRow(r row, content int, s styles.Styles) string {
 	if rowLabels[r] != "" {
 		label = text.Pad(rowLabels[r], labelWidth)
 	}
-	body := text.FocusMarker(int(r) == p.cursor) + text.Pad(label+p.rowValue(r), max(content-2, 0))
+	body := text.FocusMarker(int(r) == p.cursor) + text.Pad(label+p.rowValue(r), content)
 	if int(r) == p.cursor {
-		return boxBorderV + s.Accent.Render(" "+body+" ") + boxBorderV
+		return boxBorderV + s.Accent.Render(body+"  ") + boxBorderV
 	}
-	return boxBorderV + " " + body + " " + boxBorderV
+	return boxBorderV + body + "  " + boxBorderV
 }
 
 // statusLines assembles what the panel has to say about the draft, ahead of
@@ -265,7 +255,7 @@ func centerBox(boxLines []string, termWidth, termHeight int) string {
 
 // appendPanelHints spends unused rows on complete key/label pairs.
 func appendPanelHints(lines []string, hint string, width, height int, s styles.Styles) []string {
-	for _, line := range text.HintLines(hint, width, height-len(lines), "ctrl+s", "esc", "j/k", "enter", "tab") {
+	for _, line := range text.HintLines(hint, width-2, overlay.PanelHintRows(height), "ctrl+s", "esc", "j/k", "enter", "tab") {
 		lines = append(lines, "  "+s.Dim.Render(line))
 	}
 	return lines

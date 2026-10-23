@@ -27,6 +27,7 @@ type overlayInfo struct {
 	queueSummary          *overlay.QueueSummaryOverlay
 	modesLegend           *overlay.ModesLegendOverlay
 	trackInfo             *overlay.TrackInfoOverlay
+	trackInfoRequest      uint64
 	metadataEditor        *metadata.Editor
 	metadataImport        *metadata.ImportOverlay
 	destPicker            *pltui.DestinationPickerModal

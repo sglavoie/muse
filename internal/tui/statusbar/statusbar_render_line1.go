@@ -74,7 +74,7 @@ func (s StatusBar) renderLine1(ctx statusBarRenderContext, right string) string 
 		parts = append(parts, ctx.r(sep))
 	}
 	if title != "" {
-		parts = append(parts, ctx.r(title))
+		parts = append(parts, ctx.barBold.Render(title))
 	}
 	parts = append(parts, suffix)
 	return ctx.rightAlign(strings.Join(parts, ""), right)
@@ -114,12 +114,10 @@ func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 	var labels, compact []string
 	indicators := playback.ModeIndicators(s.RepeatMode, s.Shuffle, s.StopAfterCurrent, s.RadioMode)
-	full := []string{"Repeat " + s.RepeatMode.DisplayString(), "Shuffle", "Stop after track", "Auto-DJ"}
-	short := []string{"Rpt:" + s.RepeatMode.DisplayString(), "Shuf", "Stop", "DJ"}
-	for i, indicator := range indicators {
+	for _, indicator := range indicators {
 		if indicator.Active {
-			labels = append(labels, full[i])
-			compact = append(compact, short[i])
+			labels = append(labels, indicator.Label())
+			compact = append(compact, indicator.Compact)
 		}
 	}
 	label := strings.Join(labels, " · ")
@@ -129,7 +127,7 @@ func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 	if ctx.width > 0 && ansi.StringWidth(label) > ctx.width/3 {
 		label = strings.Join(compact, " ")
 	}
-	return ctx.barBold.Render(label), ansi.StringWidth(label)
+	return ctx.barDim.Render(label), ansi.StringWidth(label)
 }
 
 func (s StatusBar) renderSuffix(ctx statusBarRenderContext, cluster string, clusterWidth int) (string, int) {
@@ -142,7 +140,7 @@ func (s StatusBar) renderSuffix(ctx statusBarRenderContext, cluster string, clus
 	// Modes always survive. Other hints yield as whole labels, not half words.
 	for _, label := range s.modeLabels(true) {
 		if width+3+ansi.StringWidth(label) <= budget {
-			suffix += ctx.r(" · ") + ctx.barBold.Render(label)
+			suffix += ctx.r(" · ") + ctx.barDim.Render(label)
 			width += 3 + ansi.StringWidth(label)
 		}
 	}

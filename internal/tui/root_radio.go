@@ -70,7 +70,7 @@ func (m Model) radioToggle() (tea.Model, tea.Cmd, bool) {
 		m = m.supersedeRadioBatch()
 		m = m.djStop()
 	}
-	m.statusBar.PushMsg(m.modeToggleMsg("Auto-DJ", playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
+	m.statusBar.PushMsg(m.modeToggleMsg(playback.ModeIndexRadio), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 	if m.radio.enabled {
 		var cmd tea.Cmd
 		m, cmd = m.startRadioEnqueueCmd()

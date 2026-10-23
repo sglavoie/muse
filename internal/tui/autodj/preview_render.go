@@ -6,13 +6,14 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // previewChromeLines is what the Preview page costs before any content: the top
 // border, the tab bar, its separator, the bottom border, and the hint.
-const previewChromeLines = 5
+const previewChromeLines = 7
 
 // continuationIndent hangs a wrapped explanation under its own line so a reader
 // can tell a continuation from the next track.
@@ -21,18 +22,22 @@ const continuationIndent = 2
 // buildPreviewLines renders the Preview page as a box sized to the terminal.
 func (p TunePanel) buildPreviewLines(termWidth, termHeight int, s styles.Styles, v Preview) []string {
 	inner := innerWidth(termWidth)
-	content := max(inner-2, 0)
-	title, titleWidth := tabBarTitle(tabPreview, s, inner)
-	lines := boxHeaderRendered(title, titleWidth, inner)
+	content := max(inner-4, 0)
+	lines := panelHeader(tabPreview, s, inner)
 
 	pinned, body := v.presentationLines(p.tagNames(), content)
-	for _, line := range pinned {
-		lines = append(lines, boxBorderV+" "+s.Heading.Render(text.Pad(line.Text, content))+" "+boxBorderV)
+	maxPinned := max(0, overlay.PanelContentHeight(termHeight)-previewChromeLines-1)
+	if len(pinned) > maxPinned {
+		body = append(append([]StatusLine(nil), pinned[maxPinned:]...), body...)
+		pinned = pinned[:maxPinned]
 	}
-	start, end := previewWindow(len(body), p.previewOffset, termHeight-len(pinned))
+	for _, line := range pinned {
+		lines = append(lines, boxBorderV+"  "+s.Heading.Render(text.Pad(line.Text, content))+"  "+boxBorderV)
+	}
+	start, end := previewWindow(len(body), p.previewOffset, overlay.PanelContentHeight(termHeight)-len(pinned))
 	for i := start; i < end; i++ {
-		lines = append(lines, boxBorderV+" "+toneStyle(body[i].Tone, s).Render(
-			text.Pad(text.Truncate(body[i].Text, content), content))+" "+boxBorderV)
+		lines = append(lines, boxBorderV+"  "+toneStyle(body[i].Tone, s).Render(
+			text.Pad(text.Truncate(body[i].Text, content), content))+"  "+boxBorderV)
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
 	hint := previewHint(end-start < len(body), p.CommitLabel())
@@ -123,27 +128,21 @@ func previewHint(scrolled bool, commit string) string {
 // tabBarTitle renders the overlay title with the active tab marked, and reports
 // the display width of the plain text behind it so the border arithmetic does
 // not have to measure escape sequences.
-func tabBarTitle(active panelTab, s styles.Styles, inner int) (string, int) {
-	const name = " Auto-DJ "
-	rendered := s.Heading.Render(name)
-	width := ansi.StringWidth(name)
+func tabBarTitle(active panelTab, s styles.Styles) string {
+	rendered := ""
 	for i := range int(tabCount) {
 		label := " " + tabLabels[i] + " "
 		if panelTab(i) == active {
 			label = "[" + tabLabels[i] + "]"
 		}
-		width += ansi.StringWidth(label)
 		if panelTab(i) == active {
 			rendered += s.ActiveTab.Render(label)
 			continue
 		}
 		rendered += s.TextTertiary.Render(label)
 	}
-	if hint := " · tab/⇧tab tabs"; width+ansi.StringWidth(hint) <= inner {
-		rendered += s.Dim.Render(hint)
-		width += ansi.StringWidth(hint)
-	}
-	return rendered, width
+
+	return rendered
 }
 
 func (v Preview) presentationLines(names map[int64]string, content int) ([]StatusLine, []StatusLine) {
@@ -175,4 +174,12 @@ func (v Preview) presentationLines(names map[int64]string, content int) ([]Statu
 		}
 	}
 	return pinned, wrapPreview(filtered, content)
+}
+
+func panelHeader(active panelTab, s styles.Styles, inner int) []string {
+	lines := boxHeader("Auto-DJ · tab/shift+tab tabs", inner, s)
+	tabs := tabBarTitle(active, s)
+	lines = append(lines, boxBorderV+"  "+text.Pad(tabs, inner-4)+"  "+boxBorderV,
+		boxCrossL+strings.Repeat(boxBorderH, inner)+boxCrossR)
+	return lines
 }

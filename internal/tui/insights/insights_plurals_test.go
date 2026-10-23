@@ -16,7 +16,8 @@ func TestInsightsCountsOfOneAreSingular(t *testing.T) {
 	snap := insightsdata.Snapshot{TotalPlays: 1, SpanDays: 1}
 	snap.SessionStats.Count = 1
 	snap.Coverage.HeardTracks = 1
-	snap.Coverage.TotalTracks = 3
+	snap.Coverage.TotalTracks = 2
+	snap.Coverage.UnheardTracks = 1
 	v := View{Snap: snap, width: 120}
 
 	if got := ansi.Strip(v.renderStrip(styles.Styles{})); !strings.Contains(got, "1 play ·") {
@@ -26,7 +27,7 @@ func TestInsightsCountsOfOneAreSingular(t *testing.T) {
 		t.Errorf("sessions headline should read \"1 session\", got %q", got)
 	}
 	cov := ansi.Strip(strings.Join(v.coverageHeaderLines(styles.Styles{}), "\n"))
-	if !strings.Contains(cov, "you played 1 track.") {
-		t.Errorf("coverage header should read \"played 1 track\", got %q", cov)
+	if !strings.Contains(cov, "1 unheard track ·") {
+		t.Errorf("coverage header should read \"1 unheard track\", got %q", cov)
 	}
 }

@@ -22,8 +22,8 @@ muse uses the containing folder, keeping untagged compilations together. Album
 rows show Album Artist when present. Folder-backed albums show just the title
 when unique in the collection, or the shortest distinguishing folder suffix
 when multiple releases share that title. Filtering preserves those labels.
-Full folder paths remain searchable and appear in drill-down headings and track
-details.
+Drill-down headings retain these concise labels. Full folder paths remain
+searchable and available in track details.
 Untagged discs in separate folders remain separate; a shared Album Artist tag
 groups them across folders. Existing title-only album favorites apply to every
 matching release, and each release can then be unfavorited independently.
@@ -33,28 +33,55 @@ restores its filter, sort, focused item, and scroll position. This applies to
 Browse, Favorites, Tags, and Playlists. If that item was removed, focus moves
 to a remaining row. Press `Esc` again to clear a restored filter.
 
+On exit, muse saves your current view, open collection, filters, sort, and focused
+row. The next launch restores that location, including the parent context that
+`Esc` returns to. Tracks and collections are matched by identity; missing tracks
+fall back to a nearby row and missing collections return to their parent. A
+restored filter remains visible. Pressing a key takes control and cancels any
+unfinished restoration. Open editors and bulk selections are not restored.
+
 The navigation bar keeps all eight numbered shortcuts visible, abbreviating
 view names in compact terminals. Filter badges appear on the divider below it
 so tabs stay in place. Track tables put Title before Artist, followed by Album
 and Duration when applicable; compact tables give song identity priority over
 album detail. Collection counts name their units, such as `3 tracks`.
 
-Compact command palettes show six commands at the minimum terminal size. With
-an empty search, enabled listening actions (enqueue, play next, preview, and
-track information) come first, followed by other commands for the current view.
+Command palettes use the same compact layout at every size, showing six commands
+at the minimum terminal size. With an empty search, enabled listening actions
+(enqueue, play next, preview, and track information) come first, followed by other
+commands for the current view.
 Removal actions come after other enabled commands. Usage ranks commands within
-these groups, while explicit searches rank by the query; Help and Quit
-move to `F1` and `ctrl+c` footer shortcuts. Both remain searchable. Resizing keeps
+these groups. Broad topic searches such as `queue` favor navigation and
+inspection over removal; explicit names such as `clear queue` retain their
+query ranking. Help and Quit use `F1` and `ctrl+c` footer shortcuts. Both remain searchable. Shortcut labels
+appear only when that key runs the action in the current view. Resizing keeps
 the focused command, and unavailable commands retain their explanations.
 
 Compact footers prioritize the current task: Queue keeps `d remove`, selection
 mode keeps `X clear`, and Library keeps `: commands`. Generic navigation hints
 yield before these actions. `i` opens full track information from track lists.
-When a table leaves enough space in a window at least 24 rows tall, a two-line area above the
-footer shows the focused song's title, artist, and album independently of playback.
-It uses spare space without reducing the number of visible tracks.
+When a table leaves enough space in a window at least 24 rows tall, an area
+of up to four lines above the footer labels the focused song's title, artist,
+and album with **Focused**, independently of playback. The playback bar emphasizes the playing song's title;
+modes and playlist source use quieter text. Long titles and artist/album details
+wrap within this area, using spare space without reducing the number of visible tracks.
+
+Track Info (`i`) opens stored library metadata immediately and loads file details
+in the background. If a file cannot be inspected, the library details remain
+available with an explanation in the File metadata section. Closing the panel
+discards late results. Long editable metadata values use `‹` and `›` to show
+which side has hidden text.
+
+Settings and Auto-DJ share a fixed frame across their tabs, with scrolling
+content and a pinned footer. `tab/shift+tab` moves between tabs. Insights charts
+align names, bars, and values within each section, including while scrolling.
 
 **Playback**
+
+Now Playing, Track Info, Queue Summary, Playback Modes, Recent Messages, and
+Help accept the usual playback keys: `Space`, `n`/`p`, seek arrows, and `=`/`-`
+for volume. The overlay stays open. Text entry, including Help search, continues
+to receive those characters normally.
 
 The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 **Stop after track**, and **Auto-DJ**. When none is enabled it says
@@ -301,7 +328,10 @@ Changed Settings fields and tabs show `*`; the title counts unsaved changes.
 Restoring opening values removes their markers. Directory/exclusion lists and
 custom presets also contribute to the count.
 Insights uses a compact panel selector in ordinary windows and shows its full
-briefing when the terminal is tall enough. Use backtick/tilde to change panels.
+briefing when the terminal is tall enough. Coverage leads with the number and
+duration of unheard tracks, followed by artists and albums to explore and tracks
+to hear again; each row keeps its existing listening actions. Use backtick/tilde
+to change panels.
 
 Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its

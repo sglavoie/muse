@@ -297,7 +297,7 @@ func (v View) breadcrumb() []string {
 			breadcrumb = append(breadcrumb, v.SelectedArtist)
 		}
 		if v.SelectedAlbum != "" {
-			breadcrumb = append(breadcrumb, library.AlbumLabel(v.SelectedAlbum))
+			breadcrumb = append(breadcrumb, library.AlbumDisplayLabel(v.SelectedAlbum, v.Albums))
 		}
 	}
 	return breadcrumb

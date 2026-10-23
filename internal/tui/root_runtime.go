@@ -272,6 +272,9 @@ func waitForWatchBatch(ch <-chan library.WatchEvent) tea.Cmd {
 // readers, periodic playback/session ticks, and startup overlay refreshes.
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
+	if m.browsingRestore != nil {
+		cmds = append(cmds, browsingLoad(nil))
+	}
 	if m.scanCh != nil {
 		cmds = append(cmds, waitForNextBatch(m.scanCh))
 		if len(m.libraryRoots) > 0 {

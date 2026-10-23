@@ -8,15 +8,11 @@ import (
 	"github.com/sglavoie/muse/internal/tui/playback"
 )
 
-// TestModeToggleNotificationsNameTheGlyph verifies that each mode toggle tells
-// the user which status-bar letter it just changed. The glyph is read from
-// modeIndicators, so these assertions also guard against the notification text
-// drifting away from the cluster — including the repeat glyph, which is "1"
-// only for repeat-one and "R" for both all and off.
-func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
+// Notifications use the same readable names as the playback bar.
+func TestModeToggleNotificationsUseReadableNames(t *testing.T) {
 	t.Run("repeat cycles through all three states", func(t *testing.T) {
 		m := New(context.Background())
-		want := []string{"Repeat: all (R)", "Repeat: one (1)", "Repeat: off (R)"}
+		want := []string{"Repeat: all", "Repeat: one", "Repeat: off"}
 		for i, w := range want {
 			next, _, handled := m.handlePlaybackKeyAction(keys.ActionRepeatCycle)
 			if !handled {
@@ -31,7 +27,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 
 	t.Run("shuffle", func(t *testing.T) {
 		m := New(context.Background(), WithPlayer(&stubRepeatShuffler{}), WithSessionWriter(&stubSessionWriter{}))
-		for i, w := range []string{"Shuffle: on (S)", "Shuffle: off (S)"} {
+		for i, w := range []string{"Shuffle: on", "Shuffle: off"} {
 			next, _, handled := m.handlePlaybackKeyAction(keys.ActionShuffleToggle)
 			if !handled {
 				t.Fatalf("press %d: actionShuffleToggle not handled", i+1)
@@ -46,7 +42,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 	t.Run("stop after current", func(t *testing.T) {
 		m := New(context.Background(), WithPlayer(&stubStopAfterPlayer{}))
 		m.playback.state = playback.StatePlaying
-		for i, w := range []string{"Stop after current: on (N)", "Stop after current: off (N)"} {
+		for i, w := range []string{"Stop after track: on", "Stop after track: off"} {
 			next, _, handled := m.handlePlaybackKeyAction(keys.ActionStopAfterCurrent)
 			if !handled {
 				t.Fatalf("press %d: actionStopAfterCurrent not handled", i+1)
@@ -60,7 +56,7 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 
 	t.Run("radio", func(t *testing.T) {
 		m := New(context.Background())
-		for i, w := range []string{"Auto-DJ: on (D)", "Auto-DJ: off (D)"} {
+		for i, w := range []string{"Auto-DJ: on", "Auto-DJ: off"} {
 			next, _, handled := m.handlePlaybackKeyAction(keys.ActionRadioToggle)
 			if !handled {
 				t.Fatalf("press %d: actionRadioToggle not handled", i+1)
@@ -73,10 +69,8 @@ func TestModeToggleNotificationsNameTheGlyph(t *testing.T) {
 	})
 }
 
-// TestModeToggleMsgMatchesClusterGlyph pins the notification text to the very
-// glyph renderModeCluster would draw for the same state, so a future change to
-// a glyph cannot silently leave the notifications teaching the old letter.
-func TestModeToggleMsgMatchesClusterGlyph(t *testing.T) {
+// Shared definitions keep notifications aligned with the playback bar.
+func TestModeToggleMsgMatchesModeNames(t *testing.T) {
 	m := New(context.Background())
 	m.playback.repeatMode = playback.RepeatOne
 	m.playback.shuffle = true
@@ -84,16 +78,10 @@ func TestModeToggleMsgMatchesClusterGlyph(t *testing.T) {
 	m.radio.enabled = true
 
 	indicators := playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)
-	labels := map[int]string{
-		playback.ModeIndexRepeat:    "Repeat",
-		playback.ModeIndexShuffle:   "Shuffle",
-		playback.ModeIndexStopAfter: "Stop after current",
-		playback.ModeIndexRadio:     "Radio mode",
-	}
 	for i, ind := range indicators {
-		want := labels[i] + ": " + ind.State + " (" + ind.Glyph + ")"
-		if got := m.modeToggleMsg(labels[i], i); got != want {
-			t.Errorf("modeToggleMsg(%q, %d) = %q, want %q", labels[i], i, got, want)
+		want := ind.Name + ": " + ind.State
+		if got := m.modeToggleMsg(i); got != want {
+			t.Errorf("modeToggleMsg(%d) = %q, want %q", i, got, want)
 		}
 	}
 }

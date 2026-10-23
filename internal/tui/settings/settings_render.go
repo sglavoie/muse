@@ -13,13 +13,14 @@ import (
 )
 
 // Render produces a horizontally centered, top-anchored settings box. The box
-// keeps a fixed width so switching tabs only changes its height, and it grows
-// downward from the top rather than re-centering on every tab.
+// keeps a fixed frame across tabs, with scrolling content and a pinned footer.
 func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) string {
 	if o.discard.Active {
 		return o.discard.Render(termWidth, termHeight, s)
 	}
-	boxInner := max(min(termWidth-8, 80), overlay.MinInnerWidth)
+	termHeight = overlay.PanelHeight(termHeight)
+	bodyHeight := overlay.PanelContentHeight(termHeight)
+	boxInner := overlay.PanelInnerWidth(termWidth)
 	contentWidth := boxInner - overlay.HPadding
 
 	var lines []string
@@ -33,7 +34,7 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	for _, fields := range changes {
 		count += changedCount(fields)
 	}
-	title := o.title(count)
+	title := text.Truncate(o.title(count), boxInner)
 	titlePad := max(0, boxInner-ansi.StringWidth(title))
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
@@ -68,21 +69,21 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 
 	// Content rows.
 	if o.Tab == tabLibrary {
-		lines = o.renderLibraryTab(lines, contentWidth, termHeight, s)
+		lines = o.renderLibraryTab(lines, contentWidth, bodyHeight, s)
 	} else {
-		lines = o.renderFieldsTab(lines, contentWidth, termHeight, s)
+		lines = o.renderFieldsTab(lines, contentWidth, bodyHeight, s)
 	}
 
 	// Hints get spare rows before explanatory copy does.
-	hints := text.HintLines(o.keyHint(), boxInner, termHeight-len(lines)-1, "ctrl+s", "esc", "enter", "tab/⇧tab", "j/k")
-	lines = o.appendDescription(lines, contentWidth, termHeight-len(lines)-1-len(hints), s)
+	hints := text.HintLines(o.keyHint(), boxInner-2, overlay.PanelHintRows(termHeight), "ctrl+s", "esc", "enter", "tab/shift+tab", "j/k")
+	lines = o.appendDescription(lines, contentWidth, termHeight-len(lines)-1-overlay.PanelHintRows(termHeight), s)
 	// Bottom border.
 	lines = append(lines, overlay.CornerBL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CornerBR)
 
 	for _, hint := range hints {
-		lines = append(lines, s.Dim.Render(hint))
+		lines = append(lines, "  "+s.Dim.Render(hint))
 	}
-	return overlay.RenderTopLines(lines, "", termWidth)
+	return overlay.RenderPanelLines(lines, termWidth, termHeight)
 }
 
 func (o SettingsOverlay) keyHint() string {
@@ -98,9 +99,9 @@ func (o SettingsOverlay) keyHint() string {
 	case TabDisplay:
 		return o.displayHint()
 	case TabEqualizer:
-		return "s save preset · d delete · tab/⇧tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+		return "s save preset · d delete · tab/shift+tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 	default:
-		return "tab/⇧tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
+		return "tab/shift+tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 	}
 }
 
@@ -109,9 +110,9 @@ func (o SettingsOverlay) libraryHint() string {
 		return "enter add · esc cancel"
 	}
 	if o.libSubView == libSubViewExcluded {
-		return "a add · d delete · tab/⇧tab tabs · j/k navigate · ctrl+s save · esc back"
+		return "a add · d delete · tab/shift+tab tabs · j/k navigate · ctrl+s save · esc back"
 	}
-	return "a add · d delete · e excluded · tab/⇧tab tabs · j/k navigate · ctrl+s save · esc cancel"
+	return "a add · d delete · e excluded · tab/shift+tab tabs · j/k navigate · ctrl+s save · esc cancel"
 }
 
 func (o SettingsOverlay) renderLibraryTab(lines []string, contentWidth, termHeight int, s styles.Styles) []string {
@@ -291,7 +292,7 @@ func (o SettingsOverlay) title(changes int) string {
 		return fmt.Sprintf("Settings · %d unsaved %s", changes, text.Pluralize(changes, "change", "changes"))
 	}
 	if !o.editingText() {
-		return "Settings · tab/⇧tab tabs"
+		return "Settings · tab/shift+tab tabs"
 	}
 	return " ⚙ Settings "
 }

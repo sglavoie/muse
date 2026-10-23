@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sglavoie/muse/internal/radio"
+	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/styles"
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -12,16 +13,15 @@ import (
 // buildRecipesLines renders the Recipes page as a box sized to the terminal.
 func (p TunePanel) buildRecipesLines(termWidth, termHeight int, s styles.Styles) []string {
 	inner := innerWidth(termWidth)
-	content := max(inner-2, 0)
-	title, titleWidth := tabBarTitle(tabRecipes, s, inner)
-	lines := boxHeaderRendered(title, titleWidth, inner)
+	content := max(inner-4, 0)
+	lines := panelHeader(tabRecipes, s, inner)
 
 	logical, focus := p.recipeLines()
 	body, focusLine := wrapRecipeLines(logical, focus, content)
-	start, end := recipeWindow(len(body), focusLine, termHeight)
+	start, end := recipeWindow(len(body), focusLine, overlay.PanelContentHeight(termHeight))
 	for i := start; i < end; i++ {
-		lines = append(lines, boxBorderV+" "+toneStyle(body[i].Tone, s).Render(
-			text.Pad(text.Truncate(body[i].Text, content), content))+" "+boxBorderV)
+		lines = append(lines, boxBorderV+"  "+toneStyle(body[i].Tone, s).Render(
+			text.Pad(text.Truncate(body[i].Text, content), content))+"  "+boxBorderV)
 	}
 	lines = append(lines, boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
 	return appendPanelHints(lines, p.recipeHint(end-start < len(body)), inner, termHeight, s)
@@ -149,7 +149,7 @@ func recipeWindow(total, focusLine, termHeight int) (int, int) {
 // would invite the arrow keys to move a cursor the box has taken over.
 func (p TunePanel) buildPromptLines(termWidth int, s styles.Styles) []string {
 	inner := innerWidth(termWidth)
-	content := max(inner-2, 0)
+	content := max(inner-4, 0)
 	prompt := *p.prompt
 	lines := boxHeader(prompt.title(), inner, s)
 
@@ -158,7 +158,7 @@ func (p TunePanel) buildPromptLines(termWidth int, s styles.Styles) []string {
 		value = s.Dim.Render("type a name…")
 	}
 	lines = append(lines,
-		boxBorderV+" "+text.Pad(value, content)+" "+boxBorderV,
+		boxBorderV+"  "+text.Pad(value, content)+"  "+boxBorderV,
 		boxCornerBL+strings.Repeat(boxBorderH, inner)+boxCornerBR)
 	return append(lines, "  "+s.Dim.Render(
 		text.Truncate("enter confirm · ctrl+u clear · esc cancel", inner)))

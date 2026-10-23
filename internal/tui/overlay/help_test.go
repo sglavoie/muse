@@ -253,10 +253,10 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 		toggle string
 		act    keys.Action
 	}{
-		{"R / 1", "r", keys.ActionRepeatCycle},
-		{"S", "z", keys.ActionShuffleToggle},
-		{"N", "ctrl+n", keys.ActionStopAfterCurrent},
-		{"D", "A", keys.ActionRadioToggle},
+		{"Repeat all/one", "r", keys.ActionRepeatCycle},
+		{"Shuffle", "z", keys.ActionShuffleToggle},
+		{"Stop after track", "ctrl+n", keys.ActionStopAfterCurrent},
+		{"Auto-DJ", "A", keys.ActionRadioToggle},
 	}
 
 	var sec HelpSection
@@ -266,7 +266,7 @@ func TestStatusBarHelpSectionDescribesToggleKeys(t *testing.T) {
 			break
 		}
 	}
-	if len(sec.entries) != len(want) {
+	if len(sec.entries) != len(want)+1 {
 		t.Fatalf("%q section has %d entries, want %d", StatusBarHelpSectionTitle, len(sec.entries), len(want))
 	}
 

@@ -253,6 +253,9 @@ func runTUI(ctx context.Context, opts tuiOptions) error {
 	// in-flight listen here, ahead of the app.Shutdown calls that cancel the DB
 	// writer. Writer.Exec is synchronous and there is no concurrent taker.
 	if m, ok := finalModel.(tui.Model); ok {
+		if err := m.SaveBrowsingSession(); err != nil {
+			slog.Warn("quit: save browsing session failed", "err", err)
+		}
 		if rec, ok := m.TakePendingListen(); ok {
 			if err := result.Writer.RecordListen(rec); err != nil {
 				slog.Warn("quit: flush pending listen failed", "err", err)

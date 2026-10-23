@@ -39,9 +39,10 @@ func (m Model) View() tea.View {
 		hintExtra = 1
 	}
 	if padding := m.termHeight - bodyLines - 2 - confirmExtra - hintExtra; padding > 0 {
-		detail := m.renderFocusedIdentity()
+		detail := m.renderFocusedIdentity(padding - 1)
 		if detail != "" && padding >= 3 {
-			body += strings.Repeat("\n", padding-2) + "\n" + detail
+			detailLines := strings.Count(detail, "\n") + 1
+			body += strings.Repeat("\n", padding-detailLines) + "\n" + detail
 		} else {
 			body += strings.Repeat("\n", padding)
 		}
@@ -148,7 +149,9 @@ func (m Model) renderOverlayBody() (string, bool) {
 	case m.overlay.settings != nil:
 		return m.overlay.settings.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.nowPlaying != nil:
-		return m.overlay.nowPlaying.Render(m.termWidth, overlayHeight, *m.styles), true
+		now := *m.overlay.nowPlaying
+		now.State, now.Elapsed, now.Total = m.playback.state, m.playback.elapsedSecs, m.playback.totalSecs
+		return now.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.messages != nil:
 		return m.overlay.messages.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.queueSummary != nil:

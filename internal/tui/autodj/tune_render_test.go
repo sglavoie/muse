@@ -99,14 +99,14 @@ func TestRenderDropsTheStatusBlockBeforeTheRows(t *testing.T) {
 
 	// Nine lines leave four for content: too few to pay for a separator and an
 	// explanation on top of a usable row window.
-	rows, shown := p.splitBudget(9, p.statusLines(status))
+	rows, shown := p.splitBudget(11, p.statusLines(status))
 	if len(shown) != 0 {
-		t.Fatalf("status lines = %v, want them dropped at 9 lines", shown)
+		t.Fatalf("status lines = %v, want them dropped at 11 lines", shown)
 	}
 	if rows < minRowLines {
 		t.Fatalf("row budget = %d, want at least %d", rows, minRowLines)
 	}
-	assertFitsBox(t, p.Render(minWidth, 9, styles.NewStyles(true), status, Preview{}), minWidth, 9)
+	assertFitsBox(t, p.Render(minWidth, 11, styles.NewStyles(true), status, Preview{}), minWidth, 11)
 }
 
 func TestRenderCapsTheStatusBlock(t *testing.T) {
@@ -172,5 +172,31 @@ func TestToneStylesAreDistinct(t *testing.T) {
 	fail := toneStyle(ToneError, s).Render("x")
 	if info == warn || warn == fail || info == fail {
 		t.Fatalf("tones render identically: info=%q warn=%q error=%q", info, warn, fail)
+	}
+}
+
+func TestPanelFrameAndFooterStayPutAcrossTabsAndPreviewStates(t *testing.T) {
+	for _, size := range [][2]int{{60, 12}, {80, 21}, {120, 37}} {
+		p := newTestPanel(true)
+		bottom := -1
+		for _, tab := range []panelTab{tabTune, tabPreview, tabRecipes} {
+			p.tab = tab
+			for _, preview := range []Preview{{}, readyPreview(), failedPreview()} {
+				out := plain(p.Render(size[0], size[1], styles.NewStyles(true), nil, preview))
+				assertFitsBox(t, out, size[0], size[1])
+				lines := strings.Split(out, "\n")
+				if !strings.Contains(lines[0], "╭") || !strings.Contains(lines[1], "Auto-DJ") {
+					t.Fatal(out)
+				}
+				for i, line := range lines {
+					if strings.Contains(line, "╰") {
+						if bottom >= 0 && bottom != i {
+							t.Fatalf("tab %d moved footer: %s", tab, out)
+						}
+						bottom = i
+					}
+				}
+			}
+		}
 	}
 }

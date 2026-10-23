@@ -232,7 +232,7 @@ func (v View) renderStateStrip(total, filtered int) string {
 	}
 	breadcrumb := []string{root}
 	if v.Level == TrackLevel && v.SelectedAlbum != "" {
-		breadcrumb = append(breadcrumb, library.AlbumLabel(v.SelectedAlbum))
+		breadcrumb = append(breadcrumb, library.AlbumDisplayLabel(v.SelectedAlbum, v.Albums))
 	}
 	hint := ""
 	if len(breadcrumb) > 1 {

@@ -17,7 +17,6 @@ func TestCompactPalettePrioritizesRunnableContextAndPreservesResizeTarget(t *tes
 		commands = append(commands, PaletteCommand{Name: fmt.Sprintf("Action %02d", i)})
 	}
 	cp, _ := NewCommandPalette(commands, nil)
-	cp = cp.WithHeight(12)
 	if cp.Filtered[0].Name != "Z current view" {
 		t.Fatal(cp.Filtered)
 	}
@@ -29,7 +28,6 @@ func TestCompactPalettePrioritizesRunnableContextAndPreservesResizeTarget(t *tes
 		t.Fatal("compact palette overflow", out)
 	}
 	for _, height := range []int{27, 12, 30, 12} {
-		cp = cp.WithHeight(height)
 		_, cmd := cp.HandleKey("enter", tea.KeyPressMsg{}, height)
 		if cmd == nil || cmd().(CommandPalettePickedMsg).Command.Name != "Z current view" {
 			t.Fatal("resize changed execution target")
@@ -51,13 +49,14 @@ func TestCompactPalettePrioritizesRunnableContextAndPreservesResizeTarget(t *tes
 func TestResizePreservesFocusedHelpAndQuit(t *testing.T) {
 	for _, name := range []string{"Help", "Quit"} {
 		cp, _ := NewCommandPalette(pinnedCommands(), nil)
+		cp.Filter.Text = name
+		cp.Refilter()
 		for i, command := range cp.Filtered {
 			if command.Name == name {
 				cp.cursor = i
 			}
 		}
 		for _, height := range []int{12, 27, 12} {
-			cp = cp.WithHeight(height)
 			_, cmd := cp.HandleKey("enter", tea.KeyPressMsg{}, height)
 			if cmd == nil || cmd().(CommandPalettePickedMsg).Command.Name != name {
 				t.Fatalf("resizing changed %s into another action", name)

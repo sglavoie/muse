@@ -217,3 +217,20 @@ func runPaletteCommandForTest(t *testing.T, m Model, name string) Model {
 	t.Fatalf("palette command %q not found", name)
 	return m
 }
+
+func TestPaletteBroadSearchOpensQueueAndExplicitSearchClearsIt(t *testing.T) {
+	m := newRichFixture()
+	cp, _ := palette.NewCommandPalette(m.BuildPaletteCommands(), nil)
+	for _, tc := range []struct{ query, id string }{
+		{"queue", "nav.queue"},
+		{"clear queue", "queue.clear"},
+		{"playlist", "nav.playlists"},
+		{"tags", "nav.tags"},
+	} {
+		cp.Filter.Text = tc.query
+		cp.Refilter()
+		if len(cp.Filtered) == 0 || cp.Filtered[0].ID != tc.id {
+			t.Fatalf("query %q: %+v", tc.query, cp.Filtered)
+		}
+	}
+}

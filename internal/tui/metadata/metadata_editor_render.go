@@ -37,15 +37,15 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	rightTP := titlePad - leftTP
 	lines = append(lines, overlay.BorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(title)+strings.Repeat(" ", rightTP)+overlay.BorderV)
 
+	// Separator.
+	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
+
 	// Keep the filename visible while editing metadata when there is a spare row.
 	contextRows := 0
 	if e.filename != "" && termHeight >= len(renderFields)+5+len(strings.Split(e.hintLine(), "\n")) {
 		lines = append(lines, overlay.BorderV+s.Dim.Render(text.Pad("  File: "+e.filename, boxInner))+overlay.BorderV)
 		contextRows = 1
 	}
-
-	// Separator.
-	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Field rows.
 	lines = append(lines, e.fieldRowLines(renderFields, valueWidth, termHeight-contextRows, s)...)
@@ -72,7 +72,7 @@ func (e Editor) Render(termWidth, termHeight int, s styles.Styles) string {
 	}
 	lines = append(lines, hints...)
 
-	return centerBoxLines(lines, termWidth, termHeight)
+	return overlay.RenderTopLines(lines, "", termWidth)
 }
 
 // fieldLabels returns the field labels, marking every edited field that
@@ -148,13 +148,7 @@ func (e Editor) fieldRowLines(renderFields []int, valueWidth, termHeight int, s 
 // focusedFieldRow renders the focused field's row content, resizing its text
 // input to the box first.
 func (e Editor) focusedFieldRow(i int, label string, valueWidth int) string {
-	// View() renders at Width+1 visible chars (cursor adds 1),
-	// so subtract 1 to fit exactly in valueWidth.
-	e.Fields[i].SetWidth(valueWidth - 1)
-	pos := e.Fields[i].Position()
-	e.Fields[i].CursorEnd()    // force viewport recomputation with new width
-	e.Fields[i].SetCursor(pos) // restore cursor; viewport is now correctly sized
-	return fmt.Sprintf("  %*s %s  ", maxLabelW, label, e.Fields[i].View())
+	return fmt.Sprintf("  %*s %s  ", maxLabelW, label, inputWithOverflow(e.Fields[i], valueWidth))
 }
 
 // valueFieldRows renders a non-focused field: the label sits on the first row
@@ -204,31 +198,6 @@ func (e Editor) hintLine() string {
 		hint += fmt.Sprintf("\n  * %d fields changed", changed)
 	}
 	return hint
-}
-
-// centerBoxLines pads the assembled box so it sits centered in the terminal.
-func centerBoxLines(lines []string, termWidth, termHeight int) string {
-	boxW := ansi.StringWidth(lines[0])
-	boxH := len(lines)
-
-	leftPad := 0
-	if termWidth > boxW {
-		leftPad = (termWidth - boxW) / 2
-	}
-	topPad := 0
-	if termHeight > boxH {
-		topPad = (termHeight - boxH) / 2
-	}
-
-	prefix := strings.Repeat(" ", leftPad)
-	var b strings.Builder
-	for range topPad {
-		b.WriteByte('\n')
-	}
-	for _, line := range lines {
-		b.WriteString(prefix + line + "\n")
-	}
-	return b.String()
 }
 
 func metadataEditorContinuationBudget(termHeight, fieldCount int) int {

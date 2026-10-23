@@ -1,0 +1,143 @@
+{
+  "name": "readability-and-consistency",
+  "fixture": "narrow",
+  "size": "80x24",
+  "actions": [
+    {
+      "assert": {
+        "contains": "Reasonable Column Width"
+      }
+    },
+    {
+      "key": "M"
+    },
+    {
+      "assert": {
+        "contains": "\u2039"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "home"
+    },
+    {
+      "assert": {
+        "contains": "\u203a"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "command": "track.info"
+    },
+    {
+      "assert": {
+        "overlay": "track_info"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Library metadata"
+      }
+    },
+    {
+      "key": "G"
+    },
+    {
+      "assert": {
+        "contains": "fixture mode"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "ctrl+a"
+    },
+    {
+      "assert": {
+        "contains": "tab/shift+tab tabs"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "wait": "100ms"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "ctrl+,"
+    },
+    {
+      "assert": {
+        "contains": "tab/shift+tab tabs"
+      }
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "key": "tab"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

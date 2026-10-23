@@ -19,7 +19,7 @@ func TestPaletteAliasesRankAfterNames(t *testing.T) {
 		{ID: "quit", Name: "Quit", Pinned: PinBottom},
 	}
 	cp, _ := NewCommandPalette(commands, usage)
-	if cp.Filtered[1].ID != "alias" {
+	if cp.Filtered[0].ID != "alias" {
 		t.Fatal("empty query should retain usage ranking")
 	}
 	cp.Filter.Text = "  REFRESH LIBRARY  "

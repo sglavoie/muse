@@ -18,6 +18,9 @@ func (m Model) handleNowPlayingKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	if m.overlay.nowPlaying == nil {
 		return m, nil, false
 	}
+	if next, cmd, ok := m.handleInfoTransport(msg); ok {
+		return next, cmd, true
+	}
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.nowPlaying = nil

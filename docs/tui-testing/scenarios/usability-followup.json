@@ -18,7 +18,7 @@
     {"assert": {"no_layout_issues": true}},
     {"key": "G"},
     {"assert": {"contains": "100%"}},
-    {"assert": {"contains": "Esc close"}},
+    {"assert": {"contains": "esc close"}},
     {"key": "/"},
     {"text": "queue"},
     {"assert": {"no_layout_issues": true}},

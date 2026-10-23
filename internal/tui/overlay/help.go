@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sglavoie/muse/internal/tui/keys"
+	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -201,4 +202,17 @@ func helpEntryDesc(desc string, descCol, width int) string {
 		return wrapText(desc, max(width-descCol, 1), descCol)
 	}
 	return desc
+}
+
+func statusModeHelpEntries() []helpEntry {
+	var entries []helpEntry
+	for i, mode := range playback.ModeIndicators(playback.RepeatAll, true, true, true) {
+		label, compact := mode.Label(), mode.Compact
+		if i == playback.ModeIndexRepeat {
+			label += "/one"
+			compact += "/one"
+		}
+		entries = append(entries, helpEntry{label, "Compact: " + compact + " — toggle with " + mode.Key})
+	}
+	return append(entries, helpEntry{"Sequential", "All playback modes are off"})
 }

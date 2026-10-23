@@ -2,9 +2,9 @@ package overlay
 
 import "github.com/sglavoie/muse/internal/library"
 
-// WithLibraryMetadata presents the effective values first. File values remain
+// withLibraryMetadata presents the effective values first. File values remain
 // visible when different, including absent tags and explicitly blank values.
-func (t TrackInfoOverlay) WithLibraryMetadata(track library.Track) TrackInfoOverlay {
+func (t TrackInfoOverlay) withLibraryMetadata(track library.Track) TrackInfoOverlay {
 	fields := []Row{
 		{Label: "Title:", Text: track.Title},
 		{Label: "Artist:", Text: track.Artist},

@@ -419,7 +419,6 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		commands := m.BuildPaletteCommands()
 		if len(commands) > 0 {
 			cp, cmd := palette.NewCommandPalette(commands, m.paletteUsage)
-			cp = cp.WithHeight(max(m.termHeight-3, 1))
 			m.overlay.commandPalette = &cp
 			return m, cmd
 		}
@@ -455,6 +454,9 @@ func (m Model) buildModesLegend() *overlay.ModesLegendOverlay {
 func (m Model) handleModesLegendKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bool) {
 	if m.overlay.modesLegend == nil {
 		return m, nil, false
+	}
+	if next, cmd, ok := m.handleInfoTransport(msg); ok {
+		return next, cmd, true
 	}
 	switch msg.String() {
 	case "ctrl+c":

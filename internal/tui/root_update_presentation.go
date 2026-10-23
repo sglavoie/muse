@@ -3,7 +3,6 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"fmt"
-	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/tui/overlay"
 	"github.com/sglavoie/muse/internal/tui/palette"
@@ -29,19 +28,15 @@ func (m Model) handleWatchStatus(msg library.WatchStatusMsg) Model {
 }
 
 func (m Model) handleTrackInfoResult(msg overlay.TrackInfoMsg) Model {
-	if msg.Err != nil {
-		m.statusBar.NotifyError("Track info failed: " + msg.Err.Error())
-	} else {
-		var userTags []db.TagRow
-		if m.tagReader != nil && msg.Hash != "" {
-			userTags, _ = m.tagReader.ReadTagsForTrack(msg.Hash)
-		}
-		info := overlay.NewTrackInfoOverlay(msg.Path, msg.Tags, msg.PlayCount, userTags)
-		if track, ok := m.library.Index.FindByHash(msg.Hash); ok {
-			info = info.WithLibraryMetadata(track)
-		}
-		m.overlay.trackInfo = &info
+	current := m.overlay.trackInfo
+	if current == nil || msg.Request != current.Request || msg.Path != current.Path {
+		return m
 	}
+	if msg.Err != nil {
+		m.statusBar.NotifyError("File details unavailable: " + msg.Err.Error())
+	}
+	info := current.WithFileResult(msg)
+	m.overlay.trackInfo = &info
 
 	return m
 }

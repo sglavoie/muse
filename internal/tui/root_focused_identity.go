@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"path/filepath"
 	"strings"
 
@@ -10,11 +11,11 @@ import (
 // Use otherwise empty space above the footer for the focused song, without
 // taking rows from a full table or moving the cursor. Information follows focus,
 // independently of the song playing in the status bar.
-func (m Model) renderFocusedIdentity() string {
-	if m.hasActiveOverlay() || m.termHeight < 24 {
+func (m Model) renderFocusedIdentity(maxLines int) string {
+	if m.hasActiveOverlay() || m.termHeight < 24 || maxLines < 2 {
 		return ""
 	}
-	track, ok := m.focusedTrackForPreview()
+	track, ok := m.focusedTrackForInspection()
 	if !ok {
 		return ""
 	}
@@ -29,6 +30,24 @@ func (m Model) renderFocusedIdentity() string {
 		}
 	}
 	width := max(m.termWidth-2, 0)
-	return "  " + m.styles.TextSecondary.Render(text.Truncate(title, width)) + "\n  " +
-		m.styles.Dim.Render(text.Truncate(strings.Join(context, " — "), width))
+	maxLines = min(maxLines, 4)
+	titleLines := focusedIdentityLines("Focused · "+title, width, maxLines-1)
+	contextLines := focusedIdentityLines(strings.Join(context, " — "), width, maxLines-len(titleLines))
+	var lines []string
+	for _, line := range titleLines {
+		lines = append(lines, "  "+m.styles.TextSecondary.Render(line))
+	}
+	for _, line := range contextLines {
+		lines = append(lines, "  "+m.styles.Dim.Render(line))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func focusedIdentityLines(value string, width, budget int) []string {
+	lines := strings.Split(ansi.Wrap(value, width, " "), "\n")
+	if len(lines) > budget {
+		lines[budget-1] = text.Truncate(strings.Join(lines[budget-1:], " "), width)
+		lines = lines[:budget]
+	}
+	return lines
 }

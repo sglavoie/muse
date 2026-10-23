@@ -52,6 +52,9 @@ func (m Model) handleQueueSummaryKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, 
 	if m.overlay.queueSummary == nil {
 		return m, nil, false
 	}
+	if next, cmd, ok := m.handleInfoTransport(msg); ok {
+		return next, cmd, true
+	}
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.queueSummary = nil

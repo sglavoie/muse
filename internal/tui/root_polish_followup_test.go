@@ -45,7 +45,7 @@ func TestHelpFooterStaysVisibleAndFits(t *testing.T) {
 			next, _ = m.Update(tea.KeyPressMsg{Code: key, Text: string(key)})
 			m = next.(Model)
 			screen := ansi.Strip(m.View().Content)
-			if !strings.Contains(screen, "Esc ") || !strings.Contains(screen, "%") {
+			if !strings.Contains(screen, "esc ") || !strings.Contains(screen, "%") {
 				t.Fatalf("missing help footer: %s", screen)
 			}
 			if key == 'G' && !strings.Contains(screen, "100%") {

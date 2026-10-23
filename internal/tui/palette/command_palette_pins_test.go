@@ -18,13 +18,13 @@ func pinnedCommands() []PaletteCommand {
 	}
 }
 
-func TestCommandPaletteTopPinFirst(t *testing.T) {
+func TestCommandPaletteStartsWithTaskAtEverySize(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	if cp.Filtered[0].Name != "Help" {
-		t.Errorf("filtered[0]: want Help (top pin), got %q", cp.Filtered[0].Name)
-	}
-	if cp.Filtered[len(cp.Filtered)-1].Name != "Quit" {
-		t.Errorf("filtered[last]: want Quit (bottom pin), got %q", cp.Filtered[len(cp.Filtered)-1].Name)
+	for _, height := range []int{12, 24, 40} {
+		out := ansi.Strip(cp.Render(80, height, styles.NewStyles(true)))
+		if cp.Filtered[0].Name != "Alpha action" || len(cp.Filtered) != 3 || !strings.Contains(out, "1/3") || !strings.Contains(out, "F1 help · ctrl+c quit") {
+			t.Fatal(out)
+		}
 	}
 }
 
@@ -58,8 +58,8 @@ func TestCommandPaletteRecentHeaderWhenEmpty(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), usage)
 	s := styles.NewStyles(true)
 	out := ansi.Strip(cp.Render(80, 24, s))
-	if !strings.Contains(out, "Recent & frequent") {
-		t.Error("empty-query render should contain 'Recent & frequent' header")
+	if strings.Contains(out, "Recent & frequent") || cp.Filtered[0].Name != "Alpha action" {
+		t.Error("usage ranking should survive without extra chrome")
 	}
 }
 
@@ -92,10 +92,10 @@ func TestCommandPaletteRecentHeaderHiddenWithQuery(t *testing.T) {
 // Quit.
 func TestCommandPaletteQueryChangeResetsCursorOffBottomPin(t *testing.T) {
 	cp, _ := NewCommandPalette(pinnedCommands(), nil)
-	// Full layout: [Help, Alpha, Middle, Zebra, Quit] -> cursor on Zebra.
-	cp.cursor = 3
+	// Start on the last task, then narrow to a single result.
+	cp.cursor = 2
 	if cp.Filtered[cp.cursor].Name != "Zebra action" {
-		t.Fatalf("setup: want Zebra action at 3, got %q", cp.Filtered[cp.cursor].Name)
+		t.Fatalf("setup: want Zebra action at 2, got %q", cp.Filtered[cp.cursor].Name)
 	}
 	// Narrow body to a single match: layout becomes [Help, Alpha, Quit].
 	cp.Filter.Text = "alpha"

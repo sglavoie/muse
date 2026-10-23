@@ -40,5 +40,5 @@ func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) st
 	}
 	progress := fmt.Sprintf("%s %s / %s", icon, text.FormatPositionSecs(n.Elapsed), text.FormatPositionSecs(n.Total))
 	return renderTrackOverlay(n.Title, n.Artist, n.Album, progress, n.PlayCount, n.TagsLine,
-		" ♪ Now Playing ", "I or esc to dismiss", termWidth, termHeight, s)
+		" ♪ Now Playing ", "space play/pause · n/p skip · esc close", termWidth, termHeight, s)
 }

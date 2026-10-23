@@ -121,21 +121,12 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m.overlay.trackInfo = nil
 			return m, nil, true
 		}
-		track, ok := m.focusedTrackForPreview()
+		track, ok := m.focusedTrackForInspection()
 		if !ok {
 			m.statusBar.Notify("No track to inspect")
 			return m, nil, true
 		}
-		if track.Path == "" {
-			if t, ok := m.library.Index.FindByHash(track.Hash); ok {
-				track = t
-			}
-		}
-		if track.Path == "" {
-			m.statusBar.Notify("Track path unknown")
-			return m, nil, true
-		}
-		return m, overlay.TrackInfoCmd(m.appCtx, track.Path, track.Hash, track.PlayCount), true
+		return m.openTrackInfo(track)
 	case keys.ActionNowPlayingInfo:
 		if m.overlay.nowPlaying != nil {
 			m.overlay.nowPlaying = nil
@@ -319,7 +310,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				slog.Warn("write repeat mode failed", "err", err)
 			}
 		}
-		m.statusBar.PushMsg(m.modeToggleMsg("Repeat", playback.ModeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
+		m.statusBar.PushMsg(m.modeToggleMsg(playback.ModeIndexRepeat), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true
 	case keys.ActionShuffleToggle:
 		m.playback.shuffle = !m.playback.shuffle
@@ -343,7 +334,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 				return m, nil, true
 			}
 		}
-		m.statusBar.PushMsg(m.modeToggleMsg("Shuffle", playback.ModeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
+		m.statusBar.PushMsg(m.modeToggleMsg(playback.ModeIndexShuffle), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true
 	case keys.ActionStopAfterCurrent:
 		if m.playback.state != playback.StatePlaying && m.playback.state != playback.StatePaused {
@@ -354,7 +345,7 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 		if sat, ok := m.player.(stopAfterToggler); ok {
 			sat.SetStopAfterCurrent(m.playback.stopAfterCurrent)
 		}
-		m.statusBar.PushMsg(m.modeToggleMsg("Stop after current", playback.ModeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
+		m.statusBar.PushMsg(m.modeToggleMsg(playback.ModeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true
 	case keys.ActionRadioToggle:
 		return m.radioToggle()
@@ -392,12 +383,8 @@ func (m Model) handleVolume(sign int) (tea.Model, tea.Cmd, bool) {
 	return m, nil, true
 }
 
-// modeToggleMsg renders the feedback for one mode toggle as
-// "<label>: <state> (<glyph>)" — e.g. "Shuffle: on (S)" — so the notification
-// teaches the letter the status-bar cluster shows. State and glyph are read
-// from modeIndicators, which is why they cannot drift from the cluster; the
-// label is supplied by the action using the same visible mode names.
-func (m Model) modeToggleMsg(label string, index int) string {
+// modeToggleMsg uses the same mode names as the status bar and Help.
+func (m Model) modeToggleMsg(index int) string {
 	ind := playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled)[index]
-	return label + ": " + ind.State + " (" + ind.Glyph + ")"
+	return ind.Name + ": " + ind.State
 }

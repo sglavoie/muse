@@ -43,7 +43,7 @@ func (s *stubErrSessionWriter) UpdateSessionPosition(string, int64) error {
 func (s *stubErrSessionWriter) WriteVolume(int) error { return nil }
 
 // TestShuffleToggle_Success enables shuffle, propagating to the player and
-// persisting the flag, and shows the "Shuffle: on (S)" feedback naming the
+// persisting the flag, and shows the "Shuffle: on" feedback naming the
 // status-bar glyph.
 func TestShuffleToggle_Success(t *testing.T) {
 	p := &stubRepeatShuffler{}
@@ -65,8 +65,8 @@ func TestShuffleToggle_Success(t *testing.T) {
 	if len(sw.shuffleCalls) != 1 || !sw.shuffleCalls[0] {
 		t.Errorf("WriteShuffle calls = %v, want [true]", sw.shuffleCalls)
 	}
-	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "Shuffle: on (S)") {
-		t.Errorf("status = %q, want it to contain 'Shuffle: on (S)'", msg)
+	if msg := nm.statusBar.TopNotification().Msg; !strings.Contains(msg, "Shuffle: on") {
+		t.Errorf("status = %q, want it to contain 'Shuffle: on'", msg)
 	}
 }
 

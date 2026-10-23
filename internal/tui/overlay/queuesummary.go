@@ -48,6 +48,6 @@ func (q QueueSummaryOverlay) Render(termWidth, termHeight int, s styles.Styles) 
 		{Label: "Sources:", Text: strconv.Itoa(q.Sources)},
 	}
 
-	box := Box{Title: " Queue Summary ", Rows: rows, Hint: "q or esc to dismiss"}
+	box := Box{Title: " Queue Summary ", Rows: rows, Hint: "space play/pause · n/p skip · esc close"}
 	return box.Render(termWidth, termHeight, s)
 }

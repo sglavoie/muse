@@ -6,17 +6,10 @@ import "github.com/sglavoie/muse/internal/tui/keys"
 // code: reach it through HelpSections so no caller can mutate it in place.
 var helpSectionsTable = []HelpSection{
 	{
-		// Pinned first: these are glyphs, not keybindings, and none of
-		// them match the key that toggles them. The Global section below
-		// lists the toggle keys themselves.
+		// Explain the readable labels and their compact forms.
 		Title:   StatusBarHelpSectionTitle,
 		Context: keys.ContextGlobal,
-		entries: []helpEntry{
-			{"R / 1", "Repeat all / repeat one — toggle with r"},
-			{"S", "Shuffle — toggle with z"},
-			{"N", "Stop after current track — toggle with ctrl+n"},
-			{"D", "Auto-DJ — toggle with A"},
-		},
+		entries: statusModeHelpEntries(),
 	},
 	{
 		Title:   "Global",
@@ -53,7 +46,7 @@ var helpSectionsTable = []HelpSection{
 			{"/", "Filter current view; Enter applies, Esc clears, Up/Down recalls recent filters"},
 			{"P", "Preview focused track"},
 			{"I", "Show now-playing info"},
-			{"i", "Show track info (exiftool)"},
+			{"i", "Show library metadata and file details"},
 			{"M", "Edit metadata of focused track"},
 			{"ctrl+s", "Cycle sort field"},
 			{"shift+up", "Sort ascending"},

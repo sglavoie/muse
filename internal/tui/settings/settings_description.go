@@ -33,8 +33,8 @@ func (o SettingsOverlay) focusedDescription() string {
 	}
 	descriptions := map[string]string{
 		"Volume step":    "Percentage points per volume key press. Applies after saving.",
-		"Seek short":     "Seconds skipped with Left/Right. Applies after saving.",
-		"Seek long":      "Seconds skipped with Shift+Left/Right. Applies after saving.",
+		"Seek short":     "Seconds skipped with left/right. Applies after saving.",
+		"Seek long":      "Seconds skipped with shift+left/shift+right. Applies after saving.",
 		"Default volume": "Volume used when Muse starts, from 0 to 100%. Save for the next launch.",
 		"Normalize":      "Balances loudness between songs using EBU R128. Applies after saving.",
 		"Gapless":        "Preloads the next song for seamless transitions. Applies after saving.",

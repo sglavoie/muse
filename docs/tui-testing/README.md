@@ -24,7 +24,8 @@ fakes:
 
 - No real config file is read or written.
 - No database is opened; all rows come from in-memory fakes.
-- No music files are read; no `mpv` is launched.
+- No music files are read; no `mpv` is launched. Track Info shows fixture
+  metadata without probing its fictional path.
 - No Finder, clipboard, or external process is invoked.
 
 Direct `command` actions are restricted to a fixture-safe allowlist (internal

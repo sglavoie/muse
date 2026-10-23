@@ -321,6 +321,7 @@ type Model struct {
 	filterHistory           []string // recent committed queries, shared across view filters
 	sortPreferences         map[string]sorting.SortState
 	navigationParents       map[string]navigationParent
+	browsingRestore         *browsingRestore
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after
@@ -396,7 +397,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		m.library = m.library.SwitchMode(libtui.LibraryModeRecent)
 	}
 	m = m.syncRecentlyAddedFromLibrary()
-	m = m.loadSortPreferences().restoreSortPreference()
+	m = m.loadSortPreferences().restoreSortPreference().loadBrowsingSession()
 	// Footer hint strip default is taken from config (defaults to true).
 	m.showFooterHints = m.cfg.ShowFooterHints
 	// Queue follow-now-playing default is taken from config (defaults to true).

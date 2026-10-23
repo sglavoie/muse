@@ -48,11 +48,10 @@ func (o ModesLegendOverlay) Render(termWidth, termHeight int, s styles.Styles) s
 			style = glyphStyles[i]
 		}
 		rows = append(rows, Row{
-			Label: style.Render(ind.Glyph),
-			Text:  text.Pad(ind.Name, modesLegendNameWidth) + text.Pad(ind.State, modesLegendStateWidth) + ind.Key,
+			Text: style.Render(text.Pad(ind.Name, modesLegendNameWidth)) + text.Pad(ind.State, modesLegendStateWidth) + ind.Key,
 		})
 	}
 
-	box := Box{Title: " ♪ Playback Modes ", Rows: rows, Hint: "; or esc to dismiss"}
+	box := Box{Title: " ♪ Playback Modes ", Rows: rows, Hint: "space play/pause · n/p skip · esc close"}
 	return box.Render(termWidth, termHeight, s)
 }
