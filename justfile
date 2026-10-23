@@ -123,3 +123,8 @@ hooks:
 # Remove build artifacts and coverage reports
 clean:
     rm -f muse coverage.out coverage.html
+
+# Check crowded UI scenarios and export an SVG review gallery (requires uv)
+review-ui: build
+    uv run scripts/test_render_terminal_svg.py
+    uv run scripts/review_tui.py

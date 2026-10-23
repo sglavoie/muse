@@ -50,6 +50,7 @@ func TestDuplicateAlbumDimmed(t *testing.T) {
 		{Artist: "Bob", Title: "BBB", Album: "Debut", Duration: 200},
 	}
 	v := newRenderView(tracks)
+	v.Width = 100
 	v.Styles = styles.NewStyles(true)
 
 	row2 := ansi.Strip(renderTrackRow(t, v, 1))

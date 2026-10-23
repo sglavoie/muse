@@ -22,8 +22,8 @@ type TrackColumns struct {
 // shrink before the title disappears so the allocation does not exceed
 // totalWidth.
 func ComputeTrack(totalWidth int) TrackColumns {
-	if totalWidth >= 40 && totalWidth < 80 {
-		return TrackColumns{SelectionMarker: 2, Position: 3, Duration: 7, Title: totalWidth - 14}
+	if totalWidth >= 40 {
+		return TrackColumns{SelectionMarker: 2, Position: 5, Duration: 7, Title: totalWidth - 16}
 	}
 
 	cols := TrackColumns{

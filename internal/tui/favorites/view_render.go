@@ -399,10 +399,15 @@ func (v View) selectionHeading(title string) string {
 }
 
 func joinFavoriteCells(sep, pos, title, artist, album, duration, plays string) string {
-	if ansi.StringWidth(duration) == 7 && ansi.StringWidth(album) == 0 {
-		return strings.Join([]string{pos, title, artist, duration}, sep)
+	cells := []string{pos, title, artist}
+	if ansi.StringWidth(album) > 0 {
+		cells = append(cells, album)
 	}
-	return strings.Join([]string{pos, title, artist, album, duration, plays}, sep)
+	cells = append(cells, duration)
+	if ansi.StringWidth(plays) > 0 {
+		cells = append(cells, plays)
+	}
+	return strings.Join(cells, sep)
 }
 
 func (v View) headingWithWindow(heading string, start, end, total int) string {

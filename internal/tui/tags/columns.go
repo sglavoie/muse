@@ -1,5 +1,7 @@
 package tags
 
+import "github.com/sglavoie/muse/internal/tui/text"
+
 const (
 	trackDurationFixed   = 10 // "mm:ss.xxx"
 	trackSepCount        = 3  // spaces between four columns
@@ -16,13 +18,12 @@ type TrackColumns struct {
 	Duration        int
 }
 
-// ComputeTrack follows the shared Title/Artist/Album proportions (40/35/25).
-// Compact tables omit Album and give Title 60% of the remaining space.
+// ComputeTrack uses the shared identity-first allocation at supported widths,
+// retaining the existing fallback for terminals smaller than 40 columns.
 func ComputeTrack(totalWidth int) TrackColumns {
-	if totalWidth >= 40 && totalWidth < 80 {
-		flex := totalWidth - 2 - 7 - 2
-		artist := flex * 2 / 5
-		return TrackColumns{SelectionMarker: 2, Duration: 7, Title: flex - artist, Artist: artist}
+	if totalWidth >= 40 {
+		c := text.TrackColumns(totalWidth, false, 0, 0)
+		return TrackColumns{SelectionMarker: 2, Duration: c.Duration, Title: c.Title, Artist: c.Artist, Album: c.Album}
 	}
 	fixed := selectionMarkerFixed + trackDurationFixed + trackSepCount
 	remaining := totalWidth - fixed

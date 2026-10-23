@@ -1,0 +1,303 @@
+{
+  "name": "inline-editor-polish",
+  "fixture": "rich",
+  "size": "60x15",
+  "actions": [
+    {
+      "key": "2"
+    },
+    {
+      "key": "c"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-new"
+    },
+    {
+      "assert": {
+        "contains": "New playlist:"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter open"
+      }
+    },
+    {
+      "text": " — 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 ENDING"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-new-long"
+    },
+    {
+      "assert": {
+        "contains": "ENDING"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-new-wide"
+    },
+    {
+      "assert": {
+        "contains": "enter save"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-new-compact"
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "r"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-rename"
+    },
+    {
+      "assert": {
+        "contains": "Rename playlist:"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter open"
+      }
+    },
+    {
+      "text": " — 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 ENDING"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-rename-long"
+    },
+    {
+      "assert": {
+        "contains": "ENDING"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-rename-wide"
+    },
+    {
+      "assert": {
+        "contains": "enter save"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "playlist-rename-compact"
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "6"
+    },
+    {
+      "key": "c"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-new"
+    },
+    {
+      "assert": {
+        "contains": "New tag:"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter open"
+      }
+    },
+    {
+      "text": " — 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 ENDING"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-new-long"
+    },
+    {
+      "assert": {
+        "contains": "ENDING"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-new-wide"
+    },
+    {
+      "assert": {
+        "contains": "enter save"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-new-compact"
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "r"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-rename"
+    },
+    {
+      "assert": {
+        "contains": "Rename tag:"
+      }
+    },
+    {
+      "assert": {
+        "not_contains": "enter open"
+      }
+    },
+    {
+      "text": " — 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 全角名 ENDING"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-rename-long"
+    },
+    {
+      "assert": {
+        "contains": "ENDING"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-rename-wide"
+    },
+    {
+      "assert": {
+        "contains": "enter save"
+      }
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "tag-rename-compact"
+    },
+    {
+      "assert": {
+        "contains": "esc cancel"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "1"
+    },
+    {
+      "key": "?"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "help-first-screen"
+    },
+    {
+      "assert": {
+        "contains": "Undo latest reversible action"
+      }
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "Field filters"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "help-filter-reference"
+    },
+    {
+      "assert": {
+        "contains": "aa: Album Artist"
+      }
+    }
+  ]
+}

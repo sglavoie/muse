@@ -27,9 +27,9 @@ type TrackColumns struct {
 // absorbs any rounding remainder. On narrow terminals, fixed columns shrink
 // before the title disappears so the allocation does not exceed totalWidth.
 func ComputeTrack(totalWidth int) TrackColumns {
-	if totalWidth >= 40 && totalWidth < 80 {
-		flex := totalWidth - 15
-		return TrackColumns{SelectionMarker: 2, Position: 3, Duration: 7, Title: flex - flex*2/5, Artist: flex * 2 / 5}
+	if totalWidth >= 40 {
+		flex := totalWidth - 17
+		return TrackColumns{SelectionMarker: 2, Position: 5, Duration: 7, Title: flex - flex*2/5, Artist: flex * 2 / 5}
 	}
 
 	cols := TrackColumns{

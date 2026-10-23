@@ -2,6 +2,7 @@ package queue
 
 import (
 	"github.com/charmbracelet/x/ansi"
+	"github.com/sglavoie/muse/internal/tui/text"
 	"strings"
 )
 
@@ -21,10 +22,13 @@ func computeQueueColumns(totalWidth int, hasSource bool) queueColumns {
 		durWidth    = 10
 	)
 	cols := queueColumns{Position: posWidth, Duration: durWidth}
-	if totalWidth >= 40 && totalWidth < 80 {
-		flex := totalWidth - 2 - 3 - 7 - 3
-		artist := flex * 2 / 5
-		return queueColumns{Position: 3, Duration: 7, Title: flex - artist, Artist: artist}
+	if totalWidth >= 40 {
+		detail := 0
+		if hasSource {
+			detail = 12
+		}
+		c := text.TrackColumns(totalWidth, true, 0, detail)
+		return queueColumns{Position: c.Position, Duration: c.Duration, Title: c.Title, Artist: c.Artist, Album: c.Album, Source: c.Detail}
 	}
 
 	sepCount := 4

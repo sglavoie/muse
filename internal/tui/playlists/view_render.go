@@ -108,7 +108,7 @@ func (v View) renderListSortIndicator() string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderCreateInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := text.Pad(v.CreateInput.View(), rowWidth)
+	display := text.InlineInput("New playlist", v.CreateInput, rowWidth)
 	return v.Styles.Accent.Render(display)
 }
 
@@ -116,7 +116,7 @@ func (v View) renderCreateInputRow(cols Columns) string {
 // fitted to the same column widths as a normal playlist row.
 func (v View) renderRenameInputRow(cols Columns) string {
 	rowWidth := cols.Name + nameSep + cols.Count
-	display := text.Pad(v.RenameInput.View(), rowWidth)
+	display := text.InlineInput("Rename playlist", v.RenameInput, rowWidth)
 	return v.Styles.Accent.Render(display)
 }
 
@@ -307,7 +307,7 @@ func visibleWindow(scrollOffset, cursor, itemCount, maxRows int) (int, int) {
 
 func joinPlaylistCells(sep, pos, title, artist, album, duration string) string {
 	cells := []string{pos, title, artist}
-	if ansi.StringWidth(album) > 0 || ansi.StringWidth(duration) == trackDurationFixed {
+	if ansi.StringWidth(album) > 0 || ansi.StringWidth(artist) < 2 {
 		cells = append(cells, album)
 	}
 	return strings.Join(append(cells, duration), sep)

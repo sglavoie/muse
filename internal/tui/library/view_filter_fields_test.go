@@ -23,7 +23,7 @@ func TestFieldSpecificAlbumHighlight(t *testing.T) {
 	}
 	v := Panel{
 		Index:  idx,
-		Width:  80,
+		Width:  100,
 		Height: 24,
 		Fuzzy:  fake,
 	}

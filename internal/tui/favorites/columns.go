@@ -1,5 +1,7 @@
 package favorites
 
+import "github.com/sglavoie/muse/internal/tui/text"
+
 const (
 	trackMarkerFixed   = 2  // '●' glyph + separator space
 	trackPosFixed      = 5  // "9999 " — supports up to 4-digit track numbers
@@ -17,24 +19,20 @@ const (
 // view columns.
 type TrackColumns struct {
 	Marker    int // fixed: trackMarkerFixed chars ('●'/' ' + space)
-	Position  int // fixed: ~4 chars
-	Title     int // proportional: 40% of flex
-	Artist    int // proportional: 35% of flex
-	Album     int // proportional: 25% of flex
-	Duration  int // fixed: ~10 chars
+	Position  int // three to five cells as space allows
+	Title     int // takes priority over secondary columns
+	Artist    int // grows without shrinking on resize
+	Album     int // hidden until a useful width fits
+	Duration  int // clock plus any reserved secondary-column space
 	PlayCount int // fixed: 7 chars
 }
 
-// ComputeTrack calculates column widths for the track-level view given the
-// total terminal width. Position and Duration receive fixed allocations; the
-// remaining width is split among Title, Artist, and Album. Title absorbs any
-// rounding remainder. On very narrow terminals, fixed columns are reduced
-// (PlayCount, then Duration, then Position) to avoid over-allocating width.
+// ComputeTrack uses the shared identity-first allocation at supported widths,
+// retaining the existing fallback for terminals smaller than 40 columns.
 func ComputeTrack(totalWidth int) TrackColumns {
-	if totalWidth >= 40 && totalWidth < 80 {
-		flex := totalWidth - 2 - 3 - 7 - 3
-		artist := flex * 2 / 5
-		return TrackColumns{Marker: 2, Position: 3, Duration: 7, Title: flex - artist, Artist: artist}
+	if totalWidth >= 40 {
+		c := text.TrackColumns(totalWidth, true, 0, playCountFixed)
+		return TrackColumns{Marker: 2, Position: c.Position, Duration: c.Duration, Title: c.Title, Artist: c.Artist, Album: c.Album, PlayCount: c.Detail}
 	}
 	cols := TrackColumns{
 		Marker:    trackMarkerFixed,

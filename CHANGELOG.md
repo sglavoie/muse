@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Playlist and tag name editors label their purpose, show save/cancel hints,
+  and keep the cursor visible in long Unicode drafts.
+- Track tables preserve title and artist width as windows grow, introducing
+  secondary columns only when useful widths fit. Focused-song details use spare
+  rows in short windows as well as tall ones.
+- Library Help opens with enqueue, playback, filtering, selection, and undo.
+- `just review-ui` exports a checked visual gallery, including a dense fixture
+  with 240 tracks, scrolling collections, playback, selections, and notifications.
+
 - Auto-DJ keeps warnings and unapplied changes visible in compact windows, marks
   edited controls, explains Discovery and anchoring, and labels empty exclusions
   as none. Tune shows its visible settings range when scrolling.

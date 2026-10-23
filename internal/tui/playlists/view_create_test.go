@@ -22,15 +22,15 @@ func TestStartCreateActivatesInput(t *testing.T) {
 	}
 }
 
-// TestInlineInputsShowTagsStylePrompt guards that the playlist create and
-// rename rows carry the same "+ " / "r " prompt as the Tags rows, rather than
-// an unlabelled input indistinguishable from a playlist name.
-func TestInlineInputsShowTagsStylePrompt(t *testing.T) {
-	if got := ansi.Strip((View{}).StartCreate().CreateInput.View()); !strings.HasPrefix(got, "+ ") {
-		t.Errorf("create input should start with %q, got %q", "+ ", got)
+func TestInlineInputsDescribeTheirPurpose(t *testing.T) {
+	v := View{Width: 60}.StartCreate()
+	if got := ansi.Strip(v.Render()); !strings.Contains(got, "New playlist:") {
+		t.Fatal(got)
 	}
-	if got := ansi.Strip((View{}).StartRename("Old").RenameInput.View()); !strings.HasPrefix(got, "r Old") {
-		t.Errorf("rename input should start with %q, got %q", "r Old", got)
+	v.Playlists = []db.PlaylistRow{{ID: 1, Name: "Old"}}
+	v = v.StartRename("Old")
+	if got := ansi.Strip(v.Render()); !strings.Contains(got, "Rename playlist: Old") {
+		t.Fatal(got)
 	}
 }
 

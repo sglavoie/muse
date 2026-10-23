@@ -197,7 +197,8 @@ Read [`docs/tui-testing/README.md`](docs/tui-testing/README.md) for the
 fixtures, the scenario format, the assertion set, and the interactive NDJSON
 session mode. If you change rendering, add or update a scenario there; the
 stable scenarios are also gated in `go test`, so `just test` will catch
-regressions.
+regressions. Run `just review-ui` for a browser-viewable SVG gallery of crowded
+states and adjacent layout sizes; inspect it alongside the automated checks.
 
 ## Pull requests
 

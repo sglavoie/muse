@@ -12,7 +12,7 @@ import (
 // taking rows from a full table or moving the cursor. Information follows focus,
 // independently of the song playing in the status bar.
 func (m Model) renderFocusedIdentity(maxLines int) string {
-	if m.hasActiveOverlay() || m.termHeight < 24 || maxLines < 2 {
+	if m.hasActiveOverlay() || maxLines < 2 {
 		return ""
 	}
 	track, ok := m.focusedTrackForInspection()

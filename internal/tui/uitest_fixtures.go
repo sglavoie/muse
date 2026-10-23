@@ -26,11 +26,12 @@ const (
 	FixtureNarrow   = "narrow"
 	FixturePlayback = "playback"
 	FixtureHealth   = "health"
+	FixtureDense    = "dense"
 )
 
 // FixtureNames returns the built-in fixture names in a stable order.
 func FixtureNames() []string {
-	return []string{FixtureEmpty, FixtureRich, FixtureNarrow, FixturePlayback, FixtureHealth}
+	return []string{FixtureEmpty, FixtureRich, FixtureNarrow, FixturePlayback, FixtureHealth, FixtureDense}
 }
 
 // BuildFixture constructs a fixture-backed Model by name. The returned model is
@@ -48,6 +49,8 @@ func BuildFixture(name string) (Model, error) {
 		m = newNarrowFixture()
 	case FixturePlayback:
 		m = newPlaybackFixture()
+	case FixtureDense:
+		m = newDenseFixture()
 	case FixtureHealth:
 		m = newHealthFixture()
 	default:

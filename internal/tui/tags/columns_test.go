@@ -13,7 +13,7 @@ func TestComputeTrack_DoesNotOverAllocateNearMinimumBoundary(t *testing.T) {
 }
 
 func TestComputeTrack_PreservesMinimumsWhenSpaceAllows(t *testing.T) {
-	cols := ComputeTrack(80)
+	cols := ComputeTrack(100)
 	if cols.Title < 10 {
 		t.Fatalf("Title=%d, want >=%d", cols.Title, 10)
 	}

@@ -44,7 +44,8 @@ The navigation bar keeps all eight numbered shortcuts visible, abbreviating
 view names in compact terminals. Filter badges appear on the divider below it
 so tabs stay in place. Track tables put Title before Artist, followed by Album
 and Duration when applicable; compact tables give song identity priority over
-album detail. Collection counts name their units, such as `3 tracks`.
+album detail. Widening a table preserves its title and artist widths; album,
+source, and play-count columns appear only when they have useful space. Collection counts name their units, such as `3 tracks`.
 
 Command palettes use the same compact layout at every size, showing six commands
 at the minimum terminal size. With an empty search, enabled listening actions
@@ -60,7 +61,7 @@ the focused command, and unavailable commands retain their explanations.
 Compact footers prioritize the current task: Queue keeps `d remove`, selection
 mode keeps `X clear`, and Library keeps `: commands`. Generic navigation hints
 yield before these actions. `i` opens full track information from track lists.
-When a table leaves enough space in a window at least 24 rows tall, an area
+When a table leaves enough spare rows, an area
 of up to four lines above the footer labels the focused song's title, artist,
 and album with **Focused**, independently of playback. The playback bar emphasizes the playing song's title;
 modes and playlist source use quieter text. Long titles and artist/album details
@@ -150,6 +151,11 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 
 **Library management**
 
+- Creating or renaming playlists and tags shows a labeled inline editor with
+  `Enter` to save and `Esc` to cancel. Long drafts scroll with the cursor and
+  use `‹` / `›` to indicate hidden text.
+
+
 - **Metadata editor** (`M`) — fix title, artist, album, Album Artist, and genre on the
   focused track. Edits are stored in muse's database, so your audio files are
   never modified. `i` shows the library values first and labels differing original
@@ -187,6 +193,8 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 - Library enqueue, play-next, and replace-queue actions retain the text filter
   and focused row. Clear the filter explicitly with `Esc` when finished.
 - Help keeps scrolling, search, scope, and close hints visible, with a scroll percentage.
+  Library Help starts with enqueue, play/pause, filter, selection, and undo;
+  field-prefix details remain below and searchable.
 - The palette’s **Clear selection** command describes the selected row count and
   how many are hidden, and clears only the current view’s selection.
 - Track searches match base filenames consistently across views. Matching ignores

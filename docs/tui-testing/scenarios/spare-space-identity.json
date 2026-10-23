@@ -1,0 +1,207 @@
+{
+  "name": "spare-space-identity",
+  "fixture": "narrow",
+  "size": "60x15",
+  "actions": [
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-60x15"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-60x15"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "79x23"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-79x23"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-79x23"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "80x23"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-80x23"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-80x23"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "79x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-79x24"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-79x24"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-80x24"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-80x24"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "89x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-89x24"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-89x24"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "90x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-90x24"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-90x24"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "focused-song-100x30"
+    },
+    {
+      "assert": {
+        "contains": "Focused ·"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "full-title-100x30"
+    },
+    {
+      "assert": {
+        "contains": "Column Width"
+      }
+    }
+  ]
+}

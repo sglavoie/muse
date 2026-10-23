@@ -14,6 +14,7 @@ import (
 	libtui "github.com/sglavoie/muse/internal/tui/library"
 	"github.com/sglavoie/muse/internal/tui/sorting"
 	"github.com/sglavoie/muse/internal/tui/styles"
+	"github.com/sglavoie/muse/internal/tui/text"
 )
 
 // TagsView wraps the tags sub-panel state for the root model.
@@ -59,10 +60,10 @@ func (v TagsView) Render(s styles.Styles, favHashes map[string]struct{}, nowPlay
 
 	var createInputStr, renameInputStr string
 	if v.Creating {
-		createInputStr = v.CreateInput.Value()
+		createInputStr = text.InlineInput("New tag", v.CreateInput, v.Width)
 	}
 	if v.Renaming {
-		renameInputStr = v.RenameInput.Value()
+		renameInputStr = text.InlineInput("Rename tag", v.RenameInput, v.Width)
 	}
 
 	tracks := v.Tracks

@@ -21,7 +21,7 @@ func renderRow(num, artist, title, album, duration, dateAdded string, cols Colum
 
 func joinTrackCells(cols Columns, sep, num, artist, title, album, duration, date string) string {
 	cells := []string{num, title, artist}
-	if cols.Album > 0 || cols.TrackNum != 3 {
+	if cols.Album > 0 || cols.Artist < 2 {
 		cells = append(cells, album)
 	}
 	cells = append(cells, duration)

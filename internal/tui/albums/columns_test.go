@@ -17,11 +17,11 @@ func TestComputeTrackPreservesFixedColumnsWhenSpaceAllows(t *testing.T) {
 	if cols.SelectionMarker != selectionMarkerFixed {
 		t.Fatalf("SelectionMarker=%d, want %d", cols.SelectionMarker, selectionMarkerFixed)
 	}
-	if cols.Position != trackPosFixed {
-		t.Fatalf("Position=%d, want %d", cols.Position, trackPosFixed)
+	if cols.Position != 5 {
+		t.Fatalf("Position=%d, want %d", cols.Position, 5)
 	}
-	if cols.Duration != trackDurationFixed {
-		t.Fatalf("Duration=%d, want %d", cols.Duration, trackDurationFixed)
+	if cols.Duration != 7 {
+		t.Fatalf("Duration=%d, want %d", cols.Duration, 7)
 	}
 	if cols.Title <= 0 || cols.Artist <= 0 {
 		t.Fatalf("expected positive title and artist columns, got %+v", cols)

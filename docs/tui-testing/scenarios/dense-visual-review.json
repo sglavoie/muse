@@ -1,0 +1,324 @@
+{
+  "name": "dense-visual-review",
+  "fixture": "dense",
+  "size": "80x24",
+  "actions": [
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library"
+    },
+    {
+      "assert": {
+        "contains": "240"
+      }
+    },
+    {
+      "resize": "79x23"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-79x23"
+    },
+    {
+      "resize": "80x23"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-80x23"
+    },
+    {
+      "resize": "79x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-79x24"
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-80x24"
+    },
+    {
+      "resize": "89x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-89x24"
+    },
+    {
+      "resize": "90x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-90x24"
+    },
+    {
+      "resize": "100x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-100x30"
+    },
+    {
+      "resize": "120x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-120x30"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-library-60x15"
+    },
+    {
+      "key": "/"
+    },
+    {
+      "text": "t:Night"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "hidden-selection"
+    },
+    {
+      "assert": {
+        "contains": "1 hidden"
+      }
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "filtered-playback"
+    },
+    {
+      "assert": {
+        "contains": "1 hidden"
+      }
+    },
+    {
+      "command": "messages.show"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "notification-history"
+    },
+    {
+      "assert": {
+        "contains": "Added 24 tracks"
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "key": "3"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue"
+    },
+    {
+      "assert": {
+        "contains": "48"
+      }
+    },
+    {
+      "resize": "79x23"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-79x23"
+    },
+    {
+      "resize": "80x23"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-80x23"
+    },
+    {
+      "resize": "79x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-79x24"
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-80x24"
+    },
+    {
+      "resize": "102x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-102x24"
+    },
+    {
+      "resize": "103x24"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-103x24"
+    },
+    {
+      "resize": "120x30"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-120x30"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-queue-60x15"
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "key": "2"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-playlists"
+    },
+    {
+      "assert": {
+        "contains": "of 24"
+      }
+    },
+    {
+      "key": "G"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "last-playlist"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-playlist-tracks"
+    },
+    {
+      "key": "6"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-tags"
+    },
+    {
+      "assert": {
+        "contains": "of 24"
+      }
+    },
+    {
+      "key": "G"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "last-tag"
+    },
+    {
+      "key": "enter"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "dense-tag-tracks"
+    },
+    {
+      "command": "ui.toggle.theme"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "light-track-table"
+    },
+    {
+      "key": ":"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "light-palette"
+    }
+  ]
+}

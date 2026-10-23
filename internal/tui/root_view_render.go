@@ -239,6 +239,9 @@ func (m Model) renderFooterHint() string {
 	if m.hasActiveOverlay() || !m.showFooterHints {
 		return ""
 	}
+	if m.inlineNameEditing() {
+		return m.styles.Dim.Render(text.CompactHints("enter save · esc cancel", m.termWidth, "enter", "esc"))
+	}
 	if m.showsEmptyLibrary() {
 		_, action := m.emptyLibraryGuidance()
 		return m.styles.Dim.Render(text.CompactHints(action.Key+" "+action.Label+" · : commands · ? help", m.termWidth, action.Key, "?"))
@@ -281,4 +284,15 @@ func (m Model) renderFooterHint() string {
 		}
 	}
 	return hint
+}
+
+func (m Model) inlineNameEditing() bool {
+	switch m.ActiveView {
+	case viewPlaylists:
+		return m.playlists.IsCreating() || m.playlists.IsRenaming()
+	case viewTags:
+		return m.tagsView.IsCreating() || m.tagsView.IsRenaming()
+	default:
+		return false
+	}
 }

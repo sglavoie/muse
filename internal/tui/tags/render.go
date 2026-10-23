@@ -51,7 +51,7 @@ func (v View) createRowBudget() (maxRows int, createRow string) {
 		return maxRows, ""
 	}
 	maxRows = max(maxRows-1, 0) // reserve one row for the input
-	label := text.Pad("+ "+v.CreateInput+"_", v.Width)
+	label := text.Pad(v.CreateInput, v.Width)
 	return maxRows, "\n" + v.Styles.Accent.Render(label)
 }
 
@@ -59,7 +59,7 @@ func (v View) createRowBudget() (maxRows int, createRow string) {
 // the focused row is being renamed.
 func (v View) renderTagRow(tag db.TagRow, isFocused, isOdd bool) string {
 	if isFocused && v.Renaming {
-		return v.Styles.Accent.Render(text.Pad("r "+v.RenameInput+"_", v.Width))
+		return v.Styles.Accent.Render(text.Pad(v.RenameInput, v.Width))
 	}
 	count := 0
 	if v.TagCounts != nil {
@@ -237,7 +237,7 @@ func (v View) topFilterSeparator() string {
 }
 
 func joinTagCells(sep, title, artist, album, duration string) string {
-	if ansi.StringWidth(duration) == 7 && ansi.StringWidth(album) == 0 {
+	if ansi.StringWidth(album) == 0 && ansi.StringWidth(artist) >= 2 {
 		return strings.Join([]string{title, artist, duration}, sep)
 	}
 	return strings.Join([]string{title, artist, album, duration}, sep)

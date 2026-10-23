@@ -140,7 +140,7 @@ func TestRenderTrackRows_DisplaysUnknownArtistAndAlbum(t *testing.T) {
 	v := View{
 		Level:    ListLevel,
 		Category: CategoryTracks,
-		Width:    100,
+		Width:    120,
 		Height:   8,
 		Tracks: []library.Track{
 			{Hash: "h1", Title: "Mystery"},

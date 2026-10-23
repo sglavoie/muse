@@ -50,9 +50,9 @@ type View struct {
 
 	// Inline create/rename input state (passed through from TagsView).
 	Creating    bool
-	CreateInput string // current value of the inline create field
+	CreateInput string // rendered inline create input
 	Renaming    bool
-	RenameInput string // current value of the inline rename field
+	RenameInput string // rendered inline rename input
 }
 
 // EffectiveTags returns the tag list filtered by FilterText, excluding tags

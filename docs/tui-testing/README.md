@@ -43,6 +43,7 @@ scenario cannot accidentally trigger a real side effect.
 | `rich`     | Deterministic data across every primary view: library, queue, playlists, favorites, tags, and recommendation (Mixes) data. The default. |
 | `narrow`   | Long titles, artist/album/path names, and wide Unicode (CJK, diacritics, emoji) to stress truncation and width arithmetic. |
 | `playback` | An active playback session: current track, queue, repeat/shuffle/volume/status metadata. |
+| `dense` | 240 long, multilingual track names, 24 playlists and tags, a 48-entry queue, active playback, selections, and a persistent notification for crowded visual review. |
 | `health`   | A deliberately dirty library — colliding genre spellings, a placeholder genre, blank fields, unverified durations, one artist spelled two ways — so Insights' Data Health panel has one of every finding. Its metadata writer is in-memory, so the genre merge is safe to exercise. |
 
 ### Auto-DJ in the fixtures
@@ -259,3 +260,30 @@ PASS "baseline-layout" (fixture rich, 100x30, 3 actions)
 $ muse tui-test run --scenario docs/tui-testing/scenarios/narrow-long-text.json --json
 { "ok": false, … "error": { "reason": "expected no layout issues, found 1: …" } }
 ```
+
+## Visual review
+
+Run `just review-ui` (requires `uv`) to build muse, check the three review
+scenarios, and export `macos/build/ui-review/index.html`. Open that local file
+in a browser. Each frame links to a full-size SVG; JSON reports retain ANSI,
+plain text, state, and layout observations. Outputs stay in the ignored build
+folder. To use an existing binary or another destination:
+
+```sh
+uv run scripts/review_tui.py --muse /path/to/muse --output /tmp/muse-ui-review
+```
+
+The gallery captures labeled checkpoints from `dense-visual-review.json`,
+`inline-editor-polish.json`, and `spare-space-identity.json`. These scenarios
+also run in the regular Go suite. Review adjacent 79/80-column and 23/24-row
+frames, and the album/source introduction boundaries. Confirm that:
+
+- Widening keeps song identity readable, with complete clocks and row markers.
+- Focus, selection, and playback remain distinguishable in crowded tables.
+- Filtered selections and notifications remain understandable while music plays.
+- Inline drafts retain their label, cursor, hidden-text indicators, and correct hints.
+- Sparse short windows reveal song details; full tables retain their rows.
+- Light-theme and palette frames remain readable.
+
+Layout assertions catch overflow and missing text; they do not establish visual
+quality. Inspect the gallery when changing spacing, colors, hierarchy, or columns.

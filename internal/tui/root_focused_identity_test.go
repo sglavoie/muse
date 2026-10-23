@@ -23,8 +23,8 @@ func TestFocusedIdentityFollowsCursorWithoutUsingPlayback(t *testing.T) {
 		t.Fatal(screen)
 	}
 	m = m.handleWindowSizeMsg(tea.WindowSizeMsg{Width: 60, Height: 15})
-	if m.renderFocusedIdentity(4) != "" {
-		t.Fatal("compact view should keep table space")
+	if m.renderFocusedIdentity(4) == "" {
+		t.Fatal("compact view should use spare rows")
 	}
 	if hint := ansi.Strip(m.renderFooterHint()); !strings.Contains(hint, "i info") || !strings.Contains(hint, "enter enqueue") {
 		t.Fatal(hint)

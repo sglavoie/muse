@@ -100,6 +100,7 @@ func TestGeneralSearchHighlightsAlbumColumn(t *testing.T) {
 		{Artist: "Alice", Title: "Song One", Album: "Debut", Duration: 185},
 	}
 	v := newRenderView(tracks)
+	v.Width = 100
 	v.Fuzzy = highlightFake{results: []musiclib.Match{{TrackIndex: 0, MatchedIndexes: []int{15, 16, 17, 18, 19}}}}
 	v = activateFilterQuery(v, "Debut")
 

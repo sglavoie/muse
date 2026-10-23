@@ -19,7 +19,7 @@ func TestRenderTracksEmpty(t *testing.T) {
 func TestRenderTracksShowsColumns(t *testing.T) {
 	v := View{
 		Level: TrackLevel,
-		Width: 80,
+		Width: 100,
 		Tracks: []db.PlaylistTrackRow{
 			{Position: 1, Title: "Song A", Artist: "Artist X", Album: "Album P", DurationMs: 183000},
 			{Position: 2, Title: "Song B", Artist: "Artist Y", Album: "Album Q", DurationMs: 245000},

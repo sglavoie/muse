@@ -22,6 +22,7 @@ from pathlib import Path
 
 from rich._export_format import CONSOLE_SVG_FORMAT
 from rich.console import Console
+from rich.cells import cell_len
 from rich.terminal_theme import TerminalTheme
 from rich.text import Text
 
@@ -55,9 +56,9 @@ FRAME_FORMAT = """<style>
 """ + TERMINAL_BODY.replace("{unique_id}-clip-terminal", "muse-clip-terminal") + "\n</g>"
 
 
-def export(ansi, code_format=CONSOLE_SVG_FORMAT, unique_id=None):
+def export(ansi, code_format=CONSOLE_SVG_FORMAT, unique_id=None, width=100):
     console = Console(
-        file=io.StringIO(), record=True, width=100, color_system="truecolor"
+        file=io.StringIO(), record=True, width=width, color_system="truecolor"
     )
     console.print(Text.from_ansi(ansi), end="", soft_wrap=True)
     svg = console.export_svg(
@@ -66,8 +67,21 @@ def export(ansi, code_format=CONSOLE_SVG_FORMAT, unique_id=None):
     # Rich 14.2 references a line clip it does not define for the final row.
     # The enclosing terminal clip already bounds every row; use it throughout.
     svg = re.sub(r'clip-path="url\(#[^"()]+-line-\d+\)"', "", svg)
+    # Rich 14.2 sizes SVG text runs by code points instead of terminal cells.
+    # Wide CJK / emoji runs otherwise get compressed while backgrounds and the
+    # next run retain their correct cell positions.
+    svg = re.sub(r'(<text\b[^>]*\btextLength=")([\d.]+)("[^>]*>)([^<]*)(</text>)',
+                 fit_terminal_text, svg)
     # Keep the checked-in image self-contained; use the viewer's monospace font.
     return re.sub(r"@font-face\s*\{[^}]*\}", "", svg)
+
+
+def fit_terminal_text(match):
+    prefix, length, middle, encoded, suffix = match.groups()
+    value = html.unescape(encoded)
+    if value and value.strip():
+        length = f"{float(length) * cell_len(value) / len(value):g}"
+    return prefix + length + middle + encoded + suffix
 
 
 def animate(frames):
