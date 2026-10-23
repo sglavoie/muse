@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Check reachable Go vulnerabilities
@@ -23,8 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Install mpv
@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Check formatting
@@ -63,8 +63,8 @@ jobs:
       matrix:
         shard: [core, cli, tui-0, tui-1]
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         id: go
         with:
           go-version-file: go.mod
@@ -75,7 +75,7 @@ jobs:
         run: |
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "modules=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
@@ -92,14 +92,14 @@ jobs:
         run: python3 scripts/ci_test.py --shard "$SHARD" --json-output "$RUNNER_TEMP/tests.jsonl"
       - name: Upload test timings and diagnostics
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tests-${{ matrix.shard }}
           path: ${{ runner.temp }}/tests.jsonl
           retention-days: 7
       - name: Save race build cache
         if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' && steps.cache.outcome == 'success' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ${{ steps.paths.outputs.build }}
@@ -121,8 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@v9
