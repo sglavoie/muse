@@ -42,6 +42,7 @@ Everything goes through `just`; there is no hidden setup step.
 | `just run [args]` | `go run . [args]` |
 | `just test` | `go test -race -count=1 ./...` |
 | `just test-fast` | `go test ./...`; cached local feedback without race instrumentation |
+| `just test-ci` | fresh race tests; stop all packages on the first failure, save JSON in the temporary directory (requires Python 3) |
 | `just test-playback` | real-mpv continuity tests with `-race`; mpv is required |
 | `just bench-ui` | typing, individual keystrokes, rendering, and sorting at 10k and 100k tracks |
 | `just test-v` | the same, verbose |
@@ -72,6 +73,26 @@ an exact version in the `golangci_lint` variable at the top of the `justfile`,
 so everyone lints against the same rules. The CI lint job pins the same
 version, so a bump changes both: the `justfile` variable and the `version` of
 the lint step in `.github/workflows/ci.yml`.
+
+CI runs formatting, module tidiness, build and vet checks before starting four
+test shards: CLI, supporting packages, and two halves of the root TUI package.
+The TUI split discovers top-level tests, examples and fuzz seed tests each run;
+new packages automatically join the supporting shard. Every test still runs
+with `-race -count=1`. `scripts/ci_test.py` streams Go's JSON events and stops
+the entire test process group on the first failure, including other packages
+already running. A failed shard cancels the other shards; newer pushes cancel
+obsolete workflow runs. The required `test` check passes only when all checks
+and shards pass.
+
+Each shard keeps a separate Go build cache refreshed per commit, so other jobs
+cannot preempt the race compilation cache. Test binaries have a five-minute
+timeout and jobs a ten-minute limit. The runner prints the ten slowest completed
+tests and CI retains the full JSON output for seven days as `tests-*` artifacts.
+To reproduce one shard locally, run (for example):
+
+```sh
+python3 scripts/ci_test.py --shard tui-0 --json-output /tmp/muse-tui-0.jsonl
+```
 
 ### Interactive performance and playback
 

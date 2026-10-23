@@ -242,11 +242,10 @@ func TestDriverSafeCommandAllowlist(t *testing.T) {
 func TestDriverRejectsUnsafeAndUnknownCommands(t *testing.T) {
 	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
-	// A Finder-revealing command is present (a track is focused) but must be
-	// rejected as side-effectful.
-	_, err := d.ApplyAction(UITestAction{Command: sp("Reveal in Finder")}, ObserveOptions{})
+	// Use the stable ID: the visible name differs between macOS and Linux.
+	_, err := d.ApplyAction(UITestAction{Command: sp("track.reveal")}, ObserveOptions{})
 	if err == nil {
-		t.Fatal("expected 'Reveal in Finder' to be rejected")
+		t.Fatal("expected 'track.reveal' to be rejected")
 	}
 	if !strings.Contains(err.Error(), "not permitted") {
 		t.Fatalf("rejection error = %v, want 'not permitted'", err)
@@ -262,9 +261,18 @@ func TestDriverRejectsUnsafeAndUnknownCommands(t *testing.T) {
 func TestDriverKeyDrivenPaletteRejectsUnsafeCommand(t *testing.T) {
 	d := newTestDriver(t, tui.FixtureRich, 100, 30)
 
-	// Open the command palette, filter to the side-effectful "Reveal in Finder"
-	// command, and select it with enter — the exact path a scenario could use to
-	// bypass the direct-command allowlist.
+	// Resolve the platform-specific label from the stable command ID, then
+	// exercise the same key-driven path a scenario could use to bypass safety.
+	var revealName string
+	for _, command := range d.model.BuildPaletteCommands() {
+		if command.Key() == "track.reveal" {
+			revealName = command.Name
+			break
+		}
+	}
+	if revealName == "" {
+		t.Fatal("track.reveal command is missing")
+	}
 	if err := d.sendKey(":"); err != nil {
 		t.Fatalf("SendKey(:): %v", err)
 	}
@@ -272,14 +280,14 @@ func TestDriverKeyDrivenPaletteRejectsUnsafeCommand(t *testing.T) {
 		t.Fatalf("overlay = %q, want command_palette", got)
 	}
 
-	d.sendText("Reveal in Finder")
+	d.sendText(revealName)
 	if err := d.sendKey("enter"); err != nil {
 		t.Fatalf("SendKey(enter): %v", err)
 	}
 
 	obs := d.Observe(ObserveOptions{})
 	// Fixture safety must close the palette and surface a clear notification
-	// rather than executing revealFile against the real Finder.
+	// rather than opening the real file manager.
 	if obs.Overlay == "command_palette" {
 		t.Fatalf("expected palette to close after rejected selection, overlay = %q", obs.Overlay)
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -382,5 +383,13 @@ func TestServerRejectsAnOverlongLine(t *testing.T) {
 		big[i] = 'x'
 	}
 	go func() { _, _ = c.conn.Write(append(big, '\n')) }()
-	c.expectEOF(t)
+	// Linux may reset a socket closed with unread input; macOS returns EOF.
+	// Either rejects the oversized request, but a timeout or reply must fail.
+	_ = c.conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if c.scanner.Scan() {
+		t.Fatalf("expected connection closure, got %q", c.scanner.Text())
+	}
+	if err := c.scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, syscall.ECONNRESET) {
+		t.Fatalf("expected EOF or connection reset, got %v", err)
+	}
 }
