@@ -50,11 +50,9 @@ visibility change, or history rewrite has been performed by this review.
   The Release app builds successfully. `just lint` selects Go 1.26
   because the pinned linter cannot read Go 1.27 export data.
 - [x] **Review and commit the diff.** The review changes are committed.
-- [ ] **Choose the launch release.** There is a `v0.1.0` tag but no GitHub
-  Releases, and `v0.1.0` is more than 230 commits behind `main` as of
-  2026-10-24, so `go install ...@latest` would install an old build. Tag a new
-  release once the pending fixes land, move the `[Unreleased]` changelog
-  entries under it, and write release notes.
+- [x] **Choose the launch release.** `v0.2.0` was tagged locally on 2026-10-24
+  with the changelog entries accumulated since `v0.1.0`. Push the tag and
+  publish a GitHub Release from its changelog section when going public.
 - [ ] **Make the visibility change explicitly**, then enable private
   vulnerability reporting, secret scanning/push protection where available,
   and Dependabot alerts. Verify the security policy's private reporting link.

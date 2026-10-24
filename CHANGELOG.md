@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-24
+
 ### Changed
 
 - Playlist and tag name editors label their purpose, show save/cancel hints,
@@ -168,6 +170,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   supported-size resize stress.
 
 ### Fixed
+
+- Track and disc numbers are read from FLAC, Ogg, Opus, and M4A files scanned
+  with exiftool, including "3 of 12" style values.
+- A music directory that is itself a symlink is scanned and watched instead of
+  appearing empty and marking its tracks missing.
+- Moving or trashing a folder while muse runs removes its tracks right away
+  instead of at the next launch.
+- Metadata imports keep rows whose empty album artist lost its trailing tab to
+  whitespace stripping in chat clients or editors.
+- Smart-playlist text rules ignore case for accented and non-Latin letters, so
+  "artist contains björk" matches "BJÖRK".
+- Excluded folder names only match folders inside a music directory, so
+  excluding "Music" no longer hides a library at ~/Music. Excluded full paths
+  ignore case on macOS.
+- Opening a regular playlist after a failed or superseded smart-playlist load
+  no longer treats it as smart, so delete, reorder, and `r` work normally.
+- Library search highlighting measures emoji sequences and flags as single
+  characters, keeping rows aligned and never splitting them when truncated.
+- Deleting the last tag-filtered Library row on disk keeps the cursor on a
+  visible row.
+- Pressing Enter twice on a Favorites category no longer resets the opened list
+  or makes Esc return to the wrong category.
+- Favorites help and footer describe `F` as choosing a favorite target on track
+  rows; Help's footer consistently reads `? all/view`.
+- Insights session rows, Favorites range labels, and Help descriptions measure
+  symbols such as `·` and `–` by display width, so rows fill and wrap correctly.
+- Pressing `f` explains why the cursor did not move when nothing is loaded or
+  the playing track is hidden by the queue filter.
+- A muse quitting while another starts no longer deletes the new session's
+  `--control` or mpv socket.
+- The `--control` socket is never briefly reachable by other users while it
+  is created.
+- A host request sent while muse is busy now gets "muse did not answer in time"
+  instead of hanging.
 
 - Smart-playlist save failures preserve the draft and allow retry. Pending saves
   cannot be submitted twice; a successful write followed by a failed list refresh
@@ -711,5 +747,6 @@ earlier release.
   `dev` when no `-ldflags` value was stamped in.
 - Project documentation: README, CONTRIBUTING, and an MIT license.
 
-[Unreleased]: https://github.com/sglavoie/muse/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sglavoie/muse/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sglavoie/muse/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sglavoie/muse/releases/tag/v0.1.0
