@@ -375,6 +375,30 @@ func TestShutdownLockfileAndSocketCleanup(t *testing.T) {
 	}
 }
 
+// TestShutdownRemovesMPVSocketBeforeReleasingLockfile: once the lockfile is
+// released a new muse may bind its own mpv socket at the same path, so the old
+// one must have removed its socket already.
+func TestShutdownRemovesMPVSocketBeforeReleasingLockfile(t *testing.T) {
+	logs := installLogger(t)
+
+	dir := shortTestDir(t)
+	lf := config.NewLockfile(dir)
+	if err := lf.Acquire(); err != nil {
+		t.Fatalf("Acquire: %v", err)
+	}
+	socketPath := filepath.Join(dir, "mpv.sock")
+	createSocketFile(t, socketPath)
+
+	app.Shutdown(app.ShutdownDeps{Lockfile: lf, SocketPath: socketPath}, app.ShutdownTimeout)
+
+	msgs := logs.messages()
+	removed := indexIn(msgs, "shutdown: mpv socket removed")
+	releasing := indexIn(msgs, "shutdown: releasing lockfile")
+	if removed == -1 || releasing == -1 || removed > releasing {
+		t.Fatalf("mpv socket must be removed before the lockfile is released; log = %v", msgs)
+	}
+}
+
 // TestShutdownTimeout_ForcesExit verifies that Shutdown calls os.Exit(1) when
 // the sequence exceeds the timeout. It runs itself as a subprocess to safely
 // observe the exit code without terminating the test process.

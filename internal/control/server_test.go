@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -123,6 +124,32 @@ func TestServerTimesOutASilentTUI(t *testing.T) {
 	c := dial(t, server.Path())
 	c.send(t, `{"id":1,"op":"state"}`)
 	if got := c.next(t); got["ok"] != false || got["message"] != "muse did not answer in time" {
+		t.Fatalf("reply = %v", got)
+	}
+}
+
+// TestServerTimesOutABusyTUI: the timeout also covers handing the request
+// over, which blocks while the TUI is busy in Update. A reply the TUI gives
+// after the timeout is dropped, and the next request still gets its own.
+func TestServerTimesOutABusyTUI(t *testing.T) {
+	busy := make(chan struct{})
+	var handed atomic.Bool
+	server := serve(t, func(req Request) <-chan Reply {
+		if !handed.Swap(true) {
+			<-busy
+		}
+		return echoDispatch(req)
+	})
+	server.replyTimeout = 20 * time.Millisecond
+
+	c := dial(t, server.Path())
+	c.send(t, `{"id":1,"op":"state"}`)
+	if got := c.next(t); got["reply"] != float64(1) || got["message"] != "muse did not answer in time" {
+		t.Fatalf("reply = %v", got)
+	}
+	close(busy)
+	c.send(t, `{"id":2,"op":"next"}`)
+	if got := c.next(t); got["reply"] != float64(2) || got["ok"] != true || got["message"] != "next" {
 		t.Fatalf("reply = %v", got)
 	}
 }
@@ -372,6 +399,64 @@ func TestServerReplacesAStaleSocketButNotAFile(t *testing.T) {
 	}
 	if _, err := Listen(path); err == nil {
 		t.Fatal("Listen replaced a regular file")
+	}
+}
+
+// TestServerCloseLeavesAReplacementSocket: shutdown releases the PID lock
+// before closing the control server, so a relaunched muse may already serve
+// the same path. Closing the old server must not remove the new socket.
+func TestServerCloseLeavesAReplacementSocket(t *testing.T) {
+	path := socketPath(t)
+	old, err := Listen(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := Listen(path)
+	if err != nil {
+		t.Fatalf("relaunch: %v", err)
+	}
+	defer func() { _ = next.Close() }()
+
+	if err := old.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(path); err != nil {
+		t.Fatalf("closing the old server removed the new socket: %v", err)
+	}
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatalf("new socket unreachable: %v", err)
+	}
+	_ = conn.Close()
+}
+
+// TestServerSocketIsPrivateUnderAPermissiveUmask: the socket is bound inside
+// a private directory and renamed into place already restricted, so it is
+// never reachable by other users and leaves nothing else behind.
+func TestServerSocketIsPrivateUnderAPermissiveUmask(t *testing.T) {
+	prev := syscall.Umask(0)
+	defer syscall.Umask(prev)
+
+	path := socketPath(t)
+	server, err := Listen(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = server.Close() }()
+
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSocket == 0 || info.Mode().Perm() != 0o600 {
+		t.Fatalf("socket mode = %v, want a 600 socket", info.Mode())
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Listen left staging files behind: %v", entries)
 	}
 }
 

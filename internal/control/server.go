@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -43,6 +44,7 @@ type Dispatch func(Request) <-chan Reply
 // exists.
 type Server struct {
 	path         string
+	socketInfo   os.FileInfo
 	listener     net.Listener
 	replyTimeout time.Duration
 
@@ -96,21 +98,59 @@ func Listen(path string) (*Server, error) {
 			return nil, fmt.Errorf("control: remove stale socket: %w", err)
 		}
 	}
-	listener, err := net.Listen("unix", path)
+	listener, info, err := bindPrivate(path)
 	if err != nil {
-		return nil, fmt.Errorf("control: listen on %s: %w", path, err)
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		_ = listener.Close()
-		_ = os.Remove(path)
-		return nil, fmt.Errorf("control: restrict %s: %w", path, err)
+		return nil, err
 	}
 	return &Server{
 		path:         path,
+		socketInfo:   info,
 		listener:     listener,
 		replyTimeout: DefaultReplyTimeout,
 		conns:        map[*conn]struct{}{},
 	}, nil
+}
+
+// bindPrivate binds a socket that no other user can ever reach, then moves it
+// to path. net.Listen creates the socket with the umask's permissions, so a
+// Chmod after it leaves a window in which another user can connect, and that
+// connection outlives the Chmod. Narrowing the umask instead would be
+// process-wide and race with whatever else muse creates while it starts.
+// Binding inside a fresh 0700 directory closes the window: nobody else can
+// reach the socket until it is already 0600 and renamed into place.
+//
+// The listener does not unlink on close: the file has moved, and Close
+// removes path only while it is still this socket.
+func bindPrivate(path string) (net.Listener, os.FileInfo, error) {
+	// A short name, since a socket path is capped near 104 bytes on macOS.
+	dir, err := os.MkdirTemp(filepath.Dir(path), ".m")
+	if err != nil {
+		return nil, nil, fmt.Errorf("control: prepare %s: %w", path, err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	staged := filepath.Join(dir, "s")
+	listener, err := net.Listen("unix", staged)
+	if err != nil {
+		return nil, nil, fmt.Errorf("control: listen on %s: %w", path, err)
+	}
+	if unix, ok := listener.(*net.UnixListener); ok {
+		unix.SetUnlinkOnClose(false)
+	}
+	if err := os.Chmod(staged, 0o600); err != nil {
+		_ = listener.Close()
+		return nil, nil, fmt.Errorf("control: restrict %s: %w", path, err)
+	}
+	if err := os.Rename(staged, path); err != nil {
+		_ = listener.Close()
+		return nil, nil, fmt.Errorf("control: place socket at %s: %w", path, err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		_ = listener.Close()
+		_ = os.Remove(path)
+		return nil, nil, fmt.Errorf("control: stat %s: %w", path, err)
+	}
+	return listener, info, nil
 }
 
 // Path is the socket's path.
@@ -213,10 +253,31 @@ func (s *Server) Close() error {
 		c.requestStop()
 	}
 	s.wg.Wait()
-	if rmErr := os.Remove(s.path); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) && err == nil {
+	if rmErr := s.removeSocket(); rmErr != nil && err == nil {
 		err = rmErr
 	}
 	return err
+}
+
+// removeSocket removes the socket file only while it is still the one Listen
+// bound. Shutdown releases the PID lock before closing this server, so a muse
+// relaunched with the same --control path may already have bound its own
+// socket there, and removing that one would cut its host off.
+func (s *Server) removeSocket() error {
+	info, err := os.Lstat(s.path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(s.socketInfo, info) {
+		return nil
+	}
+	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 func (s *Server) accept() {
@@ -321,6 +382,12 @@ func (s *Server) read(c *conn) {
 
 // answer waits for the TUI's reply to req, bounded by the reply timeout and by
 // the connection ending. Once Drain has run the TUI is not asked at all.
+//
+// The timeout also covers handing req over: dispatch may block while the TUI
+// is busy, so it runs on its own goroutine. That goroutine outlives a timeout
+// only until dispatch returns, and never blocks after that, since handed has
+// room for the one channel it sends. A reply that arrives after answer has
+// given up lands in the reply channel's buffer and is dropped with it.
 func (s *Server) answer(req Request, done <-chan struct{}) Reply {
 	s.mu.Lock()
 	dispatch, quitting := s.dispatch, s.quitting != nil
@@ -328,17 +395,24 @@ func (s *Server) answer(req Request, done <-chan struct{}) Reply {
 	if quitting {
 		return Reply{ID: req.ID, OK: false, Message: quittingMessage}
 	}
-	replies := dispatch(req)
 	timer := time.NewTimer(s.replyTimeout)
 	defer timer.Stop()
-	select {
-	case reply := <-replies:
-		reply.ID = req.ID
-		return reply
-	case <-timer.C:
-		return Reply{ID: req.ID, OK: false, Message: "muse did not answer in time"}
-	case <-done:
-		return Reply{ID: req.ID}
+	handed := make(chan (<-chan Reply), 1)
+	safego.Go("control.dispatch", func() { handed <- dispatch(req) })
+	// replies stays nil, and so never ready, until dispatch has returned.
+	var replies <-chan Reply
+	for {
+		select {
+		case replies = <-handed:
+			handed = nil
+		case reply := <-replies:
+			reply.ID = req.ID
+			return reply
+		case <-timer.C:
+			return Reply{ID: req.ID, OK: false, Message: "muse did not answer in time"}
+		case <-done:
+			return Reply{ID: req.ID}
+		}
 	}
 }
 

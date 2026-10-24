@@ -82,8 +82,8 @@ type ShutdownDeps struct {
 //  2. Stop and flush the library pipeline (final watcher/scan upserts)
 //  3. Flush pending DB writes (cancel writer context, wait for goroutine exit)
 //  4. Close database connection
-//  5. Release PID lockfile
-//  6. Delete mpv socket file
+//  5. Delete mpv socket file (while the lockfile still guards its path)
+//  6. Release PID lockfile
 //  7. Close the control server (its EOF tells a host shutdown finished)
 //  8. Close log file (last, so all shutdown entries are captured)
 //
@@ -216,17 +216,11 @@ func shutdownSequence(deps ShutdownDeps) {
 		slog.Info("shutdown: database closed")
 	})
 
-	// Step 5: Release PID lockfile.
-	runShutdownStep("5: release lockfile", func() {
-		slog.Info("shutdown: releasing lockfile")
-		if deps.Lockfile != nil {
-			deps.Lockfile.Release()
-		}
-		slog.Info("shutdown: lockfile released")
-	})
-
-	// Step 6: Delete mpv socket file.
-	runShutdownStep("6: remove mpv socket", func() {
+	// Step 5: Delete mpv socket file. mpv is already gone (step 1), and this
+	// must run before the lockfile is released: a muse launched right after
+	// the release launches its own mpv on the same path, and removing the
+	// file then would cut that session off from its player.
+	runShutdownStep("5: remove mpv socket", func() {
 		slog.Info("shutdown: removing mpv socket")
 		if deps.SocketPath != "" {
 			if err := removeSocketFile(deps.SocketPath); err != nil {
@@ -234,6 +228,15 @@ func shutdownSequence(deps ShutdownDeps) {
 			}
 		}
 		slog.Info("shutdown: mpv socket removed")
+	})
+
+	// Step 6: Release PID lockfile.
+	runShutdownStep("6: release lockfile", func() {
+		slog.Info("shutdown: releasing lockfile")
+		if deps.Lockfile != nil {
+			deps.Lockfile.Release()
+		}
+		slog.Info("shutdown: lockfile released")
 	})
 
 	// Step 7: Close the control server. Everything else is torn down by now,
