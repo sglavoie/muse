@@ -94,7 +94,7 @@ jobs:
         run: python3 scripts/ci_test.py --shard "$SHARD" --json-output "$RUNNER_TEMP/tests.jsonl"
       - name: Upload test timings and diagnostics
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tests-${{ matrix.shard }}
           path: ${{ runner.temp }}/tests.jsonl
