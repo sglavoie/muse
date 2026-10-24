@@ -124,18 +124,19 @@ func wrapText(text string, maxWidth, indent int) string {
 	lineLen := 0
 
 	for i, w := range words {
+		ww := ansi.StringWidth(w)
 		if i == 0 {
 			b.WriteString(w)
-			lineLen = len(w)
+			lineLen = ww
 			continue
 		}
 		// Would adding this word (plus a space) exceed the limit?
-		if lineLen+1+len(w) > maxWidth {
+		if lineLen+1+ww > maxWidth {
 			b.WriteString("\n" + pad + w)
-			lineLen = len(w)
+			lineLen = ww
 		} else {
 			b.WriteString(" " + w)
-			lineLen += 1 + len(w)
+			lineLen += 1 + ww
 		}
 	}
 	return b.String()
@@ -183,13 +184,13 @@ func writeHelpSection(b *strings.Builder, s styles.Styles, sec HelpSection, widt
 
 	maxKeyLen := 0
 	for _, e := range sec.entries {
-		maxKeyLen = max(maxKeyLen, len(e.key))
+		maxKeyLen = max(maxKeyLen, ansi.StringWidth(e.key))
 	}
 	// descCol is the column where descriptions start: "  " + key + "  ".
 	descCol := 2 + maxKeyLen + 2
 
 	for _, e := range sec.entries {
-		styledKey := s.HelpKey.Render(fmt.Sprintf("%-*s", maxKeyLen, e.key))
+		styledKey := s.HelpKey.Render(e.key + strings.Repeat(" ", maxKeyLen-ansi.StringWidth(e.key)))
 		fmt.Fprintf(b, "  %s  %s\n", styledKey, s.Dim.Render(helpEntryDesc(e.desc, descCol, width)))
 	}
 	b.WriteString("\n")
@@ -198,7 +199,7 @@ func writeHelpSection(b *strings.Builder, s styles.Styles, sec HelpSection, widt
 // helpEntryDesc word-wraps a description into the space left of descCol when it
 // would otherwise run past the terminal edge.
 func helpEntryDesc(desc string, descCol, width int) string {
-	if width > 0 && descCol+len(desc) > width {
+	if width > 0 && descCol+ansi.StringWidth(desc) > width {
 		return wrapText(desc, max(width-descCol, 1), descCol)
 	}
 	return desc

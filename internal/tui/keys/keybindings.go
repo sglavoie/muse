@@ -30,7 +30,8 @@ import (
 //   N   | —              | play-next  | play-next  | —          | play-next     | play-next  | play-next  | play-next   | —
 //   s   | stop           | =          | =          | =          | =             | =          | =          | sort-cycle* | =
 //   S   | —              | —          | smart-new  | save-q     | —             | —          | —          | save-as-pl  | save-as-pl
-//   d   | —              | —          | delete     | dequeue    | —             | —          | tag-delete | —           | —
+//   d   | —              | —          | delete     | dequeue    | —             | —          | tag-delete | mix-dismiss | —
+//   D   | —              | —          | —          | —          | —             | —          | —          | mix-restore | —
 //   c   | —              | —          | create     | —          | —             | —          | tag-create | —           | —
 //   e   | —              | —          | smart-edit | —          | —             | —          | —          | enqueue     | enqueue
 //   E   | —              | —          | enqueue-all| —          | —             | —          | enqueue-all| enqueue-all | enqueue-all
@@ -51,10 +52,10 @@ import (
 //   I   | now-playing-info | =        | =          | =          | =             | =          | =          | =           | =
 //   i   | track-info     | =          | =          | =          | =             | =          | =          | =           | =
 //   L   | listening-stats| =          | =          | =          | =             | =          | =          | =           | =
-//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | —           | visual
-//   x   | —              | bulk-sel   | bulk-sel   | bulk-sel   | bulk-sel      | bulk-sel   | bulk-sel   | mix-dismiss*| bulk-sel
-//   X   | —              | clear-sel  | clear-sel  | clear-sel  | clear-sel     | clear-sel  | clear-sel  | mix-undism* | clear-sel
-//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | —           | bulk-act
+//   v   | —              | visual     | visual     | visual     | visual        | visual     | visual     | visual      | visual
+//   x   | —              | bulk-sel   | bulk-sel   | bulk-sel   | bulk-sel      | bulk-sel   | bulk-sel   | bulk-sel    | bulk-sel
+//   X   | —              | clear-sel  | clear-sel  | clear-sel  | clear-sel     | clear-sel  | clear-sel  | clear-sel   | clear-sel
+//   a   | —              | bulk-act   | bulk-act   | —          | bulk-act      | bulk-act   | bulk-act   | bulk-act    | bulk-act
 //   K/J | —              | —          | move-trk   | move-trk   | —             | —          | —          | —           | —
 //   C   | —              | —          | —          | clear-q    | —             | —          | —          | —           | —
 //   ` / ~ | —            | mode-cycle | —          | —          | mode-cycle    | —          | —          | —           | panel-cycle

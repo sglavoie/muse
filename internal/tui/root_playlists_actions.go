@@ -19,7 +19,7 @@ func (m Model) handlePlaylistKeyAction(action keys.Action) (Model, tea.Cmd, bool
 			return m, func() tea.Msg {
 				tracks, err := evaluator.EvalSmartPlaylist(q)
 				if err != nil {
-					return playlistTracksLoadErrorMsg{err: err}
+					return playlistTracksLoadErrorMsg{err: err, playlistID: pid}
 				}
 				return playlistTracksLoadedMsg{tracks: tracks, isRefresh: true, playlistID: pid}
 			}, true

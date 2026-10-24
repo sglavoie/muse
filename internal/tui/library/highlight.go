@@ -5,6 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 
 	"github.com/sglavoie/muse/internal/tui/text"
 )
@@ -132,6 +133,8 @@ func styledOrPlain(s string, base lipgloss.Style, hasBase bool) string {
 // fitToWidth returns the leading runes of s that fit within width display
 // columns, their combined width, and whether s had to be truncated. When it
 // did, one column is reserved for the trailing ellipsis the caller appends.
+// It walks grapheme clusters so ZWJ sequences and flags are measured the way
+// ansi.StringWidth measures the whole string and are never split.
 func fitToWidth(s string, width int) (content []rune, contentWidth int, ellipsis bool) {
 	runes := []rune(s)
 	totalWidth := ansi.StringWidth(s)
@@ -139,15 +142,17 @@ func fitToWidth(s string, width int) (content []rune, contentWidth int, ellipsis
 		return runes, totalWidth, false
 	}
 	budget := width - 1 // reserve 1 column for "…"
-	w := 0
-	for i, r := range runes {
-		rw := ansi.StringWidth(string(r))
-		if w+rw > budget {
-			return runes[:i], w, true
+	w, n := 0, 0
+	graphemes := uniseg.NewGraphemes(s)
+	for graphemes.Next() {
+		gw := ansi.StringWidth(graphemes.Str())
+		if w+gw > budget {
+			return runes[:n], w, true
 		}
-		w += rw
+		w += gw
+		n += len(graphemes.Runes())
 	}
-	// Unreachable while totalWidth > width: the runes must overrun the budget.
+	// Unreachable while totalWidth > width: the clusters must overrun the budget.
 	return runes[:0], w, true
 }
 

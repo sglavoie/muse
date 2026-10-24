@@ -141,9 +141,19 @@ func containsString(values []string, target string) bool {
 }
 
 // handleFavoritesLoadedMsg processes the result of loading favorites for a category.
+// A result for a superseded request (a second Enter before the first load
+// landed) or one arriving after the view left CategoryLevel is dropped, so it
+// cannot reset the list cursor and filter or save the wrong category cursor.
 func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
+	if msg.token != 0 && msg.token != m.favorites.PendingLoad {
+		return m
+	}
+	m.favorites.PendingLoad = 0
 	if msg.err != nil {
 		m.statusBar.NotifyError("Load favorites failed: " + msg.err.Error())
+		return m
+	}
+	if m.favorites.Level != favtui.CategoryLevel {
 		return m
 	}
 
@@ -157,7 +167,7 @@ func (m Model) handleFavoritesLoadedMsg(msg favoritesLoadedMsg) Model {
 	case favtui.CategoryTracks:
 		m.favorites.Tracks = msg.tracks
 	}
-	m.favorites.CategoryCursor = m.favorites.Cursor
+	m.favorites.CategoryCursor = int(category) // the category requested, not where the cursor drifted
 	m.favorites.Level = favtui.ListLevel
 	m.favorites.Cursor = 0
 	m.favorites.ScrollOffset = 0

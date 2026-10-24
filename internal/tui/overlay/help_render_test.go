@@ -52,6 +52,13 @@ func TestWrapText(t *testing.T) {
 			indent:   2,
 			want:     "one two\n  three four\n  five",
 		},
+		{
+			name:     "measures display width, not bytes",
+			text:     "Play — next · then",
+			maxWidth: 18,
+			indent:   2,
+			want:     "Play — next · then",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,6 +67,15 @@ func TestWrapText(t *testing.T) {
 				t.Errorf("wrapText(%q, %d, %d)\n got: %q\nwant: %q", tt.text, tt.maxWidth, tt.indent, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestHelpEntryDescUsesDisplayWidth verifies that a description whose byte
+// length exceeds the room but whose display width fits is left unwrapped.
+func TestHelpEntryDescUsesDisplayWidth(t *testing.T) {
+	desc := "Toggle — repeat · shuffle"
+	if got := helpEntryDesc(desc, 4, 4+len([]rune(desc))); got != desc {
+		t.Errorf("helpEntryDesc wrapped a fitting description: %q", got)
 	}
 }
 

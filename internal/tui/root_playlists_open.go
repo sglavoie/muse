@@ -34,8 +34,10 @@ func (m Model) handlePlaylistOpen() (Model, tea.Cmd, bool) {
 func (m Model) openSmartPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 	q, err := db.ParseSmartPlaylistQuery(pl.Query)
 	if err != nil {
-		return m, func() tea.Msg { return playlistTracksLoadErrorMsg{err: err} }, true
+		return m, func() tea.Msg { return playlistTracksLoadErrorMsg{err: err, playlistID: pl.ID} }, true
 	}
+	// SmartQuery travels with the pending load: a later regular open or a
+	// load failure clears it so a regular playlist never inherits it.
 	m.playlists.SmartQuery = &q
 	m.playlists.PendingLoadID = pl.ID
 	evaluator := m.smartEval
@@ -43,7 +45,7 @@ func (m Model) openSmartPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 	return m, func() tea.Msg {
 		tracks, err := evaluator.EvalSmartPlaylist(q)
 		if err != nil {
-			return playlistTracksLoadErrorMsg{err: err}
+			return playlistTracksLoadErrorMsg{err: err, playlistID: pid}
 		}
 		return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
 	}, true
@@ -51,12 +53,13 @@ func (m Model) openSmartPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 
 func (m Model) openRegularPlaylist(pl db.PlaylistRow) (Model, tea.Cmd, bool) {
 	pid := pl.ID
+	m.playlists.SmartQuery = nil // drop any query left by an earlier smart open
 	m.playlists.PendingLoadID = pid
 	reader := m.playlistReader
 	return m, func() tea.Msg {
 		tracks, err := reader.ReadPlaylistTracks(pid)
 		if err != nil {
-			return playlistTracksLoadErrorMsg{err: err}
+			return playlistTracksLoadErrorMsg{err: err, playlistID: pid}
 		}
 		return playlistTracksLoadedMsg{tracks: tracks, playlistID: pid}
 	}, true

@@ -31,7 +31,8 @@ type favoriteToggledMsg struct {
 
 // favoritesLoadedMsg carries the favorites loaded for a specific category.
 type favoritesLoadedMsg struct {
-	category int // 0=artists, 1=albums, 2=tracks
+	category int    // 0=artists, 1=albums, 2=tracks
+	token    uint64 // request token; results for a superseded request are dropped
 	artists  []string
 	albums   []string
 	tracks   []library.Track

@@ -138,7 +138,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
-| `tui/queue` | 79 | 18 | 61 | 0 | `tui`, `internal/app` |
+| `tui/queue` | 80 | 18 | 62 | 0 | `tui`, `internal/app` |
 | `tui/browse` | 82 | 0 | 81 | 1 | `tui` |
 | `tui/insights` | 140 | 0 | 136 | 4 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1066 exported identifiers across 15 packages**: 167 reached from two or more packages, 841 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1067 exported identifiers across 15 packages**: 167 reached from two or more packages, 842 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -908,6 +908,7 @@ export must either earn a justification, be recorded in
 | `tui/queue` | `View.ScrollToNowPlaying` | method | `internal/tui` | root |
 | `tui/queue` | `View.SelectedHashes` | method | `internal/tui` | root |
 | `tui/queue` | `View.SetSize` | method | `internal/tui` | root |
+| `tui/queue` | `View.ShowsEntry` | method | `internal/tui` | root |
 | `tui/queue` | `View.SortState` | field | `internal/tui` | root |
 | `tui/queue` | `View.StartSaveAsPlaylist` | method | `internal/tui` | root |
 | `tui/queue` | `View.TagFilterHashes` | field | `internal/tui` | root |

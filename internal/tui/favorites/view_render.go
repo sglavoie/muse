@@ -412,7 +412,7 @@ func joinFavoriteCells(sep, pos, title, artist, album, duration, plays string) s
 
 func (v View) headingWithWindow(heading string, start, end, total int) string {
 	label := strip.WindowLabel(start, end, total)
-	if len(v.SelectedItems) > 0 && ansi.StringWidth(heading)+len(label)+2 > v.Width {
+	if len(v.SelectedItems) > 0 && ansi.StringWidth(heading)+ansi.StringWidth(label)+2 > v.Width {
 		return heading
 	}
 	return strip.WithWindow(heading, v.Width, start, end, total, v.Styles)

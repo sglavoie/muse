@@ -159,7 +159,18 @@ func (m Model) handleQueueKeyAction(action keys.Action) (tea.Model, tea.Cmd, boo
 		if m.ActiveView != viewQueue {
 			m = m.switchToView(viewQueue)
 		}
-		m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
+		// Say why the cursor did not move instead of silently doing nothing;
+		// the wording matches the palette's disabled reason.
+		switch {
+		case !playbackHasTrack(m):
+			m.statusBar.Notify("Load a track first")
+		case m.playback.currentIndex < 0:
+			m.statusBar.Notify("Now playing is not in the queue")
+		case !m.queue.ShowsEntry(m.playback.currentIndex):
+			m.statusBar.Notify("Now playing is hidden by the queue filter")
+		default:
+			m.queue = m.queue.FocusNowPlaying(m.playback.currentIndex)
+		}
 		return m, nil, true
 	case keys.ActionYank:
 		return m.yankOrCutQueueTracks(false)

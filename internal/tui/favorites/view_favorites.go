@@ -39,6 +39,11 @@ type FavoritesView struct {
 	DrilldownTracks []musiclib.Track
 	DrilldownName   string // heading text for TrackLevel (artist or album name)
 
+	// PendingLoad is the token of the in-flight category load; 0 when idle.
+	// LoadSeq hands out tokens so a superseded load can be recognized.
+	PendingLoad uint64
+	LoadSeq     uint64
+
 	// Saved cursors/scroll for each level (restored on Back).
 	CategoryCursor   int
 	listCursor       int

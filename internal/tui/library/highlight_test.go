@@ -135,3 +135,29 @@ func TestPadHighlightNormalizesControlWhitespace(t *testing.T) {
 		t.Fatalf("highlighted text should replace control whitespace with spaces, got %q", visible)
 	}
 }
+
+// TestFitToWidthKeepsGraphemeClusters verifies that ZWJ sequences and flags
+// are measured as whole clusters: truncation never splits them and the
+// reported width matches the rendered width.
+func TestFitToWidthKeepsGraphemeClusters(t *testing.T) {
+	family := "👨‍👩‍👧"
+	s := "ab" + family + "🇨🇦cd"
+
+	content, w, ellipsis := fitToWidth(s, 5)
+	if !ellipsis {
+		t.Fatal("expected truncation")
+	}
+	if string(content) != "ab"+family {
+		t.Errorf("content = %q, want %q", string(content), "ab"+family)
+	}
+	if w != ansi.StringWidth(string(content)) {
+		t.Errorf("contentWidth = %d, want %d", w, ansi.StringWidth(string(content)))
+	}
+
+	for _, width := range []int{3, 4, 5, 6, 7, 8, 12} {
+		got := padHighlight(s, width, []int{0})
+		if gw := ansi.StringWidth(got); gw != width {
+			t.Errorf("padHighlight(width=%d) width = %d: %q", width, gw, ansi.Strip(got))
+		}
+	}
+}

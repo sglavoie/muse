@@ -29,8 +29,14 @@ func (m Model) handlePlaylistTracksLoadedMsg(msg playlistTracksLoadedMsg) Model 
 }
 
 // handlePlaylistTracksLoadErrorMsg shows a transient error notification for
-// a failed playlist track load.
+// a failed playlist track load. A failed open that is still pending is
+// abandoned so its smart query does not leak into the next regular open; a
+// failed smart refresh at track level keeps the open playlist as it is.
 func (m Model) handlePlaylistTracksLoadErrorMsg(msg playlistTracksLoadErrorMsg) Model {
+	if m.playlists.AtListLevel() && msg.playlistID == m.playlists.PendingLoadID {
+		m.playlists.PendingLoadID = 0
+		m.playlists.SmartQuery = nil
+	}
 	m.statusBar.NotifyError("Load playlist failed: " + msg.err.Error())
 	player.PlaySound(player.SoundError)
 	return m

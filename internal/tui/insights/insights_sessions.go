@@ -321,7 +321,7 @@ func (v View) renderSessionRow(s styles.Styles, r insightsdata.SessionRow, focus
 		text.FormatListeningTime(insightsSessionSecs(r)),
 		insightsSessionArc(r))
 
-	labelW := max(width-len(note)-2, 1)
+	labelW := max(width-ansi.StringWidth(note)-2, 1)
 	body := text.Pad(text.Truncate(label, labelW), labelW) + "  " + note
 	if focused {
 		return s.Accent.Render(cursor + text.Truncate(ansi.Strip(body), width))

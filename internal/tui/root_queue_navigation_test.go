@@ -180,4 +180,31 @@ func TestFocusNowPlayingNoOpWhenNothingPlaying(t *testing.T) {
 	if nm.queue.Cursor != 1 {
 		t.Errorf("f key with no playing track: expected cursor unchanged at 1, got %d", nm.queue.Cursor)
 	}
+	if got := nm.statusBar.TopNotification().Msg; got != "Load a track first" {
+		t.Errorf("f key with no playing track: notification = %q, want %q", got, "Load a track first")
+	}
+}
+
+// TestFocusNowPlayingExplainsFilteredOutTrack verifies that pressing "f" while
+// the queue filter hides the playing row leaves the cursor and says why.
+func TestFocusNowPlayingExplainsFilteredOutTrack(t *testing.T) {
+	m := New(context.Background())
+	m.ActiveView = viewQueue
+	m.queue.Entries = []queue.Entry{
+		{Path: "/music/a.flac", Hash: "aaa", Display: "A"},
+		{Path: "/music/b.flac", Hash: "bbb", Display: "B"},
+	}
+	m.queue.TagFilterHashes = map[string]struct{}{"aaa": {}}
+	m.playback.currentHash = "bbb"
+	m.playback.currentIndex = 1
+
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
+	nm := next.(Model)
+
+	if nm.queue.Cursor != 0 {
+		t.Errorf("expected cursor unchanged at 0, got %d", nm.queue.Cursor)
+	}
+	if got := nm.statusBar.TopNotification().Msg; got != "Now playing is hidden by the queue filter" {
+		t.Errorf("notification = %q, want the filtered-out hint", got)
+	}
 }

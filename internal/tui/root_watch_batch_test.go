@@ -374,3 +374,26 @@ func TestWatchBatchUpdatesTagsTrackMetadata(t *testing.T) {
 		t.Errorf("expected tags track Album=%q, got %q", "NewAlbum", tr.Album)
 	}
 }
+
+// TestWatchBatchClampsCursorToTagFilteredRows verifies that deleting the last
+// tag-filtered row on disk clamps the library cursor to the rows still shown,
+// not to the size of the whole index.
+func TestWatchBatchClampsCursorToTagFilteredRows(t *testing.T) {
+	m := New(context.Background())
+	m.library.Index.Insert(library.Track{Artist: "A", Title: "One", Path: "/a", Hash: "h1"})
+	m.library.Index.Insert(library.Track{Artist: "B", Title: "Two", Path: "/b", Hash: "h2"})
+	m.library.Index.Insert(library.Track{Artist: "C", Title: "Three", Path: "/c", Hash: "h3"})
+	m.library.Index.Insert(library.Track{Artist: "D", Title: "Four", Path: "/d", Hash: "h4"})
+	m.library.TagFilterHashes = map[string]struct{}{"h1": {}, "h2": {}}
+	m.library.Cursor = 1 // last tag-filtered row
+
+	next, _ := m.Update(watchBatchMsg{deleted: []string{"/b"}})
+	nm := next.(Model)
+
+	if n := nm.library.TrackCount(); n != 1 {
+		t.Fatalf("expected 1 tag-filtered row after deletion, got %d", n)
+	}
+	if nm.library.Cursor != 0 {
+		t.Errorf("cursor = %d, want 0 (clamped to the tag-filtered rows)", nm.library.Cursor)
+	}
+}

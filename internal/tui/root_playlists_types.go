@@ -18,8 +18,12 @@ type playlistTracksLoadedMsg struct {
 }
 
 // playlistTracksLoadErrorMsg carries an error from a failed ReadPlaylistTracks
-// call. Root handles it by showing a transient error notification.
-type playlistTracksLoadErrorMsg struct{ err error }
+// call. Root handles it by showing a transient error notification and, when
+// the failed load is still pending, abandoning it.
+type playlistTracksLoadErrorMsg struct {
+	err        error
+	playlistID int64 // playlist whose load failed; used to ignore stale failures
+}
 
 // PlaylistRenameMsg is dispatched when the user presses 'r' in the playlists
 // view to rename the selected playlist.

@@ -86,7 +86,7 @@ func (m Model) renderHelpFooter() string {
 	if m.helpSearchFilter.Active {
 		hints = "enter apply · esc clear"
 	} else if m.helpSearchFilter.Text != "" {
-		hints = "/ search · ? all/context · esc clear"
+		hints = "/ search · ? all/view · esc clear"
 	}
 	position := fmt.Sprintf("%d%%", int(m.helpViewport.ScrollPercent()*100))
 	room := max(0, m.termWidth-len(position)-3)

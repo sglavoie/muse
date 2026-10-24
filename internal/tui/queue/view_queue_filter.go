@@ -120,6 +120,20 @@ func (v View) ScrollToNowPlaying(currentPlayingIndex int) View {
 	return v
 }
 
+// ShowsEntry reports whether the queue row at origIdx survives the active
+// text and tag filters, i.e. whether FocusNowPlaying can land on it.
+func (v View) ShowsEntry(origIdx int) bool {
+	if origIdx < 0 {
+		return false
+	}
+	for _, e := range v.FilteredEntries() {
+		if e.OrigIdx == origIdx {
+			return true
+		}
+	}
+	return false
+}
+
 // FocusNowPlaying moves the cursor to the entry whose Hash matches
 // currentPlayingIndex and adjusts the scroll offset to center it in the viewport.
 // Returns v unchanged if no match is found or index is negative.

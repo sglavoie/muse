@@ -227,7 +227,7 @@ var helpSectionsTable = []HelpSection{
 			{"enter", "Open category / drill into tracks / enqueue focused or selected tracks"},
 			{"N", "Play selected tracks next, or focused track"},
 			{"esc", "Clear filter / back one level"},
-			{"F", "Remove from favorites"},
+			{"F", "Choose favorite target on track rows / unfavorite focused artist or album"},
 			{"x", "Toggle bulk selection (● selected; playback icon stays beside it)"},
 			{"X", "Clear selection"},
 			{"v", "Toggle visual line selection mode"},

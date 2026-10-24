@@ -317,26 +317,9 @@ func (m Model) reconcileTrackCaches(tracks []library.Track) Model {
 // the library cursor after watcher-driven insertions and deletions.
 func (m Model) watchRecomputeLibrary() Model {
 	m.library = m.library.RefreshView()
-	if m.library.Filter.Text != "" && m.library.FilteredMatches != nil {
-		n := len(m.library.FilteredMatches)
-		if n == 0 {
-			m.library.Cursor = 0
-			m.library.ScrollOffset = 0
-		} else if m.library.Cursor >= n {
-			m.library.Cursor = n - 1
-		}
-	} else {
-		n := m.library.Index.Len()
-		if n == 0 {
-			m.library.Cursor = 0
-			m.library.ScrollOffset = 0
-		} else if m.library.Cursor >= n {
-			m.library.Cursor = n - 1
-		}
-	}
-	if m.library.ScrollOffset > m.library.Cursor {
-		m.library.ScrollOffset = m.library.Cursor
-	}
+	// ClampCursor counts the rows actually shown (text filter, tag filter,
+	// sort), not the whole index.
+	m.library = m.library.ClampCursor()
 	return m
 }
 

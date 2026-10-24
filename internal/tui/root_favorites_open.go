@@ -20,6 +20,9 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 			return m, nil, true
 		}
 		category := favtui.Category(m.favorites.Cursor)
+		m.favorites.LoadSeq++
+		token := m.favorites.LoadSeq
+		m.favorites.PendingLoad = token
 		reader := m.favoriteReader
 		libraryTracks := snapshotTracks(m.library.Index.Tracks())
 		return m, func() tea.Msg {
@@ -27,27 +30,27 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 			case favtui.CategoryArtists:
 				rows, err := reader.ReadFavoritesByType("artist")
 				if err != nil {
-					return favoritesLoadedMsg{category: int(category), err: err}
+					return favoritesLoadedMsg{category: int(category), token: token, err: err}
 				}
 				artists := make([]string, len(rows))
 				for i, r := range rows {
 					artists[i] = r.Value
 				}
-				return favoritesLoadedMsg{category: int(category), artists: artists}
+				return favoritesLoadedMsg{category: int(category), token: token, artists: artists}
 			case favtui.CategoryAlbums:
 				rows, err := reader.ReadFavoritesByType("album")
 				if err != nil {
-					return favoritesLoadedMsg{category: int(category), err: err}
+					return favoritesLoadedMsg{category: int(category), token: token, err: err}
 				}
 				albums := make([]string, len(rows))
 				for i, r := range rows {
 					albums[i] = r.Value
 				}
-				return favoritesLoadedMsg{category: int(category), albums: albums}
+				return favoritesLoadedMsg{category: int(category), token: token, albums: albums}
 			case favtui.CategoryTracks:
 				rows, err := reader.ReadFavoritesByType("track")
 				if err != nil {
-					return favoritesLoadedMsg{category: int(category), err: err}
+					return favoritesLoadedMsg{category: int(category), token: token, err: err}
 				}
 				hashSet := make(map[string]struct{}, len(rows))
 				for _, r := range rows {
@@ -60,9 +63,9 @@ func (m Model) handleFavoritesOpen() (Model, tea.Cmd, bool) {
 						delete(hashSet, t.Hash)
 					}
 				}
-				return favoritesLoadedMsg{category: int(category), tracks: tracks}
+				return favoritesLoadedMsg{category: int(category), token: token, tracks: tracks}
 			default:
-				return favoritesLoadedMsg{category: int(category)}
+				return favoritesLoadedMsg{category: int(category), token: token}
 			}
 		}, true
 
