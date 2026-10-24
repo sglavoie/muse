@@ -42,10 +42,14 @@ test-pkg pkg:
 # .github/workflows/ci.yml
 golangci_lint := "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"
 
+# The pinned linter cannot read export data from Go 1.27+, so lint always runs
+# on this toolchain, whatever Go is installed locally
+lint_toolchain := "go1.26.8"
+
 # Run the linter
 lint:
     go vet ./...
-    go run {{golangci_lint}} run
+    GOTOOLCHAIN={{lint_toolchain}} go run {{golangci_lint}} run
 
 # Check reachable Go vulnerabilities against the current advisory database
 security:
@@ -53,7 +57,7 @@ security:
 
 # Show complexity violations ignoring the debt list
 lint-complexity:
-    go run {{golangci_lint}} run -c .golangci-complexity.yml ./...
+    GOTOOLCHAIN={{lint_toolchain}} go run {{golangci_lint}} run -c .golangci-complexity.yml ./...
 
 # Format Go files that are not gitignored (so never macos/.cache, where Zig fetches Go sources)
 fmt:

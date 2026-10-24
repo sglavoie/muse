@@ -65,8 +65,9 @@ just test
 just security
 ```
 
-The pinned linter currently requires Go 1.26; with a newer Go installation,
-run `GOTOOLCHAIN=go1.26.8 just lint` to select a compatible toolchain.
+The pinned linter cannot read Go 1.27 export data, so `just lint` runs it on
+the Go 1.26 toolchain named by `lint_toolchain` in the `justfile`; Go downloads
+that toolchain on first use.
 
 The full suite runs with `-race`; keep it that way. golangci-lint is pinned to
 an exact version in the `golangci_lint` variable at the top of the `justfile`,
