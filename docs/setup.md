@@ -89,7 +89,24 @@ Arch:   pacman -S libnotify
 
 ## Install
 
-muse is distributed through `go install` only. It requires **Go 1.26+**.
+### Homebrew
+
+On macOS or Linux, the `sglavoie/tap` cask installs a prebuilt `muse` along
+with mpv and ExifTool:
+
+```sh
+brew install --cask sglavoie/tap/muse
+```
+
+Upgrade with `brew upgrade --cask sglavoie/tap/muse` and remove with
+`brew uninstall --cask sglavoie/tap/muse`. Use the full name: an unrelated
+`muse` cask exists in Homebrew itself. The binary is not notarized, so the cask
+clears its quarantine flag on macOS. Prebuilt archives are also attached to
+each [GitHub release](https://github.com/sglavoie/muse/releases).
+
+### go install
+
+Building from source requires **Go 1.26+**.
 
 ```sh
 go install github.com/sglavoie/muse@latest

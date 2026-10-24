@@ -20,10 +20,11 @@ A vector tour of muse's real interface, driven with fixture data.
 
 ## Quick start
 
-1. Install **Go 1.26+**, **mpv**, and either **ExifTool** or **ffprobe**.
-   On macOS: `brew install go mpv exiftool`. See [Requirements](#requirements)
-   for Linux commands.
-2. Install muse: `go install github.com/sglavoie/muse@latest`.
+1. With Homebrew (macOS or Linux), install muse along with mpv and ExifTool:
+   `brew install --cask sglavoie/tap/muse`.
+2. Without Homebrew, install **Go 1.26+**, **mpv**, and either **ExifTool** or
+   **ffprobe** (see [Requirements](#requirements)), then
+   `go install github.com/sglavoie/muse@latest`.
    If your shell cannot find `muse`, see the [PATH setup](#install).
 3. Run `muse`, then press `ctrl+,` on the welcome screen to open Library
    settings. Press `a` to add a music directory, `Enter` to accept it, and
@@ -62,8 +63,9 @@ management, metadata cleanup, Auto-DJ, and recovery with undo.
 
 ## Requirements
 
-muse supports macOS and Linux. Install **Go 1.26+**, **mpv**, and either
-**ExifTool** or **ffprobe**. On macOS:
+muse supports macOS and Linux. It needs **mpv** and either **ExifTool** or
+**ffprobe**; the Homebrew cask installs mpv and ExifTool for you. Building with
+`go install` also needs **Go 1.26+**. On macOS:
 
 ```sh
 brew install go mpv exiftool
@@ -73,12 +75,25 @@ See [platform installation commands and optional dependencies](docs/setup.md#req
 
 ## Install
 
+With [Homebrew](https://brew.sh) on macOS or Linux:
+
+```sh
+brew install --cask sglavoie/tap/muse
+muse check
+```
+
+`brew upgrade --cask sglavoie/tap/muse` installs new releases. The tap is
+named in full because an unrelated `muse` cask exists in Homebrew itself.
+
+With Go:
+
 ```sh
 go install github.com/sglavoie/muse@latest
 muse check
 ```
 
-For a checkout, use `go install .`. If `muse` is not found, add Go's binary
+Prebuilt archives for macOS and Linux are attached to each
+[GitHub release](https://github.com/sglavoie/muse/releases). For a checkout, use `go install .`. If `muse` is not found, add Go's binary
 directory to your `PATH`; [installation details](docs/setup.md#install) explain how.
 
 ## Configuration

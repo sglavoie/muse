@@ -1,0 +1,64 @@
+# Builds release binaries when a v* tag is pushed (.github/workflows/release.yml).
+# Check locally with `goreleaser check` and `goreleaser release --snapshot --clean`.
+version: 2
+
+before:
+  hooks:
+    - go mod tidy -diff
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    # Windows is not supported: muse drives mpv over a Unix socket.
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      # The tag keeps its v, matching `go install …@v0.2.0` and `just release`.
+      - -X main.Version={{ .Tag }}
+      - -X main.BuildTime={{ .Date }}
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - config.example.toml
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      # With or without a scope, as in chore(deps): from Dependabot.
+      - "^docs(\\(.*\\))?:"
+      - "^test(\\(.*\\))?:"
+      - "^chore(\\(.*\\))?:"
+
+homebrew_casks:
+  - repository:
+      owner: sglavoie
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: https://github.com/sglavoie/muse
+    description: Keyboard-driven terminal music player for your local library
+    license: MIT
+    # mpv plays; ExifTool is the recommended metadata backend (ffprobe also works).
+    dependencies:
+      - formula: mpv
+      - formula: exiftool
+    hooks:
+      post:
+        # The binaries are not notarized: let macOS run them.
+        # install_steps writes Homebrew's postflight_steps; install wrote the
+        # deprecated postflight, which warns on every install.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/muse"]
+          end

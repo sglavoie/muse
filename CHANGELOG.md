@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-10-24
 
+### Added
+
+- Homebrew install on macOS and Linux with
+  `brew install --cask sglavoie/tap/muse`, which also installs mpv and
+  ExifTool. Tagged releases attach prebuilt macOS and Linux archives with
+  checksums.
+
 ### Changed
 
 - Playlist and tag name editors label their purpose, show save/cancel hints,
