@@ -40,7 +40,8 @@ var errRootSkipped = errors.New("root skipped")
 // errRootSkipped; every other entry-level failure is non-fatal and only
 // reaches onErr.
 func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, visit func(path string) error, onErr func(error)) error {
-	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	roots := []string{root}
+	return walkDirFollowingRoot(root, func(path string, d fs.DirEntry, err error) error {
 		if ctx.Err() != nil {
 			return filepath.SkipAll
 		}
@@ -65,7 +66,7 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 			}
 			return nil
 		}
-		if ShouldExclude(path, excludedPaths) {
+		if ShouldExcludeUnder(path, roots, excludedPaths) {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -97,6 +98,41 @@ func walkAudioPaths(ctx context.Context, root string, excludedPaths []string, vi
 			return visit(path)
 		}
 		return nil
+	})
+}
+
+// walkDirFollowingRoot is filepath.WalkDir, except that a root which is itself
+// a symlink to a directory is followed. WalkDir Lstats the root, so a music
+// directory configured as a symlink would otherwise be visited as a single
+// non-directory entry and yield nothing, which FilteredWalk would then read as
+// every known track having been deleted. The resolved directory is traversed,
+// but fn sees each path under the configured root, so stored track paths,
+// exclusion patterns and watch registrations keep the spelling the user chose.
+// Only the root is followed; symlinked subdirectories are still not.
+func walkDirFollowingRoot(root string, fn fs.WalkDirFunc) error {
+	info, err := os.Lstat(root)
+	if err != nil || info.Mode()&fs.ModeSymlink == 0 {
+		return filepath.WalkDir(root, fn)
+	}
+	target, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		// A dangling root symlink is an unreadable root, reported the way
+		// WalkDir reports a root it cannot Lstat.
+		if err := fn(root, nil, err); err != nil && !errors.Is(err, filepath.SkipDir) && !errors.Is(err, filepath.SkipAll) {
+			return err
+		}
+		return nil
+	}
+	if targetInfo, statErr := os.Stat(target); statErr != nil || !targetInfo.IsDir() {
+		return filepath.WalkDir(root, fn)
+	}
+	return filepath.WalkDir(target, func(path string, d fs.DirEntry, err error) error {
+		if path == target {
+			path = root
+		} else if rel, relErr := filepath.Rel(target, path); relErr == nil {
+			path = filepath.Join(root, rel)
+		}
+		return fn(path, d, err)
 	})
 }
 

@@ -65,9 +65,22 @@ func (r *exifRecord) UnmarshalJSON(data []byte) error {
 	r.AlbumArtist = exifAlbumArtist(raw)
 	r.Genre = coerceString(raw["Genre"])
 	r.Duration = coerceFloat(raw["Duration"])
-	r.Track = coerceString(raw["Track"])
-	r.DiscNumber = coerceString(raw["DiscNumber"])
+	r.Track = firstExifString(raw, "Track", "TrackNumber")
+	r.DiscNumber = firstExifString(raw, "DiscNumber", "Discnumber", "DiskNumber", "PartOfSet")
 	return nil
+}
+
+// firstExifString returns the first non-empty value among the given exiftool
+// tag names. Containers disagree on spelling: ID3 emits Track and PartOfSet,
+// Vorbis comments TrackNumber and Discnumber, and QuickTime TrackNumber and
+// DiskNumber.
+func firstExifString(raw map[string]json.RawMessage, names ...string) string {
+	for _, name := range names {
+		if value := coerceString(raw[name]); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // coerceString extracts a string from a JSON value that may be a string,
@@ -192,13 +205,14 @@ func filenameStem(path string) string {
 }
 
 // parseTrackNumber parses a track/disc number string from exiftool, which may
-// be a plain integer ("3"), a fraction ("3/12"), or empty. Returns 0 on failure.
+// be a plain integer ("3"), a fraction ("3/12"), QuickTime's "3 of 12", or
+// empty. Returns 0 on failure.
 func parseTrackNumber(s string) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0
 	}
-	if idx := strings.Index(s, "/"); idx >= 0 {
+	if idx := strings.IndexAny(s, "/ "); idx >= 0 {
 		s = s[:idx]
 	}
 	n, err := strconv.Atoi(strings.TrimSpace(s))
@@ -228,8 +242,11 @@ func (e ExifToolExtractor) Extract(ctx context.Context, files []HashedFile) ([]T
 		fileByPath[f.Path] = f
 	}
 
-	args := make([]string, 0, 8+len(paths))
-	args = append(args, "-json", "-Artist", "-Title", "-Album", "-AlbumArtist", "-Band", "-Genre", "-Duration#", "-Track", "-DiscNumber")
+	// Tag names match case-insensitively, so -DiscNumber also returns Vorbis
+	// Discnumber; the other ordinal tags cover ID3 and QuickTime spellings.
+	args := make([]string, 0, 13+len(paths))
+	args = append(args, "-json", "-Artist", "-Title", "-Album", "-AlbumArtist", "-Band", "-Genre", "-Duration#",
+		"-Track", "-TrackNumber", "-DiscNumber", "-DiskNumber", "-PartOfSet")
 	args = append(args, paths...)
 
 	ctx, cancel := context.WithTimeout(ctx, extractTimeout)

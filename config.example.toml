@@ -2,7 +2,7 @@
 music_directories = ["/path/to/your/music"]
 
 # Directory name patterns to exclude from the music library scan.
-# Matches any directory component in a file's path (exact, case-sensitive).
+# Matches any path component below a music directory (exact, case-sensitive).
 # excluded_paths = ["Podcasts", "Audiobooks"]
 
 # Default playback volume (0-100).

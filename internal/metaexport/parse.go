@@ -60,9 +60,11 @@ type File struct {
 //
 // It is strict everywhere else: a bad magic line, an unknown major version, a
 // header missing a required column, no data rows at all, and any line starting
-// with "|" reject the whole file. A row with the wrong field count, an empty
-// hash, an invalid escape or an unparsable track/disc is skipped with a
-// warning rather than repaired, because every plausible repair loses data.
+// with "|" reject the whole file. A row missing only trailing optional cells
+// (whitespace stripping eats the tabs of empty ones) is padded with empty
+// values. A row with any other wrong field count, an empty hash, an invalid
+// escape or an unparsable track/disc is skipped with a warning rather than
+// repaired, because every plausible repair loses data.
 func Parse(r io.Reader) (*File, error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
@@ -220,6 +222,12 @@ func parseHeader(raw string) (map[string]int, []string, error) {
 
 func (f *File) parseRow(raw string, line int, cols map[string]int, ncols int) (Row, bool) {
 	fields := strings.Split(raw, "\t")
+	if len(fields) < ncols && requiredWithin(cols, len(fields)) {
+		// The optional album_artist column is written last, so an empty value
+		// leaves a trailing tab that chat clients and editors strip. Only
+		// empty optional cells can be missing here; restore them as empty.
+		fields = append(fields, make([]string, ncols-len(fields))...)
+	}
 	if len(fields) != ncols {
 		f.warn(line, fmt.Sprintf("skipped: %d fields, want %d", len(fields), ncols))
 		return Row{}, false
@@ -283,6 +291,17 @@ func (f *File) parseRow(raw string, line int, cols map[string]int, ncols int) (R
 		}
 	}
 	return row, true
+}
+
+// requiredWithin reports whether every required column sits among the first n
+// fields, so a row cut short after them lost only optional or unknown cells.
+func requiredWithin(cols map[string]int, n int) bool {
+	for _, name := range Columns {
+		if name != ColAlbumArtist && cols[name] >= n {
+			return false
+		}
+	}
+	return true
 }
 
 func isColumn(name string) bool {

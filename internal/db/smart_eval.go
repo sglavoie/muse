@@ -184,24 +184,29 @@ func buildGenreEquality(sb *strings.Builder, args *[]any, op RuleOperator, val s
 	if genre == "" || (op != OpEquals && op != OpNotEquals) {
 		return false
 	}
-	const subq = "EXISTS (SELECT 1 FROM track_genres tg WHERE tg.track_hash = t.hash AND tg.genre = ? COLLATE NOCASE)"
+	const subq = "EXISTS (SELECT 1 FROM track_genres tg WHERE tg.track_hash = t.hash AND " + foldFunc + "(tg.genre) = ?)"
 	if op == OpNotEquals {
 		sb.WriteString("NOT ")
 	}
 	sb.WriteString(subq)
-	*args = append(*args, genre)
+	*args = append(*args, foldText(genre))
 	return true
 }
 
-// buildStringOp writes a text comparison. Every operator ignores case: LIKE
-// already does, and equals/not-equals use COLLATE NOCASE to match it.
+// buildStringOp writes a text comparison. Every operator ignores case for any
+// script: the column passes through foldFunc and the value is folded the same
+// way in Go, since NOCASE and LIKE alone only fold ASCII. Folding never
+// produces or removes the LIKE metacharacters, so escaping after folding stays
+// exact.
 func buildStringOp(sb *strings.Builder, args *[]any, col string, op RuleOperator, val string) error {
+	col = foldFunc + "(" + col + ")"
+	val = foldText(val)
 	switch op {
 	case OpEquals:
-		sb.WriteString(col + " = ? COLLATE NOCASE")
+		sb.WriteString(col + " = ?")
 		*args = append(*args, val)
 	case OpNotEquals:
-		sb.WriteString(col + " != ? COLLATE NOCASE")
+		sb.WriteString(col + " != ?")
 		*args = append(*args, val)
 	case OpContains:
 		sb.WriteString(col + " LIKE ? ESCAPE '\\'")

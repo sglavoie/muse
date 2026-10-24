@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -121,5 +122,37 @@ func TestBridgeWatchChannel_DoesNotMutateCallerMap(t *testing.T) {
 
 	if _, ok := callerMap["/new.mp3"]; ok {
 		t.Error("BridgeWatchChannel mutated the caller's hashByPath map; expected it to use a copy")
+	}
+}
+
+// A moved or trashed directory arrives as a single deletion for the directory
+// path. Every known track below it is evicted and marked missing, while a
+// sibling sharing the name prefix is left alone.
+func TestBridgeWatchChannel_DirectoryDeletionEvictsTracksBelow(t *testing.T) {
+	raw := make(chan library.WatchEvent, 1)
+	raw <- library.WatchEvent{Deleted: true, Path: "/music/Album"}
+	close(raw)
+
+	marker := &stubMissingMarker{}
+	hashByPath := map[string]string{
+		"/music/Album/01.mp3":      "one",
+		"/music/Album/CD2/02.flac": "two",
+		"/music/Album 2/03.mp3":    "sibling",
+	}
+	ch := BridgeWatchChannel(raw, &stubUpsertBatcher{}, marker, hashByPath, 10)
+
+	var forwarded []string
+	for ev := range ch {
+		if !ev.Deleted {
+			t.Fatalf("unexpected non-deletion event %+v", ev)
+		}
+		forwarded = append(forwarded, ev.Path)
+	}
+	wantPaths := []string{"/music/Album/01.mp3", "/music/Album/CD2/02.flac"}
+	if !slices.Equal(forwarded, wantPaths) {
+		t.Fatalf("forwarded deletions = %v, want %v", forwarded, wantPaths)
+	}
+	if !slices.Equal(marker.hashes, []string{"one", "two"}) {
+		t.Fatalf("missing hashes = %v, want [one two]", marker.hashes)
 	}
 }

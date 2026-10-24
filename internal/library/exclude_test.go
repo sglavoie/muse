@@ -1,6 +1,9 @@
 package library
 
 import (
+	"context"
+	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -125,5 +128,69 @@ func TestShouldExclude_RootOnlyPatternIsIgnored(t *testing.T) {
 		if ShouldExclude("/music/track.mp3", []string{p}) {
 			t.Errorf("pattern %q must not exclude /music/track.mp3 (would hide entire library)", p)
 		}
+	}
+}
+
+// A bare-name pattern only matches components below the music root, so
+// excluding "Music" with a root of ~/Music hides a nested Music folder but
+// never the whole library.
+func TestShouldExcludeUnder_IgnoresRootAncestry(t *testing.T) {
+	roots := []string{"/Users/me/Music"}
+	patterns := []string{"Music", "me"}
+	if ShouldExcludeUnder("/Users/me/Music/Album/a.mp3", roots, patterns) {
+		t.Error("root's own components must not match bare-name patterns")
+	}
+	if ShouldExcludeUnder("/Users/me/Music", roots, patterns) {
+		t.Error("the root itself must not be excluded by a bare-name pattern")
+	}
+	if !ShouldExcludeUnder("/Users/me/Music/Rips/Music/a.mp3", roots, patterns) {
+		t.Error("a component below the root must still match")
+	}
+	// Nested roots: reachable from the inner root, so not excluded.
+	nested := []string{"/lib", "/lib/Podcasts"}
+	if ShouldExcludeUnder("/lib/Podcasts/ep.mp3", nested, []string{"Podcasts"}) {
+		t.Error("a path reachable from a nested root must not be excluded")
+	}
+	if !ShouldExcludeUnder("/other/Podcasts/ep.mp3", nested, []string{"Podcasts"}) {
+		t.Error("a path under no root checks every component")
+	}
+}
+
+func TestWalk_ExcludedNameMatchingRootStillWalksRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "Music")
+	mkfile(t, filepath.Join(root, "a.mp3"))
+	mkfile(t, filepath.Join(root, "Sub", "Music", "b.mp3"))
+
+	got := collectNames(Walk(context.Background(), []string{root}, []string{"Music"}))
+	if !slices.Equal(got, []string{"a.mp3"}) {
+		t.Fatalf("Walk = %v, want [a.mp3]", got)
+	}
+	known := map[string]KnownFile{filepath.Join(root, "gone.mp3"): {ModTime: 1, SizeBytes: 1}}
+	_, deleted, err := FilteredWalk(context.Background(), []string{root}, []string{"Music"}, known, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deleted) != 1 {
+		t.Fatalf("deleted = %v, want the missing track under the root reported", deleted)
+	}
+}
+
+// Directory-prefix patterns ignore case on macOS, whose volumes are
+// case-insensitive by default, and stay exact elsewhere.
+func TestShouldExclude_PrefixCaseFolding(t *testing.T) {
+	orig := foldPathPrefixes
+	t.Cleanup(func() { foldPathPrefixes = orig })
+	patterns := []string{"/users/me/music/AI"}
+
+	foldPathPrefixes = true
+	if !ShouldExclude("/Users/me/Music/ai/file.wav", patterns) {
+		t.Error("folding: expected a case-insensitive prefix match")
+	}
+	if ShouldExclude("/Users/me/Music/aiden/file.wav", patterns) {
+		t.Error("folding: /music/AI must not match /Music/aiden")
+	}
+	foldPathPrefixes = false
+	if ShouldExclude("/Users/me/Music/ai/file.wav", patterns) {
+		t.Error("no folding: prefix match must be case-sensitive")
 	}
 }

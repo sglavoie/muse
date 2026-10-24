@@ -6,7 +6,7 @@ const configTemplate = `# Paths to your music library roots (supports multiple d
 music_directories = [%q]
 
 # Directory name patterns to exclude from the music library scan.
-# Matches any directory component in a file's path (exact, case-sensitive).
+# Matches any path component below a music directory (exact, case-sensitive).
 # excluded_paths = ["Podcasts", "Audiobooks"]
 
 # Default playback volume (0-100).

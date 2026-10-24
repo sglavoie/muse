@@ -35,7 +35,7 @@ const DefaultDebounce = 2500 * time.Millisecond
 type WatchEvent struct {
 	Track   Track
 	Deleted bool
-	Path    string // populated when Deleted==true; the deleted/renamed-away path
+	Path    string // populated when Deleted==true; the deleted/renamed-away path, possibly a directory
 }
 
 // Watch watches each root in roots for filesystem changes and triggers
@@ -101,7 +101,7 @@ func Watch(ctx context.Context, roots []string, excludedPaths []string, extracto
 	// while a panic unwinds, so recovering in the spawn wrapper cannot strand a
 	// consumer or leak the fsnotify watcher.
 	safego.Go("library.watchLoop", func() {
-		watchLoop(ctx, w, excludedPaths, extractor, debounceDelay, out)
+		watchLoop(ctx, w, roots, excludedPaths, extractor, debounceDelay, out)
 	})
 	return out, false, nil
 }
@@ -115,15 +115,16 @@ func closedWatchEventChan() <-chan WatchEvent {
 }
 
 // watchLoop is the main event loop for the watcher goroutine.
-func watchLoop(ctx context.Context, w *fsnotify.Watcher, excludedPaths []string, extractor MetadataExtractor, debounceDelay time.Duration, out chan<- WatchEvent) {
+func watchLoop(ctx context.Context, w *fsnotify.Watcher, roots, excludedPaths []string, extractor MetadataExtractor, debounceDelay time.Duration, out chan<- WatchEvent) {
 	defer close(out)
 	defer w.Close()
 
 	// pending maps path -> isDir for paths that need rescanning.
 	pending := make(map[string]bool)
 
-	// deleted holds audio file paths deleted/renamed-away during the current
-	// debounce window. These are emitted as deletion WatchEvents before rescanning.
+	// deleted holds paths deleted/renamed-away during the current debounce
+	// window, audio files and directories alike. These are emitted as deletion
+	// WatchEvents before rescanning.
 	deleted := make(map[string]struct{})
 
 	// debounceTimer coalesces rapid filesystem events into a single rescan.
@@ -141,7 +142,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, excludedPaths []string,
 				return
 			}
 			slog.Debug("watcher: fsnotify event", "op", event.Op.String(), "path", event.Name)
-			handleFsEvent(ctx, event, excludedPaths, pending, deleted, w)
+			handleFsEvent(ctx, event, roots, excludedPaths, pending, deleted, w)
 			// Reset the debounce window.
 			if !debounceTimer.Stop() {
 				select {
@@ -180,7 +181,7 @@ func watchLoop(ctx context.Context, w *fsnotify.Watcher, excludedPaths []string,
 // handleFsEvent updates the pending rescan set and deleted set based on a
 // single fsnotify event. For Create events on directories, a new recursive
 // watch is also registered.
-func handleFsEvent(ctx context.Context, event fsnotify.Event, excludedPaths []string, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
+func handleFsEvent(ctx context.Context, event fsnotify.Event, roots, excludedPaths []string, pending map[string]bool, deleted map[string]struct{}, w *fsnotify.Watcher) {
 	path := event.Name
 	base := filepath.Base(path)
 
@@ -190,7 +191,7 @@ func handleFsEvent(ctx context.Context, event fsnotify.Event, excludedPaths []st
 	}
 
 	// Skip events for excluded directories.
-	if ShouldExclude(path, excludedPaths) {
+	if ShouldExcludeUnder(path, roots, excludedPaths) {
 		return
 	}
 
@@ -235,10 +236,12 @@ func handleFsEvent(ctx context.Context, event fsnotify.Event, excludedPaths []st
 		// rescanned. For renames, the new path arrives as a separate Create
 		// event and will be added to pending at that point.
 		delete(pending, path)
-		// Record audio file deletions so the TUI can evict the stale index entry.
-		if isAudioFile(base) {
-			deleted[path] = struct{}{}
-		}
+		// Record the deletion so the stale index entry can be evicted. The
+		// path is gone and cannot be stat'd, so anything that is not an audio
+		// file is recorded too: a moved or trashed directory produces this one
+		// event for the whole subtree, and the consumer expands it to the
+		// known tracks below it (a plain non-audio file matches none).
+		deleted[path] = struct{}{}
 	}
 }
 
@@ -324,7 +327,8 @@ func rescan(ctx context.Context, pending map[string]bool, excludedPaths []string
 // to finish registering. The caller (Watch) closes the partially initialized
 // watcher on that error.
 func addWatchesRecursive(ctx context.Context, w *fsnotify.Watcher, root string, excludedPaths []string) error {
-	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	roots := []string{root}
+	return walkDirFollowingRoot(root, func(path string, d fs.DirEntry, err error) error {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
@@ -341,7 +345,7 @@ func addWatchesRecursive(ctx context.Context, w *fsnotify.Watcher, root string, 
 			if strings.HasPrefix(d.Name(), ".") && path != root {
 				return filepath.SkipDir
 			}
-			if path != root && ShouldExclude(path, excludedPaths) {
+			if path != root && ShouldExcludeUnder(path, roots, excludedPaths) {
 				return filepath.SkipDir
 			}
 			if err := w.Add(path); err != nil {

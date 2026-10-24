@@ -109,7 +109,7 @@ func FilteredWalk(ctx context.Context, roots []string, excludedPaths []string, k
 	// unmounted root only freezes reconciliation for its own subtree.
 	var deleted []string
 	for path := range known {
-		if seen[path] || ShouldExclude(path, excludedPaths) {
+		if seen[path] || ShouldExcludeUnder(path, roots, excludedPaths) {
 			continue
 		}
 		if underAnyRoot(path, skippedRoots) {

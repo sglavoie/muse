@@ -280,6 +280,7 @@ func TestParseTrackNumber_RejectsNegative(t *testing.T) {
 		{"-1/12", 0},
 		{"3", 3},
 		{"3/12", 3},
+		{"3 of 12", 3},
 		{"", 0},
 		{"  ", 0},
 		{"abc", 0},

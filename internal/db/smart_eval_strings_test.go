@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -56,6 +57,38 @@ func TestEvalSmartPlaylist_TextEqualsIgnoresCase(t *testing.T) {
 	})
 	if len(ne) != 1 || ne[0].Hash != "h2" {
 		t.Errorf("not equals: got hashes %v, want [h2]", hashes(ne))
+	}
+}
+
+// Case is ignored beyond ASCII: SQLite's NOCASE and LIKE alone would let
+// "björk" miss "BJÖRK". LIKE metacharacters in the value stay literal.
+func TestEvalSmartPlaylist_TextIgnoresNonASCIICase(t *testing.T) {
+	d := openMigratedDB(t)
+	now := time.Now().Unix()
+	insertFullTrack(t, d, "h1", "/a.flac", "JÓGA", "BJÖRK", "HOMOGENIC", "ÉLECTRO", 200000, 1000, now)
+	insertFullTrack(t, d, "h2", "/b.flac", "100% ΣΟΦΊΑ", "Other", "Album", "Rock", 200000, 1000, now)
+	insertFullTrack(t, d, "h3", "/c.flac", "100 sofia", "Other", "Album", "Rock", 200000, 1000, now)
+	syncTrackGenres(t, d)
+
+	for _, tc := range []struct {
+		name string
+		rule db.SmartRule
+		want []string
+	}{
+		{"contains", db.SmartRule{Field: db.FieldArtist, Operator: db.OpContains, Value: "björk"}, []string{"h1"}},
+		{"equals", db.SmartRule{Field: db.FieldTitle, Operator: db.OpEquals, Value: "jóga"}, []string{"h1"}},
+		{"not equals", db.SmartRule{Field: db.FieldArtist, Operator: db.OpNotEquals, Value: "björk"}, []string{"h3", "h2"}},
+		{"starts with", db.SmartRule{Field: db.FieldTitle, Operator: db.OpStartsWith, Value: "100% σοφ"}, []string{"h2"}},
+		{"ends with", db.SmartRule{Field: db.FieldTitle, Operator: db.OpEndsWith, Value: "σοφία"}, []string{"h2"}},
+		{"not contains", db.SmartRule{Field: db.FieldArtist, Operator: db.OpNotContains, Value: "ö"}, []string{"h3", "h2"}},
+		{"genre equals", db.SmartRule{Field: db.FieldGenre, Operator: db.OpEquals, Value: "électro"}, []string{"h1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := hashes(evalQuery(t, d, db.SmartPlaylistQuery{Root: tc.rule, SortBy: "title"}))
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("got hashes %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 

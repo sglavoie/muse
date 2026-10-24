@@ -162,17 +162,25 @@ func bridgeWatchChannel(ctx context.Context, raw <-chan library.WatchEvent, writ
 					return
 				}
 				if ev.Deleted {
-					select {
-					case ch <- ev:
-					case <-ctx.Done():
-						// The event is already off raw; persist its mutation
-						// before flushing and exiting so the in-flight deletion
-						// is not lost when no consumer remains.
-						persistDeletion(ev)
-						attemptFlush()
-						return
+					// A removed or renamed-away directory arrives as one event;
+					// fan it out to its known tracks so each is evicted.
+					paths := registry.deletionPaths(ev.Path)
+					for i, path := range paths {
+						del := library.WatchEvent{Deleted: true, Path: path}
+						select {
+						case ch <- del:
+						case <-ctx.Done():
+							// The event is already off raw; persist its mutations
+							// before flushing and exiting so the in-flight deletion
+							// is not lost when no consumer remains.
+							for _, rest := range paths[i:] {
+								persistDeletion(library.WatchEvent{Deleted: true, Path: rest})
+							}
+							attemptFlush()
+							return
+						}
+						persistDeletion(del)
 					}
-					persistDeletion(ev)
 					attemptFlush()
 				} else {
 					ev.Track = ensureCreatedAt(ev.Track)

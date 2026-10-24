@@ -217,14 +217,13 @@ func TestFFProbeExtractor_Differential(t *testing.T) {
 			if got.Genre != want.Genre {
 				t.Errorf("Genre: ffprobe %q, exiftool %q", got.Genre, want.Genre)
 			}
-			// exiftool's exifRecord misses track/disc for several containers
-			// (it reads "Discnumber", not "DiscNumber", from Vorbis comments),
-			// so only assert agreement where exiftool found a value at all.
-			// ffprobe is a superset here, never a subset.
-			if want.TrackNumber != 0 && got.TrackNumber != want.TrackNumber {
+			// Each container spells the ordinal tags differently (ID3 Track and
+			// PartOfSet, Vorbis TrackNumber and Discnumber, QuickTime "3 of 12"),
+			// so both extractors must agree on every fixture.
+			if got.TrackNumber != want.TrackNumber {
 				t.Errorf("TrackNumber: ffprobe %d, exiftool %d", got.TrackNumber, want.TrackNumber)
 			}
-			if want.DiscNumber != 0 && got.DiscNumber != want.DiscNumber {
+			if got.DiscNumber != want.DiscNumber {
 				t.Errorf("DiscNumber: ffprobe %d, exiftool %d", got.DiscNumber, want.DiscNumber)
 			}
 			if fx.exifReportsDuration {

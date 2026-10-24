@@ -1,6 +1,11 @@
 package app
 
-import "sync"
+import (
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
+)
 
 // pathHashRegistry is the shared path↔hash state that watcher deletion
 // handling consults to resolve a deleted file back to its content hash. Both
@@ -70,4 +75,30 @@ func (r *pathHashRegistry) remove(path string) (hash string, ok bool) {
 		delete(r.pathByHash, hash)
 	}
 	return hash, true
+}
+
+// deletionPaths expands a watcher deletion into the known track paths it
+// removes. A known path resolves to itself. Any other path may be a directory
+// that was moved or trashed, which fsnotify reports as a single event for the
+// directory alone, so every known path below it is returned in sorted order.
+// A path with nothing known below it is returned unchanged, which keeps the
+// deletion a no-op for both the database and the TUI index.
+func (r *pathHashRegistry) deletionPaths(path string) []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.hashByPath[path]; ok {
+		return []string{path}
+	}
+	prefix := strings.TrimRight(path, string(filepath.Separator)) + string(filepath.Separator)
+	var below []string
+	for known := range r.hashByPath {
+		if strings.HasPrefix(known, prefix) {
+			below = append(below, known)
+		}
+	}
+	if len(below) == 0 {
+		return []string{path}
+	}
+	slices.Sort(below)
+	return below
 }
