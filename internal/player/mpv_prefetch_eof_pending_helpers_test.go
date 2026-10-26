@@ -90,6 +90,9 @@ func openEOFPendingWindow(t *testing.T, name string) *eofPendingWindow {
 		t.Fatalf("PlayFromIndex(0): %v", err)
 	}
 	f.waitForEntries(t, paths(queue, 0, 1))
+	// The fake lists the append before the manager tracks it; an end captured
+	// in between has no successor to promote and reloads it instead.
+	assertPrefetch(t, m, queue, 1)
 
 	f.finishCurrent()
 	f.waitFor(t, "mpv to start the appended successor", func() bool {
