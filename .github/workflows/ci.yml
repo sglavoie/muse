@@ -52,6 +52,8 @@ jobs:
         run: go mod tidy && git diff --exit-code go.mod go.sum
       - name: Check CI test runner
         run: python3 -m unittest discover -s scripts -p 'test_ci_test.py' -v
+      - name: Check release script
+        run: python3 -m unittest discover -s scripts -p 'test_release.py' -v
       - name: Build
         run: go build ./...
       - name: Vet

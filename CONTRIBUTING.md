@@ -54,6 +54,7 @@ Everything goes through `just`; there is no hidden setup step.
 | `just cover` | coverage profile, HTML report, and the total |
 | `just tidy` | `go mod tidy` |
 | `just clean` | remove the binary and coverage reports |
+| `just ship patch` | publish a release; see [Releasing](#releasing) |
 
 Use `just test-fast` while iterating; it reuses passing test results when their
 inputs have not changed. Before opening a pull request, run:
@@ -217,6 +218,32 @@ states and adjacent layout sizes; inspect it alongside the automated checks.
   and the pinned golangci-lint. macOS-specific code (the `alerter` notification
   backend, for instance) is not exercised there, so run the checks above
   locally too, on both the code and the tests you touched.
+
+## Releasing
+
+A pushed `v*` tag publishes a release. `.github/workflows/release.yml` re-runs
+all of CI, then GoReleaser (`.goreleaser.yaml`) builds the Linux and macOS
+archives, creates the GitHub release, and updates the cask in
+`sglavoie/homebrew-tap`. `just ship` does every step that leads up to that:
+
+```sh
+just ship patch        # or minor, major, or an exact version such as 0.3.0
+just ship minor --summary "One paragraph for the tag message."
+```
+
+It refuses to run off `main`, with uncommitted changes, behind `origin/main`, or
+with an empty `Unreleased` section in `CHANGELOG.md`, so write those entries
+first. It then lists the commits since the last tag, moves the `Unreleased`
+entries under a dated heading, updates the compare links, commits
+`chore: release vX.Y.Z`, and creates the annotated tag. It asks once before
+changing anything and again before `git push --atomic origin main vX.Y.Z`.
+Use `gh run watch` to follow the release run.
+
+The release needs a `HOMEBREW_TAP_GITHUB_TOKEN` repository secret: a
+fine-grained token with `contents: write` on `sglavoie/homebrew-tap`. Run
+`goreleaser check` after editing `.goreleaser.yaml`, and
+`goreleaser release --snapshot --clean` to build the archives locally without
+publishing. `just release vX.Y.Z` only builds a versioned local binary.
 
 ## Reporting bugs
 
