@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sglavoie/muse/internal/safego"
@@ -19,6 +21,21 @@ import (
 // exiftoolBatchSize is the number of files per exiftool invocation.
 // Independent from the DB upsert batch size in main.go.
 const exiftoolBatchSize = 500
+
+// concurrentBatchSize is the batch size ExtractBatches uses for an extractor
+// that runs several batches at once. An exiftool process costs ~60ms to start,
+// so a smaller batch is cheap and lets even a scan of a few hundred files
+// spread across every worker instead of filling one 500-file batch.
+const concurrentBatchSize = 100
+
+// concurrentExtractor is implemented by a MetadataExtractor whose Extract calls
+// are independent and run faster side by side. ExtractBatches runs up to
+// BatchConcurrency of them at once. An extractor that already parallelises
+// inside a single call (FFProbeExtractor) must not implement it, or the two
+// pools would multiply into NumCPU² processes.
+type concurrentExtractor interface {
+	BatchConcurrency() int
+}
 
 // MetadataExtractor extracts audio metadata from a batch of hashed files.
 type MetadataExtractor interface {
@@ -30,6 +47,11 @@ type ExifToolExtractor struct{}
 
 // Compile-time check that ExifToolExtractor implements MetadataExtractor.
 var _ MetadataExtractor = (*ExifToolExtractor)(nil)
+
+// BatchConcurrency runs one exiftool process per CPU. Each process is a
+// single-threaded Perl interpreter, so batches extracted one at a time leave
+// every other core idle during a scan.
+func (ExifToolExtractor) BatchConcurrency() int { return runtime.NumCPU() }
 
 // exifRecord mirrors the per-file JSON object emitted by exiftool -json.
 // A custom UnmarshalJSON handles type mismatches that exiftool can produce
@@ -376,60 +398,118 @@ func extractWithBinaryRetry(ctx context.Context, extractor MetadataExtractor, fi
 	return append(left, right...)
 }
 
-// ExtractBatches reads HashedFile values from in, groups them into batches of
-// exiftoolBatchSize (~500), and calls extractor.Extract on each batch via binary-search
-// retry. Track values are sent to the returned channel, which is closed once
-// all batches have been processed. If a batch produces invalid JSON due to a
-// corrupt file, binary-search subdivision isolates the corrupt file so that at
-// most one track loses metadata per corrupt file.
+// ExtractBatches reads HashedFile values from in, groups them into batches, and
+// calls extractor.Extract on each batch via binary-search retry. Track values
+// are sent to the returned channel, which is closed once all batches have been
+// processed. If a batch produces invalid JSON due to a corrupt file,
+// binary-search subdivision isolates the corrupt file so that at most one track
+// loses metadata per corrupt file.
+//
+// An extractor that implements concurrentExtractor has its batches extracted
+// by that many workers at once, in smaller batches of concurrentBatchSize so
+// even a modest scan spreads across them; tracks are then emitted in no
+// particular order across batches. Any other extractor is driven by a single
+// worker in batches of exiftoolBatchSize (~500).
 func ExtractBatches(ctx context.Context, extractor MetadataExtractor, in <-chan HashedFile) <-chan Track {
+	workers, batchSize := 1, exiftoolBatchSize
+	if c, ok := extractor.(concurrentExtractor); ok {
+		workers, batchSize = max(1, c.BatchConcurrency()), concurrentBatchSize
+	}
+	return extractBatchesN(ctx, extractor, in, workers, batchSize)
+}
+
+// extractBatchesN is ExtractBatches with the worker count and batch size made
+// explicit, so tests can exercise the concurrent path with any extractor.
+func extractBatchesN(ctx context.Context, extractor MetadataExtractor, in <-chan HashedFile, workers, batchSize int) <-chan Track {
 	out := make(chan Track, runtime.NumCPU())
+	batches := make(chan []HashedFile)
+
 	go func() {
-		// The extractor shells out and parses third-party JSON, so this is the
-		// likeliest panic site in the scan pipeline. close(out) stays deferred:
-		// a recovered producer that left out open would block the scan bridge
-		// forever, which is worse than the crash it replaces.
-		defer safego.Recover("library.ExtractBatches")
+		defer safego.Recover("library.ExtractBatches.batcher")
+		defer close(batches)
+		batchHashed(ctx, in, batches, batchSize)
+	}()
+
+	var wg sync.WaitGroup
+	// live counts the workers that have not yet died to a panic. The last one to
+	// go has to drain batches itself, or the batcher would block forever and
+	// stop draining `in` for the stages upstream.
+	var live atomic.Int64
+	live.Store(int64(workers))
+	for range workers {
+		wg.Go(func() {
+			// The extractor shells out and parses third-party JSON, so this is
+			// the likeliest panic site in the scan pipeline. A panic loses this
+			// worker's batch; the remaining workers carry on with the rest.
+			defer safego.RecoverTo("library.extractWorker", func(error) {
+				if live.Add(-1) > 0 {
+					return
+				}
+				for range batches { //nolint:revive // draining to unblock the batcher
+				}
+			})
+			for batch := range batches {
+				if ctx.Err() != nil {
+					continue // drain batches so the batcher can exit
+				}
+				slog.Debug("processing metadata batch", "size", len(batch))
+				tracks := extractWithBinaryRetry(ctx, extractor, batch)
+				slog.Info("scan batch complete", "tracks", len(tracks))
+				emitTracks(ctx, out, tracks)
+			}
+		})
+	}
+
+	go func() {
+		// close(out) stays deferred: a recovered closer that left out open
+		// would block the scan bridge forever, which is worse than the crash
+		// it replaces.
+		defer safego.Recover("library.ExtractBatches.closer")
 		defer close(out)
-		batch := make([]HashedFile, 0, exiftoolBatchSize)
-		cancelled := false
-		flush := func() {
-			if len(batch) == 0 {
-				return
-			}
-			slog.Debug("processing metadata batch", "size", len(batch))
-			tracks := extractWithBinaryRetry(ctx, extractor, batch)
-			slog.Info("scan batch complete", "tracks", len(tracks))
-			batch = batch[:0]
-			for _, t := range tracks {
-				if cancelled {
-					return
-				}
-				select {
-				case out <- t:
-				case <-ctx.Done():
-					// Stop trying to emit tracks, but keep draining `in` so
-					// the upstream hash-worker goroutines blocked on
-					// `out <- HashedFile{...}` can exit and close `in`.
-					// Returning early here without draining would leak the
-					// entire pipeline (hash workers + walker).
-					cancelled = true
-					return
-				}
-			}
-		}
-		for hf := range in {
-			if cancelled {
-				continue // drain `in` so upstream goroutines can exit
-			}
-			batch = append(batch, hf)
-			if len(batch) >= exiftoolBatchSize {
-				flush()
-			}
-		}
-		if !cancelled {
-			flush()
-		}
+		wg.Wait()
 	}()
 	return out
+}
+
+// batchHashed groups values from in into batches of batchSize and sends each
+// one to batches. Once ctx is cancelled it stops sending but keeps draining in,
+// so the upstream hash-worker goroutines blocked on `out <- HashedFile{...}`
+// can exit and close it; returning early would leak the entire pipeline (hash
+// workers + walker).
+func batchHashed(ctx context.Context, in <-chan HashedFile, batches chan<- []HashedFile, batchSize int) {
+	batch := make([]HashedFile, 0, batchSize)
+	send := func() bool {
+		if len(batch) == 0 {
+			return true
+		}
+		select {
+		case batches <- batch:
+		case <-ctx.Done():
+			return false
+		}
+		batch = make([]HashedFile, 0, batchSize)
+		return true
+	}
+	for hf := range in {
+		batch = append(batch, hf)
+		if len(batch) >= batchSize && !send() {
+			break
+		}
+	}
+	if ctx.Err() == nil {
+		send()
+	}
+	for range in { //nolint:revive // draining to unblock the hash workers
+	}
+}
+
+// emitTracks sends tracks to out, giving up as soon as ctx is cancelled.
+func emitTracks(ctx context.Context, out chan<- Track, tracks []Track) {
+	for _, t := range tracks {
+		select {
+		case out <- t:
+		case <-ctx.Done():
+			return
+		}
+	}
 }
