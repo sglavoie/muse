@@ -2,6 +2,7 @@ package library
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"unicode"
@@ -34,25 +35,100 @@ func (s *CachedFuzzySearcher) Search(query string, tracks []Track) []Match {
 	if s.values == nil || len(s.values) >= maxSearchValues {
 		s.values = make(map[string]searchValue)
 	}
-	return searchTracks(query, tracks, s.value)
+	return searchTracks(query, tracks, s.lookup)
 }
 
-func (s *CachedFuzzySearcher) value(text string) searchValue {
-	if cached, ok := s.values[text]; ok {
-		return cached
+// lookup gives one search worker its view of the cache. Workers only read
+// s.values while a search runs and keep their misses to themselves; the
+// returned flush folds those misses into s.values, and searchTracks calls it
+// only after every worker has finished, so the map is never read and written
+// at once.
+func (s *CachedFuzzySearcher) lookup() (func(string) searchValue, func()) {
+	var added map[string]searchValue
+	value := func(text string) searchValue {
+		if cached, ok := s.values[text]; ok {
+			return cached
+		}
+		if cached, ok := added[text]; ok {
+			return cached
+		}
+		value := prepareSearchValue(text)
+		if len(s.values)+len(added) < maxSearchValues {
+			if added == nil {
+				added = make(map[string]searchValue)
+			}
+			added[text] = value
+		}
+		return value
 	}
-	value := prepareSearchValue(text)
-	if len(s.values) < maxSearchValues {
-		s.values[text] = value
+	flush := func() {
+		for text, value := range added {
+			if len(s.values) >= maxSearchValues {
+				return
+			}
+			s.values[text] = value
+		}
 	}
-	return value
+	return value, flush
 }
 
-func searchTracks(query string, tracks []Track, value func(string) searchValue) []Match {
+// uncachedLookup is the lookup for searches that keep no cache between calls.
+func uncachedLookup() (func(string) searchValue, func()) {
+	return prepareSearchValue, func() {}
+}
+
+// searchChunkSize is the number of tracks each search worker scans. Libraries
+// smaller than two chunks are searched on the calling goroutine, where a
+// keystroke already costs well under a millisecond.
+const searchChunkSize = 4096
+
+// searchTracks matches query against every track. Large libraries are split
+// into chunks scanned in parallel, one lookup per chunk from newLookup; the
+// matches are concatenated in chunk order, so TrackIndex order is unchanged.
+func searchTracks(query string, tracks []Track, newLookup func() (func(string) searchValue, func())) []Match {
 	fq := ParseFilterQuery(query)
 	for _, term := range []*string{&fq.Artist, &fq.Title, &fq.Album, &fq.Genre, &fq.AlbumArtist, &fq.General} {
 		*term = FoldSearchText(*term)
 	}
+	chunks := min(runtime.GOMAXPROCS(0), len(tracks)/searchChunkSize)
+	if chunks < 2 {
+		value, flush := newLookup()
+		defer flush()
+		return searchChunk(fq, tracks, 0, value)
+	}
+
+	size := (len(tracks) + chunks - 1) / chunks
+	results := make([][]Match, chunks)
+	flushes := make([]func(), chunks)
+	var wg sync.WaitGroup
+	for c := range chunks {
+		lo, hi := c*size, min((c+1)*size, len(tracks))
+		value, flush := newLookup()
+		flushes[c] = flush
+		wg.Go(func() { results[c] = searchChunk(fq, tracks[lo:hi], lo, value) })
+	}
+	wg.Wait()
+	for _, flush := range flushes {
+		flush()
+	}
+
+	total := 0
+	for _, r := range results {
+		total += len(r)
+	}
+	// A non-nil empty result is a completed search, not an uncached search.
+	if total == 0 {
+		return make([]Match, 0)
+	}
+	matches := make([]Match, 0, total)
+	for _, r := range results {
+		matches = append(matches, r...)
+	}
+	return matches
+}
+
+// searchChunk matches fq against tracks, numbering matches from offset.
+func searchChunk(fq FilterQuery, tracks []Track, offset int, value func(string) searchValue) []Match {
 	// A non-nil empty result is a completed search, not an uncached search.
 	// A non-matching query should allocate no result storage. On the first
 	// match, reserve once: broad queries commonly match the whole library,
@@ -65,7 +141,7 @@ func searchTracks(query string, tracks []Track, value func(string) searchValue) 
 			if len(matches) == 0 {
 				matches = make([]Match, 0, len(tracks))
 			}
-			match.TrackIndex = i
+			match.TrackIndex = offset + i
 			matches = append(matches, match)
 		}
 	}
@@ -141,9 +217,20 @@ func preparedIndexes(original, query string, value searchValue, positions *match
 	index = utf8.RuneCountInString(value.folded[:index])
 	length := utf8.RuneCountInString(query)
 	start, end := value.positions[index], value.positions[index+length-1]+1
-	runes := []rune(original)
-	for end < len(runes) && unicode.Is(unicode.Mn, runes[end]) {
+	// Extend the highlight over combining marks that follow the match in the
+	// original, walking it in place rather than converting it to []rune.
+	rest := original
+	for range end {
+		_, n := utf8.DecodeRuneInString(rest)
+		rest = rest[n:]
+	}
+	for rest != "" {
+		r, n := utf8.DecodeRuneInString(rest)
+		if !unicode.Is(unicode.Mn, r) {
+			break
+		}
 		end++
+		rest = rest[n:]
 	}
 	return positions.indexes(start, end-start), true
 }
