@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -107,6 +109,42 @@ func runBackendProbe(ctx context.Context, name string, args ...string) ([]byte, 
 	return out, err
 }
 
+// usableBinaries remembers the executables whose usability probe succeeded, so
+// SelectExtractor and the startup check share one probe per binary, and the
+// track-info overlay (ExtractAllTags) stops paying a process launch on every
+// open. The key includes the binary's mtime and size, so reinstalling or
+// replacing it is probed afresh. Failures are never cached: a missing or broken
+// tool is re-probed on every call, so fixing it takes effect without a restart.
+var usableBinaries sync.Map // map[usableKey]struct{}
+
+type usableKey struct {
+	path    string
+	modTime int64
+	size    int64
+}
+
+// cachedUsable runs probe for the executable name resolves to unless that same
+// file has already passed it in this process.
+func cachedUsable(name string, probe func() error) error {
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return probe() // the probe owns the not-found message
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return probe()
+	}
+	key := usableKey{path: path, modTime: info.ModTime().UnixNano(), size: info.Size()}
+	if _, ok := usableBinaries.Load(key); ok {
+		return nil
+	}
+	if err := probe(); err != nil {
+		return err
+	}
+	usableBinaries.Store(key, struct{}{})
+	return nil
+}
+
 // ExifToolUsable reports whether exiftool can actually be used as a metadata
 // backend. Presence on $PATH is not enough: exiftool is a Perl script, so a
 // package with a missing or broken Perl runtime resolves through LookPath and
@@ -118,6 +156,10 @@ func runBackendProbe(ctx context.Context, name string, args ...string) ([]byte, 
 // SelectExtractor — so the startup check and the extractor that is actually
 // constructed can never disagree about whether exiftool is viable.
 func ExifToolUsable(ctx context.Context) error {
+	return cachedUsable("exiftool", func() error { return probeExifTool(ctx) })
+}
+
+func probeExifTool(ctx context.Context) error {
 	if _, err := exec.LookPath("exiftool"); err != nil {
 		return fmt.Errorf(
 			"ExifTool not found on $PATH\n" +
@@ -179,6 +221,10 @@ const ffprobeInstallHint = "ffprobe ships with FFmpeg and can be installed via:\
 // This is the single probe behind both gates — config.CheckPrereqs and
 // SelectExtractor — for the same reason ExifToolUsable is.
 func FFProbeUsable(ctx context.Context) error {
+	return cachedUsable("ffprobe", func() error { return probeFFProbe(ctx) })
+}
+
+func probeFFProbe(ctx context.Context) error {
 	if _, err := exec.LookPath("ffprobe"); err != nil {
 		return fmt.Errorf("ffprobe not found on $PATH\n%s", ffprobeInstallHint)
 	}
