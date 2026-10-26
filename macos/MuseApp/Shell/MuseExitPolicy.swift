@@ -9,7 +9,7 @@ enum MuseExitBehavior: String, CaseIterable {
     case quitApp = "quit"
 
     static let defaultsKey = "museExitBehavior"
-    static let `default`: MuseExitBehavior = .relaunchOnShow
+    static let `default`: MuseExitBehavior = .quitApp
 
     /// An absent or unknown stored value reads as the default.
     static func load(from defaults: UserDefaults = .standard) -> MuseExitBehavior {

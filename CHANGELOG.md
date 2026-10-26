@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- muse.app quits when muse exits cleanly (`ctrl+c`) instead of hiding its
+  window. Preferences > "When muse exits" still offers the old behavior.
+
 ## [0.3.0] - 2026-10-26
 
 ### Changed

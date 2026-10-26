@@ -75,15 +75,15 @@ final class ExitPolicyTests: XCTestCase {
         XCTAssertEqual(MuseInstanceLock.holderPID(environment: env), 31337)
     }
 
-    func testBehaviorDefaultsToRelaunchAndRoundTrips() throws {
+    func testBehaviorDefaultsToQuitAndRoundTrips() throws {
         let suite = "muse-tests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        XCTAssertEqual(MuseExitBehavior.load(from: defaults), .relaunchOnShow)
-        defaults.set("nonsense", forKey: MuseExitBehavior.defaultsKey)
-        XCTAssertEqual(MuseExitBehavior.load(from: defaults), .relaunchOnShow)
-        MuseExitBehavior.quitApp.save(to: defaults)
         XCTAssertEqual(MuseExitBehavior.load(from: defaults), .quitApp)
+        defaults.set("nonsense", forKey: MuseExitBehavior.defaultsKey)
+        XCTAssertEqual(MuseExitBehavior.load(from: defaults), .quitApp)
+        MuseExitBehavior.relaunchOnShow.save(to: defaults)
+        XCTAssertEqual(MuseExitBehavior.load(from: defaults), .relaunchOnShow)
     }
 }
 

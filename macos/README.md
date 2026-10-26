@@ -205,9 +205,9 @@ muse the app reconnects without restarting.
   reaching EOF), so the listen in progress is recorded and mpv is stopped. A
   muse still running after that is killed with its process group, mpv
   included.
-- **muse exits cleanly** (`ctrl+c` in muse): the window hides and the next
-  show starts a fresh muse, or, if Preferences says so, the app quits
-  (`museExitBehavior`: `relaunch` or `quit`). A failed exit or a crash stays
+- **muse exits cleanly** (`ctrl+c` in muse): muse.app quits, or, if
+  Preferences says so, the window hides and the next show starts a fresh muse
+  (`museExitBehavior`: `quit` or `relaunch`). A failed exit or a crash stays
   on screen with its status and a Relaunch button.
 - **Already running**: muse allows one instance per runtime directory. If a
   muse is already running in a terminal, the app's muse exits with status 3

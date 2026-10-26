@@ -188,7 +188,7 @@ final class ShellPreferenceDefaultsTests: XCTestCase {
 
     func testTheModelStartsFromTheDefaultsAndSavesEachChange() {
         let model = PreferencesModel(defaults: defaults)
-        XCTAssertEqual(model.exitBehavior, .relaunchOnShow)
+        XCTAssertEqual(model.exitBehavior, .quitApp)
         XCTAssertEqual(model.activationPolicy, .dockAndMenuBar)
         XCTAssertEqual(model.hotKey, MuseHotKeyPreference.default)
         XCTAssertEqual(model.binaryOverride, "")
@@ -213,14 +213,14 @@ final class ShellPreferenceDefaultsTests: XCTestCase {
         model.activationPolicy = .menuBarOnly
         model.activationPolicy = .menuBarOnly
         model.hotKey = nil
-        model.exitBehavior = .quitApp
+        model.exitBehavior = .relaunchOnShow
         model.binaryOverride = " /no/such/muse "
 
         XCTAssertEqual(policies, [.menuBarOnly], "an unchanged value applies nothing")
         XCTAssertEqual(hotKeys, [nil])
         XCTAssertEqual(MuseActivationPolicy.load(from: defaults), .menuBarOnly)
         XCTAssertNil(MuseHotKeyPreference.load(from: defaults))
-        XCTAssertEqual(MuseExitBehavior.load(from: defaults), .quitApp)
+        XCTAssertEqual(MuseExitBehavior.load(from: defaults), .relaunchOnShow)
         XCTAssertEqual(defaults.string(forKey: MuseBinaryResolver.overrideDefaultsKey), "/no/such/muse")
         XCTAssertNotNil(model.binaryOverrideProblem)
 
