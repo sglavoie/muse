@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sglavoie/muse/internal/library"
@@ -74,8 +75,13 @@ func CheckPrereqsWith(ctx context.Context, opts PrereqOptions) ([]string, error)
 	if !opts.SkipNotifier {
 		warnings = checkNotifier()
 	}
-	mpvErr := checkMPV(ctx)
+	// The mpv and metadata-backend probes are independent process launches,
+	// so they run side by side: startup waits for the slower one, not both.
+	var mpvErr error
+	var wg sync.WaitGroup
+	wg.Go(func() { mpvErr = checkMPV(ctx) })
 	metadataWarnings, metadataErr := checkMetadataBackend(ctx)
+	wg.Wait()
 	return append(warnings, metadataWarnings...), errors.Join(mpvErr, metadataErr)
 }
 

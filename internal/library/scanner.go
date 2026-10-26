@@ -17,11 +17,12 @@ import (
 //  1. A single walker goroutine emits audio file paths into a buffered channel.
 //  2. runtime.NumCPU() hash worker goroutines consume paths concurrently and
 //     emit HashedFile values into a second buffered channel.
-//  3. A single ExifTool batch goroutine accumulates HashedFile values and
-//     invokes extractor.Extract on each ~500-file batch, emitting Track values.
+//  3. ExtractBatches groups HashedFile values into batches and invokes
+//     extractor.Extract on them, emitting Track values. ExifTool batches run
+//     in one process per CPU (see concurrentExtractor).
 //
 // The returned channel is closed once the walk has finished and all hash and
-// ExifTool goroutines have drained, signalling scan-complete. Callers drain
+// extraction goroutines have drained, signalling scan-complete. Callers drain
 // the channel with a range loop; channel close is the completion signal.
 //
 // Channel close alone does not mean the scan was complete, so Scan also returns

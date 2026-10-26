@@ -16,7 +16,7 @@ type SahilmFuzzySearcher struct{}
 // Field-specific queries (a:/t:/l:/g:/aa: prefixes) match individual fields and
 // populate per-field position slices instead.
 func (s SahilmFuzzySearcher) Search(query string, tracks []Track) []Match {
-	return searchTracks(query, tracks, prepareSearchValue)
+	return searchTracks(query, tracks, uncachedLookup)
 }
 
 // generalSubstringIndexes checks each searchable field independently so a

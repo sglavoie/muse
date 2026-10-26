@@ -1,7 +1,11 @@
 package sorting
 
 import (
+	"cmp"
+	"slices"
 	"sort"
+	"strings"
+	"unicode"
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
@@ -116,48 +120,109 @@ func isUnknownValue(s string) bool {
 
 // SortTracks returns a sorted copy of tracks by the given field and direction.
 // Unknown/empty values sort after known values regardless of direction.
+//
+// Each track's key is computed once and the sort permutes those small keys
+// rather than whole Track values, so a 100k-track library is not case-folded
+// and unknown-checked on every one of the sort's O(n log n) comparisons.
 func SortTracks(tracks []library.Track, field SortField, dir SortDir) []library.Track {
 	if field == SortDefault || len(tracks) == 0 {
 		return nil
 	}
-	sorted := make([]library.Track, len(tracks))
-	copy(sorted, tracks)
-
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return trackLess(sorted[i], sorted[j], field, dir)
+	keys := make([]trackSortKey, len(tracks))
+	for i := range tracks {
+		keys[i] = newTrackSortKey(i, &tracks[i], field)
+	}
+	slices.SortStableFunc(keys, func(a, b trackSortKey) int {
+		return compareTrackKeys(a, b, field, dir)
 	})
+	sorted := make([]library.Track, len(tracks))
+	for i, k := range keys {
+		sorted[i] = tracks[k.index]
+	}
 	return sorted
 }
 
-// trackLess orders two tracks by field. A field this list does not sort on
-// reports false, leaving SliceStable's original order intact.
-func trackLess(a, b library.Track, field SortField, dir SortDir) bool {
-	switch field {
-	case SortArtist:
-		return CompareStringsUnknownLast(a.Artist, b.Artist, dir)
-	case SortTitle:
-		return CompareStringsUnknownLast(a.Title, b.Title, dir)
-	case SortAlbum:
-		return CompareStringsUnknownLast(a.Album, b.Album, dir)
-	case SortDuration:
-		return CompareNumericZeroLast(a.Duration, b.Duration, dir)
-	case SortDateAdded:
-		return compareTimestamps(a.CreatedAt, b.CreatedAt, dir)
-	case SortLastPlayed:
-		return compareTimestamps(a.LastPlayedAt, b.LastPlayedAt, dir)
-	default:
-		return false
-	}
+// trackSortKey is one track's precomputed sort key. text is the case-folded
+// value of a string field: comparing folded strings bytewise orders them
+// exactly as library.CompareFolded does, since UTF-8 preserves rune order.
+type trackSortKey struct {
+	index   int
+	unknown bool
+	text    string
+	num     float64
+	stamp   int64
 }
 
-// compareTimestamps orders two Unix timestamps by direction. Unlike the
-// duration and string comparators there is no unknown-last rule here: an unset
-// timestamp is zero and sorts with the other low values.
-func compareTimestamps(a, b int64, dir SortDir) bool {
-	if dir == SortAsc {
-		return a < b
+func newTrackSortKey(index int, t *library.Track, field SortField) trackSortKey {
+	k := trackSortKey{index: index}
+	switch field {
+	case SortArtist:
+		k.text, k.unknown = foldedSortText(t.Artist)
+	case SortTitle:
+		k.text, k.unknown = foldedSortText(t.Title)
+	case SortAlbum:
+		k.text, k.unknown = foldedSortText(t.Album)
+	case SortDuration:
+		k.num = t.Duration
+		k.unknown = t.Duration <= 0
+	case SortDateAdded:
+		k.stamp = t.CreatedAt
+	case SortLastPlayed:
+		k.stamp = t.LastPlayedAt
 	}
-	return a > b
+	return k
+}
+
+// foldedSortText returns s folded the way library.CompareFolded compares it,
+// and whether it is an unknown value (see isUnknownValue).
+func foldedSortText(s string) (string, bool) {
+	folded := strings.Map(unicode.ToLower, s)
+	switch folded {
+	case "", "unknown artist", "(unknown artist)", "(unknown album)", "(unknown genre)":
+		return folded, true
+	}
+	return folded, false
+}
+
+// compareOrdered is cmp.Compare without its NaN ordering, so a NaN duration
+// compares equal to everything exactly as it did under CompareNumericZeroLast.
+func compareOrdered(a, b float64) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	}
+	return 0
+}
+
+// compareTrackKeys orders two keys by field, matching CompareStringsUnknownLast
+// and CompareNumericZeroLast: unknowns last in either direction and equal among
+// themselves, so the stable sort keeps their order. Timestamps have no unknown
+// rule: an unset timestamp is zero and sorts with the other low values.
+func compareTrackKeys(a, b trackSortKey, field SortField, dir SortDir) int {
+	if a.unknown != b.unknown {
+		if a.unknown {
+			return 1
+		}
+		return -1
+	}
+	if a.unknown {
+		return 0
+	}
+	var c int
+	switch field {
+	case SortArtist, SortTitle, SortAlbum:
+		c = strings.Compare(a.text, b.text)
+	case SortDuration:
+		c = compareOrdered(a.num, b.num)
+	case SortDateAdded, SortLastPlayed:
+		c = cmp.Compare(a.stamp, b.stamp)
+	}
+	if dir == SortDesc {
+		return -c
+	}
+	return c
 }
 
 // SortPlaylists returns a sorted copy of playlists by the given field and direction.

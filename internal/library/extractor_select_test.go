@@ -343,3 +343,54 @@ func TestExifToolUsable(t *testing.T) {
 		}
 	})
 }
+
+// TestExifToolUsable_CachesSuccessPerBinary verifies that a binary which passed
+// its probe is not launched again, that replacing it is probed afresh, and that
+// a failing probe is never cached.
+func TestExifToolUsable_CachesSuccessPerBinary(t *testing.T) {
+	counter := filepath.Join(t.TempDir(), "runs")
+	counting := "#!/bin/sh\n[ \"$1\" = " + stubWarmupArg + " ] && exit 0\necho x >> " + counter + "\nprintf '12.00\\n'\n"
+	stubPATH(t, map[string]string{"exiftool": counting})
+	runs := func() int {
+		data, _ := os.ReadFile(counter)
+		return strings.Count(string(data), "x")
+	}
+
+	for range 3 {
+		if err := ExifToolUsable(context.Background()); err != nil {
+			t.Fatalf("ExifToolUsable: %v", err)
+		}
+	}
+	if got := runs(); got != 1 {
+		t.Fatalf("want 1 probe for an unchanged binary, got %d", got)
+	}
+
+	path, _ := exec.LookPath("exiftool")
+	replaceStub(t, path, counting+"# reinstalled\n")
+	if err := ExifToolUsable(context.Background()); err != nil {
+		t.Fatalf("ExifToolUsable after replacement: %v", err)
+	}
+	if got := runs(); got != 2 {
+		t.Fatalf("want a fresh probe after replacing the binary, got %d probes", got)
+	}
+
+	failing := "#!/bin/sh\n[ \"$1\" = " + stubWarmupArg + " ] && exit 0\necho x >> " + counter + "\nexit 1\n"
+	replaceStub(t, path, failing)
+	for range 2 {
+		if err := ExifToolUsable(context.Background()); err == nil {
+			t.Fatal("want an error from a failing exiftool")
+		}
+	}
+	if got := runs(); got != 4 {
+		t.Fatalf("want failures re-probed on every call, got %d probes", got)
+	}
+}
+
+// replaceStub rewrites the stub at path in place, as a reinstall would.
+func replaceStub(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	warmStub(t, path)
+}

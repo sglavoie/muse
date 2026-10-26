@@ -67,7 +67,12 @@ fmt:
 fmt-check:
     @out="$(git ls-files -z --cached --others --exclude-standard '*.go' | xargs -0 gofmt -l)"; test -z "$out" || (echo "Files need formatting:" && echo "$out" && exit 1)
 
-# Build with version tag (e.g., just release v1.2.3)
+# Publish a release: date the changelog, commit, tag, push (e.g., just ship minor or just ship 0.3.0)
+[positional-arguments]
+ship version *args:
+    python3 scripts/release.py "$@"
+
+# Build locally with a version stamped in (e.g., just release v1.2.3); publishes nothing
 release version:
     go build -ldflags "-X main.Version={{version}} -X main.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o muse .
 
