@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Library scans run one ExifTool process per CPU core instead of one at a
+  time, so scanning a large library is much faster on multi-core machines.
+- Startup checks mpv and the metadata backend at the same time, and remembers
+  a working ExifTool or ffprobe, so launching muse and opening track info no
+  longer re-run the same probes.
+- Sorting and searching stay responsive in large libraries: sort keys are
+  computed once per track, and searches spread across CPU cores, with the
+  same results and order as before.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added
