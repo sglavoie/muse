@@ -21,7 +21,8 @@ A vector tour of muse's real interface, driven with fixture data.
 ## Quick start
 
 1. With Homebrew (macOS or Linux), install muse along with mpv and ExifTool:
-   `brew install --cask sglavoie/tap/muse`.
+   `brew install --cask sglavoie/tap/muse`. On macOS this also installs
+   [muse.app](macos/README.md) in `/Applications`.
 2. Without Homebrew, install **Go 1.26+**, **mpv**, and either **ExifTool** or
    **ffprobe** (see [Requirements](#requirements)), then
    `go install github.com/sglavoie/muse@latest`.
@@ -82,7 +83,10 @@ brew install --cask sglavoie/tap/muse
 muse check
 ```
 
-`brew upgrade --cask sglavoie/tap/muse` installs new releases. The tap is
+On macOS the cask also installs muse.app, the desktop app that runs muse in
+its own window (see [`macos/README.md`](macos/README.md)), into
+`/Applications`, signed and notarized. `brew upgrade --cask
+sglavoie/tap/muse` installs new releases. The tap is
 named in full because an unrelated `muse` cask exists in Homebrew itself.
 
 With Go:

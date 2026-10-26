@@ -7,11 +7,13 @@ before:
     - go mod tidy -diff
 
 builds:
-  - env:
-      - CGO_ENABLED=0
-    # Windows is not supported: muse drives mpv over a Unix socket.
-    goos: [linux, darwin]
+  # Windows is not supported: muse drives mpv over a Unix socket.
+  - &build
+    id: muse
+    goos: [linux]
     goarch: [amd64, arm64]
+    env:
+      - CGO_ENABLED=0
     flags:
       - -trimpath
     ldflags:
@@ -19,14 +21,44 @@ builds:
       # The tag keeps its v, matching `go install …@v0.2.0` and `just release`.
       - -X main.Version={{ .Tag }}
       - -X main.BuildTime={{ .Date }}
+  - <<: *build
+    id: muse-darwin
+    goos: [darwin]
+
+# One universal macOS muse, which muse.app bundles: the hook builds, signs and
+# (with MUSE_NOTARY_PROFILE set) notarizes macos/build/muse.app around it, so
+# releases run on macOS (.github/workflows/release.yml).
+universal_binaries:
+  - id: muse-darwin
+    ids: [muse-darwin]
+    replace: true
+    hooks:
+      post:
+        - cmd: ./macos/scripts/build-app.sh Release
+          env:
+            - MUSE_BINARY={{ .Path }}
+          output: true
 
 archives:
-  - formats: [tar.gz]
+  - id: linux
+    ids: [muse]
+    formats: [tar.gz]
     files:
       - LICENSE
       - README.md
       - CHANGELOG.md
       - config.example.toml
+  - id: darwin
+    ids: [muse-darwin]
+    formats: [tar.gz]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - config.example.toml
+      # GoReleaser drops the matches' common directory, Contents, so dst names it.
+      - src: macos/build/muse.app/**/*
+        dst: muse.app/Contents
 
 checksum:
   name_template: checksums.txt
@@ -53,6 +85,11 @@ homebrew_casks:
     dependencies:
       - formula: mpv
       - formula: exiftool
+    # muse.app goes to /Applications, so Finder, Spotlight and launchers find it.
+    custom_block: |
+      on_macos do
+        app "muse.app"
+      end
     hooks:
       post:
         # The binaries are not notarized: let macOS run them.

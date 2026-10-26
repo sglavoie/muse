@@ -14,7 +14,9 @@ jobs:
 
   release:
     needs: check
-    runs-on: ubuntu-latest
+    # muse.app builds on macOS only; GoReleaser cross-compiles Linux from here.
+    runs-on: macos-26
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -24,6 +26,52 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      # GhosttyKit takes most of the build; it changes only with its pin or patches.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: macos/Vendor
+          key: ghosttykit-${{ runner.arch }}-${{ hashFiles('macos/GHOSTTY_VERSION', 'macos/patches/ghostty/*.patch') }}
+      # A throwaway keychain holds the Developer ID identity and the notary
+      # credentials that macos/scripts/sign.sh reads from the environment.
+      - name: Set up signing and notarization
+        env:
+          # base64 of the Developer ID Application certificate exported as .p12.
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          # An App Store Connect API key (.p8 contents) for notarytool.
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -eu
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(openssl rand -hex 24)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 --decode >"$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain"
+          # notarytool reads its profile from the default keychain.
+          security default-keychain -d user -s "$keychain"
+
+          # The SHA-1 rather than the name, as sign.sh does.
+          identity=$(security find-identity -v -p codesigning "$keychain" |
+            sed -n 's/^ *[0-9][0-9]*) \([0-9A-F]\{40\}\) "Developer ID Application: .*/\1/p' | head -n 1)
+          if [ -z "$identity" ]; then
+            echo "MACOS_CERTIFICATE_P12 holds no Developer ID Application identity" >&2
+            exit 1
+          fi
+          echo "MUSE_CODESIGN_IDENTITY=$identity" >>"$GITHUB_ENV"
+
+          printf '%s\n' "$APPLE_NOTARY_KEY" >"$RUNNER_TEMP/notary.p8"
+          xcrun notarytool store-credentials muse-notary --keychain "$keychain" \
+            --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER_ID"
+          rm "$RUNNER_TEMP/notary.p8"
+          echo "MUSE_NOTARY_PROFILE=muse-notary" >>"$GITHUB_ENV"
       - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           version: "~> v2"

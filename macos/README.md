@@ -5,7 +5,9 @@ own Dock icon, a menu-bar icon with the current track and Play/Pause, Next and
 Previous, a global shortcut that shows or hides it, and native track-change
 notifications. Closing the window hides it while the music keeps playing. It
 spawns the ordinary `muse` binary on a pty; mpv, ExifTool and ffprobe still
-come from your login shell's `PATH` (Homebrew), and none of it runs in CI.
+come from your login shell's `PATH` (Homebrew). CI does not build it; the
+release workflow does, and the Homebrew cask installs it (see the root
+README's Install).
 
 ## Prerequisites
 

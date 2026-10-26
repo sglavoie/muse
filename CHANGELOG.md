@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The Homebrew cask installs muse.app into `/Applications` on macOS, signed
+  with a Developer ID and notarized, so Finder, Spotlight and app launchers
+  find it. The macOS archive now holds one universal `muse` and muse.app.
+
 ## [0.3.1] - 2026-10-26
 
 ### Changed

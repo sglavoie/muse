@@ -222,9 +222,11 @@ states and adjacent layout sizes; inspect it alongside the automated checks.
 ## Releasing
 
 A pushed `v*` tag publishes a release. `.github/workflows/release.yml` re-runs
-all of CI, then GoReleaser (`.goreleaser.yaml`) builds the Linux and macOS
-archives, creates the GitHub release, and updates the cask in
-`sglavoie/homebrew-tap`. `just ship` does every step that leads up to that:
+all of CI, then, on a macOS runner, GoReleaser (`.goreleaser.yaml`) builds the
+Linux archives and a macOS one holding a universal `muse` and muse.app, built,
+signed and notarized by a hook that runs `macos/scripts/build-app.sh Release`.
+It then creates the GitHub release and updates the cask in
+`sglavoie/homebrew-tap`, which installs muse.app into `/Applications`. `just ship` does every step that leads up to that:
 
 ```sh
 just ship patch        # or minor, major, or an exact version such as 0.3.0
@@ -239,11 +241,22 @@ entries under a dated heading, updates the compare links, commits
 changing anything and again before `git push --atomic origin main vX.Y.Z`.
 Use `gh run watch` to follow the release run.
 
-The release needs a `HOMEBREW_TAP_GITHUB_TOKEN` repository secret: a
-fine-grained token with `contents: write` on `sglavoie/homebrew-tap`. Run
-`goreleaser check` after editing `.goreleaser.yaml`, and
-`goreleaser release --snapshot --clean` to build the archives locally without
-publishing. `just release vX.Y.Z` only builds a versioned local binary.
+The release needs these repository secrets:
+
+| Secret | Holds |
+| --- | --- |
+| `HOMEBREW_TAP_GITHUB_TOKEN` | a fine-grained token with `contents: write` on `sglavoie/homebrew-tap` |
+| `MACOS_CERTIFICATE_P12` | the Developer ID Application certificate and key, exported as `.p12`, base64-encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `MACOS_CERTIFICATE_PASSWORD` | that `.p12`'s export password |
+| `APPLE_NOTARY_KEY` | an App Store Connect API key's `.p8` contents (Users and Access > Integrations, Developer access) |
+| `APPLE_NOTARY_KEY_ID` | that key's ID |
+| `APPLE_NOTARY_ISSUER_ID` | the team's issuer ID, shown above the keys |
+
+Run `goreleaser check` after editing `.goreleaser.yaml`, and
+`goreleaser release --snapshot --clean` on a Mac to build the archives
+locally without publishing; muse.app is signed as `just mac-app` signs it and
+is not notarized unless `MUSE_CODESIGN_IDENTITY` and `MUSE_NOTARY_PROFILE` say
+so. `just release vX.Y.Z` only builds a versioned local binary.
 
 ## Reporting bugs
 
