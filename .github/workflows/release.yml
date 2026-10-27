@@ -78,5 +78,25 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Written only after the release is published, so the tap never names an
+      # asset that is not there. A failure here leaves the cask on the previous
+      # version.
+      - name: Write the Homebrew cask
+        env:
           # A fine-grained token with contents: write on sglavoie/homebrew-tap.
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version=${TAG#v}
+          python3 scripts/homebrew_cask.py "$version" dist/checksums.txt >dist/muse-player.rb
+          cat dist/muse-player.rb
+          path=Casks/muse-player.rb
+          # The first release under this token creates the file: it has no sha yet.
+          if ! current=$(gh api "repos/sglavoie/homebrew-tap/contents/$path" --jq .sha 2>/dev/null); then
+            current=
+          fi
+          gh api --method PUT "repos/sglavoie/homebrew-tap/contents/$path" \
+            -f message="muse-player $version" \
+            -f content="$(base64 <dist/muse-player.rb | tr -d '\n')" \
+            ${current:+-f sha="$current"} >/dev/null

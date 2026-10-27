@@ -2,7 +2,7 @@
 """Cut a release: date the changelog, commit, tag, and push the tag to GitHub.
 
 Pushing a v* tag runs .github/workflows/release.yml, which re-runs CI and then
-GoReleaser (binaries, GitHub release, Homebrew cask). See CONTRIBUTING.md.
+GoReleaser (binaries, GitHub release), then writes the Homebrew cask. See CONTRIBUTING.md.
 """
 
 import argparse

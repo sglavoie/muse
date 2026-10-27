@@ -95,14 +95,25 @@ On macOS or Linux, the `sglavoie/tap` cask installs a prebuilt `muse` along
 with mpv and ExifTool:
 
 ```sh
-brew install --cask sglavoie/tap/muse
+brew install --cask sglavoie/tap/muse-player
 ```
 
-Upgrade with `brew upgrade --cask sglavoie/tap/muse` and remove with
-`brew uninstall --cask sglavoie/tap/muse`. Use the full name: an unrelated
-`muse` cask exists in Homebrew itself. The binary is not notarized, so the cask
-clears its quarantine flag on macOS. Prebuilt archives are also attached to
-each [GitHub release](https://github.com/sglavoie/muse/releases).
+On macOS it installs the signed, notarized muse.app into `/Applications` and
+links the `muse` inside it, so the command line and the app are one binary.
+Upgrade with `brew upgrade` and remove with
+`brew uninstall --cask muse-player`. The cask is `muse-player` because an
+unrelated `muse` cask exists in Homebrew itself; the command is still `muse`.
+Prebuilt archives are also attached to each
+[GitHub release](https://github.com/sglavoie/muse/releases).
+
+Installed muse 0.4.0 or earlier from the `sglavoie/tap/muse` cask? `brew
+upgrade` mistakes it for Homebrew's own `muse` and skips it ("it is disabled
+because it requires a signed download URL"). Switch to the new cask once:
+
+```sh
+brew uninstall --cask sglavoie/tap/muse
+brew install --cask sglavoie/tap/muse-player
+```
 
 ### go install
 

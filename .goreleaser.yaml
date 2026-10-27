@@ -72,30 +72,7 @@ changelog:
       - "^test(\\(.*\\))?:"
       - "^chore(\\(.*\\))?:"
 
-homebrew_casks:
-  - repository:
-      owner: sglavoie
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Casks
-    homepage: https://github.com/sglavoie/muse
-    description: Keyboard-driven terminal music player for your local library
-    license: MIT
-    # mpv plays; ExifTool is the recommended metadata backend (ffprobe also works).
-    dependencies:
-      - formula: mpv
-      - formula: exiftool
-    # muse.app goes to /Applications, so Finder, Spotlight and launchers find it.
-    custom_block: |
-      on_macos do
-        app "muse.app"
-      end
-    hooks:
-      post:
-        # The binaries are not notarized: let macOS run them.
-        # install_steps writes Homebrew's postflight_steps; install wrote the
-        # deprecated postflight, which warns on every install.
-        install_steps: |
-          on_macos do
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/muse"]
-          end
+# No homebrew_casks: the cask's token is muse-player, and on macOS it links the
+# notarized muse inside muse.app, which GoReleaser's cask cannot express, so
+# release.yml writes Casks/muse-player.rb (scripts/homebrew_cask.py) once the
+# release is published.

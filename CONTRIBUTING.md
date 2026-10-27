@@ -225,8 +225,11 @@ A pushed `v*` tag publishes a release. `.github/workflows/release.yml` re-runs
 all of CI, then, on a macOS runner, GoReleaser (`.goreleaser.yaml`) builds the
 Linux archives and a macOS one holding a universal `muse` and muse.app, built,
 signed and notarized by a hook that runs `macos/scripts/build-app.sh Release`.
-It then creates the GitHub release and updates the cask in
-`sglavoie/homebrew-tap`, which installs muse.app into `/Applications`. `just ship` does every step that leads up to that:
+It then creates the GitHub release, and only then
+`scripts/homebrew_cask.py` writes `Casks/muse-player.rb` in
+`sglavoie/homebrew-tap`, which installs muse.app into `/Applications` and links
+the `muse` inside it. The token is not `muse`: homebrew/cask has an unrelated
+cask by that name, which `brew upgrade` would pick instead. `just ship` does every step that leads up to that:
 
 ```sh
 just ship patch        # or minor, major, or an exact version such as 0.3.0

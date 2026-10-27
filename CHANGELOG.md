@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The Homebrew cask is now `sglavoie/tap/muse-player`: Homebrew's own,
+  unrelated `muse` cask made `brew upgrade` skip muse with "it is disabled
+  because it requires a signed download URL". On macOS the cask links the
+  notarized `muse` inside muse.app instead of a second, unsigned copy. To
+  switch, run `brew uninstall --cask sglavoie/tap/muse`, then
+  `brew install --cask sglavoie/tap/muse-player`.
+
 ## [0.4.0] - 2026-10-26
 
 ### Added
