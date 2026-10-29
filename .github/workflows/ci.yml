@@ -81,7 +81,7 @@ jobs:
         run: |
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "modules=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v5
+      - uses: actions/cache/restore@v6
         id: cache
         with:
           path: |
@@ -105,7 +105,7 @@ jobs:
           retention-days: 7
       - name: Save race build cache
         if: ${{ !cancelled() && steps.cache.outputs.cache-hit != 'true' && steps.cache.outcome == 'success' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ${{ steps.paths.outputs.build }}
