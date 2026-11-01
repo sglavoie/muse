@@ -24,6 +24,7 @@ func TestProtocol_PinnedNames(t *testing.T) {
 		want string
 	}{
 		{"request", Request{ID: 3, Op: OpTogglePlay}, `{"id":3,"op":"toggle-play"}`},
+		{"seek request", Request{ID: 5, Op: OpSeek, Position: new(42.5)}, `{"id":5,"op":"seek","position":42.5}`},
 		{"reply minimal", Reply{ID: 3, OK: true}, `{"reply":3,"ok":true}`},
 		{
 			"reply with state",
@@ -32,8 +33,8 @@ func TestProtocol_PinnedNames(t *testing.T) {
 		},
 		{
 			"hello",
-			Event{Event: EventHello, Hello: &Hello{PID: 9, Version: "v1.2.3", Protocol: ProtocolVersion}},
-			`{"event":"hello","hello":{"pid":9,"version":"v1.2.3","protocol":1}}`,
+			Event{Event: EventHello, Hello: &Hello{PID: 9, Version: "v1.2.3", Protocol: ProtocolVersion, MediaControls: true}},
+			`{"event":"hello","hello":{"pid":9,"version":"v1.2.3","protocol":1,"mediaControls":true}}`,
 		},
 		{
 			"state",
@@ -63,6 +64,9 @@ func TestProtocol_PinnedNames(t *testing.T) {
 func TestProtocol_OpAndEventNames(t *testing.T) {
 	names := map[string]string{
 		OpTogglePlay:    "toggle-play",
+		OpPlay:          "play",
+		OpPause:         "pause",
+		OpSeek:          "seek",
 		OpNext:          "next",
 		OpPrevious:      "previous",
 		OpVolumeUp:      "volume-up",

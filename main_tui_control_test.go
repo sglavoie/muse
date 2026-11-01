@@ -67,7 +67,7 @@ func TestListenControl_UnhostedIsNoOp(t *testing.T) {
 	if deps.DrainControl != nil || deps.CloseControl != nil {
 		t.Fatal("unhosted session must not wire control shutdown steps")
 	}
-	if err := serveControl(nil, func(tea.Msg) {}); err != nil {
+	if err := serveControl(nil, func(tea.Msg) {}, true); err != nil {
 		t.Fatalf("serveControl(nil) = %v, want nil", err)
 	}
 }
@@ -111,7 +111,7 @@ func TestHostedControl_HelloStateAndRequest(t *testing.T) {
 	srv.Publish(control.Event{Event: control.EventState, State: &control.State{Playback: control.PlaybackPaused}})
 
 	sent := make(chan tea.Msg, 1)
-	if err := serveControl(srv, func(msg tea.Msg) { sent <- msg }); err != nil {
+	if err := serveControl(srv, func(msg tea.Msg) { sent <- msg }, true); err != nil {
 		t.Fatalf("serveControl: %v", err)
 	}
 

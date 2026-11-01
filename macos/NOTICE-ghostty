@@ -29,3 +29,8 @@ packaging of iTerm2-Color-Schemes
 (https://github.com/mbadolato/iTerm2-Color-Schemes), distributed under the
 MIT License; the notice above applies with "Copyright (c) 2011 Mark Badolato"
 in place of Ghostty's copyright line.
+
+muse.app also contains libraries that GhosttyKit links, embedded fonts, and
+the Go modules in the muse program. Their full license texts are in
+Contents/Resources/THIRD_PARTY_NOTICES-macos.txt and
+Contents/Resources/THIRD_PARTY_NOTICES.txt.

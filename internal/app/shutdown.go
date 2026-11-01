@@ -49,6 +49,11 @@ type ShutdownDeps struct {
 	// first, before anything is torn down. Nil means no control server.
 	DrainControl func()
 
+	// CloseMediaControls withdraws the MPRIS player from the session bus, so
+	// media keys stop reaching a muse that is going away. It runs right after
+	// the control listener closes. Nil means media controls were not started.
+	CloseMediaControls func()
+
 	// CtrlListener is the Unix domain socket listener for remote commands.
 	// Closed first during shutdown to stop accepting new commands. Nil means
 	// remote control was not started.
@@ -164,6 +169,13 @@ func shutdownSequence(deps ShutdownDeps) {
 			slog.Warn("shutdown: close control listener", "err", err)
 		}
 		slog.Info("shutdown: control listener closed")
+	})
+	runShutdownStep("0c: close media controls", func() {
+		if deps.CloseMediaControls == nil {
+			return
+		}
+		slog.Info("shutdown: closing media controls")
+		deps.CloseMediaControls()
 	})
 
 	// Step 1: Close the player (stop playback + terminate mpv).

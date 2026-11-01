@@ -71,6 +71,19 @@ final class ControlWireTests: XCTestCase {
         XCTAssertEqual(try object(.previous)["op"] as? String, "previous")
         XCTAssertEqual(try object(.state)["op"] as? String, "state")
         XCTAssertEqual(try object(MuseControlRequest(op: .volumeUp))["op"] as? String, "volume-up")
+        XCTAssertEqual(try object(.play)["op"] as? String, "play")
+        XCTAssertEqual(try object(.pause)["op"] as? String, "pause")
+        XCTAssertNil(try object(.pause)["position"], "only seek carries a position")
+        let seek = try object(.seek(to: 42.5))
+        XCTAssertEqual(seek["op"] as? String, "seek")
+        XCTAssertEqual(seek["position"] as? Double, 42.5)
+    }
+
+    func testHelloCarriesTheMediaControlsSetting() {
+        XCTAssertEqual(
+            MuseControlLine.decode(Data(#"{"event":"hello","hello":{"pid":7,"version":"v1","protocol":1,"mediaControls":false}}"#.utf8)),
+            .event(.hello(MuseHello(pid: 7, version: "v1", protocol: 1, mediaControls: false)))
+        )
     }
 
     func testLineBufferKeepsAPartialLine() {

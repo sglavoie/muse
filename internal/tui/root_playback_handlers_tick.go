@@ -51,6 +51,10 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 				// again on the following ticks.
 				if delta := elapsed - m.playback.lastSampleSecs; delta > 0 && delta <= maxListenDeltaSecs {
 					m.playback.listenedSecs += delta
+				} else if math.Abs(delta) > maxListenDeltaSecs {
+					// A seek made elsewhere (a key, mpv itself): republish so
+					// media controls move their position.
+					m.control.seeks++
 				}
 				m.playback.lastSampleSecs = elapsed
 				if elapsed > m.playback.peakElapsedSecs {

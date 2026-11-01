@@ -15,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
     private(set) var control: MuseControlClient?
     /// What muse is playing, as its control socket last said.
     let nowPlaying = NowPlaying()
+    /// Mirrors `nowPlaying` into macOS's Now Playing and routes media keys to muse.
+    private lazy var systemNowPlaying = SystemNowPlaying(nowPlaying: nowPlaying) { [weak self] request in
+        self?.control?.send(request)
+    }
     let notifications = MuseNotifications()
     /// What `build-info` said of the muse running, for About.
     private var museVersion: MuseVersion?
@@ -110,7 +114,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
 
         if let controlPath {
             let control = MuseControlClient(path: controlPath)
-            control.onConnectionChange = { [weak self] in self?.nowPlaying.connectionChanged($0) }
+            control.onConnectionChange = { [weak self] connected in
+                self?.nowPlaying.connectionChanged(connected)
+                self?.systemNowPlaying.refresh()
+            }
             control.onEvent = { [weak self] in self?.handle($0) }
             self.control = control
         }
@@ -364,6 +371,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, GhosttyAppDelegate, St
     /// The control socket's events, on the main queue.
     private func handle(_ event: MuseControlEvent) {
         nowPlaying.apply(event)
+        systemNowPlaying.apply(event)
         if case .notify(let notification) = event {
             notifications.post(notification)
         }

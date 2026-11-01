@@ -53,15 +53,18 @@ func listenControl(o tuiOptions, shutdownDeps *app.ShutdownDeps) (*control.Serve
 }
 
 // serveControl introduces this muse to the host and starts answering
-// requests, which reach the TUI through send. It is a no-op when srv is nil.
-func serveControl(srv *control.Server, send func(tea.Msg)) error {
+// requests, which reach the TUI through send. mediaControls passes on the
+// media_controls setting, so the host knows whether to publish Now Playing.
+// It is a no-op when srv is nil.
+func serveControl(srv *control.Server, send func(tea.Msg), mediaControls bool) error {
 	if srv == nil {
 		return nil
 	}
 	srv.SetHello(control.Hello{
-		PID:      os.Getpid(),
-		Version:  resolveVersion(),
-		Protocol: control.ProtocolVersion,
+		PID:           os.Getpid(),
+		Version:       resolveVersion(),
+		Protocol:      control.ProtocolVersion,
+		MediaControls: mediaControls,
 	})
 	if err := srv.Serve(tui.ControlDispatch(send)); err != nil {
 		return fmt.Errorf("control socket: %w", err)

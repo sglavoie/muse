@@ -5,19 +5,31 @@ import Foundation
 struct MuseControlRequest: Encodable, Equatable {
     enum Op: String, Encodable {
         case togglePlay = "toggle-play"
+        /// Set the state outright, as media keys and headphones ask.
+        case play, pause
         case next, previous
         case volumeUp = "volume-up"
         case volumeDown = "volume-down"
+        /// Move the current track to `position` seconds.
+        case seek
         case state
     }
 
     var id = 0
     let op: Op
+    /// `seek`'s target in seconds; omitted from the line otherwise.
+    var position: Double?
 
     static let togglePlay = Self(op: .togglePlay)
+    static let play = Self(op: .play)
+    static let pause = Self(op: .pause)
     static let next = Self(op: .next)
     static let previous = Self(op: .previous)
     static let state = Self(op: .state)
+
+    static func seek(to seconds: Double) -> Self {
+        Self(op: .seek, position: seconds)
+    }
 }
 
 struct MuseControlReply: Decodable, Equatable {
@@ -40,11 +52,13 @@ struct MuseControlReply: Decodable, Equatable {
     }
 }
 
-/// The muse on the other end of the socket.
+/// The muse on the other end of the socket. `mediaControls` is muse's
+/// `media_controls` setting; a muse too old to send it means yes.
 struct MuseHello: Decodable, Equatable {
     let pid: Int32
     let version: String
     let `protocol`: Int
+    var mediaControls: Bool?
 }
 
 /// The track muse has loaded. `id` is its content hash and `queueId` its queue

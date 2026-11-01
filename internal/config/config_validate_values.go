@@ -216,6 +216,10 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.NotifyOnTrackChange = *raw.NotifyOnTrackChange
 	}
 
+	if raw.MediaControls != nil {
+		cfg.MediaControls = *raw.MediaControls
+	}
+
 	if raw.QueueFollowNowPlaying != nil {
 		cfg.QueueFollowNowPlaying = *raw.QueueFollowNowPlaying
 	}

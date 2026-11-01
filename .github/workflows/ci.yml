@@ -56,6 +56,11 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_release.py' -v
       - name: Check Homebrew cask script
         run: python3 -m unittest discover -s scripts -p 'test_homebrew_cask.py' -v
+      - name: Check third-party notices
+        # The macOS notices need the Ghostty build cache, so CI checks the Go ones.
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_third_party_notices.py' -v
+          python3 scripts/third_party_notices.py --check go
       - name: Build
         run: go build ./...
       - name: Vet

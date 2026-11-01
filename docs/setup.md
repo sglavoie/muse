@@ -87,6 +87,14 @@ Fedora: dnf install libnotify
 Arch:   pacman -S libnotify
 ```
 
+### Media controls — no extra dependency
+
+On Linux, muse publishes itself as an MPRIS player on the D-Bus session bus
+that every desktop session already runs, so media keys and media widgets work
+with nothing to install; `playerctl` is handy for scripting it. A session
+without a bus, such as over SSH, runs without media controls. On macOS,
+media keys and Now Playing come with [muse.app](../macos/README.md).
+
 ## Install
 
 ### Homebrew

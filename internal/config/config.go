@@ -73,6 +73,12 @@ log_level = %q
 # Post a desktop notification whenever a new track starts (true/false).
 # notify_on_track_change = false
 
+# Publish playback to the desktop's media controls (true/false). On Linux muse
+# registers as an MPRIS player, so media keys, headset buttons, desktop media
+# widgets and playerctl can see and control it. muse.app does the same through
+# macOS's Now Playing; the terminal muse on macOS has no system media controls.
+# media_controls = true
+
 # Auto-scroll the now-playing track into view in the Queue panel (true/false).
 # queue_follow_now_playing = true
 
@@ -122,6 +128,7 @@ const (
 	defaultStereoWideAmount           = 10 // 1.0x = passthrough
 	defaultShowFooterHints            = true
 	defaultNotifyOnTrackChange        = false
+	defaultMediaControls              = true
 	defaultQueueFollowNowPlaying      = true
 
 	defaultMixRediscoverMinPlays    = 10
@@ -193,6 +200,7 @@ type Config struct {
 	StereoWideAmount           int              `toml:"stereo_wide_amount"`
 	ShowFooterHints            bool             `toml:"show_footer_hints"`
 	NotifyOnTrackChange        bool             `toml:"notify_on_track_change"`
+	MediaControls              bool             `toml:"media_controls"`
 	QueueFollowNowPlaying      bool             `toml:"queue_follow_now_playing"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
@@ -231,6 +239,7 @@ type rawConfig struct {
 	StereoWideAmount           *int                `toml:"stereo_wide_amount"`
 	ShowFooterHints            *bool               `toml:"show_footer_hints"`
 	NotifyOnTrackChange        *bool               `toml:"notify_on_track_change"`
+	MediaControls              *bool               `toml:"media_controls"`
 	QueueFollowNowPlaying      *bool               `toml:"queue_follow_now_playing"`
 	Mixes                      rawMixesConfig      `toml:"mixes"`
 }

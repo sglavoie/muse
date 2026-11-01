@@ -9,6 +9,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/rivo/uniseg v0.4.7
 	github.com/zeebo/blake3 v0.2.4

@@ -56,7 +56,8 @@ metadata and synthesized audio.
 | Insights | Explore listening patterns and library data health |
 
 Playback includes gapless transitions, a ten-band equalizer, volume
-normalization, and Auto-DJ with discovery controls, previews, and saved recipes.
+normalization, Auto-DJ with discovery controls, previews, and saved recipes,
+and media keys and Now Playing (MPRIS on Linux, muse.app on macOS).
 Metadata edits stay in muse's database; your audio files are unchanged.
 
 The [user guide](docs/user-guide.md) covers filtering, selections, queue

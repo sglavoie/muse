@@ -43,6 +43,7 @@ func defaults() Config {
 		StereoWideAmount:           defaultStereoWideAmount,
 		ShowFooterHints:            defaultShowFooterHints,
 		NotifyOnTrackChange:        defaultNotifyOnTrackChange,
+		MediaControls:              defaultMediaControls,
 		QueueFollowNowPlaying:      defaultQueueFollowNowPlaying,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,

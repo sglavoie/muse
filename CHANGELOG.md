@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Media keys, headset buttons and the system's Now Playing controls drive
+  muse. On Linux muse registers as an MPRIS player, so desktop media widgets
+  and `playerctl` show the playing track and can play, pause, skip and seek.
+  On macOS muse.app shows the track in Control Center's Now Playing and takes
+  the keyboard's media keys and AirPods controls. Set `media_controls = false`
+  to turn this off.
+- Release archives and muse.app include the license notices of every
+  third-party component muse ships (`THIRD_PARTY_NOTICES.txt`, plus
+  `THIRD_PARTY_NOTICES-macos.txt` for muse.app).
+
 ## [0.5.0] - 2026-10-27
 
 ### Changed

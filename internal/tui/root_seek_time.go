@@ -100,6 +100,7 @@ func (m Model) seekToTime(seconds float64) (Model, tea.Cmd) {
 	m.overlay.seekTime = nil
 	m.playback.elapsedSecs = seconds
 	m.playback.lastSampleSecs = seconds
+	m.control.seeks++
 	m.statusBar.Notify("Seeked to " + text.FormatPositionSecs(seconds))
 	return m, m.sessionPositionCmd()
 }

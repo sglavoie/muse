@@ -45,6 +45,7 @@ archives:
     formats: [tar.gz]
     files:
       - LICENSE
+      - THIRD_PARTY_NOTICES.txt
       - README.md
       - CHANGELOG.md
       - config.example.toml
@@ -53,6 +54,8 @@ archives:
     formats: [tar.gz]
     files:
       - LICENSE
+      - THIRD_PARTY_NOTICES.txt
+      - macos/THIRD_PARTY_NOTICES-macos.txt
       - README.md
       - CHANGELOG.md
       - config.example.toml

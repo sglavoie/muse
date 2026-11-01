@@ -59,23 +59,29 @@ requests and muse answers each with a reply carrying the request's `id`:
 {"reply":1,"ok":true,"message":"toggle-play"}
 ```
 
-The ops are `toggle-play`, `next`, `previous`, `volume-up`, `volume-down` and
-`state`, whose reply carries a `state` object. Any other op is refused with
+The ops are `toggle-play`, `play`, `pause`, `next`, `previous`, `volume-up`,
+`volume-down`, `seek` and `state`, whose reply carries a `state` object. `play`
+and `pause` set the state outright (a `pause` while paused does nothing), and
+`seek` moves the current track to its `position` in seconds, clamped to the
+track: `{"id":2,"op":"seek","position":90}`. Any other op is refused with
 `ok:false`.
 
 muse also writes events, each shaped `{"event":"<name>","<name>":{...}}`. A new
 connection hears `hello` first, then the latest `state`:
 
 ```json
-{"event":"hello","hello":{"pid":4242,"version":"v1.2.3","protocol":1}}
+{"event":"hello","hello":{"pid":4242,"version":"v1.2.3","protocol":1,"mediaControls":true}}
 {"event":"state","state":{"playback":"playing","track":{"id":"<hash>","queueId":7,"title":"Song","artist":"Band","album":"Record","duration":183},"elapsed":12.5}}
 {"event":"notify","notify":{"title":"Song","subtitle":"Band","body":"Record"}}
 {"event":"quitting"}
 ```
 
 - `state` is sent whenever the playback state (`playing`, `paused` or
-  `stopped`) or the track changes, not on every tick; `elapsed` and `duration`
-  are seconds, and `track` is absent when nothing is loaded.
+  `stopped`) or the track changes, or a seek moves `elapsed`, not on every
+  tick; `elapsed` and `duration` are seconds, and `track` is absent when
+  nothing is loaded. A host extrapolates `elapsed` between events.
+- `hello`'s `mediaControls` is the `media_controls` setting: whether the host
+  should publish playback to the system's media controls.
 - `quitting` means muse has begun shutting down and refuses new requests; the
   socket reaching EOF afterwards means shutdown finished.
 

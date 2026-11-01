@@ -196,6 +196,15 @@ Play/Pause, Next and Previous. The wire format is in the root README's
 so `muse next` from any terminal drives the app's muse too. After Relaunch
 muse the app reconnects without restarting.
 
+### Now Playing and media keys
+
+muse plays through mpv, a separate process, so the app publishes for it: the
+playing track appears in Control Center's Now Playing (with a scrubber), and
+the keyboard's play/pause, next and previous keys, AirPods and headphone
+controls drive muse. The app steps aside, clearing Now Playing and releasing
+the media keys to other apps, while muse is not running or when muse's
+`media_controls = false`.
+
 ### Window and quit semantics
 
 - **Close** (`Cmd+W`, the red button): hides the window. muse and the music
@@ -339,6 +348,10 @@ After `just mac-install`, launch from Finder or Spotlight:
 - Close the window: music continues. The shortcut brings the window back.
 - The menu-bar Next and Pause work; `muse next` from a terminal also drives
   the app's muse.
+- Control Center's Now Playing shows the track and its position; the
+  keyboard's play/pause and next keys and its scrubber drive muse. With
+  `media_controls = false` and muse relaunched, Now Playing no longer lists
+  muse.
 - `Cmd+Q`: audio stops and `pgrep mpv` is empty. The listen appears in
   Insights on the next launch.
 - With a terminal muse running, launching the app shows the "already running"

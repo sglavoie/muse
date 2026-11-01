@@ -25,13 +25,27 @@ func WithControlPublisher(p controlPublisher) Option {
 	return func(m *Model) { m.control.publisher = p }
 }
 
-// controlState is the hosted-session bookkeeping on the Model. last is the key
-// of the state most recently published, so a tick that only moves elapsed does
-// not republish.
+// WithStateObserver adds a sink that hears the same state events a host does,
+// without marking the session as hosted: the system media controls (MPRIS on
+// Linux) use it. A nil observer is ignored.
+func WithStateObserver(p controlPublisher) Option {
+	return func(m *Model) {
+		if p != nil {
+			m.control.observers = append(m.control.observers, p)
+		}
+	}
+}
+
+// controlState is the state-event bookkeeping on the Model. last is the key of
+// the state most recently published, so a tick that only moves elapsed does
+// not republish. seeks counts the seeks noticed in the current track, so a
+// jump in elapsed republishes and media controls can move their position.
 type controlState struct {
 	publisher controlPublisher
+	observers []controlPublisher
 	last      controlStateKey
 	published bool
+	seeks     uint64
 }
 
 // controlStateKey is the comparable part of a state event. Elapsed is left out
@@ -46,6 +60,7 @@ type controlStateKey struct {
 	artist   string
 	album    string
 	duration int64
+	seeks    uint64
 }
 
 // controlRequestMsg carries one host request into Update. reply is buffered,
@@ -74,10 +89,24 @@ func (m Model) hosted() bool {
 // vocabulary through playback.RemoteAction, so both sockets do exactly what the
 // matching key does.
 func (m Model) handleControlRequest(msg controlRequestMsg) (tea.Model, tea.Cmd) {
-	if msg.req.Op == control.OpState {
+	switch msg.req.Op {
+	case control.OpState:
 		state := m.controlSnapshot()
 		msg.reply <- control.Reply{OK: true, State: &state}
 		return m, nil
+	case control.OpPlay, control.OpPause:
+		// Toggle only when the state differs, so a headphone's pause never
+		// resumes a paused track.
+		want := msg.req.Op == control.OpPlay
+		if (m.playback.state == playback.StatePlaying) == want {
+			msg.reply <- control.Reply{OK: true, Message: msg.req.Op}
+			return m, nil
+		}
+		next, cmd, _ := m.handlePlaybackKeyAction(keys.ActionPlayPause)
+		msg.reply <- control.Reply{OK: true, Message: msg.req.Op}
+		return next, cmd
+	case control.OpSeek:
+		return m.handleControlSeek(msg)
 	}
 	action := playback.RemoteAction(msg.req.Op)
 	if action == keys.ActionNone {
@@ -89,18 +118,58 @@ func (m Model) handleControlRequest(msg controlRequestMsg) (tea.Model, tea.Cmd) 
 	return next, cmd
 }
 
+// handleControlSeek moves the current track to the requested position,
+// clamped to the track, and answers with the outcome.
+func (m Model) handleControlSeek(msg controlRequestMsg) (tea.Model, tea.Cmd) {
+	pos := msg.req.Position
+	switch {
+	case pos == nil || math.IsNaN(*pos) || math.IsInf(*pos, 0):
+		msg.reply <- control.Reply{OK: false, Message: "seek needs a position in seconds"}
+		return m, nil
+	case m.playback.currentHash == "" ||
+		(m.playback.state != playback.StatePlaying && m.playback.state != playback.StatePaused):
+		msg.reply <- control.Reply{OK: false, Message: "nothing is playing"}
+		return m, nil
+	}
+	target := max(0, *pos)
+	if m.playback.totalSecs > 0 {
+		target = min(target, m.playback.totalSecs)
+	}
+	cp, ok := m.player.(commandPlayer)
+	if !ok {
+		msg.reply <- control.Reply{OK: false, Message: "player unavailable"}
+		return m, nil
+	}
+	if err := cp.SeekAbsolute(target); err != nil {
+		msg.reply <- control.Reply{OK: false, Message: "seek failed: " + err.Error()}
+		return m, nil
+	}
+	m.playback.elapsedSecs = target
+	m.playback.lastSampleSecs = target
+	m.control.seeks++
+	msg.reply <- control.Reply{OK: true, Message: msg.req.Op}
+	return m, m.sessionPositionCmd()
+}
+
 // publishControlState publishes a state event when the comparable state has
-// changed since the last one. It is a no-op when the session is not hosted.
+// changed since the last one. It is a no-op with no host and no observer.
 func (m Model) publishControlState() Model {
-	if m.control.publisher == nil {
+	if m.control.publisher == nil && len(m.control.observers) == 0 {
 		return m
 	}
 	state := m.controlSnapshot()
 	key := controlKeyFor(state)
+	key.seeks = m.control.seeks
 	if m.control.published && key == m.control.last {
 		return m
 	}
-	m.control.publisher.Publish(control.Event{Event: control.EventState, State: &state})
+	event := control.Event{Event: control.EventState, State: &state}
+	if m.control.publisher != nil {
+		m.control.publisher.Publish(event)
+	}
+	for _, o := range m.control.observers {
+		o.Publish(event)
+	}
 	m.control.last = key
 	m.control.published = true
 	return m

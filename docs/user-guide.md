@@ -145,6 +145,15 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
   widening and EBU R128 volume normalization.
 - **Desktop notifications** on track change, and a `muse now-playing` subcommand
   you can bind to a global hotkey.
+- **Media keys and Now Playing.** On Linux muse registers on the session bus
+  as an MPRIS player (`org.mpris.MediaPlayer2.muse`), so keyboard media keys,
+  headset buttons, GNOME and KDE media widgets and `playerctl` see the playing
+  track and can play, pause, skip and seek. On macOS, muse.app does the same
+  through Control Center's Now Playing, the keyboard's media keys and AirPods;
+  the plain terminal muse on macOS has no system media controls (see
+  [`docs/karabiner.md`](karabiner.md) for hotkeys instead). Turn it off with
+  `media_controls = false`. Without a session bus (for example over SSH) muse
+  simply runs without it.
 - **Remote control** of a running instance from another terminal:
   `muse toggle-play`, `muse next`, `muse previous`, `muse volume-up`,
   `muse volume-down`.
@@ -379,7 +388,9 @@ Run `muse` with no arguments to launch the TUI. The subcommands are:
 
 The five playback commands are relayed to an already-running muse over a Unix
 control socket, so they are convenient to bind to global hotkeys — see
-[`docs/karabiner.md`](karabiner.md) for a macOS Karabiner-Elements setup.
+[`docs/karabiner.md`](karabiner.md) for a macOS Karabiner-Elements setup. On
+Linux, `playerctl --player=muse play-pause` (and `next`, `previous`,
+`position 30`) reach muse through MPRIS as well.
 
 Global flags: `muse --version`, `muse --help`, and `muse --control PATH` (see
 [Hosting muse](architecture.md#hosting-muse)).

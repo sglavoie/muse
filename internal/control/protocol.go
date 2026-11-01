@@ -24,10 +24,16 @@ const ProtocolVersion = 1
 // The operations a Request may name.
 const (
 	OpTogglePlay = "toggle-play"
+	// OpPlay and OpPause set the state outright, as media keys and headphones
+	// ask: a pause while paused does nothing rather than resuming.
+	OpPlay       = "play"
+	OpPause      = "pause"
 	OpNext       = "next"
 	OpPrevious   = "previous"
 	OpVolumeUp   = "volume-up"
 	OpVolumeDown = "volume-down"
+	// OpSeek moves the current track to Request.Position seconds.
+	OpSeek = "seek"
 	// OpState asks for the current state, answered in the Reply itself.
 	OpState = "state"
 )
@@ -51,10 +57,12 @@ const (
 	PlaybackStopped = "stopped"
 )
 
-// Request is one line a host writes.
+// Request is one line a host writes. Position is OpSeek's target in seconds
+// from the start of the track; other ops ignore it.
 type Request struct {
-	ID int    `json:"id"`
-	Op string `json:"op"`
+	ID       int      `json:"id"`
+	Op       string   `json:"op"`
+	Position *float64 `json:"position,omitempty"`
 }
 
 // Reply answers the Request whose ID it carries. Message is what muse said: the
@@ -66,11 +74,14 @@ type Reply struct {
 	State   *State `json:"state,omitempty"`
 }
 
-// Hello identifies the muse a host is talking to.
+// Hello identifies the muse a host is talking to. MediaControls carries the
+// media_controls setting: whether the host should publish what is playing to
+// the system's media controls (Now Playing and media keys on macOS).
 type Hello struct {
-	PID      int    `json:"pid"`
-	Version  string `json:"version"`
-	Protocol int    `json:"protocol"`
+	PID           int    `json:"pid"`
+	Version       string `json:"version"`
+	Protocol      int    `json:"protocol"`
+	MediaControls bool   `json:"mediaControls"`
 }
 
 // State is what is playing. Track is absent when nothing is loaded; Elapsed is

@@ -69,6 +69,12 @@ log_level = "info"
 # Post a desktop notification whenever a new track starts (true/false).
 # notify_on_track_change = false
 
+# Publish playback to the desktop's media controls (true/false). On Linux muse
+# registers as an MPRIS player, so media keys, headset buttons, desktop media
+# widgets and playerctl can see and control it. muse.app does the same through
+# macOS's Now Playing; the terminal muse on macOS has no system media controls.
+# media_controls = true
+
 # Auto-scroll the now-playing track into view in the Queue panel (true/false).
 # queue_follow_now_playing = true
 

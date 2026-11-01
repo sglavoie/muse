@@ -17,6 +17,7 @@ import (
 	"github.com/sglavoie/muse/internal/control"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/mpris"
 	"github.com/sglavoie/muse/internal/notify"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui"
@@ -148,6 +149,8 @@ func runTUI(ctx context.Context, opts tuiOptions) error {
 		return err
 	}
 
+	media := startMediaControls(cfg.MediaControls, opts, &shutdownDeps)
+
 	startupCount, err := result.DB.IncrementStartupCount()
 	if err != nil {
 		slog.Warn("startup: increment startup count", "err", err)
@@ -193,7 +196,7 @@ func runTUI(ctx context.Context, opts tuiOptions) error {
 		auditCh, _ = app.RunDurationAudit(ctx, result.DB, result.Writer)
 	}
 
-	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, musicDirsPartial, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount, ctrlServer)
+	model := buildModel(ctx, cfg, configPath, cfgResult, musicDirHint, musicDirsPartial, result, libResult, dirs, extractor, adapter, mgr, auditCh, startupCount, ctrlServer, media)
 
 	// Apply all restored session state (queue, library, playlists,
 	// repeat/shuffle/volume, current track) before tea.NewProgram so the
@@ -223,11 +226,12 @@ func runTUI(ctx context.Context, opts tuiOptions) error {
 
 	// Answer the host only now that p exists to carry its requests. muse.ctrl
 	// below keeps running alongside, so `muse next` still reaches this muse.
-	if err := serveControl(ctrlServer, p.Send); err != nil {
+	if err := serveControl(ctrlServer, p.Send, cfg.MediaControls); err != nil {
 		slog.Error("startup: serve control socket", "err", err)
 		app.Shutdown(shutdownDeps, app.ShutdownTimeout)
 		return err
 	}
+	serveMediaControls(media, p.Send)
 
 	// Listen for remote commands on a Unix domain socket.
 	ctrlListener, err := startCommandListener(p, dirs.Runtime)
@@ -415,6 +419,7 @@ func buildModel(
 	auditCh <-chan library.DurationFix,
 	startupCount int,
 	ctrlServer *control.Server,
+	media *mpris.Service,
 ) tui.Model {
 	opts := []tui.Option{
 		tui.WithConfig(cfg),
@@ -469,7 +474,8 @@ func buildModel(
 		tui.WithSessionCount(startupCount),
 		tui.WithFreshLibrary(libResult.FreshLibrary),
 	}
-	return tui.New(ctx, append(opts, controlModelOptions(ctrlServer)...)...)
+	opts = append(opts, controlModelOptions(ctrlServer)...)
+	return tui.New(ctx, append(opts, mediaModelOptions(media)...)...)
 }
 
 // desktopNotifier adapts internal/notify to the TUI's trackNotifier port. It
