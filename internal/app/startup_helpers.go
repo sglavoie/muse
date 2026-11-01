@@ -64,22 +64,21 @@ func runStartupTasks(ctx context.Context, database *db.DB, socketPath string, de
 		wg.Wait()
 	}()
 
-	select {
-	case err, ok := <-errs:
-		if !ok {
-			return nil
+	// Wait for every task before reading errs. Selecting on errs and done
+	// together would let Go pick done at random when both are ready (tasks
+	// that fail fast finish before this point), silently dropping the error.
+	<-done
+	var first error
+	for err := range errs {
+		if first == nil {
+			first = err
+			continue
 		}
-		<-done
-		for extra := range errs {
-			if extra == nil || errors.Is(extra, context.Canceled) {
-				continue
-			}
-			slog.Warn("startup: additional parallel-task error", "err", extra)
+		if !errors.Is(err, context.Canceled) {
+			slog.Warn("startup: additional parallel-task error", "err", err)
 		}
-		return err
-	case <-done:
-		return nil
 	}
+	return first
 }
 
 func restoreStartupPlayer(restored *RestoredSession, restorePlayer func(path string, positionMs int64) error) {
