@@ -133,7 +133,7 @@ resolve_zig() {
 	mkdir -p "$cache_root/zig"
 	archive="$cache_root/zig/$zig_name.tar.xz"
 	echo "Downloading $zig_name..." >&2
-	curl -fL --retry 3 -o "$archive.part" \
+	curl -fsSL --retry 3 -o "$archive.part" \
 		"https://ziglang.org/download/$ZIG_VERSION/$zig_name.tar.xz" >&2
 	actual=$(shasum -a 256 "$archive.part" | awk '{print $1}')
 	if [ "$actual" != "$zig_sha" ]; then

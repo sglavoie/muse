@@ -61,7 +61,7 @@ resolve_xcodegen() {
 	fi
 	archive="$cache_root/xcodegen-$XCODEGEN_VERSION.zip"
 	echo "Downloading XcodeGen $XCODEGEN_VERSION..." >&2
-	curl -fL --retry 3 -o "$archive.part" \
+	curl -fsSL --retry 3 -o "$archive.part" \
 		"https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip" >&2
 	actual=$(shasum -a 256 "$archive.part" | awk '{print $1}')
 	if [ "$actual" != "$XCODEGEN_SHA256" ]; then
