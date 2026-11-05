@@ -187,7 +187,11 @@ func newPlaybackFixture() Model {
 		WithVolume(65),
 		WithStatusBarTrack(current.Artist, current.Title, "Queue"),
 	)
-	return New(context.Background(), opts...)
+	m := New(context.Background(), opts...)
+	// Animations stay off in the harness, so nothing reads levels: the strip
+	// draws a deterministic history instead.
+	m.levels.history = syntheticLevelHistory(levelHistoryLen)
+	return m
 }
 
 // newHealthFixture builds a Model whose library is deliberately dirty, so the

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -251,7 +251,8 @@ func (m *Manager) SetVolumeAbsolute(volume float64) error {
 }
 
 // rebuildAudioFilters sends the current audioFilters map to mpv as a single
-// lavfi af property. Must be called without m.mu held (ipc() takes RLock).
+// lavfi af property, followed by the level meter's filter when it is on. Must
+// be called without m.mu held (ipc() takes RLock).
 func (m *Manager) rebuildAudioFilters() error {
 	c, err := m.ipc()
 	if err != nil {
@@ -261,23 +262,32 @@ func (m *Manager) rebuildAudioFilters() error {
 	m.mu.RLock()
 	snapshot := make(map[string]string, len(m.audioFilters))
 	maps.Copy(snapshot, m.audioFilters)
+	meter := m.levelMeter
 	m.mu.RUnlock()
 
-	if len(snapshot) == 0 {
-		_, err = c.SendCommand(cmdSetProperty, propAF, "")
-		return err
-	}
-	names := make([]string, 0, len(snapshot))
-	for name := range snapshot {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	exprs := make([]string, 0, len(names))
-	for _, name := range names {
-		exprs = append(exprs, snapshot[name])
-	}
-	_, err = c.SendCommand(cmdSetProperty, propAF, "lavfi=["+strings.Join(exprs, ",")+"]")
+	_, err = c.SendCommand(cmdSetProperty, propAF, audioFilterChain(snapshot, meter))
 	return err
+}
+
+// audioFilterChain is the af property value for the enabled filters, sorted
+// by name so the same set always produces the same string, plus the level
+// meter. mpv keeps the instances of entries that did not change when af is
+// set again, so turning the meter on or off does not reset loudnorm's
+// measurement or the equalizer.
+func audioFilterChain(filters map[string]string, meter bool) string {
+	var chain []string
+	if len(filters) > 0 {
+		names := slices.Sorted(maps.Keys(filters))
+		exprs := make([]string, 0, len(names))
+		for _, name := range names {
+			exprs = append(exprs, filters[name])
+		}
+		chain = append(chain, "lavfi=["+strings.Join(exprs, ",")+"]")
+	}
+	if meter {
+		chain = append(chain, levelMeterFilter)
+	}
+	return strings.Join(chain, ",")
 }
 
 func (m *Manager) updateFilterLocked(name, expr string, enabled bool) {

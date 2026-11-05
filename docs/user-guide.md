@@ -141,6 +141,28 @@ from the right. Track lists show titles brightest, artists tinted
 toward the accent color, and albums in a quieter tone. `reduce_motion = true` (or **Animations**
 in Settings → Display) turns these off and restores the static `▶`.
 
+**Level meter.** The status bar's three bars follow the music itself: the
+left one is the left channel's level, the middle one the loudest peak, and
+the right one the right channel (a mono song moves both sides together).
+Levels come from a light analysis filter added to mpv's audio filters after
+normalization, the equalizer and stereo widening, so the meter shows what you
+hear before the volume control; it leaves the audio untouched, and costs well
+under one percent of a core. muse reads it about twelve times a second, only
+while music plays and the meter or the strip is on screen; paused, stopped or
+with animations off it reads nothing. Silence leaves the bars flat, and pausing
+brings them to rest.
+
+Full-screen Now Playing adds a loudness strip directly above the progress
+bar: one column per quarter second, newest on the right, in the accent color
+fading into the past, dimmed while paused. It needs a spare row and is the
+first thing to go on a short screen.
+
+If mpv cannot measure levels (an FFmpeg without the `astats` filter, for
+example), nothing arrives within about a second and the meter quietly falls
+back to its animation for the session. `level_meter = "off"` (or **Level
+meter** in Settings → Display) never adds the filter: the status bar keeps the
+animation and Now Playing has no strip.
+
 **Album covers in Browse.** Browse → Albums lays the albums out as a grid of
 covers, with each album's title and artist beneath its cover; the number of
 covers per row follows the window width, and wide windows get larger covers.

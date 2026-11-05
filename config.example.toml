@@ -98,6 +98,11 @@ log_level = "info"
 # the playing song changes on its own or with n/p (true/false).
 # track_change_card = true
 
+# Drive the status bar's level meter and the loudness strip in Now Playing
+# from the music itself ("auto"), measured by a light mpv audio filter, or
+# leave the audio alone and keep the decorative animation ("off").
+# level_meter = "auto"
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10

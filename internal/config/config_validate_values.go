@@ -238,6 +238,7 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.TrackChangeCard = *raw.TrackChangeCard
 	}
 	validateArtwork(raw.Artwork, &cfg, &warnings)
+	validateLevelMeter(raw.LevelMeter, &cfg, &warnings)
 
 	validateTheme(raw, &cfg, &warnings)
 
@@ -358,4 +359,19 @@ func validateArtwork(value string, cfg *Config, warnings *[]string) {
 	}
 	slog.Warn("invalid config value, using default", "field", "artwork", "value", value, "default", defaultArtwork)
 	*warnings = append(*warnings, fmt.Sprintf("artwork %q is not one of auto, kitty, blocks, off; using %q", value, defaultArtwork))
+}
+
+// validateLevelMeter accepts a known level_meter mode, case-insensitively,
+// and keeps the default for anything else.
+func validateLevelMeter(value string, cfg *Config, warnings *[]string) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return
+	}
+	if slices.Contains(LevelMeterModes, value) {
+		cfg.LevelMeter = value
+		return
+	}
+	slog.Warn("invalid config value, using default", "field", "level_meter", "value", value, "default", defaultLevelMeter)
+	*warnings = append(*warnings, fmt.Sprintf("level_meter %q is not one of auto, off; using %q", value, defaultLevelMeter))
 }

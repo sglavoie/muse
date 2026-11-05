@@ -79,7 +79,7 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleTickMsg()
 
 	case motionFrameMsg:
-		return m.handleMotionFrame(), nil
+		return m.handleMotionFrameMsg(msg), nil
 
 	case artLoadedMsg:
 		return m.handleArtLoaded(msg)

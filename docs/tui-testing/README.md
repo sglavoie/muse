@@ -259,6 +259,7 @@ Each observation is normalized JSON:
 | `album-cover-grid.json` | `dense` | Browse → Albums as a cover grid: 2D moves, scrolling, opening a tile, switching to the list and back, and the grid at 60×15, 80×24, 120×36 and 200×50. |
 | `cover-art-and-now-playing.json` | `playback` | The focused song's cover card and Library summary, then the full-screen Now Playing view with its cover, up-next list and modes, shrinking to the minimum size where the cover gives way. |
 | `now-playing-polish.json` | `playback` | Now Playing without the status bar, notices in place of the key hint, title-first up-next rows that wrap to the start of the queue under Repeat all once shuffle is off, and the centered layout at 80x24, 120x36 and 60x15. The fixture player does not move on `n`/`p`, so the track-change card is covered by the Go tests in `internal/tui` instead. |
+| `now-playing-loudness.json` | `playback` | Now Playing's loudness strip above the progress bar, drawn from the fixture's deterministic level history (newest on the right) at 80x24 and 120x36, giving way first at 60x15, and holding while paused. The fixture player never reads levels, so the live meter is covered by the Go tests in `internal/tui`. |
 
 Every JSON scenario in this directory is discovered automatically and must pass
 in `go test`, including resize stress and Insights. New scenarios cannot be

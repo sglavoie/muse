@@ -1,0 +1,28 @@
+{
+  "name": "now-playing-loudness",
+  "fixture": "playback",
+  "size": "80x24",
+  "actions": [
+    {"assert": {"not_contains": "▆▆▇▆▆▅"}, "label": "no-strip-outside-now-playing"},
+    {"key": "I"},
+    {"assert": {"overlay": "now_playing"}},
+    {"assert": {"contains": "▄▃▅▆▆▇▆▆▅"}, "label": "strip-newest-on-the-right"},
+    {"assert": {"contains": "1  Track D1 · Charlie"}, "label": "up-next-kept"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "120x36"},
+    {"assert": {"contains": "▄▃▅▆▆▇▆▆▅"}, "label": "strip-wide"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "60x15"},
+    {"assert": {"not_contains": "▆▆▇▆▆▅"}, "label": "strip-drops-out-first"},
+    {"assert": {"contains": "Up next"}, "label": "sections-kept-when-strip-drops"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "80x24"},
+    {"key": "space"},
+    {"assert": {"contains": "⏸ Paused"}},
+    {"assert": {"contains": "▄▃▅▆▆▇▆▆▅"}, "label": "strip-holds-while-paused"},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "esc"},
+    {"assert": {"view": "Library"}},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

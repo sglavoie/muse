@@ -227,6 +227,9 @@ func (m *Manager) DebugInfo() (map[string]string, error) {
 	for name := range m.audioFilters {
 		filters = append(filters, name)
 	}
+	if m.levelMeter {
+		filters = append(filters, "level meter")
+	}
 	m.mu.RUnlock()
 	sort.Strings(filters)
 	result["audio_filters"] = strings.Join(filters, ", ")

@@ -247,5 +247,9 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.FadeOnPause = disp[displayPauseFade].Value != 0
 	cfg.ReduceMotion = disp[displayAnimations].Value == 0
 	cfg.TrackChangeCard = disp[displayTrackCard].Value != 0
+	cfg.LevelMeter = config.LevelMeterOff
+	if disp[displayLevelMeter].Value != 0 {
+		cfg.LevelMeter = config.LevelMeterAuto
+	}
 	return cfg
 }

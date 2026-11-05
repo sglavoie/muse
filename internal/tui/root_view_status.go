@@ -42,9 +42,7 @@ func (m Model) RenderStatusBar() string {
 		sb.Elapsed = text.FormatPositionSecs(elapsed)
 		sb.Total = text.FormatPositionSecs(m.playback.totalSecs)
 	}
-	if m.motion.enabled {
-		sb.LevelMeter = eqBars(m.motion.frame)
-	}
+	sb.LevelMeter = m.statusLevelMeter()
 	sb.ElapsedSecs = elapsed
 	sb.TotalSecs = m.playback.totalSecs
 	sb.YankCount = len(m.yankBuffer)

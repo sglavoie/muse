@@ -261,6 +261,10 @@ type Model struct {
 	motion        motionState
 	motionAllowed bool
 
+	// levels is the level meter fed by the player's audio analysis; see
+	// root_levels.go.
+	levels levelState
+
 	// accentOverride, when set, replaces the configured primary color: it is
 	// the playing cover's accent, or a step of the transition toward it.
 	accentOverride string

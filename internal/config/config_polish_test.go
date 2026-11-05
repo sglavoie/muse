@@ -61,3 +61,23 @@ func TestLoadInvalidArtworkWarns(t *testing.T) {
 		t.Fatalf("want one artwork warning, got %v", result.Warnings)
 	}
 }
+
+func TestLevelMeterDefaultsAutoAndLoads(t *testing.T) {
+	if Defaults().LevelMeter != LevelMeterAuto {
+		t.Fatalf("level_meter should default to auto, got %q", Defaults().LevelMeter)
+	}
+	result := loadConfigText(t, "level_meter = \"Off\"\n")
+	if result.Config.LevelMeter != LevelMeterOff || len(result.Warnings) != 0 {
+		t.Fatalf("level_meter = Off: got %q, warnings %v", result.Config.LevelMeter, result.Warnings)
+	}
+}
+
+func TestLoadInvalidLevelMeterWarns(t *testing.T) {
+	result := loadConfigText(t, "level_meter = \"loud\"\n")
+	if result.Config.LevelMeter != LevelMeterAuto {
+		t.Fatalf("invalid level_meter should fall back to auto, got %q", result.Config.LevelMeter)
+	}
+	if len(result.Warnings) != 1 || !strings.Contains(result.Warnings[0], "level_meter") {
+		t.Fatalf("want one level_meter warning, got %v", result.Warnings)
+	}
+}

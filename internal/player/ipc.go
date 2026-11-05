@@ -181,6 +181,17 @@ func (c *IPCClient) GetPropertyBool(name string) (bool, bool, error) {
 //
 // If mpv returns a non-"success" error field the call returns ErrPlaybackFailed.
 func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
+	return c.send(true, args)
+}
+
+// sendQuiet is SendCommand without the debug log of the request and reply,
+// for reads frequent enough (the level meter polls several times a second)
+// that logging each one would bury everything else in a debug log.
+func (c *IPCClient) sendQuiet(args ...any) (*ipcResponse, error) {
+	return c.send(false, args)
+}
+
+func (c *IPCClient) send(logged bool, args []any) (*ipcResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -197,7 +208,9 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 		return nil, fmt.Errorf("%w: marshal: %w", ErrIPCTransport, err)
 	}
 	data = append(data, '\n')
-	slog.Debug("ipc send", "msg", strings.TrimRight(string(data), "\n"))
+	if logged {
+		slog.Debug("ipc send", "msg", strings.TrimRight(string(data), "\n"))
+	}
 
 	if _, err := c.conn.Write(data); err != nil {
 		return nil, fmt.Errorf("%w: write: %w", ErrIPCTransport, err)
@@ -212,7 +225,9 @@ func (c *IPCClient) SendCommand(args ...any) (*ipcResponse, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%w: read: %w", ErrIPCTransport, err)
 		}
-		slog.Debug("ipc recv", "msg", strings.TrimRight(string(line), "\n"))
+		if logged {
+			slog.Debug("ipc recv", "msg", strings.TrimRight(string(line), "\n"))
+		}
 
 		var resp ipcResponse
 		if err := json.Unmarshal(line, &resp); err != nil {

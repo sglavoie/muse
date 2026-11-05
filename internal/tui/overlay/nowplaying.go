@@ -1,6 +1,7 @@
 package overlay
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -31,6 +32,10 @@ type NowPlayingOverlay struct {
 	Modes string
 	// Progress renders a progress bar of the given width; nil omits the bar.
 	Progress func(width int) string
+	// Loudness renders the loudness strip drawn above the progress bar, the
+	// bar's width; nil omits it. It is the first thing to go when the screen
+	// is short.
+	Loudness func(width int) string
 	// UpNext lists the next few songs.
 	UpNext []UpNextSong
 	// Reason explains why Auto-DJ picked the song; empty for manual picks.
@@ -80,16 +85,33 @@ func (n NowPlayingOverlay) Render(termWidth, termHeight int, s styles.Styles) st
 	if termWidth <= 0 || termHeight <= 0 {
 		return ""
 	}
-	bodyHeight := max(termHeight-2, 1)
-	coverCols, coverRows := n.coverSize(termWidth, bodyHeight)
-	panelWidth := termWidth - 2*nowPlayingMargin
+	bodyHeight, coverCols, coverRows, panelWidth := n.layout(termWidth, termHeight)
+	panel, _ := n.panelLines(panelWidth, bodyHeight, s)
+	lines := composeNowPlaying(n.Cover, coverCols, coverRows, panel, panelWidth, termWidth, bodyHeight)
+	return strings.Join(lines, "\n") + "\n\n" + " " + n.footerLine(termWidth-2, s)
+}
+
+// ShowsLoudness reports whether Render at this size would draw the loudness
+// strip, so the caller can stop measuring levels nobody sees.
+func (n NowPlayingOverlay) ShowsLoudness(termWidth, termHeight int, s styles.Styles) bool {
+	if n.Loudness == nil || termWidth <= 0 || termHeight <= 0 {
+		return false
+	}
+	bodyHeight, _, _, panelWidth := n.layout(termWidth, termHeight)
+	_, shown := n.panelLines(panelWidth, bodyHeight, s)
+	return shown
+}
+
+// layout sizes the view: the rows for the body, the cover, and the text
+// column's width.
+func (n NowPlayingOverlay) layout(termWidth, termHeight int) (bodyHeight, coverCols, coverRows, panelWidth int) {
+	bodyHeight = max(termHeight-2, 1)
+	coverCols, coverRows = n.coverSize(termWidth, bodyHeight)
+	panelWidth = termWidth - 2*nowPlayingMargin
 	if coverCols > 0 {
 		panelWidth -= coverCols + nowPlayingGap
 	}
-	panelWidth = max(min(panelWidth, nowPlayingPanelMax), 10)
-	panel := n.panelLines(panelWidth, bodyHeight, s)
-	lines := composeNowPlaying(n.Cover, coverCols, coverRows, panel, panelWidth, termWidth, bodyHeight)
-	return strings.Join(lines, "\n") + "\n\n" + " " + n.footerLine(termWidth-2, s)
+	return bodyHeight, coverCols, coverRows, max(min(panelWidth, nowPlayingPanelMax), 10)
 }
 
 // footerLine is the key hint, or the notice standing in for it.
@@ -151,8 +173,10 @@ func lineOr(lines []string, i int, fallback string) string {
 }
 
 // panelLines builds the text column, dropping its least important sections
-// first when the screen is short.
-func (n NowPlayingOverlay) panelLines(width, height int, s styles.Styles) []string {
+// first when the screen is short. The loudness strip is the least important
+// of all: it goes in above the progress bar only when everything else fits
+// with a row to spare. loudness reports whether it did.
+func (n NowPlayingOverlay) panelLines(width, height int, s styles.Styles) (lines []string, loudness bool) {
 	sections := [][]string{n.headSection(width, s), n.aboutSection(width, s)}
 	if len(n.UpNext) > 0 {
 		next := []string{s.Dim.Bold(true).Render("Up next")}
@@ -168,15 +192,36 @@ func (n NowPlayingOverlay) panelLines(width, height int, s styles.Styles) []stri
 		}
 		sections = append(sections, why)
 	}
-	lines := sections[0]
+	lines = sections[0]
+	everything := true
 	for _, section := range sections[1:] {
 		if len(lines)+1+len(section) > height {
+			everything = false
 			break
 		}
 		lines = append(lines, "")
 		lines = append(lines, section...)
 	}
-	return lines[:min(len(lines), height)]
+	if strip := n.loudnessLine(width); strip != "" && everything && len(lines) < height {
+		// The head ends with the progress line and the state line.
+		at := len(sections[0]) - 2
+		lines = slices.Insert(lines, at, strip)
+		loudness = true
+	}
+	return lines[:min(len(lines), height)], loudness
+}
+
+// loudnessLine is the loudness strip indented to sit exactly over the
+// progress bar, or "" when there is none or the bar has no room.
+func (n NowPlayingOverlay) loudnessLine(width int) string {
+	if n.Loudness == nil || n.Progress == nil {
+		return ""
+	}
+	lead, barWidth := n.progressBarSpan(width)
+	if barWidth < 4 {
+		return ""
+	}
+	return strings.Repeat(" ", lead) + n.Loudness(barWidth)
 }
 
 // upNextMinArtist is the narrowest artist worth keeping beside a title; with
@@ -260,10 +305,18 @@ func (n NowPlayingOverlay) aboutSection(width int, s styles.Styles) []string {
 	return about
 }
 
+// progressBarSpan is where the progress bar sits in the progress line: the
+// cells before it (the elapsed time and a space) and its width.
+func (n NowPlayingOverlay) progressBarSpan(width int) (lead, barWidth int) {
+	elapsed := ansi.StringWidth(text.FormatPositionSecs(n.Elapsed))
+	total := ansi.StringWidth(text.FormatPositionSecs(n.Total))
+	return elapsed + 1, width - elapsed - total - 2
+}
+
 func (n NowPlayingOverlay) progressLine(width int, s styles.Styles) string {
 	elapsed := text.FormatPositionSecs(n.Elapsed)
 	total := text.FormatPositionSecs(n.Total)
-	barWidth := width - ansi.StringWidth(elapsed) - ansi.StringWidth(total) - 2
+	_, barWidth := n.progressBarSpan(width)
 	if n.Progress == nil || barWidth < 4 {
 		return s.TextPrimary.Render(elapsed + " / " + total)
 	}

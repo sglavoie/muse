@@ -336,6 +336,15 @@ func (m Model) applyPolishSettings(old config.Config) Model {
 	}
 	if old.ReduceMotion != m.cfg.ReduceMotion && m.motionAllowed {
 		m.motion.enabled = !m.cfg.ReduceMotion
+		if !m.motion.enabled {
+			m.levels.history = nil // a frozen strip would pretend to be live
+		}
+	}
+	if old.LevelMeter != m.cfg.LevelMeter {
+		// Start over: off clears what was measured, and turning it back on
+		// gives an mpv that fell back another chance. syncLevels takes the
+		// filter out when off.
+		m.levels = levelState{meterOn: m.levels.meterOn}
 	}
 	if old.ArtworkAccent != m.cfg.ArtworkAccent {
 		m.motion.accentKnown = false

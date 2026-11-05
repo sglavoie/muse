@@ -173,7 +173,7 @@ func (m *Manager) restoreStableProperties(restore restoreState) {
 		slog.Warn("mpv: restore prefetch-playlist after restart failed", "err", err)
 	}
 	m.mu.RLock()
-	hasFilters := len(m.audioFilters) > 0
+	hasFilters := len(m.audioFilters) > 0 || m.levelMeter
 	m.mu.RUnlock()
 	if hasFilters {
 		if err := m.rebuildAudioFilters(); err != nil {

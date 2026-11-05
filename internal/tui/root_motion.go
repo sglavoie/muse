@@ -67,8 +67,11 @@ type motionState struct {
 	coverFadeStart time.Time
 }
 
-// motionFrameMsg advances every running animation by one frame.
-type motionFrameMsg struct{}
+// motionFrameMsg advances every running animation by one frame. levels is
+// the level meter reading taken for this frame, when one was due.
+type motionFrameMsg struct {
+	levels *levelReading
+}
 
 // WithMotion enables interface animations. It also marks the model as one
 // that may animate at all, so turning Animations on in Settings takes effect
@@ -142,13 +145,32 @@ func (m Model) scheduleMotion() (Model, tea.Cmd) {
 	switch {
 	case m.transitionActive(now):
 		interval = motionTransitionFrame
+	case m.levelsWanted():
+		interval = levelPollInterval
 	case m.playback.state == playback.StatePlaying:
 		interval = motionSteadyFrame
 	default:
 		return m, nil
 	}
 	m.motion.scheduled = true
-	return m, tea.Tick(interval, func(time.Time) tea.Msg { return motionFrameMsg{} })
+	m, read := m.levelRead(now, interval)
+	return m, tea.Tick(interval, func(time.Time) tea.Msg {
+		if read == nil {
+			return motionFrameMsg{}
+		}
+		r := read()
+		return motionFrameMsg{levels: &r}
+	})
+}
+
+// handleMotionFrameMsg advances the animations and applies the level reading
+// the frame carries.
+func (m Model) handleMotionFrameMsg(msg motionFrameMsg) Model {
+	m = m.handleMotionFrame()
+	if msg.levels != nil {
+		m = m.applyLevelReading(*msg.levels)
+	}
+	return m
 }
 
 func (m Model) handleMotionFrame() Model {
@@ -243,7 +265,8 @@ func easeInOutCubic(t float64) float64 {
 	return 1 - u*u*u/2
 }
 
-// eqBars returns the animated three-bar level meter shown while playing.
+// eqBars returns the animated three-bar level meter shown while playing when
+// the music's own levels cannot be measured.
 func eqBars(frame int) string {
 	levels := []rune("▁▂▃▄▅▆▇")
 	out := make([]rune, 3)

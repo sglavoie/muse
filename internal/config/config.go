@@ -102,6 +102,11 @@ log_level = %q
 # the playing song changes on its own or with n/p (true/false).
 # track_change_card = true
 
+# Drive the status bar's level meter and the loudness strip in Now Playing
+# from the music itself ("auto"), measured by a light mpv audio filter, or
+# leave the audio alone and keep the decorative animation ("off").
+# level_meter = "auto"
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10
@@ -155,6 +160,7 @@ const (
 	defaultFadeOnPause                = true
 	defaultReduceMotion               = false
 	defaultTrackChangeCard            = true
+	defaultLevelMeter                 = LevelMeterAuto
 
 	defaultMixRediscoverMinPlays    = 10
 	defaultMixRediscoverAgeDays     = 90
@@ -210,6 +216,16 @@ const (
 // ArtworkModes lists the accepted artwork values in the order Settings cycles them.
 var ArtworkModes = []string{ArtworkAuto, ArtworkKitty, ArtworkBlocks, ArtworkOff}
 
+// Level meter modes accepted by the level_meter setting: measure the music,
+// or leave the audio alone.
+const (
+	LevelMeterAuto = "auto"
+	LevelMeterOff  = "off"
+)
+
+// LevelMeterModes lists the accepted level_meter values.
+var LevelMeterModes = []string{LevelMeterAuto, LevelMeterOff}
+
 // Config holds all application configuration values.
 type Config struct {
 	Theme                      string           `toml:"theme"`
@@ -243,6 +259,7 @@ type Config struct {
 	FadeOnPause                bool             `toml:"fade_on_pause"`
 	ReduceMotion               bool             `toml:"reduce_motion"`
 	TrackChangeCard            bool             `toml:"track_change_card"`
+	LevelMeter                 string           `toml:"level_meter"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
@@ -287,6 +304,7 @@ type rawConfig struct {
 	FadeOnPause                *bool               `toml:"fade_on_pause"`
 	ReduceMotion               *bool               `toml:"reduce_motion"`
 	TrackChangeCard            *bool               `toml:"track_change_card"`
+	LevelMeter                 string              `toml:"level_meter"`
 	Mixes                      rawMixesConfig      `toml:"mixes"`
 }
 

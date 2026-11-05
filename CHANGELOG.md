@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes, in block mode; Kitty covers swap at once.
 - Now Playing's up-next list wraps around to the start of the queue under
   Repeat all when shuffle is off.
+- The status bar's level meter follows the music: mpv measures each channel's
+  level with a light audio filter, and the three bars rise and fall with the
+  left channel, the loudest peak and the right channel. Silence leaves them
+  flat and pausing brings them to rest. Now Playing draws a loudness strip of
+  the last few seconds right above the progress bar, in the accent color;
+  it is the first thing to go on a short screen. When mpv cannot measure, the
+  meter keeps its animation. `level_meter = "off"` (or **Level meter** in
+  Settings → Display) leaves the audio alone.
 - Browse → Albums shows a grid of album covers, each with its title and
   artist underneath. `h`/`j`/`k`/`l` and the arrow keys move between covers,
   and Enter, favorites, enqueueing and `/` filtering work on the focused

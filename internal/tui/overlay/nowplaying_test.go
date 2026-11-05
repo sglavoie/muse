@@ -260,3 +260,68 @@ func TestNowPlayingCentersTheComposition(t *testing.T) {
 		t.Fatalf("cover starts at column %d, want 30", left)
 	}
 }
+
+// loudnessOverlay is a Now Playing view with a progress bar and a loudness
+// strip that draws "~" across its width and records the width asked for.
+func loudnessOverlay(widths *[]int) NowPlayingOverlay {
+	return NowPlayingOverlay{
+		Artist: "A", Title: "T", Album: "Al", Elapsed: 83, Total: 296, State: playback.StatePlaying,
+		Progress: func(w int) string { return strings.Repeat("=", w) },
+		Loudness: func(w int) string {
+			*widths = append(*widths, w)
+			return strings.Repeat("~", w)
+		},
+		UpNext: []UpNextSong{{Title: "One"}, {Title: "Two"}, {Title: "Three"}},
+		Reason: "Because it fits",
+	}
+}
+
+func TestNowPlayingOverlay_LoudnessSitsOverTheProgressBar(t *testing.T) {
+	var widths []int
+	n := loudnessOverlay(&widths)
+	lines := strings.Split(ansi.Strip(n.Render(80, 30, newTestStyles())), "\n")
+	for i, line := range lines {
+		if !strings.Contains(line, "1:23 =") {
+			continue
+		}
+		strip := lines[i-1]
+		if strings.Index(strip, "~") != strings.Index(line, "=") || strings.Count(strip, "~") != strings.Count(line, "=") {
+			t.Fatalf("the strip should cover exactly the bar:\n%s\n%s", strip, line)
+		}
+		if !n.ShowsLoudness(80, 30, newTestStyles()) {
+			t.Fatal("ShowsLoudness disagrees with Render")
+		}
+		return
+	}
+	t.Fatalf("no progress line:\n%s", strings.Join(lines, "\n"))
+}
+
+func TestNowPlayingOverlay_LoudnessDropsOutFirst(t *testing.T) {
+	var widths []int
+	n := loudnessOverlay(&widths)
+	st := newTestStyles()
+	// Find the shortest screen that still shows every section with the strip.
+	tall := 0
+	for h := 10; h < 40; h++ {
+		if n.ShowsLoudness(80, h, st) {
+			tall = h
+			break
+		}
+	}
+	if tall == 0 {
+		t.Fatal("the strip never fits")
+	}
+	full := ansi.Strip(n.Render(80, tall, st))
+	short := ansi.Strip(n.Render(80, tall-1, st))
+	if !strings.Contains(full, "~") || strings.Contains(short, "~") {
+		t.Fatal("one row less should drop the strip")
+	}
+	if !strings.Contains(short, "Why Auto-DJ chose it") {
+		t.Fatalf("the strip should drop out before any other section:\n%s", short)
+	}
+	without := n
+	without.Loudness = nil
+	if without.ShowsLoudness(80, 40, st) || strings.Contains(ansi.Strip(without.Render(80, 40, st)), "~") {
+		t.Fatal("no Loudness, no strip")
+	}
+}

@@ -80,6 +80,12 @@ type Manager struct {
 	// into a single af property string.
 	audioFilters map[string]string
 
+	// levelMeter appends the level meter's analysis filter to the af chain
+	// under its own label, after the filters above, so it measures what
+	// plays and rebuilding the chain for any of them keeps it. See
+	// SetLevelMeter.
+	levelMeter bool
+
 	// pingInterval controls how often the health-check goroutine pings mpv.
 	// Zero uses the production default (200 ms). Set a shorter value in tests.
 	pingInterval time.Duration

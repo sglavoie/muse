@@ -11,6 +11,7 @@ import (
 
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/radio"
 )
 
@@ -21,6 +22,15 @@ type uitestPlayer struct{}
 func (uitestPlayer) Play() error             { return nil }
 func (uitestPlayer) Pause() error            { return nil }
 func (uitestPlayer) PlayFromIndex(int) error { return nil }
+
+// SetLevelMeter and Levels make the fixture player a deterministic level
+// source: a steady stereo reading, so the meter shows measured bars and the
+// Now Playing loudness strip draws the fixture's synthetic history.
+func (uitestPlayer) SetLevelMeter(bool) error { return nil }
+
+func (uitestPlayer) Levels() (player.Levels, bool, error) {
+	return player.Levels{Peak: []float64{-4, -5}, RMS: []float64{-14, -16}}, true, nil
+}
 
 // uitestQueueStore is an in-memory queue writer/dequeuer/reorderer. It records
 // nothing and never persists; AppendTrack hands out monotonically increasing

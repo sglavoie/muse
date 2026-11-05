@@ -59,16 +59,27 @@ func (m Model) renderNowPlayingScreen() tea.View {
 }
 
 // decorateNowPlaying fills the Now Playing view with live state: position,
-// cover, listening details, modes, what plays next, and Auto-DJ's reason.
+// cover, loudness, listening details, modes, what plays next, and Auto-DJ's
+// reason.
 func (m Model) decorateNowPlaying(now overlay.NowPlayingOverlay, st styles.Styles, clock time.Time) overlay.NowPlayingOverlay {
+	now = m.decorateNowPlayingText(now, st, clock)
+	now.Loudness = m.nowPlayingLoudness(st)
+	if t, ok := m.playingTrack(); ok {
+		if cols, rows := m.nowPlayingArtSize(); cols > 0 {
+			now.Cover, now.CoverCols, now.CoverRows = m.nowPlayingCover(t, st, cols, rows, clock), cols, rows
+		}
+	}
+	return now
+}
+
+// decorateNowPlayingText fills in everything but the cover and the loudness
+// strip, which is all the view's layout needs to decide what fits.
+func (m Model) decorateNowPlayingText(now overlay.NowPlayingOverlay, st styles.Styles, clock time.Time) overlay.NowPlayingOverlay {
 	now.State, now.Elapsed, now.Total = m.playback.state, m.displayElapsed(clock), m.playback.totalSecs
 	elapsed, total := now.Elapsed, now.Total
 	now.Progress = func(width int) string { return statusbar.ProgressBar(elapsed, total, width, st) }
 	if t, ok := m.playingTrack(); ok {
 		now.Details = trackDetailsLine(t, clock)
-		if cols, rows := m.nowPlayingArtSize(); cols > 0 {
-			now.Cover, now.CoverCols, now.CoverRows = m.nowPlayingCover(t, st, cols, rows, clock), cols, rows
-		}
 	}
 	now.Modes = m.nowPlayingModes()
 	var ahead []queue.Entry

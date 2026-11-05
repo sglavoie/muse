@@ -50,6 +50,7 @@ func defaults() Config {
 		FadeOnPause:                defaultFadeOnPause,
 		ReduceMotion:               defaultReduceMotion,
 		TrackChangeCard:            defaultTrackChangeCard,
+		LevelMeter:                 defaultLevelMeter,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
 			RediscoverAgeDays:      defaultMixRediscoverAgeDays,

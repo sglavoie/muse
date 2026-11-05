@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sglavoie/muse/internal/config"
@@ -44,8 +45,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 
 	disp := o.Fields[TabDisplay]
-	if len(disp) != 10 {
-		t.Fatalf("expected 10 display fields, got %d", len(disp))
+	if len(disp) != 11 {
+		t.Fatalf("expected 11 display fields, got %d", len(disp))
 	}
 	if disp[0].Value != cfg.TransientDurationSecs {
 		t.Errorf("TransientDurationSecs: expected %d, got %d", cfg.TransientDurationSecs, disp[0].Value)
@@ -87,6 +88,26 @@ func TestDisplayPolishSettingsRoundTrip(t *testing.T) {
 	out := o.ToConfig(cfg)
 	if out.Artwork != config.ArtworkKitty || out.ReduceMotion || out.ArtworkAccent || out.FadeOnPause || !out.TrackChangeCard {
 		t.Fatalf("ToConfig = artwork %q reduce %v tint %v fade %v", out.Artwork, out.ReduceMotion, out.ArtworkAccent, out.FadeOnPause)
+	}
+}
+
+func TestLevelMeterSettingRoundTrip(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.LevelMeter = config.LevelMeterOff
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
+	if o.Fields[TabDisplay][displayLevelMeter].Value != 0 {
+		t.Fatal("level_meter = off should show the field off")
+	}
+	if out := o.ToConfig(cfg); out.LevelMeter != config.LevelMeterOff {
+		t.Fatalf("unchanged field: ToConfig level meter %q", out.LevelMeter)
+	}
+	o.Fields[TabDisplay][displayLevelMeter].Value = 1
+	if out := o.ToConfig(cfg); out.LevelMeter != config.LevelMeterAuto {
+		t.Fatalf("field on: ToConfig level meter %q", out.LevelMeter)
+	}
+	o.Tab, o.cursor = TabDisplay, displayLevelMeter
+	if got := o.focusedDescription(); !strings.Contains(got, "loudness") {
+		t.Fatal("the Level meter field has no description")
 	}
 }
 

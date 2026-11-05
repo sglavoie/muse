@@ -31,7 +31,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // syncPolish keeps cover art and animations in step with what an update
 // changed: lookups for newly visible covers, Kitty uploads for the next
-// frame, the cover accent, and the animation frame loop.
+// frame, the cover accent, the level meter, and the animation frame loop.
 func (m Model) syncPolish(prev Model) (Model, tea.Cmd) {
 	m = m.noteMotionChanges(prev)
 	if m.playback.currentHash != prev.playback.currentHash || m.playback.state != prev.playback.state {
@@ -40,8 +40,9 @@ func (m Model) syncPolish(prev Model) (Model, tea.Cmd) {
 	m, artCmd := m.syncArtwork()
 	placeCmd := m.placeArtwork()
 	gridCmd := m.syncAlbumGrid()
+	m, levelCmd := m.syncLevels()
 	m, frameCmd := m.scheduleMotion()
-	return m, batchNonNil(artCmd, placeCmd, gridCmd, frameCmd)
+	return m, batchNonNil(artCmd, placeCmd, gridCmd, levelCmd, frameCmd)
 }
 
 // batchNonNil batches cmds, returning nil when every one is nil so callers
