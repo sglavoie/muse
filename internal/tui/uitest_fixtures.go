@@ -16,6 +16,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/lyrics"
 	"github.com/sglavoie/muse/internal/radio"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/queue"
@@ -91,6 +92,9 @@ func baseFixtureOptions() []Option {
 		// Generated covers drawn with blocks: deterministic, file-free, and
 		// visible in the plain screen as cells of art.
 		WithArtwork(artwork.SyntheticLoader{}, config.ArtworkBlocks),
+		// Made-up synced lyrics for whatever plays, so Now Playing shows its
+		// lyrics section without reading a file.
+		WithLyrics(lyrics.SyntheticLoader{}),
 	}
 }
 

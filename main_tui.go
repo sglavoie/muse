@@ -18,6 +18,7 @@ import (
 	"github.com/sglavoie/muse/internal/control"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/lyrics"
 	"github.com/sglavoie/muse/internal/mpris"
 	"github.com/sglavoie/muse/internal/notify"
 	"github.com/sglavoie/muse/internal/player"
@@ -481,6 +482,7 @@ func buildModel(
 		tui.WithSessionCount(startupCount),
 		tui.WithFreshLibrary(libResult.FreshLibrary),
 		tui.WithArtwork(artwork.NewFileLoader(), cfg.Artwork),
+		tui.WithLyrics(lyrics.FileLoader{Embedded: library.ExtractLyrics}),
 		tui.WithMotion(!cfg.ReduceMotion),
 	}
 	opts = append(opts, controlModelOptions(ctrlServer)...)

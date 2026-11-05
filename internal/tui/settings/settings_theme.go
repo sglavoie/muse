@@ -23,6 +23,7 @@ const (
 	displayAnimations = 8
 	displayTrackCard  = 9
 	displayLevelMeter = 10
+	displayLyrics     = 11
 )
 
 var artworkLabels = []string{"Auto", "Kitty", "Blocks", "Off"}
@@ -45,6 +46,7 @@ func (o *SettingsOverlay) initDisplay(cfg config.Config) {
 		{label: "Animations", Value: boolToInt(!cfg.ReduceMotion), defaultValue: 1, min: 0, max: 1, step: 1},
 		{label: "Track card", Value: boolToInt(cfg.TrackChangeCard), defaultValue: 1, min: 0, max: 1, step: 1},
 		{label: "Level meter", Value: boolToInt(cfg.LevelMeter != config.LevelMeterOff), defaultValue: 1, min: 0, max: 1, step: 1},
+		{label: "Lyrics", Value: boolToInt(cfg.Lyrics), defaultValue: 1, min: 0, max: 1, step: 1},
 	}
 }
 

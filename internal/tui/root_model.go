@@ -252,6 +252,11 @@ type Model struct {
 	// art is cover-art state shared by every copy of the Model; nil when art
 	// is disabled. See root_artwork.go.
 	art *artworkState
+	// lyrics is the Now Playing lyrics cache, shared like art; nil when
+	// lyrics are not wired. lyricsView is where its window is. See
+	// root_lyrics.go.
+	lyrics     *lyricsState
+	lyricsView lyricsViewState
 	// albumGrid holds the Browse Albums cover-grid thumbnails, shared like
 	// art; nil when art is disabled. See root_album_grid.go.
 	albumGrid *albumGridArt

@@ -93,6 +93,7 @@ func (m Model) decorateNowPlayingText(now overlay.NowPlayingOverlay, st styles.S
 		now.TitleScroll = int(clock.Sub(m.motion.titleSince) / motionSteadyFrame)
 	}
 	now.Notice, now.NoticeError = m.nowPlayingNotice()
+	now.Lyrics = m.nowPlayingLyrics(clock)
 	return now
 }
 

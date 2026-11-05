@@ -102,6 +102,10 @@ log_level = "info"
 # from the music itself ("auto"), measured by a light mpv audio filter, or
 # leave the audio alone and keep the decorative animation ("off").
 # level_meter = "auto"
+# Show synced lyrics in the full-screen Now Playing view when the song has an
+# .lrc file beside it or lyrics in its tags; L in Now Playing toggles them
+# (true/false).
+# lyrics = true
 
 # Recommendation mix thresholds.
 # [mixes]

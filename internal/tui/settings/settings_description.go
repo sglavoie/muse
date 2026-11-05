@@ -53,6 +53,7 @@ func (o SettingsOverlay) focusedDescription() string {
 		"Animations":     "Progress glide, playing indicator, and color transitions. Applies after saving.",
 		"Track card":     "Show the cover, title and artist for a few seconds when the song changes on its own or with n/p.",
 		"Level meter":    "Level meter and Now Playing loudness strip follow the music. Off keeps a decorative meter. Applies after saving.",
+		"Lyrics":         "Show synced lyrics in Now Playing from an .lrc file beside the song or its lyrics tag; L in Now Playing toggles them.",
 	}
 	return descriptions[f.label]
 }

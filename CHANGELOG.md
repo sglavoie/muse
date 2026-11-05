@@ -64,6 +64,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tracks found so far, the folder being read, and covers of the newest albums
   as they turn up. It ends on your Library with "Found N tracks across M
   albums".
+- Now Playing shows synced lyrics from an `.lrc` file beside the song, or
+  from the lyrics stored in its tags, read in the background the first time
+  the view opens for it. The line being sung is bold in the accent color,
+  lines already sung are dimmed, and the window eases along with the song,
+  or jumps with animations off and after a seek. Lyrics without timings show
+  as text that `j`/`k` scroll. `L` in Now Playing shows or hides them and
+  remembers the choice (`lyrics = false`, or **Lyrics** in Settings →
+  Display); songs without lyrics show no trace of them.
 
 ### Changed
 

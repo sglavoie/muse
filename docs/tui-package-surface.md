@@ -133,7 +133,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 162 | 43 | 118 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 62 | 41 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 141 | 38 | 102 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/overlay` | 149 | 38 | 110 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 67 | 1 | 63 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1097 exported identifiers across 15 packages**: 169 reached from two or more packages, 870 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1105 exported identifiers across 15 packages**: 169 reached from two or more packages, 878 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -604,6 +604,13 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NewMessages` | func | `internal/tui` | root |
 | `tui/overlay` | `NewSeekTime` | func | `internal/tui` | root |
 | `tui/overlay` | `NewTrackInfoOverlay` | func | `internal/tui†` | root (tests only) |
+| `tui/overlay` | `NowPlayingLyrics` | type | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingLyrics.Anchor` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingLyrics.Current` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingLyrics.Fade` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingLyrics.Hidden` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingLyrics.Lines` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingLyrics.Synced` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Album` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Artist` | field | `internal/tui` | root |
@@ -613,6 +620,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay.Details` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Elapsed` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Loudness` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Lyrics` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Marquee` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Modes` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Notice` | field | `internal/tui` | root |

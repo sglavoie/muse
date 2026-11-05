@@ -84,6 +84,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case artLoadedMsg:
 		return m.handleArtLoaded(msg)
 
+	case lyricsLoadedMsg:
+		return m.handleLyricsLoaded(msg), nil
+
 	case trackCardExpiredMsg:
 		return m.handleTrackCardExpired(msg), nil
 

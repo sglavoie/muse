@@ -21,6 +21,9 @@ func (m Model) handleNowPlayingKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, bo
 	if next, cmd, ok := m.handleInfoTransport(msg); ok {
 		return next, cmd, true
 	}
+	if next, cmd, ok := m.handleNowPlayingLyricsKey(msg.String()); ok {
+		return next, cmd, true
+	}
 	switch msg.String() {
 	case "ctrl+c":
 		m.overlay.nowPlaying = nil

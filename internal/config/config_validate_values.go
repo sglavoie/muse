@@ -237,6 +237,9 @@ func validate(raw rawConfig) (Config, []string) {
 	if raw.TrackChangeCard != nil {
 		cfg.TrackChangeCard = *raw.TrackChangeCard
 	}
+	if raw.Lyrics != nil {
+		cfg.Lyrics = *raw.Lyrics
+	}
 	validateArtwork(raw.Artwork, &cfg, &warnings)
 	validateLevelMeter(raw.LevelMeter, &cfg, &warnings)
 

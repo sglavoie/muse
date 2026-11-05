@@ -251,5 +251,6 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	if disp[displayLevelMeter].Value != 0 {
 		cfg.LevelMeter = config.LevelMeterAuto
 	}
+	cfg.Lyrics = disp[displayLyrics].Value != 0
 	return cfg
 }

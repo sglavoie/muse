@@ -107,6 +107,37 @@ Songs you start with `Enter`, and the song restored at startup, get no card.
 `track_change_card = false` (or **Track card** in Settings → Display) turns
 it off.
 
+**Lyrics.** When the playing song has lyrics, Now Playing shows them between
+the listening details and up next. muse reads an `.lrc` file with the same
+name as the song next to it (`Song.flac` → `Song.lrc`, in any letter case),
+otherwise the lyrics stored in the file's tags (ID3 USLT, Vorbis `LYRICS` or
+`UNSYNCEDLYRICS`, MP4 `©lyr`), read with ExifTool or ffprobe like the rest of
+the metadata. The lookup happens in the background the first time you open
+Now Playing for a song and is kept in memory, so the view never waits for it;
+songs you never look at in Now Playing are never read. Synced lyrics follow
+the song: the line being sung is bold in the accent color, lines already sung
+are dimmed, and the ones coming up are a little dimmer the further away they
+are. A long current line wraps to a second row; the others are shortened.
+With animations on the highlight eases onto each new line and the window
+glides after it; with animations off, or after a seek, it jumps straight to
+the right line. An empty timed line is an instrumental break and shows a note
+while it plays. Lyrics without timings show as plain text that `j`/`k` or the
+arrow keys scroll.
+
+The LRC reader accepts several time tags on one line (`[00:12.34][01:02.00]`),
+times with no fraction or up to three digits after the point, `[offset:]` in
+milliseconds (a positive offset shows lines earlier), per-word times
+(`<00:12.34>`, which are ignored), and files in UTF-8 with or without a
+byte-order mark, UTF-16, or Windows-1252/Latin-1. Tags such as `[ar:]` and
+`[ti:]` are ignored.
+
+`L` in Now Playing shows or hides lyrics and remembers the choice
+(`lyrics = false` in the config, or **Lyrics** in Settings → Display). The key
+hint mentions `L` only for songs that have lyrics; songs without any show no
+trace of them. On short screens the lyrics keep a three-line window before
+the details, up next and the Auto-DJ reason get room, since they are what you
+opened the view for while a song has them; press `L` to give that room back.
+
 **Album art.** muse looks for an album's cover the first time it needs it: an
 image named `cover`, `folder`, `front`, `album`, `albumart` or `artwork`
 (`.jpg`, `.png` or `.gif`, any case) next to the music, otherwise the picture

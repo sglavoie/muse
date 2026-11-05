@@ -40,6 +40,9 @@ type NowPlayingOverlay struct {
 	UpNext []UpNextSong
 	// Reason explains why Auto-DJ picked the song; empty for manual picks.
 	Reason string
+	// Lyrics are the song's lyrics; nil when it has none. See
+	// nowplaying_lyrics.go.
+	Lyrics *NowPlayingLyrics
 
 	// Marquee scrolls a title too wide for the panel instead of truncating
 	// it; TitleScroll is how many marquee steps have passed since the title
@@ -117,7 +120,7 @@ func (n NowPlayingOverlay) layout(termWidth, termHeight int) (bodyHeight, coverC
 // footerLine is the key hint, or the notice standing in for it.
 func (n NowPlayingOverlay) footerLine(width int, s styles.Styles) string {
 	if n.Notice == "" {
-		return s.Dim.Render(text.CompactHints(nowPlayingHint, width, "space", "esc"))
+		return s.Dim.Render(text.CompactHints(nowPlayingHint+n.Lyrics.hint(), width, "space", "esc"))
 	}
 	style := s.Warning
 	if n.NoticeError {
@@ -173,40 +176,40 @@ func lineOr(lines []string, i int, fallback string) string {
 }
 
 // panelLines builds the text column, dropping its least important sections
-// first when the screen is short. The loudness strip is the least important
-// of all: it goes in above the progress bar only when everything else fits
-// with a row to spare. loudness reports whether it did.
+// first when the screen is short. Shown lyrics come right after the song
+// itself: they keep their smallest window before the details, up next and
+// Auto-DJ's reason get room, and then grow into whatever is left. They sit
+// between the details and up next on screen. The loudness strip is the least
+// important of all: it goes in above the progress bar only when everything
+// else fits with a row to spare, and lyrics leave it that row. loudness
+// reports whether it went in.
 func (n NowPlayingOverlay) panelLines(width, height int, s styles.Styles) (lines []string, loudness bool) {
-	sections := [][]string{n.headSection(width, s), n.aboutSection(width, s)}
-	if len(n.UpNext) > 0 {
-		next := []string{s.Dim.Bold(true).Render("Up next")}
-		for i, song := range n.UpNext {
-			next = append(next, upNextLine(i, song, width, s))
-		}
-		sections = append(sections, next)
+	head := n.headSection(width, s)
+	used := len(head)
+	lyricsRows := 0
+	if n.Lyrics.visible() && used+2+lyricsMinRows <= height {
+		lyricsRows = lyricsMinRows
+		used += 2 + lyricsMinRows
 	}
-	if n.Reason != "" {
-		why := []string{s.Dim.Bold(true).Render("Why Auto-DJ chose it")}
-		for _, line := range wrapLines(n.Reason, width, 2) {
-			why = append(why, s.TextSecondary.Render(line))
-		}
-		sections = append(sections, why)
+	all := [][]string{n.aboutSection(width, s), n.upNextSection(width, s), n.reasonSection(width, s)}
+	sections, used := sectionsThatFit(all, used, height)
+	strip := n.loudnessLine(width)
+	loudness = strip != "" && len(sections) == len(all) && used < height
+	spare := height - used
+	if loudness {
+		spare--
 	}
-	lines = sections[0]
-	everything := true
-	for _, section := range sections[1:] {
-		if len(lines)+1+len(section) > height {
-			everything = false
-			break
-		}
-		lines = append(lines, "")
-		lines = append(lines, section...)
+	if lyricsRows > 0 {
+		lyricsRows += max(0, min(spare, n.Lyrics.rowsWanted()-lyricsRows))
+		sections = slices.Insert(sections, min(1, len(sections)), n.Lyrics.section(width, lyricsRows, s))
 	}
-	if strip := n.loudnessLine(width); strip != "" && everything && len(lines) < height {
+	lines = head
+	for _, section := range sections {
+		lines = appendSection(lines, section)
+	}
+	if loudness {
 		// The head ends with the progress line and the state line.
-		at := len(sections[0]) - 2
-		lines = slices.Insert(lines, at, strip)
-		loudness = true
+		lines = slices.Insert(lines, len(head)-2, strip)
 	}
 	return lines[:min(len(lines), height)], loudness
 }
@@ -222,6 +225,51 @@ func (n NowPlayingOverlay) loudnessLine(width int) string {
 		return ""
 	}
 	return strings.Repeat(" ", lead) + n.Loudness(barWidth)
+}
+
+// sectionsThatFit keeps sections, in order, while each still fits under a
+// blank line in height with used lines taken; it returns them and the lines
+// then in use.
+func sectionsThatFit(sections [][]string, used, height int) ([][]string, int) {
+	for i, section := range sections {
+		if len(section) > 0 && used+1+len(section) > height {
+			return sections[:i], used
+		}
+		if len(section) > 0 {
+			used += 1 + len(section)
+		}
+	}
+	return sections, used
+}
+
+// appendSection adds a section under a blank line; an empty one adds nothing.
+func appendSection(lines, section []string) []string {
+	if len(section) == 0 {
+		return lines
+	}
+	return append(append(lines, ""), section...)
+}
+
+func (n NowPlayingOverlay) upNextSection(width int, s styles.Styles) []string {
+	if len(n.UpNext) == 0 {
+		return nil
+	}
+	next := []string{s.Dim.Bold(true).Render("Up next")}
+	for i, song := range n.UpNext {
+		next = append(next, upNextLine(i, song, width, s))
+	}
+	return next
+}
+
+func (n NowPlayingOverlay) reasonSection(width int, s styles.Styles) []string {
+	if n.Reason == "" {
+		return nil
+	}
+	why := []string{s.Dim.Bold(true).Render("Why Auto-DJ chose it")}
+	for _, line := range wrapLines(n.Reason, width, 2) {
+		why = append(why, s.TextSecondary.Render(line))
+	}
+	return why
 }
 
 // upNextMinArtist is the narrowest artist worth keeping beside a title; with

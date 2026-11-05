@@ -51,6 +51,7 @@ func defaults() Config {
 		ReduceMotion:               defaultReduceMotion,
 		TrackChangeCard:            defaultTrackChangeCard,
 		LevelMeter:                 defaultLevelMeter,
+		Lyrics:                     defaultLyrics,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
 			RediscoverAgeDays:      defaultMixRediscoverAgeDays,

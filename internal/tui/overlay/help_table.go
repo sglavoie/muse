@@ -315,6 +315,17 @@ var helpSectionsTable = []HelpSection{
 		},
 	},
 	{
+		// Handled by the Now Playing view itself; the transport keys above
+		// keep working there too.
+		Title:   "Now Playing overlay (I)",
+		Context: keys.ContextModals,
+		entries: []helpEntry{
+			{"L", "Show / hide lyrics (when the song has them)"},
+			{"j / k / down / up", "Scroll lyrics that have no timings"},
+			{"esc / I", "Close Now Playing"},
+		},
+	},
+	{
 		// Note: "esc" here also dismisses the help overlay itself, which is
 		// handled at the root level (outside the keybinding registry). The
 		// Modals section covers any future modal dialogs as well.

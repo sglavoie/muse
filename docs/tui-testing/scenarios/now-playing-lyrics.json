@@ -1,0 +1,31 @@
+{
+  "name": "now-playing-lyrics",
+  "fixture": "dense",
+  "size": "80x24",
+  "actions": [
+    {"key": "I"},
+    {"assert": {"overlay": "now_playing"}},
+    {"assert": {"contains": "Lyrics"}, "label": "lyrics-section"},
+    {"assert": {"contains": "Radio static as the moon goes"}, "label": "current-line-at-1-23"},
+    {"assert": {"contains": "Coast road calling"}, "label": "line-already-sung"},
+    {"assert": {"contains": "Up next"}, "label": "up-next-kept"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "120x36"},
+    {"assert": {"contains": "We were young and loud and running out of time"}},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "Radio static as the moon goes down"}, "label": "lyrics-before-up-next"},
+    {"assert": {"not_contains": "Up next"}},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "120x36"},
+    {"key": "L"},
+    {"assert": {"overlay": "now_playing"}, "label": "L-stays-in-now-playing"},
+    {"assert": {"not_contains": "Radio static"}, "label": "lyrics-hidden"},
+    {"assert": {"contains": "Lyrics: Off"}},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "L"},
+    {"assert": {"contains": "Radio static"}, "label": "lyrics-back"},
+    {"key": "esc"},
+    {"assert": {"view": "Library"}}
+  ]
+}

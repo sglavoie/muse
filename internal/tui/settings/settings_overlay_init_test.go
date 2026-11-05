@@ -45,8 +45,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 
 	disp := o.Fields[TabDisplay]
-	if len(disp) != 11 {
-		t.Fatalf("expected 11 display fields, got %d", len(disp))
+	if len(disp) != 12 {
+		t.Fatalf("expected 12 display fields, got %d", len(disp))
 	}
 	if disp[0].Value != cfg.TransientDurationSecs {
 		t.Errorf("TransientDurationSecs: expected %d, got %d", cfg.TransientDurationSecs, disp[0].Value)
@@ -73,10 +73,12 @@ func TestDisplayPolishSettingsRoundTrip(t *testing.T) {
 	cfg.FadeOnPause = false
 	cfg.ReduceMotion = true
 	cfg.TrackChangeCard = false
+	cfg.Lyrics = false
 	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
 	disp := o.Fields[TabDisplay]
 	if disp[displayArtwork].Value != 2 || disp[displayCoverTint].Value != 0 ||
-		disp[displayPauseFade].Value != 0 || disp[displayAnimations].Value != 0 || disp[displayTrackCard].Value != 0 {
+		disp[displayPauseFade].Value != 0 || disp[displayAnimations].Value != 0 || disp[displayTrackCard].Value != 0 ||
+		disp[displayLyrics].Value != 0 {
 		t.Fatalf("display polish fields not initialized from config: %+v", disp[5:])
 	}
 	if got := o.fieldSpinner(disp[displayArtwork]); got != "< Blocks >" {
@@ -85,8 +87,9 @@ func TestDisplayPolishSettingsRoundTrip(t *testing.T) {
 	o.Fields[TabDisplay][displayArtwork].Value = 1
 	o.Fields[TabDisplay][displayAnimations].Value = 1
 	o.Fields[TabDisplay][displayTrackCard].Value = 1
+	o.Fields[TabDisplay][displayLyrics].Value = 1
 	out := o.ToConfig(cfg)
-	if out.Artwork != config.ArtworkKitty || out.ReduceMotion || out.ArtworkAccent || out.FadeOnPause || !out.TrackChangeCard {
+	if out.Artwork != config.ArtworkKitty || out.ReduceMotion || out.ArtworkAccent || out.FadeOnPause || !out.TrackChangeCard || !out.Lyrics {
 		t.Fatalf("ToConfig = artwork %q reduce %v tint %v fade %v", out.Artwork, out.ReduceMotion, out.ArtworkAccent, out.FadeOnPause)
 	}
 }

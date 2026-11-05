@@ -132,7 +132,8 @@ func (m Model) accentAnimating(now time.Time) bool {
 // asks for the smoother frame rate.
 func (m Model) transitionActive(now time.Time) bool {
 	return m.pulseActive(now) || m.accentAnimating(now) || m.overlayRevealing(now) ||
-		m.viewRevealing(now) || m.coverFading(now) || m.trackCardSliding(now)
+		m.viewRevealing(now) || m.coverFading(now) || m.trackCardSliding(now) ||
+		m.lyricsMoving(now)
 }
 
 // scheduleMotion starts the frame loop when an animation needs it.
@@ -183,7 +184,7 @@ func (m Model) handleMotionFrame() Model {
 	if m.motion.coverFrom != nil && !m.coverFading(now) && !m.playingArtPending() {
 		m.motion.coverFrom = nil
 	}
-	return m
+	return m.stepLyrics(now)
 }
 
 // noteMotionChanges records what an update changed that animations follow:

@@ -106,6 +106,10 @@ log_level = %q
 # from the music itself ("auto"), measured by a light mpv audio filter, or
 # leave the audio alone and keep the decorative animation ("off").
 # level_meter = "auto"
+# Show synced lyrics in the full-screen Now Playing view when the song has an
+# .lrc file beside it or lyrics in its tags; L in Now Playing toggles them
+# (true/false).
+# lyrics = true
 
 # Recommendation mix thresholds.
 # [mixes]
@@ -161,6 +165,7 @@ const (
 	defaultReduceMotion               = false
 	defaultTrackChangeCard            = true
 	defaultLevelMeter                 = LevelMeterAuto
+	defaultLyrics                     = true
 
 	defaultMixRediscoverMinPlays    = 10
 	defaultMixRediscoverAgeDays     = 90
@@ -260,6 +265,7 @@ type Config struct {
 	ReduceMotion               bool             `toml:"reduce_motion"`
 	TrackChangeCard            bool             `toml:"track_change_card"`
 	LevelMeter                 string           `toml:"level_meter"`
+	Lyrics                     bool             `toml:"lyrics"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
@@ -305,6 +311,7 @@ type rawConfig struct {
 	ReduceMotion               *bool               `toml:"reduce_motion"`
 	TrackChangeCard            *bool               `toml:"track_change_card"`
 	LevelMeter                 string              `toml:"level_meter"`
+	Lyrics                     *bool               `toml:"lyrics"`
 	Mixes                      rawMixesConfig      `toml:"mixes"`
 }
 

@@ -52,6 +52,19 @@ func TestTrackChangeCardDefaultsOnAndLoads(t *testing.T) {
 	}
 }
 
+func TestLyricsDefaultsOnAndLoads(t *testing.T) {
+	if !Defaults().Lyrics {
+		t.Fatal("lyrics should default to true")
+	}
+	result := loadConfigText(t, "lyrics = false\n")
+	if result.Config.Lyrics {
+		t.Fatal("lyrics = false was not loaded")
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", result.Warnings)
+	}
+}
+
 func TestLoadInvalidArtworkWarns(t *testing.T) {
 	result := loadConfigText(t, "artwork = \"sixel\"\n")
 	if result.Config.Artwork != ArtworkAuto {
