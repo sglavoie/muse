@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Album art. muse finds each album's cover the first time it is needed, from
+  a `cover.jpg`-style image next to the music or the picture embedded in the
+  file (via ExifTool, or ffmpeg when installed), and caches it under
+  `~/Library/Caches/muse/artwork` on macOS or `$XDG_CACHE_HOME/muse/artwork`.
+  Ghostty, kitty and muse.app show the real image through the Kitty graphics
+  protocol; other terminals draw it with colored half blocks. Set
+  `artwork = "kitty"`, `"blocks"` or `"off"` to choose.
+- Now Playing (`I`) is a full-screen view: the cover beside the song, a wide
+  progress bar, playback modes, listening history, the next three songs, and
+  why Auto-DJ chose the song.
+- The interface takes its accent color from the playing song's cover and
+  eases into each new one (`artwork_accent = false` keeps `primary_color`).
+- The space above the footer shows the focused song's cover, listening
+  details and tags; a short Library list adds a one-line summary of the
+  collection beneath it.
+- Pause and resume fade the audio over about a tenth of a second instead of
+  cutting it (`fade_on_pause = false` to turn off).
+- The progress bar glides between position updates, a small level meter
+  moves while music plays, the playing row fades in on a track change, and
+  dialogs fade in as they open, and switching views eases the new panel in
+  below the tab bar. `reduce_motion = true` turns these
+  animations off.
+- Settings → Display has Cover art, Cover tint, Pause fade and Animations.
+
+### Changed
+
+- The title bar marks the active view with a filled tab instead of brackets,
+  and numbers each view in its own color.
+- Track lists set titles, artists and albums apart: artists take a tint of
+  the accent color and albums a quieter tone, so rows scan title-first.
+- Insights shows the numbers alone, without bars, when every bar in a section
+  would be completely full or empty.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added

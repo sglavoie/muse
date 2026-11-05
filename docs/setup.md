@@ -67,6 +67,14 @@ Debian: apt install ffmpeg
 Fedora: dnf install ffmpeg
 ```
 
+### Album art — no extra dependency
+
+Covers come from image files next to the music (`cover.jpg`, `folder.png`, …)
+or from the picture embedded in each file, which muse reads with ExifTool.
+Without ExifTool, the `ffmpeg` binary from the same FFmpeg package as ffprobe
+extracts embedded pictures instead; with neither, only cover image files are
+used. See [Album art](user-guide.md) in the user guide.
+
 ### Notification backend — optional
 
 Needed only for desktop banners (`notify_on_track_change` and

@@ -99,6 +99,9 @@ func (s StatusBar) fitIdentity(ctx statusBarRenderContext, icon string, iconWidt
 func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 	switch s.PlaybackState {
 	case playback.StatePlaying:
+		if s.LevelMeter != "" {
+			return ctx.barSuccess.Render(s.LevelMeter), ansi.StringWidth(s.LevelMeter)
+		}
 		return ctx.barSuccess.Bold(true).Render("▶"), 1
 	case playback.StatePaused:
 		return ctx.barWarning.Bold(true).Render("⏸"), 1

@@ -45,6 +45,10 @@ func defaults() Config {
 		NotifyOnTrackChange:        defaultNotifyOnTrackChange,
 		MediaControls:              defaultMediaControls,
 		QueueFollowNowPlaying:      defaultQueueFollowNowPlaying,
+		Artwork:                    defaultArtwork,
+		ArtworkAccent:              defaultArtworkAccent,
+		FadeOnPause:                defaultFadeOnPause,
+		ReduceMotion:               defaultReduceMotion,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
 			RediscoverAgeDays:      defaultMixRediscoverAgeDays,

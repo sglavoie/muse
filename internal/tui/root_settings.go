@@ -284,6 +284,7 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	// otherwise the saved setting would not take effect until the next launch.
 	m.notifyOnTrackChange = cfg.NotifyOnTrackChange
 	m.overlay.settings = nil
+	m = m.applyPolishSettings(oldCfg)
 	m = m.applyTheme()
 
 	var saveCmd tea.Cmd
@@ -314,6 +315,25 @@ func (m Model) handleSettingsSavedMsg(msg settingsSavedMsg) Model {
 		m.statusBar.NotifyError("Settings save failed: " + msg.err.Error())
 	} else {
 		m.statusBar.PushMsg("Settings saved", time.Duration(m.cfg.TransientDurationSecs)*time.Second, statusbar.NotifNormal)
+	}
+	return m
+}
+
+// applyPolishSettings brings the saved tint, fade and animation choices into
+// effect immediately. The artwork drawing mode is fixed at startup because
+// the terminal's graphics support does not change while muse runs.
+func (m Model) applyPolishSettings(old config.Config) Model {
+	if p, ok := m.player.(interface{ SetPauseFade(bool) }); ok && old.FadeOnPause != m.cfg.FadeOnPause {
+		p.SetPauseFade(m.cfg.FadeOnPause)
+	}
+	if old.ReduceMotion != m.cfg.ReduceMotion && m.motionAllowed {
+		m.motion.enabled = !m.cfg.ReduceMotion
+	}
+	if old.ArtworkAccent != m.cfg.ArtworkAccent {
+		m.motion.accentKnown = false
+		m.motion.accentFrom, m.motion.accentTo = nil, nil
+		m.accentOverride = ""
+		m = m.refreshArtworkAccent()
 	}
 	return m
 }

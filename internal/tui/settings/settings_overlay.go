@@ -242,5 +242,9 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.VolumeFeedbackDurationSecs = disp[1].Value
 	cfg.NotifyOnTrackChange = disp[2].Value != 0
 	cfg.Theme, cfg.PrimaryColor = o.ThemeState()
+	cfg.Artwork = config.ArtworkModes[disp[displayArtwork].Value]
+	cfg.ArtworkAccent = disp[displayCoverTint].Value != 0
+	cfg.FadeOnPause = disp[displayPauseFade].Value != 0
+	cfg.ReduceMotion = disp[displayAnimations].Value == 0
 	return cfg
 }

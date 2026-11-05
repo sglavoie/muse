@@ -79,6 +79,45 @@ align names, bars, and values within each section, including while scrolling.
 
 **Playback**
 
+**Now Playing** (`I`) fills the screen: the album cover beside the song, a
+wide progress bar, the active playback modes, how often you have played it,
+its tags, the next three songs in play order, and, for an Auto-DJ pick, why it
+was chosen. On short screens the reason and the up-next list give way first;
+narrow ones drop the cover.
+
+**Album art.** muse looks for an album's cover the first time it needs it: an
+image named `cover`, `folder`, `front`, `album`, `albumart` or `artwork`
+(`.jpg`, `.png` or `.gif`, any case) next to the music, otherwise the picture
+embedded in the file, read with ExifTool or, when installed, ffmpeg. Covers are
+cached in `~/Library/Caches/muse/artwork` on macOS and in
+`$XDG_CACHE_HOME/muse/artwork` (default `~/.cache/muse/artwork`) elsewhere;
+an album with no art is looked at again after a day. Delete the folder to
+start over. With `artwork = "auto"`, Ghostty, kitty and muse.app show the real
+image through the Kitty graphics protocol and every other terminal draws it
+with colored half blocks; inside tmux, screen or Zellij muse always uses
+blocks. `artwork = "kitty"`, `"blocks"` or `"off"` overrides the choice; it
+applies when muse starts.
+
+The interface takes its accent color (the active tab, focus marks, the
+progress bar) from the playing song's cover and eases into each new one.
+Covers without a vivid color keep `primary_color`. Turn this off with
+`artwork_accent = false` or **Cover tint** in Settings → Display.
+
+When a list leaves room above the footer, the focused song appears there with
+its cover, artist and album, length, genre, play count, when you last played
+it, and its tags. Below a Library list that does not fill the screen, one line
+sums up the collection: its size, total length, how much is still unheard,
+and when music last arrived.
+
+Pause and resume fade the audio in and out over about a tenth of a second
+(`fade_on_pause`). While music plays, the progress bar glides between position
+updates, a small level meter replaces `▶` in the status bar, and the playing
+row fades in after a track change; dialogs and overlays fade in over a fifth
+of a second as they open, and switching views eases the new panel in below
+the tab bar while the tabs and status bar stay put. Track lists show titles brightest, artists tinted
+toward the accent color, and albums in a quieter tone. `reduce_motion = true` (or **Animations**
+in Settings → Display) turns these off and restores the static `▶`.
+
 Now Playing, Track Info, Queue Summary, Playback Modes, Recent Messages, and
 Help accept the usual playback keys: `Space`, `n`/`p`, seek arrows, and `=`/`-`
 for volume. The overlay stays open. Text entry, including Help search, continues

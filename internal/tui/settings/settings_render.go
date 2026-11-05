@@ -240,6 +240,8 @@ func (o SettingsOverlay) fieldSpinner(f Field) string {
 	switch f.unit {
 	case "theme":
 		return fmt.Sprintf("< %s >", themeLabels[f.Value])
+	case "artwork":
+		return fmt.Sprintf("< %s >", artworkLabels[f.Value])
 	case "color":
 		if o.primaryColor == "" {
 			return "Preset default [enter]"

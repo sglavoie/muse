@@ -133,6 +133,8 @@ type Styles struct {
 	TextPrimary             lipgloss.Style // primary text: artist, title columns
 	TextSecondary           lipgloss.Style // secondary text: album column
 	TextTertiary            lipgloss.Style // tertiary text: track numbers, durations, inactive tabs
+	ArtistText              lipgloss.Style // artist column: secondary text tinted toward the primary color
+	AlbumText               lipgloss.Style // album column: quieter than the artist so rows scan title-first
 	PaletteCategory         lipgloss.Style // dim, italic foreground for [category] prefix in command palette rows
 	NowPlayingTitle         lipgloss.Style // amber fg + warm bg for title column in the now-playing row
 	EmptyCard               lipgloss.Style // rounded-border padded container for empty-state cards
@@ -208,6 +210,8 @@ func NewTheme(hasDark bool, primary string) Styles {
 		TextPrimary:     lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextPrimaryLight), lipgloss.Color(colorTextPrimaryDark))),
 		TextSecondary:   lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextSecondaryLight), lipgloss.Color(colorTextSecondaryDark))),
 		TextTertiary:    lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
+		ArtistText:      lipgloss.NewStyle().Foreground(columnTint(ld(lipgloss.Color(colorTextSecondaryLight), lipgloss.Color(colorTextSecondaryDark)), p)),
+		AlbumText:       lipgloss.NewStyle().Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		PaletteCategory: lipgloss.NewStyle().Italic(true).Foreground(ld(lipgloss.Color(colorTextTertiaryLight), lipgloss.Color(colorTextTertiaryDark))),
 		NowPlayingTitle: lipgloss.NewStyle().Bold(true).Foreground(ld(lipgloss.Color(colorAmberLight), lipgloss.Color(colorAmberDark))).Background(ld(lipgloss.Color(colorNowPlayingBgLight), lipgloss.Color(colorNowPlayingBgDark))),
 		EmptyCard: lipgloss.NewStyle().Padding(1, 2).

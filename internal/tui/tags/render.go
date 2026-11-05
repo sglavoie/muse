@@ -166,8 +166,8 @@ func (v View) renderNowPlayingTrackRow(r trackRow) string {
 	np := v.Styles.NowPlayingRow
 	sep := np.Render(" ")
 	title := v.Styles.NowPlayingTitle.Render(r.title)
-	artist := v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(r.artist)
-	album := v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(r.album)
+	artist := v.Styles.ArtistText.Background(v.Styles.NowPlayingBg).Render(r.artist)
+	album := v.Styles.AlbumText.Background(v.Styles.NowPlayingBg).Render(r.album)
 	return np.Render(r.marker) + joinTagCells(sep, title, artist, album, np.Render(r.dur))
 }
 
@@ -201,8 +201,8 @@ func (v View) renderFilledTrackRow(r trackRow, title string, rowBg color.Color) 
 	if r.selected {
 		markerPart = v.Styles.AccentMark.Background(rowBg).Render("●") + zb.Render(" ")
 	}
-	artistPart := styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.artist)
-	albumPart := styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(r.album)
+	artistPart := styles.WithZebraBg(v.Styles.ArtistText, rowBg, true).Render(r.artist)
+	albumPart := styles.WithZebraBg(v.Styles.AlbumText, rowBg, true).Render(r.album)
 	durPart := styles.WithZebraBg(v.Styles.TextTertiary, rowBg, true).Render(r.dur)
 	sep := zb.Render(" ")
 	return markerPart + joinTagCells(sep, title, artistPart, albumPart, durPart)
@@ -213,7 +213,7 @@ func (v View) renderUnfilledTrackRow(r trackRow, title string) string {
 	if !r.fav {
 		title = v.Styles.TextPrimary.Render(title)
 	}
-	return r.marker + joinTagCells(" ", title, v.Styles.TextPrimary.Render(r.artist), v.Styles.TextSecondary.Render(r.album), v.Styles.TextTertiary.Render(r.dur))
+	return r.marker + joinTagCells(" ", title, v.Styles.ArtistText.Render(r.artist), v.Styles.AlbumText.Render(r.album), v.Styles.TextTertiary.Render(r.dur))
 }
 
 func renderTagLabel(dot, name string, count, width int) string {

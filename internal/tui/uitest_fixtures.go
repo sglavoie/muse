@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sglavoie/muse/internal/artwork"
+	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/db"
 	"github.com/sglavoie/muse/internal/library"
 	"github.com/sglavoie/muse/internal/radio"
@@ -86,6 +88,9 @@ func baseFixtureOptions() []Option {
 		// empty state rather than the "no reader wired" fallback. Fixtures with
 		// a library override this with a track-backed reader.
 		WithInsightsReader(&uitestInsights{}),
+		// Generated covers drawn with blocks: deterministic, file-free, and
+		// visible in the plain screen as cells of art.
+		WithArtwork(artwork.SyntheticLoader{}, config.ArtworkBlocks),
 	}
 }
 

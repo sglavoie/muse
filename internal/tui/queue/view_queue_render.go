@@ -304,8 +304,8 @@ func (r *queueRowRenderer) renderNowPlayingRow(row queueRow) string {
 	nb := lipgloss.NewStyle().Background(bg)
 
 	row.title = styleOr(npFav.Background(bg), r.s.NowPlayingTitle, row.trackFav).Render(row.title)
-	row.artist = styleOr(npFavArtist, r.s.TextPrimary, row.artistFav).Background(bg).Render(row.artist)
-	row.album = styleOr(npFavAlbum, r.s.TextSecondary, row.albumFav).Background(bg).Render(row.album)
+	row.artist = styleOr(npFavArtist, r.s.ArtistText, row.artistFav).Background(bg).Render(row.artist)
+	row.album = styleOr(npFavAlbum, r.s.AlbumText, row.albumFav).Background(bg).Render(row.album)
 	row.marker = npStyle.Background(bg).Render(npIcon) + nb.Render(" ")
 	row.pos = nb.Render(row.pos)
 	row.source = nb.Render(row.source)
@@ -345,8 +345,8 @@ func (r *queueRowRenderer) renderQueuedRow(row queueRow, fill rowFill) string {
 	}
 	rb := lipgloss.NewStyle().Background(fill.bg)
 	row.title = styles.WithZebraBg(styleOr(r.s.Favorite, r.s.TextPrimary, row.trackFav), fill.bg, true).Render(row.title)
-	row.artist = styles.WithZebraBg(styleOr(r.s.FavArtist, r.s.TextPrimary, row.artistFav), fill.bg, true).Render(row.artist)
-	row.album = styles.WithZebraBg(styleOr(r.s.FavAlbum, r.s.TextSecondary, row.albumFav), fill.bg, true).Render(row.album)
+	row.artist = styles.WithZebraBg(styleOr(r.s.FavArtist, r.s.ArtistText, row.artistFav), fill.bg, true).Render(row.artist)
+	row.album = styles.WithZebraBg(styleOr(r.s.FavAlbum, r.s.AlbumText, row.albumFav), fill.bg, true).Render(row.album)
 	row.marker = rb.Render(row.marker)
 	if row.selected {
 		row.marker = r.s.AccentMark.Background(fill.bg).Render("●") + rb.Render(" ")
@@ -361,8 +361,8 @@ func (r *queueRowRenderer) renderQueuedRow(row queueRow, fill rowFill) string {
 // foreground and no background at all.
 func (r *queueRowRenderer) renderPlainQueuedRow(row queueRow) string {
 	row.title = styleOr(r.s.Favorite, r.s.TextPrimary, row.trackFav).Render(row.title)
-	row.artist = styleOr(r.s.FavArtist, r.s.TextPrimary, row.artistFav).Render(row.artist)
-	row.album = styleOr(r.s.FavAlbum, r.s.TextSecondary, row.albumFav).Render(row.album)
+	row.artist = styleOr(r.s.FavArtist, r.s.ArtistText, row.artistFav).Render(row.artist)
+	row.album = styleOr(r.s.FavAlbum, r.s.AlbumText, row.albumFav).Render(row.album)
 	row.pos = r.s.TextTertiary.Render(row.pos)
 	row.dur = r.s.TextTertiary.Render(row.dur)
 	return r.assemble(" ", row)

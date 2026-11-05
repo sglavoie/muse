@@ -15,9 +15,15 @@ import (
 )
 
 const (
-	displayTheme   = 3
-	displayPrimary = 4
+	displayTheme      = 3
+	displayPrimary    = 4
+	displayArtwork    = 5
+	displayCoverTint  = 6
+	displayPauseFade  = 7
+	displayAnimations = 8
 )
+
+var artworkLabels = []string{"Auto", "Kitty", "Blocks", "Off"}
 
 var themeNames = []string{"auto", "dark", "light"}
 var themeLabels = []string{"Auto", "Dark", "Light"}
@@ -31,6 +37,10 @@ func (o *SettingsOverlay) initDisplay(cfg config.Config) {
 		{label: "Track notify", Value: boolToInt(cfg.NotifyOnTrackChange), defaultValue: 0, min: 0, max: 1, step: 1},
 		{label: "Theme", Value: idx, min: 0, max: len(themeNames) - 1, step: 1, unit: "theme"},
 		{label: "Primary color", unit: "color"},
+		{label: "Cover art", Value: max(0, slices.Index(config.ArtworkModes, cfg.Artwork)), min: 0, max: len(config.ArtworkModes) - 1, step: 1, unit: "artwork"},
+		{label: "Cover tint", Value: boolToInt(cfg.ArtworkAccent), defaultValue: 1, min: 0, max: 1, step: 1},
+		{label: "Pause fade", Value: boolToInt(cfg.FadeOnPause), defaultValue: 1, min: 0, max: 1, step: 1},
+		{label: "Animations", Value: boolToInt(!cfg.ReduceMotion), defaultValue: 1, min: 0, max: 1, step: 1},
 	}
 }
 

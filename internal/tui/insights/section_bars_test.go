@@ -36,3 +36,25 @@ func TestSectionBarsAlignNamesFractionsAndNotes(t *testing.T) {
 		}
 	}
 }
+
+func TestSectionBarsOmitAllFullBars(t *testing.T) {
+	rows := []Row{
+		{Section: "Artists", Label: "Al", fraction: 1, note: "1/1 unheard"},
+		{Section: "Artists", Label: "Bea", fraction: 1, note: "3/3 unheard"},
+		{Section: "Albums", Label: "Solo", fraction: 1, note: "2/2 unheard"},
+	}
+	bodies := sectionBarBodies(rows, 60, styles.NewStyles(true))
+	for i, body := range bodies[:2] {
+		plain := ansi.Strip(body)
+		if strings.ContainsAny(plain, "█░") {
+			t.Fatalf("row %d drew a bar that compares nothing: %q", i, plain)
+		}
+		if !strings.Contains(plain, rows[i].note) || !strings.HasPrefix(plain, rows[i].Label) {
+			t.Fatalf("row %d lost its label or note: %q", i, plain)
+		}
+	}
+	// A section of one keeps its bar: there is nothing to be uniform with.
+	if plain := ansi.Strip(bodies[2]); !strings.Contains(plain, "█") {
+		t.Fatalf("single-row section lost its bar: %q", plain)
+	}
+}

@@ -47,6 +47,10 @@ func (o SettingsOverlay) focusedDescription() string {
 		"Track notify":   "Desktop notifications when the song changes. Applies after saving.",
 		"Theme":          "Auto follows the terminal background. Previews live; save to keep.",
 		"Primary color":  "Accent color in #RGB or #RRGGBB; blank uses the theme default. Previews live; save to keep.",
+		"Cover art":      "Album art: Auto uses Kitty graphics in Ghostty and kitty, colored blocks elsewhere. Applies after restarting.",
+		"Cover tint":     "Tint the interface with a color from the playing song's cover. Applies after saving.",
+		"Pause fade":     "Fade audio briefly in and out on pause and resume. Applies after saving.",
+		"Animations":     "Progress glide, playing indicator, and color transitions. Applies after saving.",
 	}
 	return descriptions[f.label]
 }

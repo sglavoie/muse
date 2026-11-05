@@ -46,6 +46,15 @@ scenario cannot accidentally trigger a real side effect.
 | `dense` | 240 long, multilingual track names, 24 playlists and tags, a 48-entry queue, active playback, selections, and a persistent notification for crowded visual review. |
 | `health`   | A deliberately dirty library — colliding genre spellings, a placeholder genre, blank fields, unverified durations, one artist spelled two ways — so Insights' Data Health panel has one of every finding. Its metadata writer is in-memory, so the genre merge is safe to exercise. |
 
+### Cover art in the fixtures
+
+Every fixture draws generated covers: a deterministic gradient per album,
+made in memory instead of read from files, and always drawn with colored half
+blocks (`▀`) so the plain screen shows them. They load synchronously, so a
+cover never adds a pending command. The interface's cover-derived accent color
+follows them as it does real art. Animations are off in every fixture, which
+keeps screens deterministic.
+
 ### Auto-DJ in the fixtures
 
 Every fixture wires an in-memory recipe store seeded with `Late Night` and
@@ -245,6 +254,7 @@ Each observation is normalized JSON:
 | `insights-narrow.json` | `rich` | Guards Insights panel layout at the minimum supported size. |
 | `autodj-panel.json` | `rich` | Walks the Auto-DJ panel's Tune, Preview, and Recipes tabs at 100×30 and again at the minimum supported size, then closes it with `esc`. |
 | `insights-data-health.json` | `health` | Every Data Health finding, drilling one to its tracks, bulk-editing it, and merging a genre collision until the Rhythm banner clears. |
+| `cover-art-and-now-playing.json` | `playback` | The focused song's cover card and Library summary, then the full-screen Now Playing view with its cover, up-next list and modes, shrinking to the minimum size where the cover gives way. |
 
 Every JSON scenario in this directory is discovered automatically and must pass
 in `go test`, including resize stress and Insights. New scenarios cannot be

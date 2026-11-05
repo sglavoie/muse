@@ -44,6 +44,10 @@ type StatusBar struct {
 	ElapsedSecs float64
 	TotalSecs   float64
 
+	// LevelMeter, when set, replaces the playing icon with an animated level
+	// meter (one frame of it). Empty keeps the static ▶.
+	LevelMeter string
+
 	// RadioMode is true when Auto-DJ / radio mode is active.
 	RadioMode bool
 

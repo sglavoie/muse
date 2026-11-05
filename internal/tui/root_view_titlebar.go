@@ -20,13 +20,15 @@ func (m Model) renderTitleBar() string {
 	if m.titleBarWidth(names) > m.termWidth {
 		names = []string{"Lib", "PL", "Q", "Brw", "Fav", "Tag", "Mix", "Ins"}
 	}
+	// The active view is a filled pill in the primary color; the others keep
+	// their number in the view's own hue so each destination is recognizable
+	// at a glance. Widths match between the two so tabs never shift.
 	var parts []string
 	for i, id := range viewOrder {
-		label := fmt.Sprintf("%d %s", i+1, names[i])
 		if id == m.ActiveView {
-			parts = append(parts, m.styles.ActiveTab.Render("["+label+"]"))
+			parts = append(parts, m.styles.ActiveTab.Render(fmt.Sprintf(" %d %s ", i+1, names[i])))
 		} else {
-			parts = append(parts, m.styles.TextTertiary.Render(" "+label+" "))
+			parts = append(parts, " "+m.styles.ViewHue(i).Render(fmt.Sprintf("%d", i+1))+m.styles.TextTertiary.Render(" "+names[i]+" "))
 		}
 	}
 	return strings.Join(parts, "")

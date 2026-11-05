@@ -225,11 +225,11 @@ func (v View) renderNowPlayingTrackRow(r trackRow) string {
 	np := v.Styles.NowPlayingRow
 	sep := np.Render(" ")
 	title := v.Styles.NowPlayingTitle.Render(r.title)
-	artist := v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(r.artist)
+	artist := v.Styles.ArtistText.Background(v.Styles.NowPlayingBg).Render(r.artist)
 	if r.artistFav {
 		artist = v.Styles.NowPlayingRowFavArtist.Render(r.artist)
 	}
-	album := v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(r.album)
+	album := v.Styles.AlbumText.Background(v.Styles.NowPlayingBg).Render(r.album)
 	if r.albumFav {
 		album = v.Styles.NowPlayingRowFavAlbum.Render(r.album)
 	}
@@ -264,10 +264,10 @@ func (v View) renderZebraTrackRow(r trackRow, isOdd bool) string {
 		r.title = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.title)
 	}
 	if !r.artistFav {
-		r.artist = styles.WithZebraBg(v.Styles.TextPrimary, rowBg, true).Render(r.artist)
+		r.artist = styles.WithZebraBg(v.Styles.ArtistText, rowBg, true).Render(r.artist)
 	}
 	if !r.albumFav {
-		r.album = styles.WithZebraBg(v.Styles.TextSecondary, rowBg, true).Render(r.album)
+		r.album = styles.WithZebraBg(v.Styles.AlbumText, rowBg, true).Render(r.album)
 	}
 	markerPart := zb.Render(r.marker)
 	if r.selected {
@@ -286,10 +286,10 @@ func (v View) renderPlainTrackRow(r trackRow) string {
 		r.title = v.Styles.TextPrimary.Render(r.title)
 	}
 	if !r.artistFav {
-		r.artist = v.Styles.TextPrimary.Render(r.artist)
+		r.artist = v.Styles.ArtistText.Render(r.artist)
 	}
 	if !r.albumFav {
-		r.album = v.Styles.TextSecondary.Render(r.album)
+		r.album = v.Styles.AlbumText.Render(r.album)
 	}
 	return joinPlaylistCells(" ", r.marker+v.Styles.TextTertiary.Render(r.pos), r.title, r.artist, r.album, v.Styles.TextTertiary.Render(r.dur))
 }

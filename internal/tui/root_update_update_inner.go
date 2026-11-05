@@ -77,6 +77,15 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m.handleTickMsg()
 
+	case motionFrameMsg:
+		return m.handleMotionFrame(), nil
+
+	case artLoadedMsg:
+		return m.handleArtLoaded(msg)
+
+	case artFocusSettledMsg:
+		return m.handleArtFocusSettled(msg)
+
 	case pulseTickMsg:
 		// Receipt forces a redraw so the now-playing row returns to its
 		// normal styling once pulseUntil has elapsed. No state changes.

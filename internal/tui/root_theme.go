@@ -15,6 +15,15 @@ func (m Model) themeState() (preset, primary string) {
 	return m.cfg.Theme, m.cfg.PrimaryColor
 }
 
+// effectivePrimary is the primary color the theme draws with: the cover
+// accent while one applies, except while Settings previews a choice.
+func (m Model) effectivePrimary(primary string) string {
+	if m.overlay.settings == nil && m.accentOverride != "" {
+		return m.accentOverride
+	}
+	return primary
+}
+
 func (m Model) applyTheme() Model {
 	preset, primary := m.themeState()
 	hasDark := m.terminalHasDark
@@ -24,7 +33,7 @@ func (m Model) applyTheme() Model {
 	case "light":
 		hasDark = false
 	}
-	s := styles.NewTheme(hasDark, primary)
+	s := styles.NewTheme(hasDark, m.effectivePrimary(primary))
 	m.styles = &s
 	if m.helpVisible {
 		m.refreshHelpViewport()

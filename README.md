@@ -58,7 +58,10 @@ metadata and synthesized audio.
 Playback includes gapless transitions, a ten-band equalizer, volume
 normalization, Auto-DJ with discovery controls, previews, and saved recipes,
 and media keys and Now Playing (MPRIS on Linux, muse.app on macOS).
-Metadata edits stay in muse's database; your audio files are unchanged.
+Album art appears in a full-screen Now Playing view and beside the focused
+song, drawn as real images in Ghostty, kitty and muse.app and as colored
+blocks elsewhere, and the interface takes its accent color from the playing
+cover. Metadata edits stay in muse's database; your audio files are unchanged.
 
 The [user guide](docs/user-guide.md) covers filtering, selections, queue
 management, metadata cleanup, Auto-DJ, and recovery with undo.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sglavoie/muse/internal/artwork"
 	"io"
 	"log/slog"
 	"os"
@@ -85,6 +86,7 @@ func runTUI(ctx context.Context, opts tuiOptions) error {
 					slog.Warn("startup: set normalize", "err", err)
 				}
 			}
+			mgr.SetPauseFade(cfg.FadeOnPause)
 			if err := mgr.SetGapless(cfg.GaplessAudio); err != nil {
 				slog.Warn("startup: set gapless", "err", err)
 			}
@@ -258,6 +260,10 @@ func runTUI(ctx context.Context, opts tuiOptions) error {
 	// in-flight listen here, ahead of the app.Shutdown calls that cancel the DB
 	// writer. Writer.Exec is synchronous and there is no concurrent taker.
 	if m, ok := finalModel.(tui.Model); ok {
+		// Free cover art uploaded to the terminal; it is no longer on screen.
+		if seq := m.ArtworkCleanup(); seq != "" {
+			_, _ = os.Stdout.WriteString(seq)
+		}
 		if err := m.SaveBrowsingSession(); err != nil {
 			slog.Warn("quit: save browsing session failed", "err", err)
 		}
@@ -473,6 +479,8 @@ func buildModel(
 		tui.WithTagWriter(result.Writer),
 		tui.WithSessionCount(startupCount),
 		tui.WithFreshLibrary(libResult.FreshLibrary),
+		tui.WithArtwork(artwork.NewFileLoader(), cfg.Artwork),
+		tui.WithMotion(!cfg.ReduceMotion),
 	}
 	opts = append(opts, controlModelOptions(ctrlServer)...)
 	return tui.New(ctx, append(opts, mediaModelOptions(media)...)...)

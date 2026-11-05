@@ -133,8 +133,8 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 159 | 41 | 117 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 62 | 41 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 124 | 38 | 85 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 65 | 1 | 61 | 3 | `tui`, `queue`, `uitest` |
+| `tui/overlay` | 132 | 38 | 93 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/statusbar` | 67 | 1 | 63 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1067 exported identifiers across 15 packages**: 167 reached from two or more packages, 842 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1077 exported identifiers across 15 packages**: 167 reached from two or more packages, 852 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -491,10 +491,10 @@ export must either earn a justification, be recorded in
 | `tui/playback` | `ModeIndexShuffle` | const | `internal/tui` | root |
 | `tui/playback` | `ModeIndexStopAfter` | const | `internal/tui` | root |
 | `tui/playback` | `ModeIndicator` | type | — | api |
-| `tui/playback` | `ModeIndicator.Active` | field | `tui/overlay`, `tui/statusbar` | multi |
+| `tui/playback` | `ModeIndicator.Active` | field | `internal/tui`, `tui/overlay`, `tui/statusbar` | multi |
 | `tui/playback` | `ModeIndicator.Compact` | field | `tui/overlay`, `tui/statusbar` | multi |
 | `tui/playback` | `ModeIndicator.Key` | field | `tui/overlay`, `tui/statusbar†` | multi |
-| `tui/playback` | `ModeIndicator.Label` | method | `tui/overlay`, `tui/statusbar` | multi |
+| `tui/playback` | `ModeIndicator.Label` | method | `internal/tui`, `tui/overlay`, `tui/statusbar` | multi |
 | `tui/playback` | `ModeIndicator.Name` | field | `internal/tui`, `tui/overlay`, `tui/statusbar†` | multi |
 | `tui/playback` | `ModeIndicator.State` | field | `internal/tui`, `tui/overlay` | multi |
 | `tui/playback` | `ModeIndicators` | func | `internal/tui`, `tui/overlay`, `tui/statusbar` | multi |
@@ -534,7 +534,7 @@ export must either earn a justification, be recorded in
 | `tui/playback` | `StateIdle` | const | `internal/app†`, `internal/tui`, `tui/overlay†`, `tui/queue†`, `tui/statusbar` | multi |
 | `tui/playback` | `StatePaused` | const | `internal/tui`, `tui/overlay`, `tui/queue`, `tui/statusbar` | multi |
 | `tui/playback` | `StatePlaying` | const | `internal/tui`, `tui/overlay`, `tui/queue†`, `tui/statusbar` | multi |
-| `tui/playback` | `StateStopped` | const | `internal/tui`, `tui/overlay`, `tui/queue`, `tui/statusbar` | multi |
+| `tui/playback` | `StateStopped` | const | `internal/tui`, `tui/overlay†`, `tui/queue`, `tui/statusbar` | multi |
 | `tui/playback` | `TrackChangedMsg` | type | `internal/tui`, `main` | multi |
 | `tui/playback` | `TrackChangedMsg.Artist` | field | `internal/tui`, `main` | multi |
 | `tui/playback` | `TrackChangedMsg.Hash` | field | `internal/tui`, `main` | multi |
@@ -604,13 +604,21 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay` | type | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Album` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Artist` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Cover` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.CoverCols` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.CoverRows` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Details` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Elapsed` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Modes` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.PlayCount` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Progress` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Reason` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Render` | method | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.State` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.TagsLine` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Title` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Total` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.UpNext` | field | `internal/tui` | root |
 | `tui/overlay` | `PanelContentHeight` | func | `tui/autodj`, `tui/settings` | multi |
 | `tui/overlay` | `PanelHeight` | func | `tui/autodj`, `tui/settings` | multi |
 | `tui/overlay` | `PanelHintRows` | func | `tui/autodj`, `tui/settings` | multi |
@@ -678,6 +686,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `NotifInfo` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifNormal` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifPriority` | type | — | api |
+| `tui/statusbar` | `ProgressBar` | func | `internal/tui` | root |
 | `tui/statusbar` | `Severity` | type | — | api |
 | `tui/statusbar` | `SeverityError` | const | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar` | type | `internal/tui` | root |
@@ -693,6 +702,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.EmptyQueueHint` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.HandleMissingTrack` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.HandleScanProgress` | method | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.LevelMeter` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.LongOp` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.MarkMessagesRead` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.NextFadeAt` | method | `internal/tui` | root |

@@ -249,6 +249,19 @@ type Model struct {
 	sessionListenSecs   float64
 	sessionArtistCounts map[string]int // counts of plays per artist this session; used to derive the top artist on quit
 
+	// art is cover-art state shared by every copy of the Model; nil when art
+	// is disabled. See root_artwork.go.
+	art *artworkState
+
+	// motion drives interface animations; see root_motion.go. motionAllowed
+	// is set by WithMotion: only such models may start animating later.
+	motion        motionState
+	motionAllowed bool
+
+	// accentOverride, when set, replaces the configured primary color: it is
+	// the playing cover's accent, or a step of the transition toward it.
+	accentOverride string
+
 	// pulseUntil drives a brief inversion of the now-playing row on track
 	// changes. Set in handleTrackChangedMsg; checked at render time.
 	pulseUntil time.Time

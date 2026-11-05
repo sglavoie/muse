@@ -1,6 +1,7 @@
 package styles
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"strings"
@@ -75,6 +76,14 @@ func colorContrast(a, b color.Color) float64 {
 // RenderScreen paints unstyled text and all unused cells with the preset's
 // canvas colors. Nested semantic foregrounds and row backgrounds are retained.
 func (s Styles) RenderScreen(content string, width, height int) string {
+	return s.RenderScreenFaded(content, width, height, 1, 0, 0)
+}
+
+// RenderScreenFaded is RenderScreen with lines fromRow up to (not including)
+// toRow faded in from the canvas: at reveal 0 they are drawn in the
+// background color, at 1 as they are. Kitty image placeholders keep their
+// colors, which identify the image rather than tint it.
+func (s Styles) RenderScreenFaded(content string, width, height int, reveal float64, fromRow, toRow int) string {
 	content = lipgloss.NewStyle().Width(max(0, width)).Height(max(0, height)).Render(content)
 	canvas := lipgloss.NewCanvas(lipgloss.Width(content), lipgloss.Height(content)).
 		Compose(lipgloss.NewLayer(content))
@@ -93,7 +102,54 @@ func (s Styles) RenderScreen(content string, width, height int) string {
 			if cell.Style.Bg == nil {
 				cell.Style.Bg = s.Background
 			}
+			if y >= fromRow && y < toRow && reveal < 1 && !strings.HasPrefix(cell.Content, kittyPlaceholder) {
+				cell.Style.Fg = mixColors(s.Background, cell.Style.Fg, reveal)
+				cell.Style.Bg = mixColors(s.Background, cell.Style.Bg, reveal)
+			}
 		}
 	}
 	return canvas.Render()
+}
+
+// kittyPlaceholder starts a cell that draws part of a Kitty graphics image.
+const kittyPlaceholder = "\U0010EEEE"
+
+// Mix blends a toward b by amount (0 keeps a, 1 is b).
+func Mix(a, b color.Color, amount float64) color.Color {
+	return mixColors(a, b, math.Min(1, math.Max(0, amount)))
+}
+
+// Hex formats c as #rrggbb.
+func Hex(c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+}
+
+// viewHuesDark and viewHuesLight give each primary view its own quiet color,
+// used for its number in the title bar so destinations are easy to find.
+var (
+	viewHuesDark  = []string{"#8ab4ff", "#c678dd", "#98c379", "#56b6c2", "#e0af68", "#e06c75", "#d19a66", "#61afef"}
+	viewHuesLight = []string{"#315fbe", "#a626a4", "#287348", "#096e88", "#986801", "#b52f42", "#9a5a12", "#1f6fb2"}
+)
+
+// ViewHue returns the foreground style for the i-th primary view's marker.
+func (s Styles) ViewHue(i int) lipgloss.Style {
+	hues := viewHuesLight
+	if s.HasDark {
+		hues = viewHuesDark
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(hues[((i%len(hues))+len(hues))%len(hues)]))
+}
+
+// columnTint nudges a text color toward the theme's accent text, enough to
+// tell the artist column apart from titles at a glance while staying legible
+// on the canvas, zebra and focus surfaces.
+func columnTint(base color.Color, p themeColors) color.Color {
+	for amount := 0.25; amount > 0; amount -= 0.05 {
+		tinted := mixColors(base, p.accentText, amount)
+		if colorContrast(tinted, p.background) >= 4.5 && colorContrast(tinted, p.focus) >= 4.5 {
+			return tinted
+		}
+	}
+	return base
 }

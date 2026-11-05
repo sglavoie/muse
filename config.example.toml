@@ -78,6 +78,22 @@ log_level = "info"
 # Auto-scroll the now-playing track into view in the Queue panel (true/false).
 # queue_follow_now_playing = true
 
+# Cover art: auto (Kitty graphics in Ghostty, kitty and WezTerm, colored
+# blocks elsewhere), kitty, blocks, or off. Art comes from cover.jpg-style
+# files next to the music or from the embedded picture, and is cached.
+# artwork = "auto"
+
+# Tint the interface with a color taken from the playing track's cover art
+# (true/false). primary_color still applies when a track has no usable art.
+# artwork_accent = true
+
+# Fade audio briefly in and out on pause and resume (true/false).
+# fade_on_pause = true
+
+# Turn off interface animations: the progress glide, the playing indicator,
+# and color transitions (true/false).
+# reduce_motion = false
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10

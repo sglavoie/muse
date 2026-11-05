@@ -1,0 +1,115 @@
+{
+  "name": "cover-art-and-now-playing",
+  "fixture": "playback",
+  "size": "110x30",
+  "actions": [
+    {
+      "assert": {
+        "contains": "Focused \u00b7 Track A1"
+      },
+      "label": "focused-card"
+    },
+    {
+      "assert": {
+        "contains": "\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580  Focused"
+      },
+      "label": "focused-card-cover"
+    },
+    {
+      "assert": {
+        "contains": "3 tracks \u00b7 9m \u00b7 none played yet"
+      },
+      "label": "library-summary"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "I"
+    },
+    {
+      "assert": {
+        "overlay": "now_playing"
+      }
+    },
+    {
+      "assert": {
+        "contains": "\u266a Now Playing"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Up next"
+      }
+    },
+    {
+      "assert": {
+        "contains": "1  Charlie \u2013 Track D1"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Repeat all \u00b7 Shuffle"
+      }
+    },
+    {
+      "assert": {
+        "contains": "\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580"
+      },
+      "label": "large-cover"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "resize": "72x18"
+    },
+    {
+      "assert": {
+        "contains": "Track G1"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "compact-now-playing"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "not_contains": "\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580"
+      },
+      "label": "no-cover-at-minimum"
+    },
+    {
+      "assert": {
+        "contains": "Track G1"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "view": "Library"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    }
+  ]
+}

@@ -22,9 +22,11 @@ func (m Model) View() tea.View {
 	}
 
 	body := m.renderActiveBody()
+	headerLines := 0
 	if !m.hasActiveOverlay() {
-		tabSep := m.renderTitleDivider()
-		body = m.renderTitleBar() + "\n" + tabSep + "\n" + body
+		header := m.renderTitleBar() + "\n" + m.renderTitleDivider()
+		headerLines = strings.Count(header, "\n") + 1
+		body = header + "\n" + body
 	}
 
 	statusBar := m.RenderStatusBar()
@@ -39,6 +41,10 @@ func (m Model) View() tea.View {
 		hintExtra = 1
 	}
 	if padding := m.termHeight - bodyLines - 2 - confirmExtra - hintExtra; padding > 0 {
+		if summary := m.renderLibrarySummary(); summary != "" && padding >= 2 {
+			body += "\n" + summary
+			padding--
+		}
 		detail := m.renderFocusedIdentity(padding - 1)
 		if detail != "" && padding >= 3 {
 			detailLines := strings.Count(detail, "\n") + 1
@@ -60,7 +66,15 @@ func (m Model) View() tea.View {
 		content = body + "\n" + footerHint + "\n" + statusBar
 	}
 
-	v := tea.NewView(m.styles.RenderScreen(content, m.termWidth, m.termHeight))
+	// An opening overlay fades in above the status bar, which stays put; a
+	// newly selected view fades in below the tab bar, above the footer.
+	reveal := m.viewReveal(time.Now())
+	fadeFrom, fadeTo := headerLines, strings.Count(body, "\n")+1
+	if m.hasActiveOverlay() {
+		reveal = m.overlayReveal(time.Now())
+		fadeFrom, fadeTo = 0, m.termHeight-(strings.Count(statusBar, "\n")+1)
+	}
+	v := tea.NewView(m.styles.RenderScreenFaded(content, m.termWidth, m.termHeight, reveal, fadeFrom, fadeTo))
 	v.AltScreen = true
 	return m.finishView(v)
 }
@@ -149,8 +163,7 @@ func (m Model) renderOverlayBody() (string, bool) {
 	case m.overlay.settings != nil:
 		return m.overlay.settings.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.nowPlaying != nil:
-		now := *m.overlay.nowPlaying
-		now.State, now.Elapsed, now.Total = m.playback.state, m.playback.elapsedSecs, m.playback.totalSecs
+		now := m.decorateNowPlaying(*m.overlay.nowPlaying)
 		return now.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.messages != nil:
 		return m.overlay.messages.Render(m.termWidth, overlayHeight, *m.styles), true
@@ -197,7 +210,11 @@ func (m Model) renderOverlayBody() (string, bool) {
 
 func (m Model) renderPrimaryBody() string {
 	displayStyles := *m.styles
-	if time.Now().Before(m.pulseUntil) {
+	now := time.Now()
+	switch {
+	case m.motion.enabled && m.pulseActive(now):
+		displayStyles = m.pulseStyles(displayStyles, now)
+	case !m.motion.enabled && now.Before(m.pulseUntil):
 		displayStyles = applyNowPlayingPulse(displayStyles)
 	}
 	nowPlayingIcon, _ := queue.NowPlayingIndicator(displayStyles, m.playback.state)

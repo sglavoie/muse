@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/safego"
@@ -88,11 +89,24 @@ func (m *Manager) SetShuffle(enabled bool) error {
 	return nil
 }
 
-// Play resumes playback.
+// Play resumes playback, fading the volume in when pause fades are enabled
+// and playback was paused.
 func (m *Manager) Play() error {
 	return m.admit(func(c *IPCClient) error {
+		fade, level := m.pauseFadeLevel(true)
+		if fade {
+			if _, err := c.SendCommand(cmdSetProperty, propVolume, 0); err != nil {
+				fade = false
+			}
+		}
 		if _, err := c.SendCommand(cmdSetProperty, propPause, false); err != nil {
+			if fade {
+				_, _ = c.SendCommand(cmdSetProperty, propVolume, level)
+			}
 			return err
+		}
+		if fade {
+			m.rampVolume(c, 0, 1)
 		}
 		// Mirror the requested pause state so an auto-restart firing before
 		// the property-change event arrives resumes in the correct state.
@@ -128,10 +142,23 @@ func (m *Manager) mirrorUnpaused() {
 	m.mu.Unlock()
 }
 
-// Pause pauses playback.
+// Pause pauses playback, fading the volume out first when pause fades are
+// enabled. The volume is restored once paused, so nothing else ever sees the
+// faded level.
 func (m *Manager) Pause() error {
 	return m.admit(func(c *IPCClient) error {
-		if _, err := c.SendCommand(cmdSetProperty, propPause, true); err != nil {
+		fade, _ := m.pauseFadeLevel(false)
+		if fade {
+			m.rampVolume(c, 1, 0)
+		}
+		_, err := c.SendCommand(cmdSetProperty, propPause, true)
+		if fade {
+			m.mu.RLock()
+			level := m.lastVolume
+			m.mu.RUnlock()
+			_, _ = c.SendCommand(cmdSetProperty, propVolume, level)
+		}
+		if err != nil {
 			return err
 		}
 		// Mirror the requested pause state so an auto-restart firing before
@@ -371,4 +398,47 @@ func (m *Manager) SetGapless(enabled bool) error {
 		}
 		return nil
 	})
+}
+
+// pauseFadeSteps and pauseFadeStep shape the pause/resume fade: short enough
+// to feel instant, long enough that audio never clicks off mid-waveform.
+const (
+	pauseFadeSteps = 8
+	pauseFadeStep  = 15 * time.Millisecond
+)
+
+// SetPauseFade enables or disables the short volume fade on pause and resume.
+func (m *Manager) SetPauseFade(enabled bool) {
+	m.mu.Lock()
+	m.pauseFade = enabled
+	m.mu.Unlock()
+}
+
+// pauseFadeLevel reports whether a pause/resume transition should fade, and
+// the volume level it fades to or from. Fading needs a known volume to
+// restore, and only applies to a real change: resuming fades in out of a
+// pause, pausing fades out of playback.
+func (m *Manager) pauseFadeLevel(resuming bool) (bool, float64) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.pauseFade && m.volumeKnown && m.lastVolume > 0 && m.lastPaused == resuming, m.lastVolume
+}
+
+// rampVolume moves mpv's volume from the fraction from to the fraction to of
+// the current level in pauseFadeSteps steps. It reads the level every step so
+// a volume change made meanwhile is honored, and stops quietly on an IPC
+// error: the caller restores the level afterwards either way.
+func (m *Manager) rampVolume(c *IPCClient, from, to float64) {
+	for i := 1; i <= pauseFadeSteps; i++ {
+		frac := from + (to-from)*float64(i)/pauseFadeSteps
+		m.mu.RLock()
+		level := m.lastVolume
+		m.mu.RUnlock()
+		if _, err := c.SendCommand(cmdSetProperty, propVolume, level*frac); err != nil {
+			return
+		}
+		if i < pauseFadeSteps {
+			time.Sleep(pauseFadeStep)
+		}
+	}
 }

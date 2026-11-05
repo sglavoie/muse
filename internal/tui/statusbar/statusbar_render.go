@@ -110,6 +110,11 @@ func (c statusBarRenderContext) dimLine() string {
 func (s StatusBar) Render(width int, st styles.Styles) string {
 	ctx := newStatusBarRenderContext(width, st, s.PlaybackState)
 	right := s.renderRightZone(ctx)
+	if right != "" && ctx.width > 0 {
+		// Line 2 keeps one blank cell at the right edge; end notices there too
+		// so both lines finish in the same column.
+		right += ctx.r(" ")
+	}
 	if s.PlaybackState == playback.StateIdle && s.QueueEmpty {
 		hint := s.EmptyQueueHint
 		if hint == "" {

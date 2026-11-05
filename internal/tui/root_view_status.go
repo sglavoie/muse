@@ -37,11 +37,15 @@ func (m Model) RenderStatusBar() string {
 	} else {
 		sb.QueuePosition = ""
 	}
+	elapsed := m.displayElapsed(time.Now())
 	if m.playback.elapsedSecs > 0 || m.playback.totalSecs > 0 {
-		sb.Elapsed = text.FormatPositionSecs(m.playback.elapsedSecs)
+		sb.Elapsed = text.FormatPositionSecs(elapsed)
 		sb.Total = text.FormatPositionSecs(m.playback.totalSecs)
 	}
-	sb.ElapsedSecs = m.playback.elapsedSecs
+	if m.motion.enabled {
+		sb.LevelMeter = eqBars(m.motion.frame)
+	}
+	sb.ElapsedSecs = elapsed
 	sb.TotalSecs = m.playback.totalSecs
 	sb.YankCount = len(m.yankBuffer)
 	sb.YankIsCut = m.yankIsCut

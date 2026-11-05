@@ -156,3 +156,26 @@ func TestActiveTabContrast(t *testing.T) {
 		})
 	}
 }
+
+func TestColumnTextHierarchy(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		for _, primary := range []string{"", "#e05080", "#40c070"} {
+			s := styles.NewTheme(dark, primary)
+			artist := s.ArtistText.GetForeground()
+			album := s.AlbumText.GetForeground()
+			title := s.TextPrimary.GetForeground()
+			if artist == title || album == artist {
+				t.Fatalf("dark=%v primary=%q: columns are not distinguished", dark, primary)
+			}
+			for name, c := range map[string]color.Color{"artist": artist, "album": album} {
+				if r := contrastRatio(toRGBA(c), toRGBA(s.Background)); r < 4.5 {
+					t.Fatalf("dark=%v primary=%q: %s contrast %.2f < 4.5", dark, primary, name, r)
+				}
+			}
+		}
+	}
+}
+
+func toRGBA(c color.Color) color.RGBA {
+	return color.RGBAModel.Convert(c).(color.RGBA)
+}

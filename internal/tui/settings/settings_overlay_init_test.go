@@ -44,8 +44,8 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 
 	disp := o.Fields[TabDisplay]
-	if len(disp) != 5 {
-		t.Fatalf("expected 5 display fields, got %d", len(disp))
+	if len(disp) != 9 {
+		t.Fatalf("expected 9 display fields, got %d", len(disp))
 	}
 	if disp[0].Value != cfg.TransientDurationSecs {
 		t.Errorf("TransientDurationSecs: expected %d, got %d", cfg.TransientDurationSecs, disp[0].Value)
@@ -62,6 +62,29 @@ func TestNewSettingsOverlayInitializesFromConfig(t *testing.T) {
 	}
 	if disp[2].Value != boolToInt(cfg.NotifyOnTrackChange) {
 		t.Errorf("NotifyOnTrackChange: expected %d, got %d", boolToInt(cfg.NotifyOnTrackChange), disp[2].Value)
+	}
+}
+
+func TestDisplayPolishSettingsRoundTrip(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.Artwork = config.ArtworkBlocks
+	cfg.ArtworkAccent = false
+	cfg.FadeOnPause = false
+	cfg.ReduceMotion = true
+	o := NewSettingsOverlay(cfg, cfg.MusicDirectories)
+	disp := o.Fields[TabDisplay]
+	if disp[displayArtwork].Value != 2 || disp[displayCoverTint].Value != 0 ||
+		disp[displayPauseFade].Value != 0 || disp[displayAnimations].Value != 0 {
+		t.Fatalf("display polish fields not initialized from config: %+v", disp[5:])
+	}
+	if got := o.fieldSpinner(disp[displayArtwork]); got != "< Blocks >" {
+		t.Fatalf("artwork spinner = %q", got)
+	}
+	o.Fields[TabDisplay][displayArtwork].Value = 1
+	o.Fields[TabDisplay][displayAnimations].Value = 1
+	out := o.ToConfig(cfg)
+	if out.Artwork != config.ArtworkKitty || out.ReduceMotion || out.ArtworkAccent || out.FadeOnPause {
+		t.Fatalf("ToConfig = artwork %q reduce %v tint %v fade %v", out.Artwork, out.ReduceMotion, out.ArtworkAccent, out.FadeOnPause)
 	}
 }
 

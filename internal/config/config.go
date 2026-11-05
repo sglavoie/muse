@@ -82,6 +82,22 @@ log_level = %q
 # Auto-scroll the now-playing track into view in the Queue panel (true/false).
 # queue_follow_now_playing = true
 
+# Cover art: auto (Kitty graphics in Ghostty, kitty and WezTerm, colored
+# blocks elsewhere), kitty, blocks, or off. Art comes from cover.jpg-style
+# files next to the music or from the embedded picture, and is cached.
+# artwork = "auto"
+
+# Tint the interface with a color taken from the playing track's cover art
+# (true/false). primary_color still applies when a track has no usable art.
+# artwork_accent = true
+
+# Fade audio briefly in and out on pause and resume (true/false).
+# fade_on_pause = true
+
+# Turn off interface animations: the progress glide, the playing indicator,
+# and color transitions (true/false).
+# reduce_motion = false
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10
@@ -130,6 +146,10 @@ const (
 	defaultNotifyOnTrackChange        = false
 	defaultMediaControls              = true
 	defaultQueueFollowNowPlaying      = true
+	defaultArtwork                    = ArtworkAuto
+	defaultArtworkAccent              = true
+	defaultFadeOnPause                = true
+	defaultReduceMotion               = false
 
 	defaultMixRediscoverMinPlays    = 10
 	defaultMixRediscoverAgeDays     = 90
@@ -174,6 +194,17 @@ type rawMixesConfig struct {
 	SufficientHistoryCount *int     `toml:"sufficient_history_count"`
 }
 
+// Artwork display modes accepted by the artwork setting.
+const (
+	ArtworkAuto   = "auto"
+	ArtworkKitty  = "kitty"
+	ArtworkBlocks = "blocks"
+	ArtworkOff    = "off"
+)
+
+// ArtworkModes lists the accepted artwork values in the order Settings cycles them.
+var ArtworkModes = []string{ArtworkAuto, ArtworkKitty, ArtworkBlocks, ArtworkOff}
+
 // Config holds all application configuration values.
 type Config struct {
 	Theme                      string           `toml:"theme"`
@@ -202,6 +233,10 @@ type Config struct {
 	NotifyOnTrackChange        bool             `toml:"notify_on_track_change"`
 	MediaControls              bool             `toml:"media_controls"`
 	QueueFollowNowPlaying      bool             `toml:"queue_follow_now_playing"`
+	Artwork                    string           `toml:"artwork"`
+	ArtworkAccent              bool             `toml:"artwork_accent"`
+	FadeOnPause                bool             `toml:"fade_on_pause"`
+	ReduceMotion               bool             `toml:"reduce_motion"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
@@ -241,6 +276,10 @@ type rawConfig struct {
 	NotifyOnTrackChange        *bool               `toml:"notify_on_track_change"`
 	MediaControls              *bool               `toml:"media_controls"`
 	QueueFollowNowPlaying      *bool               `toml:"queue_follow_now_playing"`
+	Artwork                    string              `toml:"artwork"`
+	ArtworkAccent              *bool               `toml:"artwork_accent"`
+	FadeOnPause                *bool               `toml:"fade_on_pause"`
+	ReduceMotion               *bool               `toml:"reduce_motion"`
 	Mixes                      rawMixesConfig      `toml:"mixes"`
 }
 

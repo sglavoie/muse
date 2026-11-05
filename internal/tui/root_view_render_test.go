@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
@@ -35,7 +36,7 @@ func TestTitleBarTagsBadge(t *testing.T) {
 	m.styles = &s
 	m.termWidth = 200
 	m.ActiveView = viewTags
-	if out := m.renderTitleBar(); !strings.Contains(out, "[6 Tags]") {
+	if out := ansi.Strip(m.renderTitleBar()); !strings.Contains(out, " 6 Tags ") {
 		t.Fatalf("incorrect Tags shortcut: %s", out)
 	}
 }

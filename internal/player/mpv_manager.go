@@ -117,6 +117,10 @@ type Manager struct {
 	lastVolume  float64
 	volumeKnown bool
 
+	// pauseFade fades the volume briefly around pause and resume; see
+	// SetPauseFade.
+	pauseFade bool
+
 	// repeatMode is the last repeat mode ("none"/"all"/"one") applied through
 	// SetRepeat. Empty means SetRepeat has never been called, so the restart
 	// supervisor leaves mpv's default in place. Guarded by mu.

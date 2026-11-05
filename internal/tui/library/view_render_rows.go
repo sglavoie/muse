@@ -164,9 +164,9 @@ func (v Panel) cellBaseStyles(st rowState) (artist, title, album []lipgloss.Styl
 			accentStyleFor(st.isTrackFav, v.Styles.FavoriteAccent, v.Styles.Accent),
 			accentStyleFor(st.isAlbumFav, v.Styles.FavAlbumAccent, v.Styles.Accent)
 	case st.isNowPlaying:
-		return nowPlayingStyleFor(st.isArtistFav, v.Styles.NowPlayingRowFavArtist, v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg)),
+		return nowPlayingStyleFor(st.isArtistFav, v.Styles.NowPlayingRowFavArtist, v.Styles.ArtistText.Background(v.Styles.NowPlayingBg)),
 			nowPlayingStyleFor(st.isTrackFav, v.Styles.NowPlayingRowFavorite, v.Styles.NowPlayingTitle),
-			nowPlayingStyleFor(st.isAlbumFav, v.Styles.NowPlayingRowFavAlbum, v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg))
+			nowPlayingStyleFor(st.isAlbumFav, v.Styles.NowPlayingRowFavAlbum, v.Styles.AlbumText.Background(v.Styles.NowPlayingBg))
 	default:
 		return favStyleFor(st.isArtistFav, v.Styles.FavArtist),
 			favStyleFor(st.isTrackFav, v.Styles.Favorite),
@@ -191,12 +191,12 @@ func (v Panel) renderUnhighlightedCells(t musiclib.Track, cols Columns, st rowSt
 		if st.isArtistFav {
 			artist = v.Styles.NowPlayingRowFavArtist.Render(artist)
 		} else {
-			artist = v.Styles.TextPrimary.Background(v.Styles.NowPlayingBg).Render(artist)
+			artist = v.Styles.ArtistText.Background(v.Styles.NowPlayingBg).Render(artist)
 		}
 		if st.isAlbumFav {
 			album = v.Styles.NowPlayingRowFavAlbum.Render(album)
 		} else {
-			album = v.Styles.TextSecondary.Background(v.Styles.NowPlayingBg).Render(album)
+			album = v.Styles.AlbumText.Background(v.Styles.NowPlayingBg).Render(album)
 		}
 		return artist, title, album
 	}
@@ -263,10 +263,10 @@ func (v Panel) assembleZebraRow(c rowCells, cols Columns, st rowState) string {
 		c.title = styles.WithZebraBg(v.Styles.TextPrimary, st.rowBg, true).Render(c.title)
 	}
 	if !st.isArtistFav && !st.sameArtist {
-		c.artist = styles.WithZebraBg(v.Styles.TextPrimary, st.rowBg, true).Render(c.artist)
+		c.artist = styles.WithZebraBg(v.Styles.ArtistText, st.rowBg, true).Render(c.artist)
 	}
 	if !st.isAlbumFav && !st.sameAlbum {
-		c.album = styles.WithZebraBg(v.Styles.TextSecondary, st.rowBg, true).Render(c.album)
+		c.album = styles.WithZebraBg(v.Styles.AlbumText, st.rowBg, true).Render(c.album)
 	}
 	markerPart := rb.Render(c.marker)
 	if st.isSelected {
@@ -286,10 +286,10 @@ func (v Panel) assemblePlainRow(c rowCells, cols Columns, st rowState) string {
 		c.title = v.Styles.TextPrimary.Render(c.title)
 	}
 	if !st.isArtistFav && !st.sameArtist {
-		c.artist = v.Styles.TextPrimary.Render(c.artist)
+		c.artist = v.Styles.ArtistText.Render(c.artist)
 	}
 	if !st.isAlbumFav && !st.sameAlbum {
-		c.album = v.Styles.TextSecondary.Render(c.album)
+		c.album = v.Styles.AlbumText.Render(c.album)
 	}
 	row := joinTrackCells(cols, cols.separator(), c.marker+v.Styles.TextTertiary.Render(text.Pad(c.num, cols.TrackNum)),
 		c.artist, c.title, c.album, v.Styles.TextTertiary.Render(text.PadLeft(c.dur, cols.Duration)), text.Pad(c.dateAdded, cols.DateAdded))

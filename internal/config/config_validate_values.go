@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -224,6 +225,17 @@ func validate(raw rawConfig) (Config, []string) {
 		cfg.QueueFollowNowPlaying = *raw.QueueFollowNowPlaying
 	}
 
+	if raw.ArtworkAccent != nil {
+		cfg.ArtworkAccent = *raw.ArtworkAccent
+	}
+	if raw.FadeOnPause != nil {
+		cfg.FadeOnPause = *raw.FadeOnPause
+	}
+	if raw.ReduceMotion != nil {
+		cfg.ReduceMotion = *raw.ReduceMotion
+	}
+	validateArtwork(raw.Artwork, &cfg, &warnings)
+
 	validateTheme(raw, &cfg, &warnings)
 
 	rm := raw.Mixes
@@ -328,4 +340,19 @@ func validateFloatRange(ptr *float64, lo, hi float64, field string, dflt float64
 	}
 	slog.Warn("invalid config value, using default", "field", field, "value", v, "default", dflt)
 	*warnings = append(*warnings, fmt.Sprintf("%s %g is out of range (%g-%g), using %g", field, v, lo, hi, dflt))
+}
+
+// validateArtwork accepts a known artwork mode, case-insensitively, and keeps
+// the default for anything else.
+func validateArtwork(value string, cfg *Config, warnings *[]string) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return
+	}
+	if slices.Contains(ArtworkModes, value) {
+		cfg.Artwork = value
+		return
+	}
+	slog.Warn("invalid config value, using default", "field", "artwork", "value", value, "default", defaultArtwork)
+	*warnings = append(*warnings, fmt.Sprintf("artwork %q is not one of auto, kitty, blocks, off; using %q", value, defaultArtwork))
 }

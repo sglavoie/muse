@@ -140,3 +140,9 @@ func yankLabelFormat(abbreviated, isCut bool) string {
 	}
 	return pickLabel(abbreviated, "Y:%d", "Yank: %d")
 }
+
+// ProgressBar renders a width-cell progress bar for elapsed of total, with
+// eighth-cell precision, in the theme's progress colors.
+func ProgressBar(elapsed, total float64, width int, st styles.Styles) string {
+	return renderProgressBar(elapsed, total, width, st)
+}
