@@ -36,6 +36,9 @@ type NowPlayingOverlay struct {
 	// bar's width; nil omits it. It is the first thing to go when the screen
 	// is short.
 	Loudness func(width int) string
+	// SeekPreview, when set, is the direction arrow of a seek still being
+	// dialed in; Elapsed then holds its target, drawn highlighted.
+	SeekPreview string
 	// UpNext lists the next few songs.
 	UpNext []UpNextSong
 	// Reason explains why Auto-DJ picked the song; empty for manual picks.
@@ -356,19 +359,33 @@ func (n NowPlayingOverlay) aboutSection(width int, s styles.Styles) []string {
 // progressBarSpan is where the progress bar sits in the progress line: the
 // cells before it (the elapsed time and a space) and its width.
 func (n NowPlayingOverlay) progressBarSpan(width int) (lead, barWidth int) {
-	elapsed := ansi.StringWidth(text.FormatPositionSecs(n.Elapsed))
+	elapsed := ansi.StringWidth(n.elapsedLabel())
 	total := ansi.StringWidth(text.FormatPositionSecs(n.Total))
 	return elapsed + 1, width - elapsed - total - 2
 }
 
-func (n NowPlayingOverlay) progressLine(width int, s styles.Styles) string {
+// elapsedLabel is the elapsed time, led by the direction arrow while a seek
+// is still being dialed in.
+func (n NowPlayingOverlay) elapsedLabel() string {
 	elapsed := text.FormatPositionSecs(n.Elapsed)
+	if n.SeekPreview != "" {
+		return n.SeekPreview + " " + elapsed
+	}
+	return elapsed
+}
+
+func (n NowPlayingOverlay) progressLine(width int, s styles.Styles) string {
+	elapsed := n.elapsedLabel()
 	total := text.FormatPositionSecs(n.Total)
+	elapsedStyle := s.TextPrimary
+	if n.SeekPreview != "" {
+		elapsedStyle = s.AccentMark.Bold(true)
+	}
 	_, barWidth := n.progressBarSpan(width)
 	if n.Progress == nil || barWidth < 4 {
-		return s.TextPrimary.Render(elapsed + " / " + total)
+		return elapsedStyle.Render(elapsed) + s.TextPrimary.Render(" / "+total)
 	}
-	return s.TextPrimary.Render(elapsed) + " " + n.Progress(barWidth) + " " + s.TextTertiary.Render(total)
+	return elapsedStyle.Render(elapsed) + " " + n.Progress(barWidth) + " " + s.TextTertiary.Render(total)
 }
 
 func (n NowPlayingOverlay) stateLine(width int, s styles.Styles) string {

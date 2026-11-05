@@ -33,7 +33,7 @@ func (s StatusBar) renderPlaybackLine(ctx statusBarRenderContext, targetWidth in
 	const line2Pad = 1
 	if targetWidth > 0 {
 		// Reserve the clock and a small progress bar before fitting the album.
-		timeWidth := len(s.Elapsed) + 3 + len(s.Total)
+		timeWidth := s.timeWidth()
 		s.Album = text.Truncate(s.Album, max(0, targetWidth-timeWidth-14))
 	}
 	albumPart := ""
@@ -46,7 +46,10 @@ func (s StatusBar) renderPlaybackLine(ctx statusBarRenderContext, targetWidth in
 	timeWidth := 0
 	if s.Elapsed != "" && s.Total != "" {
 		timePart = ctx.r(s.Elapsed + " / " + s.Total)
-		timeWidth = len(s.Elapsed) + 3 + len(s.Total)
+		if s.SeekPreview != "" {
+			timePart = ctx.barBold.Render(s.SeekPreview+" "+s.Elapsed) + ctx.r(" / "+s.Total)
+		}
+		timeWidth = s.timeWidth()
 	}
 	dotPart := ""
 	dotWidth := 0
@@ -117,4 +120,14 @@ func (s StatusBar) renderLongOpLine(ctx statusBarRenderContext, targetWidth int)
 	}
 	bar := renderProgressBar(float64(done), float64(max(total, 1)), progressWidth, ctx.styles)
 	return prefix + bar + trailing + ctx.r(strings.Repeat(" ", line2Pad))
+}
+
+// timeWidth is the width of the "elapsed / total" clock, including a seek
+// preview's arrow.
+func (s StatusBar) timeWidth() int {
+	w := ansi.StringWidth(s.Elapsed) + 3 + ansi.StringWidth(s.Total)
+	if s.SeekPreview != "" {
+		w += ansi.StringWidth(s.SeekPreview) + 1
+	}
+	return w
 }

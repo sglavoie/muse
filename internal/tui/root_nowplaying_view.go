@@ -77,6 +77,7 @@ func (m Model) decorateNowPlaying(now overlay.NowPlayingOverlay, st styles.Style
 func (m Model) decorateNowPlayingText(now overlay.NowPlayingOverlay, st styles.Styles, clock time.Time) overlay.NowPlayingOverlay {
 	now.State, now.Elapsed, now.Total = m.playback.state, m.displayElapsed(clock), m.playback.totalSecs
 	elapsed, total := now.Elapsed, now.Total
+	now.SeekPreview = m.seekPreviewArrow()
 	now.Progress = func(width int) string { return statusbar.ProgressBar(elapsed, total, width, st) }
 	if t, ok := m.playingTrack(); ok {
 		now.Details = trackDetailsLine(t, clock)

@@ -269,6 +269,9 @@ type Model struct {
 	// levels is the level meter fed by the player's audio analysis; see
 	// root_levels.go.
 	levels levelState
+	// seek is the seek target the seek keys are still moving, previewed on
+	// the progress bar before mpv seeks; see root_seek_preview.go.
+	seek seekPreviewState
 
 	// accentOverride, when set, replaces the configured primary color: it is
 	// the playing cover's accent, or a step of the transition toward it.

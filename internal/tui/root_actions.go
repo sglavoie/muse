@@ -249,6 +249,9 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	if model, cmd, ok := m.handleMetadataKeyAction(action); ok {
 		return model, cmd
 	}
+	if model, cmd, ok := m.handleSeekKey(action); ok {
+		return model, cmd
+	}
 	if model, cmd, ok := m.handlePlaybackKeyAction(action); ok {
 		return model, cmd
 	}

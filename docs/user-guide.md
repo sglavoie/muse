@@ -213,6 +213,12 @@ Help accept the usual playback keys: `Space`, `n`/`p`, seek arrows, and `=`/`-`
 for volume. The overlay stays open. Text entry, including Help search, continues
 to receive those characters normally.
 
+The seek arrows preview where they land: the time and progress bar (in the
+status bar and Now Playing) jump to the target at once, marked `→` or `←`, and
+muse seeks a moment after the last press, or straight away when you press
+another key. Holding `←`/`→` speeds up, from `seek_offset_short` (5 seconds)
+a step to twice that after a second and six times after two and a half.
+
 The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 **Stop after track**, and **Auto-DJ**. When none is enabled it says
 **Sequential**. Compact combinations use `Rpt:all/one`, `Shuf`, `Stop`, and
@@ -580,7 +586,7 @@ just enough to get moving.
 | `ctrl+c` | Quit |
 | `space` | Play / pause |
 | `s` / `n` / `p` | Stop / next track / previous track |
-| `left` / `right` | Seek ±5s (`shift` for ±30s) |
+| `left` / `right` | Seek ±5s (`shift` for ±30s); hold to speed up |
 | `=` / `-` | Volume up / down |
 | `1`–`8` | Switch to Library / Playlists / Queue / Browse / Favorites / Tags / Mixes / Insights |
 | `tab` / `shift+tab` | Next / previous view |

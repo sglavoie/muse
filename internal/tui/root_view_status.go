@@ -45,6 +45,7 @@ func (m Model) RenderStatusBar() string {
 	}
 	sb.LevelMeter = m.statusLevelMeter()
 	sb.ElapsedSecs = elapsed
+	sb.SeekPreview = m.seekPreviewArrow()
 	sb.TotalSecs = m.playback.totalSecs
 	sb.YankCount = len(m.yankBuffer)
 	sb.YankIsCut = m.yankIsCut

@@ -46,6 +46,11 @@ type StatusBar struct {
 	ElapsedSecs float64
 	TotalSecs   float64
 
+	// SeekPreview, when set, is the direction arrow ("→" or "←") of a seek
+	// still being dialed in: Elapsed and ElapsedSecs then hold its target,
+	// drawn in bold behind the arrow.
+	SeekPreview string
+
 	// LevelMeter, when set, replaces the playing icon with an animated level
 	// meter (one frame of it). Empty keeps the static ▶.
 	LevelMeter string

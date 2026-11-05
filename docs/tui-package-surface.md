@@ -133,8 +133,8 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 162 | 43 | 118 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 62 | 41 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 149 | 38 | 110 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 68 | 1 | 64 | 3 | `tui`, `queue`, `uitest` |
+| `tui/overlay` | 150 | 38 | 111 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/statusbar` | 69 | 1 | 65 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1106 exported identifiers across 15 packages**: 169 reached from two or more packages, 879 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1108 exported identifiers across 15 packages**: 169 reached from two or more packages, 881 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -629,6 +629,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay.Progress` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Reason` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Render` | method | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.SeekPreview` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.ShowsLoudness` | method | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.State` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.TagsLine` | field | `internal/tui` | root |
@@ -742,6 +743,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.RecentMessages` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Render` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.RepeatMode` | field | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.SeekPreview` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.SelectionCount` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Shuffle` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.SleepTimer` | field | `internal/tui` | root |

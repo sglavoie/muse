@@ -78,6 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as text that `j`/`k` scroll. `L` in Now Playing shows or hides them and
   remembers the choice (`lyrics = false`, or **Lyrics** in Settings →
   Display); songs without lyrics show no trace of them.
+- Seeking with the arrow keys previews the target: the progress bar and the
+  time in the status bar and Now Playing jump to it at once, marked with an
+  arrow (`→ 2:41`), and muse seeks once the keys go quiet for a moment or
+  another key is pressed. Holding `←`/`→` speeds up from 5 seconds a
+  step to 10 after a second and 30 after two and a half, and the bar no
+  longer jumps back while mpv finishes a seek.
 
 ### Changed
 

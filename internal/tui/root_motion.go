@@ -219,6 +219,9 @@ func (m Model) noteMotionChanges(prev Model) Model {
 // forward by wall-clock time while playing so the progress bar glides between
 // the once-a-second position reads.
 func (m Model) displayElapsed(now time.Time) float64 {
+	if m.seekPreviewLive() {
+		return m.seek.target
+	}
 	elapsed := m.playback.elapsedSecs
 	if !m.motion.enabled || m.playback.state != playback.StatePlaying || m.motion.sampledAt.IsZero() || elapsed <= 0 {
 		return elapsed

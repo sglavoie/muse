@@ -43,7 +43,12 @@ func (m Model) handleTickMsg() (Model, tea.Cmd) {
 	var mainDurationCmd tea.Cmd
 	if m.playback.state == playback.StatePlaying || m.playback.state == playback.StatePaused {
 		if er, ok := m.player.(elapsedReader); ok {
-			if elapsed, total, err := er.ElapsedPosition(); err == nil && finitePositive(elapsed) && finitePositive(total) {
+			elapsed, total, err := er.ElapsedPosition()
+			stale := false
+			if err == nil {
+				m, stale = m.staleSeekReading(elapsed)
+			}
+			if err == nil && !stale && finitePositive(elapsed) && finitePositive(total) {
 				m.playback.elapsedSecs = elapsed
 				m.playback.totalSecs = total
 				// A seek in either direction only resyncs the baseline: skipped

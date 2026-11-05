@@ -149,9 +149,7 @@ func (m Model) handleControlSeek(msg controlRequestMsg) (tea.Model, tea.Cmd) {
 		msg.reply <- control.Reply{OK: false, Message: "seek failed: " + err.Error()}
 		return m, nil
 	}
-	m.playback.elapsedSecs = target
-	m.playback.lastSampleSecs = target
-	m.control.seeks++
+	m = m.cancelSeekPreview().noteSeekLanded(target)
 	msg.reply <- control.Reply{OK: true, Message: msg.req.Op}
 	return m, m.sessionPositionCmd()
 }

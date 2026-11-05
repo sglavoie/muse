@@ -84,6 +84,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case sleepTimerMsg:
 		return m.handleSleepTimerMsg(msg)
 
+	case seekCommitMsg:
+		return m.handleSeekCommit(msg)
+
 	case artLoadedMsg:
 		return m.handleArtLoaded(msg)
 

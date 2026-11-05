@@ -19,6 +19,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.updateInner(msg)
 	// Every branch of updateInner returns this Model.
 	updated := next.(Model)
+	var seekCmd tea.Cmd
+	if _, key := msg.(tea.KeyPressMsg); key {
+		updated, seekCmd = updated.commitSeekOnOtherKey(m)
+	}
 	if m.sortPreferenceKey() != updated.sortPreferenceKey() {
 		updated = updated.restoreSortPreference()
 	}
@@ -26,7 +30,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	updated, flushCmd := updated.drainListenFlushes()
 	updated = updated.publishControlState()
 	updated, polishCmd := updated.syncPolish(m)
-	return updated, batchNonNil(cmd, flushCmd, polishCmd)
+	return updated, batchNonNil(cmd, seekCmd, flushCmd, polishCmd)
 }
 
 // syncPolish keeps cover art and animations in step with what an update
