@@ -286,7 +286,15 @@ func (m Model) handleSettingsSave() (Model, tea.Cmd) {
 	m.overlay.settings = nil
 	m = m.applyPolishSettings(oldCfg)
 	m = m.applyTheme()
+	return m.saveConfigAndRescan(oldRoots, oldExcluded)
+}
 
+// saveConfigAndRescan writes m.cfg to the config file and, when the music
+// folders or exclusions differ from oldRoots and oldExcluded, points the
+// library at the new folders and rescans. Without a config path (fixtures)
+// the save reports success without writing anything.
+func (m Model) saveConfigAndRescan(oldRoots, oldExcluded []string) (Model, tea.Cmd) {
+	cfg := m.cfg
 	var saveCmd tea.Cmd
 	if m.configPath == "" {
 		saveCmd = func() tea.Msg { return settingsSavedMsg{} }

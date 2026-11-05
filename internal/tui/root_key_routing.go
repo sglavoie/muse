@@ -34,6 +34,7 @@ var orderedKeyPressHandlers = []keyPressHandler{
 	Model.handleTagCreateInputKeyPress,
 	Model.handleTagRenameInputKeyPress,
 	Model.handleScanCancelKeyPress,
+	Model.handleFirstRunKeyPress,
 	Model.handleInsightsMergeKeyPress,
 	// Every overlay above owns y for its own confirmation, and this hint
 	// must never take the key away from one of them.

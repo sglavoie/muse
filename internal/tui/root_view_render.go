@@ -232,6 +232,9 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 	}
 	switch m.ActiveView {
 	case viewLibrary:
+		if body, ok := m.renderFirstRun(display); ok {
+			return body
+		}
 		if m.showsEmptyLibrary() {
 			title, action := m.emptyLibraryGuidance()
 			return display.RenderEmptyCard(m.library.Width, m.library.Height, title, []styles.EmptyAction{action})
@@ -265,6 +268,9 @@ func (m Model) renderFooterHint() string {
 	}
 	if m.inlineNameEditing() {
 		return m.styles.Dim.Render(text.CompactHints("enter save · esc cancel", m.termWidth, "enter", "esc"))
+	}
+	if hint, ok := m.firstRunFooter(); ok {
+		return hint
 	}
 	if m.showsEmptyLibrary() {
 		_, action := m.emptyLibraryGuidance()

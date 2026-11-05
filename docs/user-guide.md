@@ -471,6 +471,22 @@ Linux, `playerctl --player=muse play-pause` (and `next`, `previous`,
 Global flags: `muse --version`, `muse --help`, and `muse --control PATH` (see
 [Hosting muse](architecture.md#hosting-muse)).
 
+### First run
+
+Until muse has a music folder, the Library shows a welcome screen with the
+muse name, a line about what it does, and how to begin. When your system's
+music folder exists (`~/Music` on macOS; `$XDG_MUSIC_DIR`, or else `~/Music`,
+on Linux) and is not configured yet, Enter adds it to `music_directories`,
+saves the config and starts scanning. `ctrl+,` opens Settings to choose other
+folders and `?` shows every key. If folders are configured but contain no
+music, the Library keeps its guidance to check folders and exclusions.
+
+While the first scan fills an empty library, the Library shows how many tracks
+have been found, the folder being read, and covers of the latest albums as
+they turn up. `esc` cancels the scan and Enter shows the tracks found so far.
+When the scan finishes, the Library lists your music and the status bar says
+how many tracks and albums were found.
+
 ### Core keybindings
 
 Help search matches section headings as well as shortcuts and descriptions; matching
@@ -560,7 +576,7 @@ metadata errors. At narrow widths the focused finding's action stays in the
 footer.
 
 Empty Library screens use the same recovery action in the card, footer, and
-status bar: add a folder when unconfigured, check folders and exclusions when
+status bar: add a folder when unconfigured (see [First run](#first-run)), check folders and exclusions when
 no music was found, or check folders after a scan error. During a scan, progress
 and the cancel action remain visible even with an empty queue.
 

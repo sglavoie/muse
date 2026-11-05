@@ -8,7 +8,7 @@
     },
     {
       "assert": {
-        "contains": "ctrl+, check folders and exclusions"
+        "contains": "enter use ~/Music"
       }
     },
     {

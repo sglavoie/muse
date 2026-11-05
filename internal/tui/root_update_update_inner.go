@@ -47,7 +47,8 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.handleScanTotalMsg(msg)
 
 	case library.ScanBatchMsg:
-		return m.handleScanBatchMsg(msg)
+		next, cmd := m.handleScanBatchMsg(msg)
+		return next.noteFirstScanBatch(msg.Tracks, cmd)
 
 	case watchBatchMsg:
 		return m.handleWatchBatchMsg(msg)

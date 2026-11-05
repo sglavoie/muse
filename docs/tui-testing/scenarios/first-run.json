@@ -1,0 +1,24 @@
+{
+  "name": "first-run",
+  "fixture": "empty",
+  "size": "60x15",
+  "actions": [
+    {"assert": {"contains": "┌┬┐ ┬ ┬ ┌─┐ ┌─┐"}, "label": "wordmark"},
+    {"assert": {"contains": "A terminal player for the music in your own folders."}},
+    {"assert": {"contains": "Add a music folder to get started"}},
+    {"assert": {"contains": "enter   use ~/Music"}},
+    {"assert": {"contains": "ctrl+,  choose folders"}},
+    {"assert": {"not_contains": "Welcome to Muse"}, "label": "no-welcome-overlay"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "80x24"},
+    {"assert": {"contains": "enter use ~/Music · ctrl+, choose folders · ? help"}, "label": "footer"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "120x36"},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "enter"},
+    {"assert": {"contains": "Settings saved"}, "label": "folder-adopted"},
+    {"assert": {"contains": "ctrl+, check folders and exclusions"}, "label": "configured-but-empty"},
+    {"assert": {"not_contains": "use ~/Music"}},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

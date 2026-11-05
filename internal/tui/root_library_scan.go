@@ -148,6 +148,7 @@ func (m Model) handleScanDoneMsg() (Model, tea.Cmd) {
 		result.summary = m.scanCompletionSummary()
 	}
 	m.scanning = false
+	m.firstRun = m.firstRun.finish()
 	m.scanCh = nil
 	m.scanOutcome = nil
 	m.scanWriteOutcome = nil

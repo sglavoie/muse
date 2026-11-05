@@ -44,7 +44,7 @@ func BuildFixture(name string) (Model, error) {
 	var m Model
 	switch name {
 	case FixtureEmpty:
-		m = New(context.Background(), baseFixtureOptions()...)
+		m = newEmptyFixture()
 	case FixtureRich:
 		m = newRichFixture()
 	case FixtureNarrow:
@@ -92,6 +92,23 @@ func baseFixtureOptions() []Option {
 		// visible in the plain screen as cells of art.
 		WithArtwork(artwork.SyntheticLoader{}, config.ArtworkBlocks),
 	}
+}
+
+// fixtureMusicDir is the made-up music folder the empty fixture offers on its
+// first-run screen. Nothing ever reads it: fixtures have no extractor, so
+// adopting it rescans nothing, and no config path, so saving writes nothing.
+var fixtureMusicDir = config.MusicDirSuggestion{Path: "/Users/listener/Music", Label: "~/Music"}
+
+// newEmptyFixture builds a first launch: no music folders configured and a
+// fake platform music folder offered in place of probing the real disk.
+func newEmptyFixture() Model {
+	cfg := config.Defaults()
+	cfg.MusicDirectories = nil
+	cfg.MusicDirectory = ""
+	return New(context.Background(), append(baseFixtureOptions(),
+		WithConfig(cfg),
+		WithMusicDirSuggestion(fixtureMusicDir),
+	)...)
 }
 
 // newRichFixture builds a Model populated across every primary view: a small

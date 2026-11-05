@@ -54,6 +54,10 @@ func (m Model) handleLibraryStateAction(action keys.Action) (tea.Model, tea.Cmd,
 			}
 
 			tracks := m.library.Index.Tracks()
+			if len(tracks) == 0 {
+				// Filling an empty library: show the first-scan progress.
+				m.firstRun = m.firstRun.begin()
+			}
 			snap := make(map[string]rescanEntry, len(tracks))
 			prior := make(map[string]string, len(tracks))
 			for _, t := range tracks {

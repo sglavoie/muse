@@ -38,6 +38,9 @@ func (m Model) handleScanFinishedMsg(msg scanFinishedMsg) Model {
 // Only full rescans have a before/after snapshot. Compare hashes so moving a
 // file preserves its identity; an in-place replacement counts as a new track.
 func (m Model) scanCompletionSummary() string {
+	if m.firstRun.scanning {
+		return m.firstScanSummary()
+	}
 	summary := fmt.Sprintf("Scan complete — %s %s", text.FormatCount(m.scanned), text.Pluralize(m.scanned, "track", "tracks"))
 	if m.rescanSnapshot == nil {
 		return summary

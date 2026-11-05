@@ -39,7 +39,7 @@ scenario cannot accidentally trigger a real side effect.
 
 | Fixture    | Purpose |
 | ---------- | ------- |
-| `empty`    | A model with no library/queue/playlist data — bare layout. |
+| `empty`    | A first launch: no music folders, no library/queue/playlist data, and a made-up `~/Music` offered on the first-run screen (no disk is probed; Enter only updates the in-memory config). |
 | `rich`     | Deterministic data across every primary view: library, queue, playlists, favorites, tags, and recommendation (Mixes) data. The default. |
 | `narrow`   | Long titles, artist/album/path names, and wide Unicode (CJK, diacritics, emoji) to stress truncation and width arithmetic. |
 | `playback` | An active playback session: current track, queue, repeat/shuffle/volume/status metadata. |
@@ -244,6 +244,7 @@ Each observation is normalized JSON:
 | `overlays.json` | `rich` | Help, queue-summary, debug, and favorite-target overlays fit at 100×30, and `L` navigates to Insights rather than opening an overlay. |
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
 | `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
+| `first-run.json` | `empty` | First-run screen fits from 60×15 up, offers the suggested folder, and falls back to the configured-but-empty guidance after Enter. |
 | `layout-regressions-empty.json` | `empty` | Guards minimum-size empty-state and idle status-bar layout. |
 | `metadata-editor-context.json` | `rich` | Original filename, Album Artist navigation, seconds-based duration edits, undo, and resizing. |
 | `metadata-editor-narrow.json` | `narrow` | Guards metadata-editor height with long values at the minimum supported size. |

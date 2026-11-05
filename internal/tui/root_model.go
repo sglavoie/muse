@@ -360,6 +360,8 @@ type Model struct {
 	// cfg.NotifyOnTrackChange; flipped via the "Toggle track notifications"
 	// palette command or the Display settings tab.
 	notifyOnTrackChange bool
+
+	firstRun firstRunState
 }
 
 // New creates a root Model. All dependencies are injected via functional
@@ -407,6 +409,7 @@ func New(ctx context.Context, opts ...Option) Model {
 	}
 	// Derive scanning state from scanCh after options are applied.
 	m.scanning = m.scanCh != nil
+	m = m.initFirstRun()
 	// Pre-load the set of favorited track hashes for row highlighting.
 	m.favoriteHashes = loadFavoriteSet(m.favoriteReader, "track")
 	m.favoriteArtists = loadFavoriteSet(m.favoriteReader, "artist")

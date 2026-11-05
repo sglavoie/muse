@@ -11,7 +11,10 @@ func (m *Model) emptyLibraryGuidance() (string, styles.EmptyAction) {
 	switch {
 	case m.scanning:
 		return "Scanning music folders…", styles.EmptyAction{Key: "esc", Label: "cancel scan"}
-	case len(m.cfg.MusicDirectories) == 0 && len(m.libraryRoots) == 0:
+	case m.musicFoldersUnconfigured():
+		if s, ok := m.offeredMusicDir(); ok {
+			return "Add a music folder to get started", styles.EmptyAction{Key: "enter", Label: "use " + s.Label}
+		}
 		return "Add a music folder to get started", styles.EmptyAction{Key: "ctrl+,", Label: "add music folders"}
 	case m.scanFailed || m.musicDirHint != "":
 		return "Music folders need attention", styles.EmptyAction{Key: "ctrl+,", Label: "check music folders"}

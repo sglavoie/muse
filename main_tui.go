@@ -432,6 +432,7 @@ func buildModel(
 		tui.WithConfigPath(configPath, cfgResult.Created),
 		tui.WithConfigWarnings(cfgResult.Warnings),
 		tui.WithMusicDirHint(musicDirHint, musicDirsPartial),
+		tui.WithMusicDirSuggestion(suggestMusicDir()),
 		tui.WithScanChannel(libResult.TuiScanCh),
 		tui.WithScanErrChannel(libResult.TuiScanErrCh),
 		tui.WithWatchChannel(libResult.TuiWatchCh),
@@ -484,6 +485,13 @@ func buildModel(
 	}
 	opts = append(opts, controlModelOptions(ctrlServer)...)
 	return tui.New(ctx, append(opts, mediaModelOptions(media)...)...)
+}
+
+// suggestMusicDir looks for the platform music folder once at startup, so
+// the first-run screen can offer it without probing the disk while drawing.
+func suggestMusicDir() config.MusicDirSuggestion {
+	s, _ := config.DetectMusicDirectory(config.OSMusicDirEnv())
+	return s
 }
 
 // desktopNotifier adapts internal/notify to the TUI's trackNotifier port. It

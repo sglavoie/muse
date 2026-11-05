@@ -106,7 +106,11 @@ func TestScanCompletionNotification(t *testing.T) {
 		{1234, "Scan complete — 1,234 tracks"},
 	} {
 		t.Run(tc.want, func(t *testing.T) {
-			m := New(context.Background(), WithScanChannel(make(chan library.Track)))
+			// A library that already holds a track: a scan into an empty one
+			// is the first scan, whose notice TestFirstScanEndsWithFoundNotice
+			// covers.
+			m := New(context.Background(), WithScanChannel(make(chan library.Track)),
+				WithLibraryTracks([]library.Track{{Hash: "known", Path: "/music/known.flac"}}))
 			m.scanned = tc.count
 			m.statusBar.NotifyInfo("Volume: 50%")
 			m.statusBar.HandleScanProgress(library.ScanProgressMsg{Scanned: tc.count})

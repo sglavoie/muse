@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the command palette) to switch back to the list; muse remembers the choice.
   Covers load as they come into view, and small or short windows, or
   `artwork = "off"`, keep the list.
+- A first-run screen greets you before muse has any music: the muse name,
+  what it is, and how to begin. When your system's music folder exists and is
+  not configured, Enter adds it, saves the config and starts scanning;
+  `ctrl+,` chooses other folders.
+- The first scan into an empty library shows its progress in the Library:
+  tracks found so far, the folder being read, and covers of the newest albums
+  as they turn up. It ends on your Library with "Found N tracks across M
+  albums".
 
 ### Changed
 
