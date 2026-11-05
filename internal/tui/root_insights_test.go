@@ -88,7 +88,10 @@ func TestInsightsWindowSince(t *testing.T) {
 }
 
 func TestInsightsShiftPanelWraps(t *testing.T) {
-	v := instui.View{Panel: instui.PanelDataHealth, Cursor: 4, ScrollOffset: 2}
+	// A window with plays offers every panel; a silent one folds the listening
+	// panels away (see the insights package's silent-window tests).
+	played := insights.Snapshot{TotalPlays: 1}
+	v := instui.View{Panel: instui.PanelDataHealth, Cursor: 4, ScrollOffset: 2, Snap: played}
 
 	forward := v.ShiftPanel(1)
 	if forward.Panel != instui.PanelCoverage {
@@ -98,7 +101,7 @@ func TestInsightsShiftPanelWraps(t *testing.T) {
 		t.Errorf("panel change should reset cursor/scroll, got %d/%d", forward.Cursor, forward.ScrollOffset)
 	}
 
-	if back := (instui.View{Panel: instui.PanelCoverage}).ShiftPanel(-1); back.Panel != instui.PanelDataHealth {
+	if back := (instui.View{Panel: instui.PanelCoverage, Snap: played}).ShiftPanel(-1); back.Panel != instui.PanelDataHealth {
 		t.Errorf("back from first panel: want panelDataHealth, got %v", back.Panel)
 	}
 }

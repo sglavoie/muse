@@ -207,7 +207,9 @@ func TestInsightsFitHeaderDropsWholeBlocks(t *testing.T) {
 }
 
 func TestInsightsHeaderBudgetLeavesRoomForBody(t *testing.T) {
-	tall := View{width: 100, Height: 30}
+	// A window with plays: a silent one swaps the listening panels' lines for
+	// its note, which TestSilentWindowHeaderBudget covers.
+	tall := View{width: 100, Height: 30, Snap: insightsdata.Snapshot{TotalPlays: 1}}
 	if got := tall.headerBudget(); got != 30-1-len(insightsPanelSpecs)-insightsMinBodyRows {
 		t.Errorf("tall budget: got %d", got)
 	}

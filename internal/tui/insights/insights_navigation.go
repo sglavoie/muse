@@ -12,15 +12,17 @@ import (
 // ShiftPanel moves the active panel by delta, wrapping, and resets the row
 // cursor since the new panel has a different row set.
 func (v View) ShiftPanel(delta int) View {
-	n := len(insightsPanelSpecs)
+	// A silent window offers only the panels with something to show.
+	panels := v.visiblePanels()
+	n := len(panels)
 	idx := 0
-	for i, spec := range insightsPanelSpecs {
+	for i, spec := range panels {
 		if spec.id == v.Panel {
 			idx = i
 			break
 		}
 	}
-	v.Panel = insightsPanelSpecs[((idx+delta)%n+n)%n].id
+	v.Panel = panels[((idx+delta)%n+n)%n].id
 	v.Cursor = 0
 	v.ScrollOffset = 0
 	return v

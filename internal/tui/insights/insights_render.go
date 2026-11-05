@@ -169,7 +169,7 @@ func (v View) briefingFits() bool {
 func (v View) headerHeight() int {
 	h := 1 // state strip
 	if v.briefingFits() {
-		h += len(insightsPanelSpecs)
+		h += v.briefingLines()
 	} else {
 		h++
 	}
@@ -214,12 +214,15 @@ func (v View) WindowHint() string {
 }
 
 func (v View) renderBriefing(s styles.Styles) string {
-	lines := make([]string, 0, len(insightsPanelSpecs))
+	panels := v.visiblePanels()
+	lines := make([]string, 0, v.briefingLines())
 	labelW := 0
+	// The label column is sized from every panel so it does not shift when a
+	// silent window folds the listening panels away.
 	for _, spec := range insightsPanelSpecs {
 		labelW = max(labelW, len(spec.Name))
 	}
-	for _, spec := range insightsPanelSpecs {
+	for _, spec := range panels {
 		label := spec.Name
 		if spec.id == v.Panel {
 			label = "[" + label + "]"
@@ -234,6 +237,9 @@ func (v View) renderBriefing(s styles.Styles) string {
 		} else {
 			lines = append(lines, s.TextPrimary.Render(head)+s.TextTertiary.Render(tail))
 		}
+	}
+	if v.silent() {
+		lines = append(lines, v.silentNote(s)...)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -349,7 +355,7 @@ func (v View) PanelHeaderLines(s styles.Styles) []string {
 func (v View) headerBudget() int {
 	used := 1 // state strip
 	if v.briefingFits() {
-		used += len(insightsPanelSpecs)
+		used += v.briefingLines()
 	} else {
 		used++
 	}
@@ -436,13 +442,20 @@ func (v View) renderRow(s styles.Styles, row Row, focused bool, chartBody ...str
 
 // renderPanelSelector leaves the scrollable content room in ordinary terminals.
 func (v View) renderPanelSelector(s styles.Styles) string {
+	panels := v.visiblePanels()
 	position := 1
-	for i, spec := range insightsPanelSpecs {
+	for i, spec := range panels {
 		if spec.id == v.Panel {
 			position = i + 1
 			break
 		}
 	}
-	label := fmt.Sprintf("‹ %s · %d/%d ›  `/~ panel", v.Spec().Name, position, len(insightsPanelSpecs))
+	label := fmt.Sprintf("‹ %s · %d/%d ›  `/~ panel", v.Spec().Name, position, len(panels))
+	switch {
+	case v.silent() && len(panels) == 1:
+		label = v.Spec().Name + " · " + silentMessageShort
+	case v.silent():
+		label += " · " + silentMessageShort
+	}
 	return s.Heading.Render(text.Truncate(label, v.width))
 }

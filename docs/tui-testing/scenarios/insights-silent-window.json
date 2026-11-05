@@ -1,0 +1,23 @@
+{
+  "name": "insights-silent-window",
+  "fixture": "dense",
+  "size": "120x36",
+  "actions": [
+    {"key": "8"},
+    {"assert": {"contains": "Nothing played in this window yet — play something and your listening patterns show up here."}, "label": "silent-briefing"},
+    {"assert": {"contains": "All Time · w/W change window"}},
+    {"assert": {"contains": "[Coverage]"}},
+    {"assert": {"contains": "Artists to explore"}},
+    {"assert": {"contains": "Unheard albums"}},
+    {"assert": {"not_contains": "no plays in this window"}},
+    {"assert": {"not_contains": "no artists in this window"}},
+    {"assert": {"not_contains": "no sessions in this window"}},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "80x24"},
+    {"assert": {"contains": "Coverage · Nothing played in this window yet."}, "label": "silent-compact"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "Nothing played in this"}},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

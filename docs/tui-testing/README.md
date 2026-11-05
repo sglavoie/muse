@@ -245,6 +245,7 @@ Each observation is normalized JSON:
 | `command-palette-search.json` | `rich` | Opens the palette (at 120×50) and filters by typing. |
 | `layout-regressions-rich.json` | `rich` | Guards command palette height, Queue columns, Mixes descriptions, and queue-summary short-height layout. |
 | `first-run.json` | `empty` | First-run screen fits from 60×15 up, offers the suggested folder, and falls back to the configured-but-empty guidance after Enter. |
+| `insights-silent-window.json` | `dense` | With no plays, Insights folds the listening panels into one line and keeps Coverage and its lists, from 120×36 down to 60×15. |
 | `layout-regressions-empty.json` | `empty` | Guards minimum-size empty-state and idle status-bar layout. |
 | `metadata-editor-context.json` | `rich` | Original filename, Album Artist navigation, seconds-based duration edits, undo, and resizing. |
 | `metadata-editor-narrow.json` | `narrow` | Guards metadata-editor height with long values at the minimum supported size. |

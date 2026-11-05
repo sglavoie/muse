@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- When nothing was played in the chosen window, Insights folds the listening
+  panels into one line ("Nothing played in this window yet") instead of a
+  column of empty ones, and keeps Coverage, its lists and Data Health
+  findings.
 - Now Playing takes the whole screen: the status bar steps aside and its
   notices show in place of the key hint. The cover and text are centered, on
   a background darkened from the cover's accent color.

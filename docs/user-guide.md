@@ -424,7 +424,10 @@ Insights uses a compact panel selector in ordinary windows and shows its full
 briefing when the terminal is tall enough. Coverage leads with the number and
 duration of unheard tracks, followed by artists and albums to explore and tracks
 to hear again; each row keeps its existing listening actions. Use backtick/tilde
-to change panels.
+to change panels. When nothing was played in the chosen window, the listening
+panels fold into one line saying so, with the window and the `w`/`W` keys to
+change it; Coverage and its lists stay, and Data Health stays when it has
+findings. As soon as any listening panel has data, every panel is shown again.
 
 Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its
