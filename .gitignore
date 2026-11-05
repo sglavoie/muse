@@ -5,6 +5,7 @@ coverage.html
 
 .DS_Store
 .venv/
+__pycache__/
 .claude/
 .spec/
 
