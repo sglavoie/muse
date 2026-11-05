@@ -353,7 +353,9 @@ func (m Model) artSlots() []kittySlot {
 		}
 		return slots
 	}
-	if t, ok := m.focusedCardTrack(); ok {
+	// The albums grid fills the panel, so the focused-song card is hidden
+	// beneath it and must not upload a cover of its own.
+	if t, ok := m.focusedCardTrack(); ok && !m.albumGridActive() {
 		cols, rows := m.focusedCardArtSize()
 		add(t, cols, rows)
 	}
