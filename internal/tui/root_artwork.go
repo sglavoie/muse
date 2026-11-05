@@ -45,6 +45,10 @@ type artworkState struct {
 	instant    bool          // the loader answers at once; look up synchronously
 
 	kitty *kittyPlacements
+
+	// prefetch looks up covers the screen is likely to want next; see
+	// root_artwork_prefetch.go.
+	prefetch artPrefetchState
 }
 
 type kittyPlacements struct {
@@ -161,7 +165,7 @@ func (m Model) syncArtwork() (Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m, cmd = m.syncFocusedArt()
-	cmds = append(cmds, cmd)
+	cmds = append(cmds, cmd, m.scheduleArtPrefetch())
 	return m, batchNonNil(cmds...)
 }
 
@@ -179,6 +183,7 @@ func (m Model) syncFocusedArt() (Model, tea.Cmd) {
 	m.art.focusKey = key
 	m.art.focusGen++
 	if _, done := m.art.cache[key]; done {
+		m.art.unmarkPrefetched(key)
 		return m, nil
 	}
 	if m.art.focusDelay <= 0 {
@@ -198,7 +203,9 @@ func (m Model) requestArt(t library.Track) (Model, tea.Cmd) {
 		return m, nil
 	}
 	req, key := artRequestFor(t)
-	if _, done := m.art.cache[key]; done || m.art.pending[key] {
+	// A prefetch already loading this cover answers for this lookup too.
+	prefetching := m.art.notePrefetchUsed(key)
+	if _, done := m.art.cache[key]; done || m.art.pending[key] || prefetching {
 		return m, nil
 	}
 	loader := m.art.loader
@@ -240,11 +247,7 @@ func (m Model) handleArtLoaded(msg artLoadedMsg) (Model, tea.Cmd) {
 		m.art.order = append(m.art.order, msg.key)
 	}
 	m.art.cache[msg.key] = msg.art
-	for len(m.art.order) > artMemoryEntries {
-		evict := m.art.order[0]
-		m.art.order = m.art.order[1:]
-		delete(m.art.cache, evict)
-	}
+	m.evictArt()
 	// The cross-fade to a new cover starts once that cover has arrived.
 	if m.motion.coverFrom != nil {
 		if t, ok := m.playingTrack(); ok {

@@ -162,6 +162,12 @@ it, and its tags. Below a Library list that does not fill the screen, one line
 sums up the collection: its size, total length, how much is still unheard,
 and when music last arrived.
 
+Once the screen rests for a moment, muse quietly gets the next covers ready:
+the albums a few rows above and below the focused one in the Library and
+Queue, and the next two songs in the queue, so moving the cursor or changing
+tracks shows the cover at once. It looks up two at a time and keeps only a
+handful of covers that have not been shown yet.
+
 Pause and resume fade the audio in and out over about a tenth of a second
 (`fade_on_pause`). While music plays, the progress bar glides between position
 updates, a small level meter replaces `▶` in the status bar, and the playing

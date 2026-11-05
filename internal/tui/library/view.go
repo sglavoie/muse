@@ -174,3 +174,30 @@ func (v Panel) FocusedTrack() (musiclib.Track, bool) {
 	}
 	return allTracks[v.Cursor], true
 }
+
+// TracksAround returns up to radius rows on each side of the cursor, nearest
+// first, with the same filter FocusedTrack applies. Cover prefetching uses it
+// to find the albums a short scroll would reach.
+func (v Panel) TracksAround(radius int) (above, below []musiclib.Track) {
+	rows := v.tracks()
+	at := func(i int) musiclib.Track { return rows[i] }
+	n := len(rows)
+	if v.Filter.Text != "" {
+		if matches, ok := v.filteredMatches(rows); ok {
+			n = len(matches)
+			at = func(i int) musiclib.Track { return rows[matches[i].TrackIndex] }
+		}
+	}
+	if v.Cursor < 0 || v.Cursor >= n {
+		return nil, nil
+	}
+	for d := 1; d <= radius; d++ {
+		if i := v.Cursor - d; i >= 0 {
+			above = append(above, at(i))
+		}
+		if i := v.Cursor + d; i < n {
+			below = append(below, at(i))
+		}
+	}
+	return above, below
+}

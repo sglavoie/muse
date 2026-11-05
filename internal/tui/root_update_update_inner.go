@@ -99,6 +99,12 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case artFocusSettledMsg:
 		return m.handleArtFocusSettled(msg)
 
+	case artPrefetchMsg:
+		return m.handleArtPrefetch(msg)
+
+	case artPrefetchedMsg:
+		return m.handleArtPrefetched(msg)
+
 	case gridArtLoadedMsg:
 		return m.handleGridArtLoaded(msg), nil
 
