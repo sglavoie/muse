@@ -107,7 +107,8 @@ func paletteCommandIntent(id string) palette.CommandIntent {
 		return palette.IntentInspect
 	}
 	switch id {
-	case "queue.summary", "playback.nowplaying.info", "messages.show", "help.modes_legend", "queue.jump.nowplaying":
+	case "queue.summary", "playback.nowplaying.info", "messages.show", "help.modes_legend", "queue.jump.nowplaying",
+		"insights.recap.year", "insights.recap.rolling":
 		return palette.IntentInspect
 	case "queue.enqueue.focused", "queue.play_next", "track.info", "track.preview", "playback.toggle", "mix.enqueue_all", "playlist.enqueue_all", "tag.enqueue_all", "insights.enqueue_all":
 		return palette.IntentListening

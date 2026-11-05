@@ -15,7 +15,7 @@
 | **Favorites** (`5`) | Favorited tracks, albums, and artists, grouped by category. |
 | **Tags** (`6`) | Free-form user tags with create / rename / delete / merge, undo, and a per-track tag picker. |
 | **Mixes** (`7`) | Generated recommendation mixes — Rediscover, Hidden Gems, On Repeat, Deep Cuts — tuned by thresholds in `config.toml`. |
-| **Insights** (`8`) | Listening statistics: sessions, momentum, discovery, and a data-health panel that surfaces colliding genre spellings, blank fields, and unverified durations. |
+| **Insights** (`8`) | Listening statistics: sessions, momentum, discovery, and a data-health panel that surfaces colliding genre spellings, blank fields, and unverified durations. `Y` opens Year in review, a full-screen recap of a year of listening. |
 
 Albums are grouped by title and **Album Artist**. When Album Artist is missing,
 muse uses the containing folder, keeping untagged compilations together. Album
@@ -516,6 +516,32 @@ to change panels. When nothing was played in the chosen window, the listening
 panels fold into one line saying so, with the window and the `w`/`W` keys to
 change it; Coverage and its lists stay, and Data Health stays when it has
 findings. As soon as any listening panel has data, every panel is shown again.
+
+**Year in review** (`Y` in Insights, or "Show year in review" in the command
+palette) tells the story of a year of listening, one full-screen card at a
+time, with `● ○ ○` marking your place. It opens on the current year, or on the
+latest year you played anything in. The cards are: listening time, plays and
+how many tracks, artists and albums you heard, compared with the year before;
+your top five artists, each beside the cover of the album you played most;
+your top five tracks; the album of the year with its cover; your listening
+clock (plays by hour of the day and by weekday); your longest run of days
+with music, over a calendar of the year; your biggest discovery, the most
+played song you first heard that year; the song you played most in a single
+day; your genre mix; and a summary that fits everything on one screen. Cards
+with nothing to show are skipped.
+
+Space, `→` or `l` turns the page and `←` or `h` goes back; `g` and `G` jump
+to the first card and the summary. `[` and `]` move between the years you
+have plays in and, after the newest, the last 12 months ("Show last 12 months
+recap" in the palette opens there directly), staying on the same card. `S`
+saves the period's 50 most played tracks as a playlist named "Muse recap:
+2025" (or "Muse recap: 12 months to …"), and `esc` or `Y` closes the recap.
+Days and hours are local time, the way the rest of Insights counts them, and
+only counted plays take part: a skip never counts, and a play you stopped
+early adds the time you actually listened. On the album, discovery and
+repeat cards the background and accent follow the cover, as in Now Playing
+(**Cover tint** off keeps the theme). Each card eases in and its numbers
+count up; with `reduce_motion` the cards appear at once.
 
 Unavailable command-palette entries explain what
 you need to select or open before using them. Focus a toggle command to see its

@@ -45,6 +45,9 @@ func safeDirectCommandIDs() map[string]struct{} {
 		"ui.toggle.theme":        {},
 		"ui.toggle.track_notify": {},
 		"queue.toggle.follow":    {},
+		// The recap only reads the fixture's in-memory history.
+		"insights.recap.year":    {},
+		"insights.recap.rolling": {},
 	}
 }
 

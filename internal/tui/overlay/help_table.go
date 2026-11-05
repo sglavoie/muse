@@ -304,6 +304,7 @@ var helpSectionsTable = []HelpSection{
 			{"S", "Save the drilled-in tracks as a playlist"},
 			{"A", "Start Auto-DJ from the focused row"},
 			{"m", "Merge a Data Health genre collision into one spelling"},
+			{"Y", "Year in review: your listening recap ([ / ] year, S save top 50)"},
 			{"M", "Bulk-edit the tracks behind a Data Health finding"},
 			{"x", "Toggle bulk selection (● selected; playback icon stays beside it)"},
 			{"X", "Clear bulk selection"},

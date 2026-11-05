@@ -23,6 +23,9 @@ func (m Model) View() tea.View {
 	if m.nowPlayingShown() {
 		return m.renderNowPlayingScreen()
 	}
+	if m.recapShown() {
+		return m.renderRecapScreen()
+	}
 
 	body := m.renderActiveBody()
 	headerLines := 0
@@ -170,6 +173,9 @@ func (m Model) renderOverlayBody() (string, bool) {
 		// View draws this overlay full screen; see renderNowPlayingScreen.
 		now := m.decorateNowPlaying(*m.overlay.nowPlaying, *m.styles, time.Now())
 		return now.Render(m.termWidth, m.termHeight, *m.styles), true
+	case m.overlay.recap != nil:
+		// View draws this overlay full screen; see renderRecapScreen.
+		return m.renderRecapBody(*m.styles, time.Now()), true
 	case m.overlay.messages != nil:
 		return m.overlay.messages.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.queueSummary != nil:

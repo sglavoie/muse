@@ -24,6 +24,7 @@ type overlayInfo struct {
 	previewWasPlaying     bool
 	previewDurationFilled bool
 	nowPlaying            *overlay.NowPlayingOverlay
+	recap                 *recapOverlay // the full-screen listening recap; see root_recap.go
 	queueSummary          *overlay.QueueSummaryOverlay
 	modesLegend           *overlay.ModesLegendOverlay
 	trackInfo             *overlay.TrackInfoOverlay

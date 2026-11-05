@@ -45,6 +45,7 @@ scenario cannot accidentally trigger a real side effect.
 | `playback` | An active playback session: current track, queue, repeat/shuffle/volume/status metadata. |
 | `dense` | 240 long, multilingual track names, 24 playlists and tags, a 48-entry queue, active playback, selections, and a persistent notification for crowded visual review. |
 | `health`   | A deliberately dirty library — colliding genre spellings, a placeholder genre, blank fields, unverified durations, one artist spelled two ways — so Insights' Data Health panel has one of every finding. Its metadata writer is in-memory, so the genre merge is safe to exercise. |
+| `recap`    | Fourteen tracks with a generated, deterministic listening history from March 2024 to December 20, 2025 (about 650 plays), so Year in review (`8`, then `Y`) fills every card: a top artist, a song first heard in April 2025, nine plays of one song on March 14, a 23-day June streak and evening-heavy listening. The recap's clock is pinned to December 20, 2025 and every play is built from local wall-clock time, so the screens are the same on any day and in any time zone. Saving the recap as a playlist writes to an in-memory store. |
 
 ### Cover art in the fixtures
 
@@ -182,7 +183,7 @@ An `assert` object sets exactly one expectation:
 | `contains` | The plain screen contains the substring. |
 | `not_contains` | The plain screen omits the substring. |
 | `view` | The active **primary** view matches (case-insensitive): `Library`, `Playlists`, `Queue`, `Browse`, `Favorites`, `Tags`, `Mixes`. |
-| `overlay` | The active overlay matches (case-insensitive), e.g. `help`, `command_palette`, `queue_summary`, `debug`, `now_playing`, `seek_time`, `autodj_tune`, `autodj_preview`, `autodj_recipes`. There is no "no overlay" assertion; assert a `view` instead. |
+| `overlay` | The active overlay matches (case-insensitive), e.g. `help`, `command_palette`, `queue_summary`, `debug`, `now_playing`, `seek_time`, `autodj_tune`, `autodj_preview`, `autodj_recipes`, `recap`. There is no "no overlay" assertion; assert a `view` instead. |
 | `status_contains` | The status line contains the substring. |
 | `no_layout_issues` | The observation reports zero layout issues. Must be `true`. |
 
@@ -259,6 +260,7 @@ Each observation is normalized JSON:
 | `album-cover-grid.json` | `dense` | Browse → Albums as a cover grid: 2D moves, scrolling, opening a tile, switching to the list and back, and the grid at 60×15, 80×24, 120×36 and 200×50. |
 | `cover-art-and-now-playing.json` | `playback` | The focused song's cover card and Library summary, then the full-screen Now Playing view with its cover, up-next list and modes, shrinking to the minimum size where the cover gives way. |
 | `now-playing-lyrics.json` | `dense` | Synced lyrics in Now Playing: the line playing at 1:23 with the one before it and those after, kept beside up next at 80x24 and 120x36 and in place of it at 60x15; `L` hides them with a notice and stays in Now Playing, and `L` again brings them back. The fixtures sing made-up lyrics for whatever plays, so no file is read. |
+| `year-in-review.json` | `recap` | Opens Year in review from Insights and walks every card, then the summary at 60x15, the artists' thumbnails at 120x36, switching years with `[`/`]` (keeping the card) to 2024 and the last 12 months, and saving the top tracks as a playlist. |
 | `now-playing-polish.json` | `playback` | Now Playing without the status bar, notices in place of the key hint, title-first up-next rows that wrap to the start of the queue under Repeat all once shuffle is off, and the centered layout at 80x24, 120x36 and 60x15. The fixture player does not move on `n`/`p`, so the track-change card is covered by the Go tests in `internal/tui` instead. |
 | `now-playing-loudness.json` | `playback` | Now Playing's loudness strip above the progress bar, drawn from the fixture's deterministic level history (newest on the right) at 80x24 and 120x36, giving way first at 60x15, and holding while paused. The fixture player never reads levels, so the live meter is covered by the Go tests in `internal/tui`. |
 

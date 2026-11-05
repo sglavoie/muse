@@ -53,7 +53,7 @@ metadata and synthesized audio.
 | Favorites | Return to favorite tracks, albums, and artists |
 | Tags | Organize music with your own labels |
 | Mixes | Find recommendations drawn from your listening history |
-| Insights | Explore listening patterns and library data health |
+| Insights | Explore listening patterns, library data health and a yearly recap |
 
 Playback includes gapless transitions, a ten-band equalizer, volume
 normalization, Auto-DJ with discovery controls, previews, and saved recipes,

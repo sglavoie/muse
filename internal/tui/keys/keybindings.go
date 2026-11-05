@@ -261,6 +261,7 @@ const (
 	ActionInsightsJumpBrowse   // 'b': jump to the focused row's artist in Browse
 	ActionInsightsSavePlaylist // 'S': save the drilled-in tracks as a playlist
 	ActionInsightsMergeGenre   // 'm': fold a Data Health genre collision into one spelling
+	ActionYearInReview         // 'Y': open the yearly listening recap
 	ActionAutoDJTune           // 'ctrl+a': open the Auto-DJ Tune panel
 
 	// Album cover grid actions.

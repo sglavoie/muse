@@ -1,0 +1,394 @@
+{
+  "name": "year-in-review",
+  "fixture": "recap",
+  "size": "80x24",
+  "actions": [
+    {
+      "key": "8"
+    },
+    {
+      "key": "Y"
+    },
+    {
+      "assert": {
+        "overlay": "recap"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Your year in muse"
+      }
+    },
+    {
+      "assert": {
+        "contains": "2025 in muse"
+      },
+      "label": "totals-page"
+    },
+    {
+      "assert": {
+        "contains": "491 plays \u00b7 13 tracks"
+      }
+    },
+    {
+      "assert": {
+        "contains": "\u25b2 222% more than 2024"
+      }
+    },
+    {
+      "assert": {
+        "contains": "\u25cf \u25cb \u25cb \u25cb \u25cb \u25cb \u25cb \u25cb \u25cb \u25cb"
+      },
+      "label": "page-indicator"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "totals-fits-80x24"
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Top artists"
+      }
+    },
+    {
+      "assert": {
+        "contains": "1  Aurora Fields"
+      }
+    },
+    {
+      "assert": {
+        "contains": "162 plays \u00b7 11h 11m \u00b7 Low Tide"
+      },
+      "label": "artist-album"
+    },
+    {
+      "assert": {
+        "contains": "\u2580\u2580\u2580\u2580  2  Night Transit"
+      },
+      "label": "artist-thumbnail"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "l"
+    },
+    {
+      "assert": {
+        "contains": "Top tracks"
+      }
+    },
+    {
+      "assert": {
+        "contains": "1  Tidepool \u00b7 Aurora Fields"
+      }
+    },
+    {
+      "assert": {
+        "contains": "86 plays"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "right"
+    },
+    {
+      "assert": {
+        "contains": "Album of the year"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Most played: Tidepool"
+      }
+    },
+    {
+      "assert": {
+        "contains": "\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580"
+      },
+      "label": "album-cover"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Listening clock"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Most at 21:00 \u00b7 busiest on Sundays"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Sun \u2588\u2588\u2588"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Longest streak"
+      }
+    },
+    {
+      "assert": {
+        "contains": "23 days in a row"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Jun 1 \u2013 Jun 23"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Biggest discovery"
+      }
+    },
+    {
+      "assert": {
+        "contains": "First Light"
+      }
+    },
+    {
+      "assert": {
+        "contains": "First heard Apr 3 \u00b7 62 plays since"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "On repeat \u00b7 Friday, Mar 14, 2025"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Played 9 times that day"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Genre mix"
+      }
+    },
+    {
+      "assert": {
+        "contains": "Ambient    "
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Top artist  Aurora Fields"
+      },
+      "label": "summary"
+    },
+    {
+      "assert": {
+        "contains": "On repeat   Midnight Line \u00d79"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "h"
+    },
+    {
+      "assert": {
+        "contains": "Genre mix"
+      },
+      "label": "back-a-page"
+    },
+    {
+      "key": "G"
+    },
+    {
+      "resize": "60x15"
+    },
+    {
+      "assert": {
+        "contains": "Top artist  Aurora Fields"
+      },
+      "label": "summary-60x15"
+    },
+    {
+      "assert": {
+        "contains": "Genres      Ambient 52%"
+      }
+    },
+    {
+      "assert": {
+        "contains": "esc close"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "summary-fits-60x15"
+    },
+    {
+      "key": "g"
+    },
+    {
+      "assert": {
+        "contains": "2025 in muse"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "totals-fits-60x15"
+    },
+    {
+      "resize": "120x36"
+    },
+    {
+      "key": "space"
+    },
+    {
+      "assert": {
+        "contains": "Low Tide"
+      },
+      "label": "artist-album-120x36"
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      },
+      "label": "artists-fits-120x36"
+    },
+    {
+      "key": "["
+    },
+    {
+      "assert": {
+        "contains": "Top artists"
+      },
+      "label": "year-switch-keeps-page"
+    },
+    {
+      "key": "g"
+    },
+    {
+      "assert": {
+        "contains": "2024 in muse"
+      },
+      "label": "previous-year"
+    },
+    {
+      "assert": {
+        "contains": "Your first year in muse"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "]"
+    },
+    {
+      "key": "]"
+    },
+    {
+      "assert": {
+        "contains": "The last 12 months in muse"
+      },
+      "label": "rolling-period"
+    },
+    {
+      "assert": {
+        "contains": "\u25b2 234% more than the 12 months before"
+      }
+    },
+    {
+      "assert": {
+        "no_layout_issues": true
+      }
+    },
+    {
+      "key": "["
+    },
+    {
+      "resize": "80x24"
+    },
+    {
+      "key": "S"
+    },
+    {
+      "assert": {
+        "contains": "Saved as \"Muse recap: 2025\" (13 tracks)"
+      },
+      "label": "saved-playlist"
+    },
+    {
+      "key": "esc"
+    },
+    {
+      "assert": {
+        "view": "Insights"
+      }
+    }
+  ]
+}

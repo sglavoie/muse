@@ -18,8 +18,12 @@ func uitestNow() time.Time { return time.Now() }
 // uitestInsights is an in-memory insightsReader that derives a whole listening
 // history from the fixture's library tracks: a track with PlayCount n produces
 // n plays walking backwards from its LastPlayedAt, gathered into sessions.
-// Nothing here touches a database.
-type uitestInsights struct{ tracks []library.Track }
+// Nothing here touches a database. A fixture that sets history supplies its
+// plays outright instead, and every reader derives from those.
+type uitestInsights struct {
+	tracks  []library.Track
+	history []insights.PlayRow
+}
 
 // uitestPlayStep is how far back each successive session sits. The odd five
 // hours on top of the three days are what give the fixture a rhythm at all: a
@@ -38,6 +42,11 @@ const uitestSessionGap = 25 * 60
 var uitestSessionSizes = []int{1, 2, 3}
 
 func (r *uitestInsights) allPlays() []insights.PlayRow {
+	if r.history != nil {
+		out := append([]insights.PlayRow(nil), r.history...)
+		sort.SliceStable(out, func(i, j int) bool { return out[i].StartAt < out[j].StartAt })
+		return out
+	}
 	var out []insights.PlayRow
 	for _, t := range r.tracks {
 		session, slot := 0, 0

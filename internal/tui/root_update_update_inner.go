@@ -343,6 +343,12 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case insightsLoadedMsg:
 		m = m.handleInsightsLoadedMsg(msg)
 
+	case recapLoadedMsg:
+		return m.handleRecapLoaded(msg)
+
+	case openRecapMsg:
+		return m.openRecap(msg.rolling)
+
 	case insightsMergedMsg:
 		return m.handleInsightsMergedMsg(msg)
 

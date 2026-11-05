@@ -25,6 +25,7 @@ func (m Model) hasActiveOverlay() bool {
 		m.debugVisible ||
 		m.overlay.settings != nil ||
 		m.overlay.nowPlaying != nil ||
+		m.overlay.recap != nil ||
 		m.overlay.queueSummary != nil ||
 		m.overlay.messages != nil ||
 		m.overlay.modesLegend != nil ||

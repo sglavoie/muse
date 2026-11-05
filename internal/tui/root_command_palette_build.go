@@ -47,6 +47,10 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 	// Hand-written rather than catalog entries: the palette is the only trigger
 	// (no keybinding), so neither needs an action constant or a registry binding.
 	cmds = append(cmds, m.metadataExportCommand())
+	rolling := paletteMessageCmd("insights.recap.rolling", "Insights", "Show last 12 months recap", "", openRecapMsg{rolling: true})
+	rolling.Enabled = func() bool { return hasInsightsReader(m) }
+	rolling.DisabledReason = "Listening history is not available"
+	cmds = append(cmds, rolling)
 	cmds = append(cmds, palette.PaletteCommand{
 		ID:             "metadata.import",
 		Name:           "Import metadata edits…",

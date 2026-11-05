@@ -19,7 +19,7 @@ func applyResize(t *testing.T, m Model, w, h int) Model {
 
 func TestFixtureNames(t *testing.T) {
 	names := FixtureNames()
-	want := []string{FixtureEmpty, FixtureRich, FixtureNarrow, FixturePlayback, FixtureHealth, FixtureDense}
+	want := []string{FixtureEmpty, FixtureRich, FixtureNarrow, FixturePlayback, FixtureHealth, FixtureDense, FixtureRecap}
 	if len(names) != len(want) {
 		t.Fatalf("FixtureNames() = %v, want %v", names, want)
 	}

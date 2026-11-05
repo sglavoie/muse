@@ -377,6 +377,8 @@ func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 		return m.handleInsightsSavePlaylist()
 	case keys.ActionInsightsMergeGenre:
 		return m.handleInsightsMergeGenre(), nil
+	case keys.ActionYearInReview:
+		return m.openRecap(false)
 	case keys.ActionTagOpen:
 		return m.handleTagOpen()
 	case keys.ActionTagBack:

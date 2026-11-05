@@ -277,6 +277,11 @@ type Model struct {
 	// the playing cover's accent, or a step of the transition toward it.
 	accentOverride string
 
+	// recapClock is the clock the listening recap picks its default year and
+	// rolling window from; nil is time.Now. Fixtures pin it so their recap
+	// screens do not change with the calendar.
+	recapClock func() time.Time
+
 	// trackCard is the transient "Now playing" card shown over the main views
 	// after the song changes; see root_track_card.go.
 	trackCard trackCardState

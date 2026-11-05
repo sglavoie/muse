@@ -88,6 +88,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another key is pressed. Holding `←`/`→` speeds up from 5 seconds a
   step to 10 after a second and 30 after two and a half, and the bar no
   longer jumps back while mpv finishes a seek.
+- Year in review: a full-screen recap of your listening ("Your year in
+  muse"), opened with `Y` in Insights or "Show year in review" in the command
+  palette. One card per page: listening time and plays against the year
+  before, top artists with their album covers, top tracks, the album of the
+  year, the hours and weekdays you listen most, your longest streak, your
+  biggest discovery, the song you played most in one day, your genre mix, and
+  a summary that fits on one screen. Space or `→` turns the page, `←` goes
+  back, `[`/`]` switch between years with plays and the last 12 months
+  ("Show last 12 months recap" opens there), and `S` saves the period's top
+  50 tracks as a playlist. Cover pages take their tint from the cover, and
+  pages ease in with their numbers counting up unless `reduce_motion` is on.
 
 ### Changed
 

@@ -196,6 +196,10 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionInsightsAntiRut, id: "insights.anti_rut", name: "Enqueue a rut-breaking set", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
 	{act: keys.ActionInsightsRadioSeed, id: "insights.radio.seed", name: "Start Auto-DJ from Insights row", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
 	{act: keys.ActionInsightsSavePlaylist, id: "insights.save_as_playlist", name: "Save Insights tracks as playlist", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Open Insights first", enabled: activeViewIs(viewInsights)},
+	// The recap opens over whatever view is showing, so it does not switch
+	// to Insights first. Its rolling twin is hand-written in
+	// BuildPaletteCommands: the palette is its only trigger.
+	{act: keys.ActionYearInReview, id: "insights.recap.year", name: "Show year in review", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Listening history is not available", enabled: hasInsightsReader},
 	{act: keys.ActionInsightsMergeGenre, id: "insights.merge_genre", name: "Merge genre spellings", category: "Insights", ctx: keys.ContextInsights, disabledReason: "Select a genre collision in Data Health", enabled: insightsHasGenreCollision},
 }
 
@@ -207,6 +211,10 @@ func playbackHasTrack(m Model) bool { return m.playback.currentHash != "" }
 // hasFocusedTrack reports whether the cursor sits on a track row, gating
 // catalog entries that act on the focused track.
 func hasFocusedTrack(m Model) bool { _, _, _, ok := m.focusedTrackForPalette(); return ok }
+
+// hasInsightsReader gates the recap entries: without a history reader there
+// is nothing to recap.
+func hasInsightsReader(m Model) bool { return m.insightsReader != nil }
 
 // queueHasEntries reports whether the queue holds anything, gating the
 // collection-wide queue entries whose handlers notify or no-op when it is empty.

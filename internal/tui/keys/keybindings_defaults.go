@@ -257,6 +257,7 @@ func registerInsightsBindings(r *Registry) {
 	r.register(ContextInsights, "b", ActionInsightsJumpBrowse)
 	r.register(ContextInsights, "S", ActionInsightsSavePlaylist)
 	r.register(ContextInsights, "m", ActionInsightsMergeGenre)
+	r.register(ContextInsights, "Y", ActionYearInReview)
 	r.register(ContextInsights, "x", ActionBulkSelectionToggle)
 	r.register(ContextInsights, "X", ActionClearSelection)
 	r.register(ContextInsights, "v", ActionVisualMode)

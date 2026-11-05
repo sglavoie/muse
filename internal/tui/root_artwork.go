@@ -349,6 +349,12 @@ func (m Model) artSlots() []kittySlot {
 		_, key := artRequestFor(t)
 		slots = append(slots, kittySlot{key: key, cols: cols, rows: rows})
 	}
+	if m.overlay.recap != nil {
+		for _, c := range m.recapCovers() {
+			add(c.track, c.cols, c.rows)
+		}
+		return slots
+	}
 	if m.overlay.nowPlaying != nil {
 		if t, ok := m.playingTrack(); ok {
 			cols, rows := m.nowPlayingArtSize()

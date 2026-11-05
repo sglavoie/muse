@@ -114,6 +114,24 @@ func TestReadInsightPlaysFiltersOnCorrectedStart(t *testing.T) {
 	}
 }
 
+// TestReadInsightPlaysLeavesOutSkippedListens pins the play-counting rule the
+// Insights view and the listening recap both inherit: an uncounted listen is
+// logged, but it is never a play.
+func TestReadInsightPlaysLeavesOutSkippedListens(t *testing.T) {
+	d := openMigratedDB(t)
+	insertInsightTrack(t, d, insightTrack{hash: "a", artist: "A", duration: 300, playCount: 1})
+	insertInsightPlay(t, d, "a", 1774000300, 180, 0.6, "s1") // stopped early, still counted
+	insertInsightSkip(t, d, "a", 1774000400, 6, 0.02)
+
+	plays, err := d.ReadInsightPlays(0)
+	if err != nil {
+		t.Fatalf("ReadInsightPlays: %v", err)
+	}
+	if len(plays) != 1 || plays[0].ListenedSecs != 180 {
+		t.Fatalf("plays = %+v, want only the counted partial play", plays)
+	}
+}
+
 // TestReadInsightGenresSplitsMultiGenreTracks is the junction-table invariant
 // carried over from ReadListeningStats: genre aggregates must come from
 // track_genres, never from the comma-separated tracks.genre column, or a track

@@ -133,7 +133,7 @@ func (m Model) accentAnimating(now time.Time) bool {
 func (m Model) transitionActive(now time.Time) bool {
 	return m.pulseActive(now) || m.accentAnimating(now) || m.overlayRevealing(now) ||
 		m.viewRevealing(now) || m.coverFading(now) || m.trackCardSliding(now) ||
-		m.lyricsMoving(now)
+		m.lyricsMoving(now) || m.recapAnimating(now)
 }
 
 // scheduleMotion starts the frame loop when an animation needs it.
