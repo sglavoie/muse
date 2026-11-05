@@ -449,6 +449,7 @@ func WithLibraryTracks(tracks []library.Track) Option {
 		m.library.Index.BulkLoad(tracks)
 		m.scanned = len(tracks)
 		m.scanTotal = len(tracks)
+		*m = m.noteCachedLibrary()
 	}
 }
 

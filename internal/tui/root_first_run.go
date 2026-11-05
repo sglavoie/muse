@@ -48,6 +48,10 @@ type firstRunState struct {
 	folder string
 	// recent holds one track per album, newest first, for the cover row.
 	recent []library.Track
+	// heldWelcome records that the first scan, not anything else, kept the
+	// welcome overlay away, so a library that turns out not to be empty can
+	// give it back.
+	heldWelcome bool
 }
 
 // WithMusicDirSuggestion sets the music folder the first-run screen offers to
@@ -63,12 +67,32 @@ func WithMusicDirSuggestion(s config.MusicDirSuggestion) Option {
 // runs. A folder that failed validation keeps the overlay, which names it.
 func (m Model) initFirstRun() Model {
 	emptyScan := m.scanning && m.library.Index.Len() == 0
-	if m.musicFoldersUnconfigured() || (emptyScan && m.musicDirHint == "") {
+	heldWelcome := false
+	if m.musicFoldersUnconfigured() {
 		m.welcomeDismissed = true
+	} else if emptyScan && m.musicDirHint == "" && !m.welcomeDismissed {
+		m.welcomeDismissed, heldWelcome = true, true
 	}
 	if emptyScan {
 		m.firstRun = m.firstRun.begin()
+		m.firstRun.heldWelcome = heldWelcome
 	}
+	return m
+}
+
+// noteCachedLibrary revisits initFirstRun's verdict once the cached library
+// arrives. muse loads it after building the model, so at construction every
+// startup looks like a first scan into an empty library; without this the
+// Library would show "Scanning your music…" instead of the tracks it already
+// has until the background scan finished.
+func (m Model) noteCachedLibrary() Model {
+	if !m.firstRun.scanning || m.library.Index.Len() == 0 {
+		return m
+	}
+	if m.firstRun.heldWelcome {
+		m.welcomeDismissed = false
+	}
+	m.firstRun = m.firstRun.finish()
 	return m
 }
 

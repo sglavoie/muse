@@ -216,6 +216,30 @@ func TestRescanOfFilledLibraryIsNotFirstRun(t *testing.T) {
 	}
 }
 
+// muse builds the model before loading the cached library, so every startup
+// begins as a scan into an empty library; the cached tracks arriving must end
+// that, or the Library hides them behind the first-scan screen.
+func TestCachedLibraryIsNotFirstRun(t *testing.T) {
+	ch := make(chan library.Track)
+	m := New(context.Background(), WithScanChannel(ch), WithConfigPath(testConfigPath, true))
+	if !m.firstRun.scanning || !m.welcomeDismissed {
+		t.Fatal("precondition: an empty library starts as a first scan")
+	}
+	WithLibraryTracks(sampleLibraryTracks())(&m)
+	if m.firstRun.scanning {
+		t.Fatal("cached tracks left the first-scan screen up")
+	}
+	if m.welcomeDismissed {
+		t.Fatal("the first scan's hold on the welcome overlay outlived it")
+	}
+	m.welcomeDismissed = true
+	m, _ = updateModel(m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	screen := ansi.Strip(viewContent(m))
+	if strings.Contains(screen, "Scanning your music") || !strings.Contains(screen, "Track A1") {
+		t.Fatalf("Library should show the cached tracks during the scan:\n%s", screen)
+	}
+}
+
 func TestFirstRunSuppressesWelcomeOverlay(t *testing.T) {
 	m := unconfiguredModel(t, 80, 24, WithConfigPath(testConfigPath, false),
 		WithMusicDirHint(config.ConfigHint(testConfigPath), false))
