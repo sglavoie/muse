@@ -59,6 +59,8 @@ import (
 //   K/J | —              | —          | move-trk   | move-trk   | —             | —          | —          | —           | —
 //   C   | —              | —          | —          | clear-q    | —             | —          | —          | —           | —
 //   ` / ~ | —            | mode-cycle | —          | —          | mode-cycle    | —          | —          | —           | panel-cycle
+//   c   | —              | —          | create     | —          | grid/list†    | —          | tag-create | —           | —
+//   h/l | —              | —          | —          | —          | grid-move†    | —          | tag-back(h)| —           | —
 //   w / W | —            | —          | —          | —          | —             | —          | —          | —           | window-cycle
 //   b   | —              | —          | —          | —          | —             | —          | —          | —           | jump-browse
 //   !   | —              | —          | —          | —          | —             | —          | —          | —           | anti-rut
@@ -71,6 +73,10 @@ import (
 // TestNoSilentlyShadowedGlobalBindings test passes — the domain reason is
 // surfaced as the override's justification. Same-action rebinds (Tags F)
 // are treated as harmless redundancy and not flagged.
+//
+// † Albums only. left/right also move between covers in the album grid
+// (shadowing seek, marked with a reason); in the album list the root model
+// resolves them, and h/l, through the global bindings instead.
 //
 // Mixes s is sort-cycle only once a mix is open; on the mix list the root
 // model resolves it through the global binding (stop) instead.
@@ -256,6 +262,11 @@ const (
 	ActionInsightsSavePlaylist // 'S': save the drilled-in tracks as a playlist
 	ActionInsightsMergeGenre   // 'm': fold a Data Health genre collision into one spelling
 	ActionAutoDJTune           // 'ctrl+a': open the Auto-DJ Tune panel
+
+	// Album cover grid actions.
+	ActionCursorLeft        // h, left: move to the previous tile in the album cover grid
+	ActionCursorRight       // l, right: move to the next tile in the album cover grid
+	ActionAlbumLayoutToggle // 'c': switch Browse Albums between the cover grid and the list
 )
 
 // RegistryKey is the composite map key for registry lookups.

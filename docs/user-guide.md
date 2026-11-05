@@ -11,7 +11,7 @@
 | **Library** (`1`) | The whole collection, with sub-modes for All / Recently Added / History. Filter with prefixes (`a:` artist, `t:` title, `l:` album, `g:` genre, `aa:` Album Artist). |
 | **Playlists** (`2`) | Static playlists plus smart playlists driven by a rule editor (AND/OR over field/operator/value rules). `/` filters playlist names; open playlists also support `a:`, `t:`, `l:`, `g:`, and `aa:` field prefixes. |
 | **Queue** (`3`) | The live play queue: reorder, remove, yank/cut/paste rows, save the queue as a playlist. |
-| **Browse** (`4`) | Hierarchical browsing by Artists ↔ Albums ↔ Genres, drilling down to tracks. |
+| **Browse** (`4`) | Hierarchical browsing by Artists ↔ Albums ↔ Genres, drilling down to tracks. Albums show as a grid of covers (`c` switches to a list). |
 | **Favorites** (`5`) | Favorited tracks, albums, and artists, grouped by category. |
 | **Tags** (`6`) | Free-form user tags with create / rename / delete / merge, undo, and a per-track tag picker. |
 | **Mixes** (`7`) | Generated recommendation mixes — Rediscover, Hidden Gems, On Repeat, Deep Cuts — tuned by thresholds in `config.toml`. |
@@ -140,6 +140,20 @@ the tab bar while the tabs and status bar stay put; the track card slides in
 from the right. Track lists show titles brightest, artists tinted
 toward the accent color, and albums in a quieter tone. `reduce_motion = true` (or **Animations**
 in Settings → Display) turns these off and restores the static `▶`.
+
+**Album covers in Browse.** Browse → Albums lays the albums out as a grid of
+covers, with each album's title and artist beneath its cover; the number of
+covers per row follows the window width, and wide windows get larger covers.
+`j`/`k` (or `↑`/`↓`) move a row, `h`/`l` (or `←`/`→`) move one cover along,
+`Ctrl+D`/`Ctrl+U` and `Ctrl+F`/`Ctrl+B` page by rows, and `g`/`G` jump to the
+first and last album. The focused cover's title is highlighted and underlined,
+and everything that acts on a focused album in the list (Enter, `F`, `N`,
+`Shift+Enter`, `/`, `t`) acts on it in the grid. Covers load as they scroll
+into view, a few at a time; an album without art, or whose art is still
+loading, shows its initials on a plain tile. Press `c` to switch between the
+grid and the list; muse remembers the choice across restarts. The grid needs
+cover art enabled and room for two covers side by side, otherwise Albums stays
+a list; in the list `←`/`→` seek as everywhere else.
 
 Now Playing, Track Info, Queue Summary, Playback Modes, Recent Messages, and
 Help accept the usual playback keys: `Space`, `n`/`p`, seek arrows, and `=`/`-`
@@ -478,6 +492,8 @@ just enough to get moving.
 | `j` `k` / `down` `up` | Move cursor |
 | `ctrl+d` / `ctrl+u` | Half-page down / up |
 | `g` / `G` | Go to top / bottom |
+| `h` `l` / `left` `right` | Move between covers in the Browse album grid |
+| `c` | Switch Browse albums between the cover grid and the list |
 | `/` | Filter the current view |
 | `esc` | Clear the current text filter; otherwise go back |
 | `enter` | Enqueue / open the focused row |

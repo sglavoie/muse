@@ -39,8 +39,9 @@ func (m Model) syncPolish(prev Model) (Model, tea.Cmd) {
 	}
 	m, artCmd := m.syncArtwork()
 	placeCmd := m.placeArtwork()
+	gridCmd := m.syncAlbumGrid()
 	m, frameCmd := m.scheduleMotion()
-	return m, batchNonNil(artCmd, placeCmd, frameCmd)
+	return m, batchNonNil(artCmd, placeCmd, gridCmd, frameCmd)
 }
 
 // batchNonNil batches cmds, returning nil when every one is nil so callers

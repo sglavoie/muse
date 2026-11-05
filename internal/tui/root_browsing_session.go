@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/sglavoie/muse/internal/fsutil"
+	albtui "github.com/sglavoie/muse/internal/tui/albums"
 	"github.com/sglavoie/muse/internal/tui/browse"
 	"github.com/sglavoie/muse/internal/tui/filter"
 	instui "github.com/sglavoie/muse/internal/tui/insights"
@@ -40,6 +41,9 @@ type browsingSession struct {
 	Resolution  int                `json:"resolution,omitempty"`
 	TagFilter   *int64             `json:"tag_filter,omitempty"`
 	Steps       []browsingStep     `json:"steps"`
+	// AlbumLayout remembers whether Browse Albums shows covers or the list;
+	// it is a preference rather than a place, so restoring applies it at once.
+	AlbumLayout albtui.Layout `json:"album_layout,omitempty"`
 }
 
 type browsingRestore struct {
@@ -51,7 +55,8 @@ type browsingRestore struct {
 func (m Model) captureBrowsingSession() browsingSession {
 	s := browsingSession{Version: 1, View: m.ActiveView, LibraryMode: m.library.Mode,
 		BrowseMode: m.browse.Mode, Panel: m.insights.Panel, Window: m.insights.WindowIdx,
-		Resolution: m.insights.ResolutionIndex(), TagFilter: m.activeTagFilter}
+		Resolution: m.insights.ResolutionIndex(), TagFilter: m.activeTagFilter,
+		AlbumLayout: m.browse.Albums.Layout}
 	for {
 		step := browsingStep{Level: m.browsingLevel(), Position: m.browsingPosition()}
 		rows := m.browsingKeys()
@@ -85,6 +90,7 @@ func (m Model) SaveBrowsingSession() error {
 	saved := m.captureBrowsingSession()
 	if m.browsingRestore != nil {
 		saved = m.browsingRestore.Session
+		saved.AlbumLayout = m.browse.Albums.Layout
 	}
 	return fsutil.WriteAtomically(filepath.Join(m.dataDir, browsingSessionFile), 0o600, func(f *os.File) error {
 		return json.NewEncoder(f).Encode(saved)
@@ -112,6 +118,7 @@ func (m Model) loadBrowsingSession() Model {
 	}
 	saved.LibraryMode = min(saved.LibraryMode, libtui.LibraryModeHistory)
 	saved.BrowseMode = browse.BrowseMode(max(0, min(int(saved.BrowseMode), 2)))
+	m.browse.Albums.Layout = min(saved.AlbumLayout, albtui.LayoutList)
 	m.browsingRestore = &browsingRestore{Session: saved}
 	return m
 }

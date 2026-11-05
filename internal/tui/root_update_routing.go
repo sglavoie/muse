@@ -40,6 +40,11 @@ func (m Model) resolveKey(key string) keys.Action {
 	if a == keys.ActionSortCycle && m.ActiveView == viewMixes && m.mixes.Level == 0 {
 		return m.registry.Resolve(keys.ContextGlobal, key)
 	}
+	// Albums moves between cover tiles with h/l and the arrows only while the
+	// grid shows; in the list those keys keep their global meaning (seek).
+	if (a == keys.ActionCursorLeft || a == keys.ActionCursorRight) && !m.albumGridActive() {
+		return m.registry.Resolve(keys.ContextGlobal, key)
+	}
 	return a
 }
 

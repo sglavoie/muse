@@ -75,6 +75,7 @@ func (m *Model) clampAllScrollOffsets() {
 	albReserve := albumsVisibleReserve(m.browse.Albums)
 	albMaxRows := layout.VisibleRows(m.browse.Albums.Height, albReserve)
 	m.browse.Albums.ScrollOffset = sorting.AdjustScroll(m.browse.Albums.Cursor, m.browse.Albums.ScrollOffset, albMaxRows)
+	m.browse.Albums = m.browse.Albums.KeepGridVisible()
 
 	favReserve := favoritesVisibleReserve(m.favorites)
 	favMaxRows := layout.VisibleRows(m.favorites.Height, favReserve)

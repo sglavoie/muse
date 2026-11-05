@@ -32,6 +32,15 @@ type AlbumsView struct {
 
 	SelectedAlbum string
 
+	// Layout is the remembered grid/list choice for the album level; the
+	// grid needs Artwork (covers enabled) and room for two tiles across.
+	// Releases names each album's cover track and artist for its tile, and
+	// Covers draws a cover; the root sets Covers just before rendering.
+	Layout   albtui.Layout
+	Artwork  bool
+	Releases map[string]albtui.Release
+	Covers   func(album string, cols, rows int) string
+
 	// Saved cursor/scroll for album level (restored on back).
 	albumCursor       int
 	albumScrollOffset int
@@ -73,6 +82,10 @@ func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 		Tracks:            v.Tracks,
 		AlbumCounts:       v.AlbumCounts,
 		SelectedAlbum:     v.SelectedAlbum,
+		Layout:            v.Layout,
+		Artwork:           v.Artwork,
+		Releases:          v.Releases,
+		Covers:            v.Covers,
 		AlbumCursor:       v.albumCursor,
 		AlbumScrollOffset: v.albumScrollOffset,
 		Width:             v.Width,
@@ -103,8 +116,23 @@ func (v AlbumsView) render(s styles.Styles, favHashes, favArtists, favAlbums map
 }
 
 // HandleAction executes a pre-resolved albums action dispatched by root.Update.
+// In the cover grid, up and down move a whole row of tiles and the page keys
+// move by rows; ActionCursorLeft and ActionCursorRight only act there.
 func (v AlbumsView) HandleAction(a keys.Action) AlbumsView {
-	view := albtui.View{
+	view := v.navView()
+	if g, ok := view.Grid(); ok {
+		view = gridAction(view, g, a)
+	} else {
+		view = listAction(view, a)
+	}
+	v.Cursor = view.Cursor
+	v.ScrollOffset = view.ScrollOffset
+	return v
+}
+
+// navView is the albums render struct with just what navigation reads.
+func (v AlbumsView) navView() albtui.View {
+	return albtui.View{
 		Level:             v.Level,
 		Cursor:            v.Cursor,
 		ScrollOffset:      v.ScrollOffset,
@@ -112,10 +140,16 @@ func (v AlbumsView) HandleAction(a keys.Action) AlbumsView {
 		Tracks:            v.Tracks,
 		AlbumCursor:       v.albumCursor,
 		AlbumScrollOffset: v.albumScrollOffset,
+		Layout:            v.Layout,
+		Artwork:           v.Artwork,
+		Width:             v.Width,
 		Height:            v.Height,
 		FilterActive:      v.Filter.Active,
 		FilterText:        v.Filter.Text,
 	}
+}
+
+func listAction(view albtui.View, a keys.Action) albtui.View {
 	switch a {
 	case keys.ActionCursorUp:
 		view = view.CursorUp()
@@ -134,8 +168,57 @@ func (v AlbumsView) HandleAction(a keys.Action) AlbumsView {
 	case keys.ActionGoToBottom:
 		view = view.GoToBottom()
 	}
-	v.Cursor = view.Cursor
-	v.ScrollOffset = view.ScrollOffset
+	return view
+}
+
+func gridAction(view albtui.View, g albtui.Grid, a keys.Action) albtui.View {
+	switch a {
+	case keys.ActionCursorUp:
+		return view.MoveInGrid(-1, 0)
+	case keys.ActionCursorDown:
+		return view.MoveInGrid(1, 0)
+	case keys.ActionCursorLeft:
+		return view.MoveInGrid(0, -1)
+	case keys.ActionCursorRight:
+		return view.MoveInGrid(0, 1)
+	case keys.ActionHalfPageDown:
+		return view.MoveInGrid(g.PageRows(false), 0)
+	case keys.ActionHalfPageUp:
+		return view.MoveInGrid(-g.PageRows(false), 0)
+	case keys.ActionFullPageDown:
+		return view.MoveInGrid(g.PageRows(true), 0)
+	case keys.ActionFullPageUp:
+		return view.MoveInGrid(-g.PageRows(true), 0)
+	case keys.ActionGoToTop, keys.ActionGoToBottom:
+		return listAction(view, a).KeepGridVisible()
+	}
+	return view
+}
+
+// GridActive reports whether the album level is drawn as the cover grid.
+func (v AlbumsView) GridActive() bool {
+	_, ok := v.navView().Grid()
+	return ok
+}
+
+// KeepGridVisible scrolls the cover grid so the focused tile's row shows;
+// it leaves the list untouched.
+func (v AlbumsView) KeepGridVisible() AlbumsView {
+	view := v.navView().KeepGridVisible()
+	v.Cursor, v.ScrollOffset = view.Cursor, view.ScrollOffset
+	return v
+}
+
+// VisibleTiles returns the albums whose cover tiles are on screen and the
+// grid geometry, or false when the album level is drawn as a list.
+func (v AlbumsView) VisibleTiles() ([]string, albtui.Grid, bool) {
+	return v.navView().VisibleTiles()
+}
+
+// ToggleLayout switches the album level between the cover grid and the list.
+func (v AlbumsView) ToggleLayout() AlbumsView {
+	view := v.navView().ToggleLayout()
+	v.Layout, v.Cursor, v.ScrollOffset = view.Layout, view.Cursor, view.ScrollOffset
 	return v
 }
 

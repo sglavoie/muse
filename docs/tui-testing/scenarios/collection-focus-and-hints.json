@@ -99,6 +99,10 @@
       }
     },
     {
+      "key": "c",
+      "label": "albums-as-list"
+    },
+    {
       "assert": {
         "contains": "▎ ★ Alpha"
       }

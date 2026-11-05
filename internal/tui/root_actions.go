@@ -207,6 +207,7 @@ func (m Model) deriveCurrentBrowseData() Model {
 			tracks := m.library.Index.Tracks()
 			m.browse.Albums.Albums = albtui.DeriveAllAlbums(tracks)
 			m.browse.Albums.AlbumCounts = albtui.DeriveAllAlbumCounts(tracks)
+			m.browse.Albums.Releases = albtui.DeriveReleases(tracks)
 		}
 	case browse.BrowseModeGenres:
 		if len(m.browse.Genres.Genres) == 0 {
@@ -237,6 +238,9 @@ func hintForAction(a keys.Action, view viewID, _ browse.BrowseMode) string {
 // handleKeyAction dispatches a resolved KeyAction to the appropriate handler.
 func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
 	if next, cmd, ok := m.handleSelectedEnqueueAction(action); ok {
+		return next, cmd
+	}
+	if next, cmd, ok := m.handleAlbumGridAction(action); ok {
 		return next, cmd
 	}
 	if model, cmd, ok := m.handleSortAction(action); ok {

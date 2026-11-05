@@ -41,6 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes, in block mode; Kitty covers swap at once.
 - Now Playing's up-next list wraps around to the start of the queue under
   Repeat all when shuffle is off.
+- Browse → Albums shows a grid of album covers, each with its title and
+  artist underneath. `h`/`j`/`k`/`l` and the arrow keys move between covers,
+  and Enter, favorites, enqueueing and `/` filtering work on the focused
+  cover as they do on a list row. Press `c` (or "Toggle album cover grid" in
+  the command palette) to switch back to the list; muse remembers the choice.
+  Covers load as they come into view, and small or short windows, or
+  `artwork = "off"`, keep the list.
 
 ### Changed
 

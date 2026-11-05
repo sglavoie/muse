@@ -243,7 +243,9 @@ func (m Model) renderPrimaryViewBody(display styles.Styles, nowPlayingIcon strin
 		m.queue.RemainingLabel = "· " + m.queueRemainingLabel()
 		return m.queue.Render(display, m.playback.currentIndex, m.playback.state, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums)
 	case viewBrowse:
-		return m.browse.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
+		b := m.browse
+		b.Albums.Covers = m.albumTileCover
+		return b.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewFavorites:
 		return m.favorites.Render(display, m.favoriteHashes, m.favoriteArtists, m.favoriteAlbums, m.playback.currentHash, nowPlayingIcon)
 	case viewTags:

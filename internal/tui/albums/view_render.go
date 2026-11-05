@@ -25,11 +25,16 @@ func (v View) Render() string {
 }
 
 func (v View) renderAlbums() string {
-	labels := library.AlbumDisplayLabels(v.Albums)
 	items := v.EffectiveAlbums()
 	if len(v.Albums) == 0 {
 		return v.renderEmpty("No albums yet — add music to your library")
 	}
+	if len(items) > 0 {
+		if g, ok := v.Grid(); ok {
+			return v.renderGrid(g, items)
+		}
+	}
+	labels := library.AlbumDisplayLabels(v.Albums)
 	width := contentWidth(v.Width)
 	stripLine := v.renderStateStrip(len(v.Albums), len(items))
 	if len(items) == 0 {
@@ -226,6 +231,13 @@ func (v View) renderPlainTrackRow(r trackRow) string {
 // level. total is the full item count before filtering; filtered is the
 // count after filtering (equal to total when no filter is active).
 func (v View) renderStateStrip(total, filtered int) string {
+	start, end := layout.VisibleWindow(v.ScrollOffset, filtered, v.visibleRows())
+	return v.renderStateStripWindow(total, filtered, start, end)
+}
+
+// renderStateStripWindow is renderStateStrip for a caller that knows which
+// items are on screen, such as the cover grid.
+func (v View) renderStateStripWindow(total, filtered, start, end int) string {
 	root := v.StripViewLabel
 	if root == "" {
 		root = "Albums"
@@ -247,7 +259,6 @@ func (v View) renderStateStrip(total, filtered int) string {
 			f.InputView = v.FilterView
 		}
 	}
-	start, end := layout.VisibleWindow(v.ScrollOffset, filtered, v.visibleRows())
 	counts := strip.CountsChunk{
 		WindowStart: start, WindowEnd: end,
 		Unit:      []string{"albums", "tracks"}[v.Level],

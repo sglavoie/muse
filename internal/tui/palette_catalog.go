@@ -3,6 +3,7 @@ package tui
 import (
 	"slices"
 
+	"github.com/sglavoie/muse/internal/tui/browse"
 	instui "github.com/sglavoie/muse/internal/tui/insights"
 	"github.com/sglavoie/muse/internal/tui/keys"
 	"github.com/sglavoie/muse/internal/tui/palette"
@@ -168,6 +169,7 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionLibraryEnqueue, id: "queue.enqueue.focused", name: "Enqueue focused or selected", category: "queue", ctx: keys.ContextLibrary, disabledReason: "Open a track list first", enabled: func(m Model) bool { return m.atEnqueueTrackLevel() }},
 	{act: keys.ActionLibraryEnqueueReplace, id: "queue.enqueue.replace", name: "Replace queue with tracks", category: "queue", ctx: keys.ContextLibrary, disabledReason: "Open Library, Browse, Playlists, Favorites or Tags", enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags, viewMixes, viewInsights)},
 	{act: keys.ActionPlayNext, id: "queue.play_next", name: "Play tracks next", category: "queue", ctx: keys.ContextLibrary, disabledReason: "Open Library, Browse, Playlists, Favorites or Tags", enabled: activeViewIs(viewLibrary, viewBrowse, viewPlaylists, viewFavorites, viewTags, viewMixes, viewInsights)},
+	{act: keys.ActionAlbumLayoutToggle, id: "view.albums.layout", name: "Toggle album cover grid", category: "view", ctx: keys.ContextAlbums, disabledReason: "Open Browse: Albums first", enabled: func(m Model) bool { return m.ActiveView == viewBrowse && m.browse.Mode == browse.BrowseModeAlbums }},
 	{act: keys.ActionLibraryFilterClear, id: "view.filter.clear", name: "Clear view filter", category: "view", ctx: keys.ContextLibrary, disabledReason: "No text filter to clear", enabled: Model.hasCommittedFilter},
 
 	{act: keys.ActionPlaylistRename, id: "playlist.rename", name: "Rename playlist", category: "list", ctx: keys.ContextPlaylists, disabledReason: "Open Playlists first", enabled: activeViewIs(viewPlaylists)},
@@ -244,6 +246,8 @@ var paletteExcluded = map[keys.Action]string{
 	// moving the cursor by one row or one page has no observable effect.
 	keys.ActionCursorUp:     "cursor motion is meaningless once the palette closes",
 	keys.ActionCursorDown:   "cursor motion is meaningless once the palette closes",
+	keys.ActionCursorLeft:   "cursor motion is meaningless once the palette closes",
+	keys.ActionCursorRight:  "cursor motion is meaningless once the palette closes",
 	keys.ActionHalfPageUp:   "scroll motion is meaningless once the palette closes",
 	keys.ActionHalfPageDown: "scroll motion is meaningless once the palette closes",
 	keys.ActionFullPageUp:   "scroll motion is meaningless once the palette closes",

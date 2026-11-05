@@ -84,6 +84,7 @@ func TestActionNamesRoundTrip(t *testing.T) {
 		{keys.ActionMixUndismiss, "ActionMixUndismiss"},
 		{keys.ActionInsightsMergeGenre, "ActionInsightsMergeGenre"},
 		{keys.ActionAutoDJTune, "ActionAutoDJTune"},
+		{keys.ActionAlbumLayoutToggle, "ActionAlbumLayoutToggle"},
 	}
 	for _, tc := range cases {
 		if int(tc.a) >= len(names) {
@@ -94,8 +95,8 @@ func TestActionNamesRoundTrip(t *testing.T) {
 		}
 	}
 
-	if last := names[len(names)-1]; last != "ActionAutoDJTune" {
-		t.Errorf("last action constant is %q, want ActionAutoDJTune", last)
+	if last := names[len(names)-1]; last != "ActionAlbumLayoutToggle" {
+		t.Errorf("last action constant is %q, want ActionAlbumLayoutToggle", last)
 	}
 }
 

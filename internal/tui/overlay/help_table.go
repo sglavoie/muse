@@ -192,6 +192,9 @@ var helpSectionsTable = []HelpSection{
 		Context: keys.ContextAlbums,
 		entries: []helpEntry{
 			{"` / ~", "Cycle Browse mode forward / backward (Artists ↔ Albums ↔ Genres)"},
+			{"c", "Switch albums between the cover grid and the list"},
+			{"h / l", "Move to the previous / next cover tile (grid)"},
+			{"left / right", "Move between cover tiles in the grid; seek in the list"},
 			{"/", "Filter current list"},
 			{"enter", "Open tracks / enqueue focused or selected tracks"},
 			{"N", "Play selected tracks next, or focused track"},

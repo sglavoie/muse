@@ -34,6 +34,16 @@ type View struct {
 
 	SelectedAlbum string
 
+	// Layout, Artwork, Releases and Covers drive the cover grid. The album
+	// level draws as a grid only when Layout asks for it, Artwork reports
+	// that covers are enabled, and the panel fits two tiles across.
+	Layout   Layout
+	Artwork  bool
+	Releases map[string]Release
+	// Covers draws album's cover into cols×rows cells, or returns "" while
+	// it loads or when the album has none. Nil draws placeholders only.
+	Covers func(album string, cols, rows int) string
+
 	// Saved cursor/scroll for album level (restored on Back).
 	AlbumCursor       int
 	AlbumScrollOffset int

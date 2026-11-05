@@ -252,6 +252,9 @@ type Model struct {
 	// art is cover-art state shared by every copy of the Model; nil when art
 	// is disabled. See root_artwork.go.
 	art *artworkState
+	// albumGrid holds the Browse Albums cover-grid thumbnails, shared like
+	// art; nil when art is disabled. See root_album_grid.go.
+	albumGrid *albumGridArt
 
 	// motion drives interface animations; see root_motion.go. motionAllowed
 	// is set by WithMotion: only such models may start animating later.
@@ -414,6 +417,7 @@ func New(ctx context.Context, opts ...Option) Model {
 		m.library = m.library.SwitchMode(libtui.LibraryModeRecent)
 	}
 	m = m.syncRecentlyAddedFromLibrary()
+	m = m.withAlbumGrid()
 	m = m.loadSortPreferences().restoreSortPreference().loadBrowsingSession()
 	// Footer hint strip default is taken from config (defaults to true).
 	m.showFooterHints = m.cfg.ShowFooterHints

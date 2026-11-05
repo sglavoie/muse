@@ -120,6 +120,7 @@ func (m Model) refreshDerivedViews() Model {
 	case albtui.AlbumLevel:
 		m.browse.Albums.Albums = albtui.DeriveAllAlbums(tracks)
 		m.browse.Albums.AlbumCounts = albtui.DeriveAllAlbumCounts(tracks)
+		m.browse.Albums.Releases = albtui.DeriveReleases(tracks)
 		m.browse.Albums = m.browse.Albums.RecomputeAlbumsSort()
 		m.browse.Albums = m.browse.Albums.ClampCursor()
 	case albtui.TrackLevel:

@@ -131,7 +131,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 |---|---:|---:|---:|---:|---|
 | `internal/desktop` | 10 | 0 | 10 | 0 | `internal/tui` |
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
-| `tui/keys` | 159 | 41 | 117 | 1 | `tui` + 11 view packages |
+| `tui/keys` | 162 | 43 | 118 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 62 | 41 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 139 | 38 | 100 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 67 | 1 | 63 | 3 | `tui`, `queue`, `uitest` |
@@ -139,7 +139,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
 | `tui/queue` | 80 | 18 | 62 | 0 | `tui`, `internal/app` |
-| `tui/browse` | 82 | 0 | 81 | 1 | `tui` |
+| `tui/browse` | 90 | 0 | 89 | 1 | `tui` |
 | `tui/insights` | 140 | 0 | 136 | 4 | `tui` |
 | `tui/mixes` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/autodj` | 100 | 0 | 96 | 4 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1084 exported identifiers across 15 packages**: 167 reached from two or more packages, 859 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1095 exported identifiers across 15 packages**: 169 reached from two or more packages, 868 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -323,6 +323,7 @@ export must either earn a justification, be recorded in
 | `tui/sorting` | `TrackBucket` | func | `internal/tui`, `tui/library` | multi |
 | `tui/keys` | `Action` | type | `internal/tui`, `tui/browse`, `tui/favorites`, `tui/insights`, `tui/library`, `tui/mixes`, `tui/overlay†`, `tui/playback`, `tui/playlists`, `tui/queue`, `tui/statusbar†`, `tui/tags` | multi |
 | `tui/keys` | `ActionAlbumBack` | const | `internal/tui` | root |
+| `tui/keys` | `ActionAlbumLayoutToggle` | const | `internal/tui` | root |
 | `tui/keys` | `ActionAlbumOpen` | const | `internal/tui` | root |
 | `tui/keys` | `ActionArtistBack` | const | `internal/tui` | root |
 | `tui/keys` | `ActionArtistOpen` | const | `internal/tui` | root |
@@ -335,6 +336,8 @@ export must either earn a justification, be recorded in
 | `tui/keys` | `ActionClearSelection` | const | `internal/tui` | root |
 | `tui/keys` | `ActionCommandPalette` | const | `internal/tui` | root |
 | `tui/keys` | `ActionCursorDown` | const | `internal/tui`, `tui/browse`, `tui/favorites`, `tui/insights`, `tui/library`, `tui/mixes`, `tui/playlists`, `tui/queue`, `tui/tags` | multi |
+| `tui/keys` | `ActionCursorLeft` | const | `internal/tui`, `tui/browse` | multi |
+| `tui/keys` | `ActionCursorRight` | const | `internal/tui`, `tui/browse` | multi |
 | `tui/keys` | `ActionCursorUp` | const | `internal/tui`, `tui/browse`, `tui/favorites`, `tui/insights`, `tui/library`, `tui/mixes`, `tui/playlists`, `tui/queue`, `tui/tags` | multi |
 | `tui/keys` | `ActionCut` | const | `internal/tui` | root |
 | `tui/keys` | `ActionDebug` | const | `internal/tui` | root |
@@ -937,23 +940,31 @@ export must either earn a justification, be recorded in
 | `tui/browse` | `AlbumsView` | type | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.AlbumCounts` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Albums` | field | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.Artwork` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Back` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.ClampCursor` | method | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.Covers` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Cursor` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.EnqueueFocusedTrack` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Filter` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.FocusedAlbum` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.FocusedTrack` | method | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.GridActive` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.HandleAction` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Height` | field | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.KeepGridVisible` | method | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.Layout` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Level` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.OpenTracks` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.RecomputeAlbumsSort` | method | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.Releases` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.ScrollOffset` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.SelectedAlbum` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.SelectedHashes` | field | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.SortState` | field | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.ToggleLayout` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Tracks` | field | `internal/tui` | root |
+| `tui/browse` | `AlbumsView.VisibleTiles` | method | `internal/tui` | root |
 | `tui/browse` | `AlbumsView.Width` | field | `internal/tui` | root |
 | `tui/browse` | `ArtistsView` | type | `internal/tui` | root |
 | `tui/browse` | `ArtistsView.Albums` | field | `internal/tui` | root |

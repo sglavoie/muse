@@ -176,6 +176,13 @@ func registerAlbumsBindings(r *Registry) {
 	r.register(ContextAlbums, "a", ActionBulkAction)
 	r.register(ContextAlbums, "`", ActionBrowseModeNext)
 	r.register(ContextAlbums, "~", ActionBrowseModePrev)
+	r.register(ContextAlbums, "c", ActionAlbumLayoutToggle)
+	r.register(ContextAlbums, "h", ActionCursorLeft)
+	r.register(ContextAlbums, "l", ActionCursorRight)
+	r.registerWithReason(ContextAlbums, "left", ActionCursorLeft,
+		"moves between cover tiles in the album grid; the root falls back to seeking in the list")
+	r.registerWithReason(ContextAlbums, "right", ActionCursorRight,
+		"moves between cover tiles in the album grid; the root falls back to seeking in the list")
 }
 
 func registerGenresBindings(r *Registry) {
@@ -299,7 +306,13 @@ func registerDefaultPrimaries(r *Registry) {
 	for _, ctx := range []Context{ContextBrowse, ContextArtists, ContextAlbums, ContextGenres} {
 		r.addPrimary(ctx, "j/k", "nav")
 		r.addPrimary(ctx, "enter", "open")
-		r.addPrimary(ctx, "esc", "back")
+		// The album list is the top level, so esc has nowhere to go back
+		// to there; the slot advertises the cover grid toggle instead.
+		if ctx == ContextAlbums {
+			r.addPrimary(ctx, "c", "covers")
+		} else {
+			r.addPrimary(ctx, "esc", "back")
+		}
 		r.addPrimary(ctx, "`/~", "cycle mode")
 		r.addPrimary(ctx, "/", "filter")
 		r.addPrimary(ctx, "?", "help")
