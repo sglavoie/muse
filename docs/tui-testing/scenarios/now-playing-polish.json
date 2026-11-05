@@ -1,0 +1,31 @@
+{
+  "name": "now-playing-polish",
+  "fixture": "playback",
+  "size": "80x24",
+  "actions": [
+    {"key": "I"},
+    {"assert": {"overlay": "now_playing"}},
+    {"assert": {"not_contains": "(2 of 3)"}, "label": "status-bar-hidden"},
+    {"assert": {"contains": "space play/pause"}, "label": "hint-kept"},
+    {"assert": {"contains": "1  Track D1 · Charlie"}, "label": "up-next-title-first"},
+    {"assert": {"not_contains": "2  Track A1"}, "label": "shuffle-keeps-wrap-unknown"},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "esc"},
+    {"key": "z"},
+    {"key": "I"},
+    {"assert": {"contains": "2  Track A1 · Alice"}, "label": "repeat-all-wraps"},
+    {"assert": {"contains": "Shuffle: off"}, "label": "notice-replaces-hint"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "120x36"},
+    {"assert": {"contains": "        ▀▀▀▀"}, "label": "centered-cover"},
+    {"assert": {"no_layout_issues": true}},
+    {"resize": "60x15"},
+    {"assert": {"contains": "Track G1"}},
+    {"assert": {"not_contains": "(2 of 3)"}},
+    {"assert": {"no_layout_issues": true}},
+    {"key": "esc"},
+    {"assert": {"view": "Library"}},
+    {"assert": {"contains": "(2 of 3)"}, "label": "status-bar-back"},
+    {"assert": {"no_layout_issues": true}}
+  ]
+}

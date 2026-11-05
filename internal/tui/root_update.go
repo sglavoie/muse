@@ -14,6 +14,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if _, key := msg.(tea.KeyPressMsg); key {
 		m.cancelBrowsingRestore()
+		m = m.dismissTrackCard()
 	}
 	next, cmd := m.updateInner(msg)
 	// Every branch of updateInner returns this Model.

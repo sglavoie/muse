@@ -98,6 +98,10 @@ log_level = %q
 # and color transitions (true/false).
 # reduce_motion = false
 
+# Show a small card with the cover, title and artist for a few seconds when
+# the playing song changes on its own or with n/p (true/false).
+# track_change_card = true
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10
@@ -150,6 +154,7 @@ const (
 	defaultArtworkAccent              = true
 	defaultFadeOnPause                = true
 	defaultReduceMotion               = false
+	defaultTrackChangeCard            = true
 
 	defaultMixRediscoverMinPlays    = 10
 	defaultMixRediscoverAgeDays     = 90
@@ -237,6 +242,7 @@ type Config struct {
 	ArtworkAccent              bool             `toml:"artwork_accent"`
 	FadeOnPause                bool             `toml:"fade_on_pause"`
 	ReduceMotion               bool             `toml:"reduce_motion"`
+	TrackChangeCard            bool             `toml:"track_change_card"`
 	Mixes                      MixesConfig      `toml:"mixes"`
 }
 
@@ -280,6 +286,7 @@ type rawConfig struct {
 	ArtworkAccent              *bool               `toml:"artwork_accent"`
 	FadeOnPause                *bool               `toml:"fade_on_pause"`
 	ReduceMotion               *bool               `toml:"reduce_motion"`
+	TrackChangeCard            *bool               `toml:"track_change_card"`
 	Mixes                      rawMixesConfig      `toml:"mixes"`
 }
 

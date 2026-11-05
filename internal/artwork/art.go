@@ -107,6 +107,17 @@ func Resize(img image.Image, w, h int) *image.RGBA {
 	return out
 }
 
+// Blend scales a and b to w×h and mixes them pixel by pixel, from a at t = 0
+// to b at t = 1. It is the in-between frame of a cross-fade between covers.
+func Blend(a, b image.Image, w, h int, t float64) *image.RGBA {
+	from, to := Resize(a, w, h), Resize(b, w, h)
+	t = math.Min(1, math.Max(0, t))
+	for i := range from.Pix {
+		from.Pix[i] = uint8(math.Round(float64(from.Pix[i])*(1-t) + float64(to.Pix[i])*t))
+	}
+	return from
+}
+
 // channelMean averages n 8-bit samples summing to sum.
 func channelMean(sum, n uint32) uint8 {
 	return uint8(min(sum/n, 255))

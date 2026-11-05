@@ -31,10 +31,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dialogs fade in as they open, and switching views eases the new panel in
   below the tab bar. `reduce_motion = true` turns these
   animations off.
-- Settings → Display has Cover art, Cover tint, Pause fade and Animations.
+- Settings → Display has Cover art, Cover tint, Pause fade, Animations and
+  Track card.
+- When the song changes on its own or with `n`/`p`, a small card with its
+  cover, title and artist appears over the current view for a few seconds,
+  away from the focused row and the footer; any key dismisses it
+  (`track_change_card = false` to turn off).
+- In Now Playing the new cover fades in over the old one when the song
+  changes, in block mode; Kitty covers swap at once.
+- Now Playing's up-next list wraps around to the start of the queue under
+  Repeat all when shuffle is off.
 
 ### Changed
 
+- Now Playing takes the whole screen: the status bar steps aside and its
+  notices show in place of the key hint. The cover and text are centered, on
+  a background darkened from the cover's accent color.
+- Now Playing shows the title on one bold line in the accent color; a title
+  too long for it scrolls slowly, or is shortened with animations off.
+- Now Playing's up-next rows read title first, with the artist dimmed after
+  it and shortened first.
 - The title bar marks the active view with a filled tab instead of brackets,
   and numbers each view in its own color.
 - Track lists set titles, artists and albums apart: artists take a tint of

@@ -245,7 +245,26 @@ func (m Model) handleArtLoaded(msg artLoadedMsg) (Model, tea.Cmd) {
 		m.art.order = m.art.order[1:]
 		delete(m.art.cache, evict)
 	}
+	// The cross-fade to a new cover starts once that cover has arrived.
+	if m.motion.coverFrom != nil {
+		if t, ok := m.playingTrack(); ok {
+			if _, key := artRequestFor(t); key == msg.key {
+				m.motion.coverFadeStart = time.Now()
+			}
+		}
+	}
 	return m.refreshArtworkAccent(), nil
+}
+
+// playingArtPending reports whether the playing track's cover is still being
+// looked up.
+func (m Model) playingArtPending() bool {
+	t, ok := m.playingTrack()
+	if !ok || m.art == nil {
+		return false
+	}
+	_, done := m.artFor(t)
+	return !done
 }
 
 // renderArt draws t's cover into cols×rows cells, or returns "" when there is
@@ -337,6 +356,9 @@ func (m Model) artSlots() []kittySlot {
 	if t, ok := m.focusedCardTrack(); ok {
 		cols, rows := m.focusedCardArtSize()
 		add(t, cols, rows)
+	}
+	if t, ok := m.trackCardTrack(time.Now()); ok {
+		add(t, trackCardArtCols, trackCardArtRows)
 	}
 	return slots
 }

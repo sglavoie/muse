@@ -119,6 +119,12 @@ func Mix(a, b color.Color, amount float64) color.Color {
 	return mixColors(a, b, math.Min(1, math.Max(0, amount)))
 }
 
+// Contrast is the WCAG contrast ratio between two colors, from 1 (none) to
+// 21 (black on white).
+func Contrast(a, b color.Color) float64 {
+	return colorContrast(a, b)
+}
+
 // Hex formats c as #rrggbb.
 func Hex(c color.Color) string {
 	r, g, b, _ := c.RGBA()

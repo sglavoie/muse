@@ -71,7 +71,7 @@ func TestNowPlayingOverlay_FullScreenLayout(t *testing.T) {
 		Cover: cover, CoverCols: 20, CoverRows: 10,
 		Details: "2:00 · played 3 times", Modes: "Shuffle",
 		Progress: func(width int) string { return strings.Repeat("=", width) },
-		UpNext:   []string{"Next One", "Next Two"},
+		UpNext:   []UpNextSong{{Title: "Next One", Artist: "Someone"}, {Title: "Next Two"}},
 		Reason:   "Because you love it",
 	}
 	for _, size := range [][2]int{{100, 28}, {72, 16}, {60, 12}} {
@@ -161,5 +161,102 @@ func TestNowPlayingOverlay_IdleStateDoesNotShowPlayingIcon(t *testing.T) {
 	}
 	if !strings.Contains(out, "■") {
 		t.Error("idle state should fall back to the stopped icon")
+	}
+}
+
+func TestNowPlayingUpNextReadsTitleFirst(t *testing.T) {
+	s := newTestStyles()
+	song := UpNextSong{Title: "Short", Artist: "Glass Harbor and the Northern Lights Ensemble"}
+	got := ansi.Strip(upNextLine(0, song, 30, s))
+	if !strings.HasPrefix(got, "1  Short · Glass") || !strings.HasSuffix(got, "…") || ansi.StringWidth(got) != 30 {
+		t.Fatalf("artist should follow the title and give way first: %q", got)
+	}
+	long := UpNextSong{Title: "A Title Long Enough To Fill The Row", Artist: "Someone"}
+	got = ansi.Strip(upNextLine(1, long, 30, s))
+	if strings.Contains(got, "Someone") || !strings.HasPrefix(got, "2  A Title") || ansi.StringWidth(got) > 30 {
+		t.Fatalf("a long title keeps the row to itself: %q", got)
+	}
+	bare := ansi.Strip(upNextLine(2, UpNextSong{Title: "file.flac"}, 30, s))
+	if bare != "3  file.flac" {
+		t.Fatalf("a row without an artist shows its title alone: %q", bare)
+	}
+}
+
+func TestNowPlayingLongTitleStaysOnOneLine(t *testing.T) {
+	title := "An Extraordinarily Long Song Title That Cannot Fit Beside The Cover"
+	n := NowPlayingOverlay{Artist: "A", Title: title, State: playback.StatePlaying}
+	plain := ansi.Strip(n.Render(60, 15, newTestStyles()))
+	if strings.Contains(plain, "The Cover") || !strings.Contains(plain, "An Extraordinarily Long Song Title That Cannot Fit Be…") {
+		t.Fatalf("without the marquee a long title is truncated on one line:\n%s", plain)
+	}
+	n.Marquee = true
+	n.TitleScroll = marqueePauseSteps + 3
+	scrolled := ansi.Strip(n.Render(60, 15, newTestStyles()))
+	if !strings.Contains(scrolled, "Extraordinarily") || strings.Contains(scrolled, "An Extraordinarily") {
+		t.Fatalf("the marquee should have moved three cells:\n%s", scrolled)
+	}
+}
+
+func TestMarqueeWindowPausesScrollsAndLoops(t *testing.T) {
+	title := "abcdefghij" // 10 cells in a 4-cell window
+	for step := range marqueePauseSteps + 1 {
+		if got := marqueeWindow(title, 4, step); got != "abcd" {
+			t.Fatalf("step %d: the start holds during the pause, got %q", step, got)
+		}
+	}
+	if got := marqueeWindow(title, 4, marqueePauseSteps+2); got != "cdef" {
+		t.Fatalf("scrolls one cell a step, got %q", got)
+	}
+	if got := marqueeWindow(title, 4, marqueePauseSteps+8); got != "ij  " {
+		t.Fatalf("a gap follows the end, got %q", got)
+	}
+	period := marqueePauseSteps + len(title) + marqueeGap
+	if got := marqueeWindow(title, 4, period); got != "abcd" {
+		t.Fatalf("loops back to the start, got %q", got)
+	}
+	if got := marqueeWindow("短い", 10, 50); got != "短い" {
+		t.Fatalf("a title that fits never scrolls, got %q", got)
+	}
+	for step := range 40 {
+		if w := ansi.StringWidth(marqueeWindow("夜明けの街を歩く", 5, step)); w != 5 {
+			t.Fatalf("step %d: window is %d cells wide", step, w)
+		}
+	}
+}
+
+func TestNowPlayingNoticeReplacesHint(t *testing.T) {
+	n := NowPlayingOverlay{Artist: "A", Title: "T", State: playback.StatePlaying, Notice: "Shuffle: off"}
+	plain := ansi.Strip(n.Render(80, 24, newTestStyles()))
+	if !strings.Contains(plain, "Shuffle: off") || strings.Contains(plain, "esc close") {
+		t.Fatalf("a notice should stand in for the hint:\n%s", plain)
+	}
+}
+
+func TestNowPlayingCentersTheComposition(t *testing.T) {
+	cover := strings.TrimSuffix(strings.Repeat(strings.Repeat("▀", 20)+"\n", 10), "\n")
+	n := NowPlayingOverlay{
+		Artist: "Artist", Title: "Song", State: playback.StatePlaying,
+		Cover: cover, CoverCols: 20, CoverRows: 10,
+	}
+	lines := strings.Split(ansi.Strip(n.Render(140, 40, newTestStyles())), "\n")
+	if len(lines) != 40 {
+		t.Fatalf("got %d lines, want 40", len(lines))
+	}
+	first, last := -1, -1
+	for i, line := range lines {
+		if strings.Contains(line, "▀") {
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+	}
+	// 38 body rows around a 10-row cover leave 14 above it.
+	if first != 14 || last != 23 {
+		t.Fatalf("cover rows %d–%d, want it centered vertically at 14–23", first, last)
+	}
+	// The cover, gap and capped text column are 80 cells wide, 30 from the left.
+	if left := strings.Index(lines[first], "▀"); left != 30 {
+		t.Fatalf("cover starts at column %d, want 30", left)
 	}
 }

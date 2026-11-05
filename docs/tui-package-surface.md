@@ -133,7 +133,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/sorting` | 50 | 26 | 24 | 0 | `tui`, `library`, `queue`, `browse`, `favorites`, `tags`, `playlists`, `insights` |
 | `tui/keys` | 159 | 41 | 117 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 62 | 41 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
-| `tui/overlay` | 132 | 38 | 93 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
+| `tui/overlay` | 139 | 38 | 100 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
 | `tui/statusbar` | 67 | 1 | 63 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1077 exported identifiers across 15 packages**: 167 reached from two or more packages, 852 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 79 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1084 exported identifiers across 15 packages**: 167 reached from two or more packages, 859 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -609,7 +609,10 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay.CoverRows` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Details` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Elapsed` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Marquee` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Modes` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.Notice` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.NoticeError` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.PlayCount` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Progress` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Reason` | field | `internal/tui` | root |
@@ -617,6 +620,7 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `NowPlayingOverlay.State` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.TagsLine` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Title` | field | `internal/tui` | root |
+| `tui/overlay` | `NowPlayingOverlay.TitleScroll` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.Total` | field | `internal/tui` | root |
 | `tui/overlay` | `NowPlayingOverlay.UpNext` | field | `internal/tui` | root |
 | `tui/overlay` | `PanelContentHeight` | func | `tui/autodj`, `tui/settings` | multi |
@@ -673,6 +677,9 @@ export must either earn a justification, be recorded in
 | `tui/overlay` | `TrackInfoOverlay.Request` | field | `internal/tui` | root |
 | `tui/overlay` | `TrackInfoOverlay.Scroll` | method | `internal/tui` | root |
 | `tui/overlay` | `TrackInfoOverlay.WithFileResult` | method | `internal/tui` | root |
+| `tui/overlay` | `UpNextSong` | type | `internal/tui` | root |
+| `tui/overlay` | `UpNextSong.Artist` | field | `internal/tui` | root |
+| `tui/overlay` | `UpNextSong.Title` | field | `internal/tui` | root |
 | `tui/overlay` | `WelcomeRow` | func | `internal/tui` | root |
 | `tui/statusbar` | `LongOpState` | type | `internal/tui` | root |
 | `tui/statusbar` | `LongOpState.Active` | field | `internal/tui` | root |
@@ -726,7 +733,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.Shuffle` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.StopAfterCurrent` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Title` | field | `internal/tui` | root |
-| `tui/statusbar` | `StatusBar.TopNotification` | method | `internal/tui†` | root (tests only) |
+| `tui/statusbar` | `StatusBar.TopNotification` | method | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Total` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.TotalSecs` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.TransientDur` | field | `internal/tui` | root |
@@ -738,8 +745,8 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `TransientErrorMsg` | type | `internal/tui` | root |
 | `tui/statusbar` | `TransientNotification` | type | `internal/tui†` | root (tests only) |
 | `tui/statusbar` | `TransientNotification.ExpiresAt` | field | `internal/tui†` | root (tests only) |
-| `tui/statusbar` | `TransientNotification.Msg` | field | `internal/tui†` | root (tests only) |
-| `tui/statusbar` | `TransientNotification.Severity` | field | `internal/tui†` | root (tests only) |
+| `tui/statusbar` | `TransientNotification.Msg` | field | `internal/tui` | root |
+| `tui/statusbar` | `TransientNotification.Severity` | field | `internal/tui` | root |
 | `tui/statusbar` | `TransientNotifyMsg` | type | `internal/tui`, `tui/queue`, `tui/uitest†` | multi |
 | `tui/settings` | `Action` | type | — | api |
 | `tui/settings` | `ActionCancel` | const | `internal/tui` | root |

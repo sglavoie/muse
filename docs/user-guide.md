@@ -82,8 +82,30 @@ align names, bars, and values within each section, including while scrolling.
 **Now Playing** (`I`) fills the screen: the album cover beside the song, a
 wide progress bar, the active playback modes, how often you have played it,
 its tags, the next three songs in play order, and, for an Auto-DJ pick, why it
-was chosen. On short screens the reason and the up-next list give way first;
-narrow ones drop the cover.
+was chosen. The cover and text sit together in the middle of the screen, on a
+background darkened from the cover's accent color (only as far as text stays
+easy to read; **Cover tint** off keeps the plain background). The status bar
+steps aside while the view is open, and its notices take the key hint's place.
+On short screens the reason and the up-next list give way first; narrow ones
+drop the cover.
+
+Up next lists each song title first with its artist dimmed after it; the
+artist is shortened before the title. Under Repeat all with shuffle off, the
+list wraps around to the start of the queue as playback will. With shuffle on
+the next pass is reshuffled when it begins, so the list stops at the end of
+the current one rather than guess. A title too long for one line scrolls
+slowly after a two-second pause and loops; with animations off it is
+shortened instead. When the song changes, the new cover fades in over the old
+one in block mode; Kitty covers swap at once, because a fade would mean
+uploading a new image for every frame.
+
+When the song changes on its own or with `n`/`p` while you are in another
+view, a small card with its cover, title and artist appears for four seconds,
+in empty space above the footer when there is some, otherwise at the top or
+bottom right of the list, never over the focused row. Any key dismisses it.
+Songs you start with `Enter`, and the song restored at startup, get no card.
+`track_change_card = false` (or **Track card** in Settings → Display) turns
+it off.
 
 **Album art.** muse looks for an album's cover the first time it needs it: an
 image named `cover`, `folder`, `front`, `album`, `albumart` or `artwork`
@@ -114,7 +136,8 @@ Pause and resume fade the audio in and out over about a tenth of a second
 updates, a small level meter replaces `▶` in the status bar, and the playing
 row fades in after a track change; dialogs and overlays fade in over a fifth
 of a second as they open, and switching views eases the new panel in below
-the tab bar while the tabs and status bar stay put. Track lists show titles brightest, artists tinted
+the tab bar while the tabs and status bar stay put; the track card slides in
+from the right. Track lists show titles brightest, artists tinted
 toward the accent color, and albums in a quieter tone. `reduce_motion = true` (or **Animations**
 in Settings → Display) turns these off and restores the static `▶`.
 

@@ -49,6 +49,7 @@ func defaults() Config {
 		ArtworkAccent:              defaultArtworkAccent,
 		FadeOnPause:                defaultFadeOnPause,
 		ReduceMotion:               defaultReduceMotion,
+		TrackChangeCard:            defaultTrackChangeCard,
 		Mixes: MixesConfig{
 			RediscoverMinPlays:     defaultMixRediscoverMinPlays,
 			RediscoverAgeDays:      defaultMixRediscoverAgeDays,

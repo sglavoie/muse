@@ -221,3 +221,25 @@ func TestSyntheticIsDeterministic(t *testing.T) {
 		t.Fatal("different seeds should draw different covers")
 	}
 }
+
+func TestBlendCrossFadesBetweenCovers(t *testing.T) {
+	a := solid(40, 40, color.RGBA{R: 200, A: 255})
+	b := solid(20, 20, color.RGBA{B: 100, A: 255})
+	for _, tc := range []struct {
+		t    float64
+		want color.RGBA
+	}{
+		{0, color.RGBA{R: 200, A: 255}},
+		{0.5, color.RGBA{R: 100, B: 50, A: 255}},
+		{1, color.RGBA{B: 100, A: 255}},
+		{2, color.RGBA{B: 100, A: 255}},
+	} {
+		out := Blend(a, b, 4, 6, tc.t)
+		if out.Bounds().Dx() != 4 || out.Bounds().Dy() != 6 {
+			t.Fatalf("t=%.1f: size %v", tc.t, out.Bounds())
+		}
+		if got := out.RGBAAt(2, 3); got != tc.want {
+			t.Errorf("t=%.1f: got %v, want %v", tc.t, got, tc.want)
+		}
+	}
+}

@@ -46,7 +46,7 @@
     },
     {
       "assert": {
-        "contains": "1  Charlie \u2013 Track D1"
+        "contains": "1  Track D1 \u00b7 Charlie"
       }
     },
     {

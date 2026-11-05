@@ -366,9 +366,11 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 
 	// Pulse the now-playing row briefly so the user notices the transition.
 	m.pulseUntil = time.Now().Add(pulseDuration)
+	var cardCmd tea.Cmd
+	m, cardCmd = m.announceTrackChange(prevHash, msg.Hash)
 
 	return m, tea.Batch(m.sessionPositionCmd(), radioCmd, pulseCmd(), djRefreshCmd,
-		m.trackNotifyCmd(msg, prevHash))
+		m.trackNotifyCmd(msg, prevHash), cardCmd)
 }
 
 // trackChangeIndex resolves the queue row a track-change event names.

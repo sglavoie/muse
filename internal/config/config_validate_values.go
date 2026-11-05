@@ -234,6 +234,9 @@ func validate(raw rawConfig) (Config, []string) {
 	if raw.ReduceMotion != nil {
 		cfg.ReduceMotion = *raw.ReduceMotion
 	}
+	if raw.TrackChangeCard != nil {
+		cfg.TrackChangeCard = *raw.TrackChangeCard
+	}
 	validateArtwork(raw.Artwork, &cfg, &warnings)
 
 	validateTheme(raw, &cfg, &warnings)

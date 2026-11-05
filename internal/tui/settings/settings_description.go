@@ -51,6 +51,7 @@ func (o SettingsOverlay) focusedDescription() string {
 		"Cover tint":     "Tint the interface with a color from the playing song's cover. Applies after saving.",
 		"Pause fade":     "Fade audio briefly in and out on pause and resume. Applies after saving.",
 		"Animations":     "Progress glide, playing indicator, and color transitions. Applies after saving.",
+		"Track card":     "Show the cover, title and artist for a few seconds when the song changes on its own or with n/p.",
 	}
 	return descriptions[f.label]
 }

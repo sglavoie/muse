@@ -94,6 +94,10 @@ log_level = "info"
 # and color transitions (true/false).
 # reduce_motion = false
 
+# Show a small card with the cover, title and artist for a few seconds when
+# the playing song changes on its own or with n/p (true/false).
+# track_change_card = true
+
 # Recommendation mix thresholds.
 # [mixes]
 # rediscover_min_plays = 10

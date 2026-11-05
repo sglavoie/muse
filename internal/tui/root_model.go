@@ -262,6 +262,10 @@ type Model struct {
 	// the playing cover's accent, or a step of the transition toward it.
 	accentOverride string
 
+	// trackCard is the transient "Now playing" card shown over the main views
+	// after the song changes; see root_track_card.go.
+	trackCard trackCardState
+
 	// pulseUntil drives a brief inversion of the now-playing row on track
 	// changes. Set in handleTrackChangedMsg; checked at render time.
 	pulseUntil time.Time

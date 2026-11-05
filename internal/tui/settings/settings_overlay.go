@@ -246,5 +246,6 @@ func (o SettingsOverlay) ToConfig(base config.Config) config.Config {
 	cfg.ArtworkAccent = disp[displayCoverTint].Value != 0
 	cfg.FadeOnPause = disp[displayPauseFade].Value != 0
 	cfg.ReduceMotion = disp[displayAnimations].Value == 0
+	cfg.TrackChangeCard = disp[displayTrackCard].Value != 0
 	return cfg
 }

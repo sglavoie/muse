@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/sglavoie/muse/internal/artwork"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -52,6 +53,18 @@ type motionState struct {
 	accentStart          time.Time
 	accentTarget         string
 	accentKnown          bool // accentTarget has been decided at least once
+	// accentFromArt records whether the transition started from a cover's
+	// accent, so the Now Playing background tint can ease out with it.
+	accentFromArt bool
+
+	// titleSince is when the Now Playing title last started from its
+	// beginning: the marquee counts its steps from here.
+	titleSince time.Time
+
+	// coverFrom is the previous song's cover while Now Playing cross-fades
+	// to the new one, starting at coverFadeStart; nil when not fading.
+	coverFrom      *artwork.Art
+	coverFadeStart time.Time
 }
 
 // motionFrameMsg advances every running animation by one frame.
@@ -112,6 +125,13 @@ func (m Model) accentAnimating(now time.Time) bool {
 	return m.motion.accentTo != nil && now.Sub(m.motion.accentStart) < motionAccentDuration
 }
 
+// transitionActive reports whether any short transition is running, which
+// asks for the smoother frame rate.
+func (m Model) transitionActive(now time.Time) bool {
+	return m.pulseActive(now) || m.accentAnimating(now) || m.overlayRevealing(now) ||
+		m.viewRevealing(now) || m.coverFading(now) || m.trackCardSliding(now)
+}
+
 // scheduleMotion starts the frame loop when an animation needs it.
 func (m Model) scheduleMotion() (Model, tea.Cmd) {
 	if !m.motion.enabled || m.motion.scheduled {
@@ -120,7 +140,7 @@ func (m Model) scheduleMotion() (Model, tea.Cmd) {
 	now := time.Now()
 	interval := time.Duration(0)
 	switch {
-	case m.pulseActive(now) || m.accentAnimating(now) || m.overlayRevealing(now) || m.viewRevealing(now):
+	case m.transitionActive(now):
 		interval = motionTransitionFrame
 	case m.playback.state == playback.StatePlaying:
 		interval = motionSteadyFrame
@@ -137,6 +157,9 @@ func (m Model) handleMotionFrame() Model {
 	now := time.Now()
 	if m.motion.accentTo != nil {
 		m = m.stepAccent(now)
+	}
+	if m.motion.coverFrom != nil && !m.coverFading(now) && !m.playingArtPending() {
+		m.motion.coverFrom = nil
 	}
 	return m
 }
@@ -166,7 +189,7 @@ func (m Model) noteMotionChanges(prev Model) Model {
 	if m.ActiveView != prev.ActiveView {
 		m.motion.viewChangedAt = time.Now()
 	}
-	return m
+	return m.noteNowPlayingMotion(prev)
 }
 
 // displayElapsed is the playback position to draw: the last reading, carried
@@ -244,6 +267,7 @@ func (m Model) refreshArtworkAccent() Model {
 		return m
 	}
 	first := !m.motion.accentKnown
+	m.motion.accentFromArt = m.motion.accentKnown && m.motion.accentTarget != ""
 	m.motion.accentKnown = true
 	m.motion.accentTarget = target
 	if !m.motion.enabled || first {

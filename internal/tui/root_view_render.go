@@ -20,6 +20,9 @@ func (m Model) View() tea.View {
 		v.AltScreen = true
 		return m.finishView(v)
 	}
+	if m.nowPlayingShown() {
+		return m.renderNowPlayingScreen()
+	}
 
 	body := m.renderActiveBody()
 	headerLines := 0
@@ -54,6 +57,7 @@ func (m Model) View() tea.View {
 		}
 	}
 
+	body = m.placeTrackCard(body, headerLines, time.Now())
 	content := body + "\n" + statusBar
 	switch {
 	case m.confirmationBar != "" && footerHint != "":
@@ -163,8 +167,9 @@ func (m Model) renderOverlayBody() (string, bool) {
 	case m.overlay.settings != nil:
 		return m.overlay.settings.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.nowPlaying != nil:
-		now := m.decorateNowPlaying(*m.overlay.nowPlaying)
-		return now.Render(m.termWidth, overlayHeight, *m.styles), true
+		// View draws this overlay full screen; see renderNowPlayingScreen.
+		now := m.decorateNowPlaying(*m.overlay.nowPlaying, *m.styles, time.Now())
+		return now.Render(m.termWidth, m.termHeight, *m.styles), true
 	case m.overlay.messages != nil:
 		return m.overlay.messages.Render(m.termWidth, overlayHeight, *m.styles), true
 	case m.overlay.queueSummary != nil:

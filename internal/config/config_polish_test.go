@@ -39,6 +39,19 @@ func TestLoadPolishSettings(t *testing.T) {
 	}
 }
 
+func TestTrackChangeCardDefaultsOnAndLoads(t *testing.T) {
+	if !Defaults().TrackChangeCard {
+		t.Fatal("track_change_card should default to true")
+	}
+	result := loadConfigText(t, "track_change_card = false\n")
+	if result.Config.TrackChangeCard {
+		t.Fatal("track_change_card = false was not loaded")
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("unexpected warnings: %v", result.Warnings)
+	}
+}
+
 func TestLoadInvalidArtworkWarns(t *testing.T) {
 	result := loadConfigText(t, "artwork = \"sixel\"\n")
 	if result.Config.Artwork != ArtworkAuto {
