@@ -22,6 +22,7 @@ func safeDirectCommandIDs() map[string]struct{} {
 	return map[string]struct{}{
 		"track.info":             {},
 		"playback.seek.time":     {},
+		"sleep.timer":            {},
 		"selection.clear":        {},
 		"messages.show":          {},
 		"help.show":              {},
@@ -56,6 +57,12 @@ func IsSafeDirectCommand(id string) bool {
 		sorting.HistorySortFields, sorting.QueueSortFields, sorting.PlaylistListSortFields)
 	for _, field := range fields {
 		if id == fmt.Sprintf("sort.field.%d", field) {
+			return true
+		}
+	}
+	// Sleep timer choices only exist inside the picker the timer opens.
+	for _, choice := range sleepChoices() {
+		if id == choice.id {
 			return true
 		}
 	}

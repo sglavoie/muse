@@ -98,6 +98,11 @@ func (m Model) handleControlRequest(msg controlRequestMsg) (tea.Model, tea.Cmd) 
 		// Toggle only when the state differs, so a headphone's pause never
 		// resumes a paused track.
 		want := msg.req.Op == control.OpPlay
+		if m.sleepFading() {
+			// Play during the sleep timer's fade means "keep listening": the
+			// fade is cancelled and the music stays on. Pause still pauses.
+			m = m.cancelSleepTimer("Sleep timer cancelled")
+		}
 		if (m.playback.state == playback.StatePlaying) == want {
 			msg.reply <- control.Reply{OK: true, Message: msg.req.Op}
 			return m, nil

@@ -19,12 +19,18 @@ import (
 func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	wasStopAfter := m.playback.stopAfterCurrent
 	m.playback.stopAfterCurrent = false
+	// A sleep timer waiting for the end of the queue makes this end final the
+	// same way a stop-after-current does: no repeat wrap, no extension resume,
+	// no Auto-DJ refill.
+	sleepEnd := m.sleepHoldsQueueEnd()
+	m = m.settleSleepAtPlaybackEnd(wasStopAfter)
+	final := wasStopAfter || sleepEnd
 	// A stop-after-current that ran to completion is the user ending playback, not
 	// the queue running dry, so the refill is retired here. The flag is already
 	// back to false by the time any later guard could read it, and every
-	// !wasStopAfter branch below is skipped, so nothing else on this path would
+	// !final branch below is skipped, so nothing else on this path would
 	// tell a parked refill that its wakeup is no longer wanted.
-	if wasStopAfter {
+	if final {
 		m = m.radioNoteDeliberateStop()
 	}
 	// Nothing lowers awaitingSelectionStart here: the traversal cannot have
@@ -34,7 +40,15 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// One snapshot before the branch cascade covers all four exits below.
 	m = m.endCurrentListen()
 
-	if !wasStopAfter && m.playback.repeatMode == playback.RepeatAll && len(m.queue.Entries) > 0 && m.player != nil {
+	// The song ended because the user asked it to: cue the next one paused
+	// rather than leaving the queue finished.
+	if wasStopAfter {
+		if next, cmd, ok := m.cueAfterStop(); ok {
+			return next, cmd
+		}
+	}
+
+	if !final && m.playback.repeatMode == playback.RepeatAll && len(m.queue.Entries) > 0 && m.player != nil {
 		// Prefer RestartQueueCycle so shuffle reshuffles into a fresh permutation
 		// (and sequential restarts from index 0). Fall back to PlayFromIndex(0)
 		// for lightweight players that do not implement the optional interface.
@@ -62,7 +76,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// happen — and, being the later push at equal priority, would win
 	// TopNotification's tie-break and bury the actionable error.
 	resumeFailed := false
-	if !wasStopAfter && m.queueExtensionResumable() {
+	if !final && m.queueExtensionResumable() {
 		resumed := false
 		m, resumed = m.resumeExtendedQueue(m.playback.currentIndex + 1)
 		if resumed {
@@ -72,7 +86,7 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	}
 
 	// Radio mode: enqueue a new batch if enabled and guards pass.
-	if !wasStopAfter {
+	if !final {
 		if next, cmd := m.startRadioEnqueueCmd(); cmd != nil {
 			m = next.idleAfterQueueEnd(true)
 			if !resumeFailed {
@@ -85,6 +99,9 @@ func (m Model) handlePlaybackEndedMsg() (Model, tea.Cmd) {
 	// Built before the state is cleared: the notice reads the missing-track
 	// count that idleAfterQueueEnd resets.
 	notice := m.queueEndNotice(wasStopAfter)
+	if sleepEnd && !wasStopAfter {
+		notice = "Sleep timer: queue finished"
+	}
 	// Mark queue as exhausted so a subsequent paste can auto-resume.
 	m = m.idleAfterQueueEnd(!wasStopAfter)
 
@@ -285,6 +302,7 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 	// Capture the outgoing hash before the overwrite below: the notification
 	// at the end of this handler must only fire on a genuine track change.
 	prevHash := m.playback.currentHash
+	prevIndex := m.playback.currentIndex
 
 	m.playback.currentHash = msg.Hash
 	idx := m.trackChangeIndex(msg)
@@ -339,6 +357,8 @@ func (m Model) handleTrackChangedMsg(msg playback.TrackChangedMsg) (Model, tea.C
 			m.overlay.nowPlaying.PlayCount = t.PlayCount
 		}
 	}
+
+	m = m.settleStopAfterOnTrackChange(prevHash, prevIndex)
 
 	// Radio mode: update seed and check low-water-mark.
 	m.radio.seedHash = msg.Hash

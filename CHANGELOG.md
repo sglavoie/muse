@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collection beneath it.
 - Pause and resume fade the audio over about a tenth of a second instead of
   cutting it (`fade_on_pause = false` to turn off).
+- A sleep timer (`:` → _Sleep timer…_) pauses playback after 15, 30, 45, 60
+  or 90 minutes, at the end of this song, or at the end of the queue. The
+  countdown shows in the status bar and Now Playing (`☾ 23m`) across views;
+  when it runs out the volume fades over about fifteen seconds before the
+  pause and is put back afterwards. Pressing play during the fade cancels it.
+  The timer is not kept across restarts.
 - The progress bar glides between position updates, a small level meter
   moves while music plays, the playing row fades in on a track change, and
   dialogs fade in as they open, and switching views eases the new panel in
@@ -79,6 +85,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   panels into one line ("Nothing played in this window yet") instead of a
   column of empty ones, and keeps Coverage, its lists and Data Health
   findings.
+- Stop after this song (`ctrl+n`) now leaves the next song loaded and paused
+  at its start instead of ending the queue, so play carries straight on. With
+  gapless playback on, arming it withdraws the song mpv had preloaded, so
+  none of it plays; skipping to another song clears it; and it works under
+  Repeat one and Repeat all. Now Playing shows **Stops after this song**
+  while it is armed.
 - Now Playing takes the whole screen: the status bar steps aside and its
   notices show in place of the key hint. The cover and text are centered, on
   a background darkened from the cover's accent color.

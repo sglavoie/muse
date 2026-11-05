@@ -54,8 +54,11 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 	pendingGen := m.loadGen
 	m.mu.Unlock()
 
+	// A cue (see CueNext) parks the entry paused at its start; every other
+	// queue-owned load plays it.
+	paused := m.cuePaused
 	err := m.admitPlaylist(func(c *IPCClient) error {
-		if err := c.loadFileReplace(entry.Path, "pause=no"); err != nil {
+		if err := c.loadFileReplace(entry.Path, loadPauseOption(paused)); err != nil {
 			return err
 		}
 		// mpv has executed the load, so the start-file this expectation is
@@ -65,7 +68,7 @@ func (m *Manager) replaceLocked(entry QueueTrack, marker MissingMarker, commit f
 		// finally performs it, and a send still parked inside mpv is not marked
 		// at all, so a reader connecting meanwhile keeps its expectation.
 		m.noteLoadStartSent(pendingSeq)
-		m.bestEffortUnpauseWith(c)
+		m.settleLoadPause(c, paused)
 		return nil
 	})
 	if err != nil {

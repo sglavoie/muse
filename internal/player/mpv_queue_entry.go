@@ -9,14 +9,24 @@ import (
 // SetStopAfterCurrent enables or disables "stop after current track" mode.
 // When enabled, the next end-file EOF event fires OnPlaybackEnded instead of
 // calling PlayFromIndex(idx+1). The flag auto-resets after firing.
+//
+// Arming also drops the gapless successor mpv has preloaded, so the end of the
+// current file is a real end rather than a transition already under way, and
+// under repeat-one it lifts mpv's file loop for the same reason: a looping file
+// never ends. Both are restored when the flag is cleared or after it fires.
 func (m *Manager) SetStopAfterCurrent(v bool) {
 	m.mu.Lock()
+	changed := m.stopAfterCurrent != v
 	m.stopAfterCurrent = v
+	repeatOne := m.repeatMode == "one"
 	m.mu.Unlock()
 	if v {
 		m.clearPrefetch()
 	} else {
 		safego.Go("player.prefetchNext", m.prefetchNext)
+	}
+	if changed && repeatOne {
+		m.reapplyLoopMode()
 	}
 }
 

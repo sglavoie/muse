@@ -167,6 +167,9 @@ func (m *Manager) dispatchEOF(state eofState) {
 	}
 	if state.stopAfter {
 		m.emitPlaybackEnded()
+		// Arming lifted repeat-one's file loop so this end could happen; put it
+		// back for whatever plays next.
+		safego.Go("player.reapplyLoopMode", m.reapplyLoopMode)
 		return
 	}
 

@@ -81,6 +81,9 @@ func (m Model) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case motionFrameMsg:
 		return m.handleMotionFrameMsg(msg), nil
 
+	case sleepTimerMsg:
+		return m.handleSleepTimerMsg(msg)
+
 	case artLoadedMsg:
 		return m.handleArtLoaded(msg)
 

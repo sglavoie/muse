@@ -134,7 +134,7 @@ MUSE_UPDATE_TUI_LAYERING=1 go test ./internal/tui/styles -run TestPackageLayersM
 | `tui/keys` | 162 | 43 | 118 | 1 | `tui` + 11 view packages |
 | `tui/playback` | 62 | 41 | 20 | 1 | `tui`, `main`, `overlay`, `statusbar`, `queue`, `internal/app` |
 | `tui/overlay` | 149 | 38 | 110 | 1 | `tui`, `metadata`, `autodj`, `settings`, `smartrules`, `favorites`, `uitest`, `tags`, `palette` |
-| `tui/statusbar` | 67 | 1 | 63 | 3 | `tui`, `queue`, `uitest` |
+| `tui/statusbar` | 68 | 1 | 64 | 3 | `tui`, `queue`, `uitest` |
 | `tui/settings` | 34 | 2 | 30 | 2 | `tui`, `uitest` |
 | `tui/smartrules` | 17 | 0 | 16 | 1 | `tui` |
 | `tui/metadata` | 55 | 0 | 53 | 2 | `tui` |
@@ -257,7 +257,7 @@ export must either earn a justification, be recorded in
 
 <!-- BEGIN GENERATED: per-identifier inventory -->
 
-**1105 exported identifiers across 15 packages**: 169 reached from two or more packages, 878 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
+**1106 exported identifiers across 15 packages**: 169 reached from two or more packages, 879 from exactly one, 58 from none (23 `api`, 2 `iface`, 33 `json`). 76 of the reached identifiers are named only by `_test.go` files outside their own package.
 
 | Package | Identifier | Kind | Importers | Disposition |
 |---|---|---|---|---|
@@ -744,6 +744,7 @@ export must either earn a justification, be recorded in
 | `tui/statusbar` | `StatusBar.RepeatMode` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.SelectionCount` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Shuffle` | field | `internal/tui` | root |
+| `tui/statusbar` | `StatusBar.SleepTimer` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.StopAfterCurrent` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.Title` | field | `internal/tui` | root |
 | `tui/statusbar` | `StatusBar.TopNotification` | method | `internal/tui` | root |

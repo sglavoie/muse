@@ -115,6 +115,10 @@ func playbackControlLabel(control playbackControl) string {
 // stop, next, previous, seek, volume, repeat, shuffle, preview, now-playing).
 // It returns true in the third value when the action was handled.
 func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, bool) {
+	var consumed bool
+	if m, consumed = m.interceptSleepFade(action); consumed {
+		return m, nil, true
+	}
 	switch action {
 	case keys.ActionTrackInfo:
 		if m.overlay.trackInfo != nil {
@@ -341,9 +345,11 @@ func (m Model) handlePlaybackKeyAction(action keys.Action) (tea.Model, tea.Cmd, 
 			m.statusBar.Notify("No track playing")
 			return m, nil, true
 		}
-		m.playback.stopAfterCurrent = !m.playback.stopAfterCurrent
-		if sat, ok := m.player.(stopAfterToggler); ok {
-			sat.SetStopAfterCurrent(m.playback.stopAfterCurrent)
+		m = m.setStopAfterCurrent(!m.playback.stopAfterCurrent)
+		if m.sleep.timer.mode == sleepEndOfSong {
+			// The key takes stop-after-current back from the sleep timer, so a
+			// later re-arm is a plain stop rather than a revived timer.
+			m.sleep.timer = m.sleep.timer.off()
 		}
 		m.statusBar.PushMsg(m.modeToggleMsg(playback.ModeIndexStopAfter), time.Duration(m.cfg.VolumeFeedbackDurationSecs)*time.Second, statusbar.NotifInfo)
 		return m, nil, true

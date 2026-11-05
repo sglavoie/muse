@@ -282,6 +282,11 @@ type Model struct {
 	// changes. Set in handleTrackChangedMsg; checked at render time.
 	pulseUntil time.Time
 
+	// sleep is the sleep timer; see root_sleep_timer.go. stopCue tracks the
+	// paused cue that follows a stop-after-current; see root_stop_after.go.
+	sleep   sleepState
+	stopCue stopAfterCueState
+
 	// sessionCount is the number of times the app has been launched (including
 	// the current session). Set via WithSessionCount. Used to show one-time tips.
 	sessionCount int

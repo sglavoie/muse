@@ -127,6 +127,10 @@ func (s StatusBar) renderModeCluster(ctx statusBarRenderContext) (string, int) {
 	if label == "" {
 		label = "Sequential"
 	}
+	if s.SleepTimer != "" {
+		label += " · " + s.SleepTimer
+		compact = append(compact, s.SleepTimer)
+	}
 	if ctx.width > 0 && ansi.StringWidth(label) > ctx.width/3 {
 		label = strings.Join(compact, " ")
 	}

@@ -155,7 +155,7 @@ func (m *Manager) restoreStableProperties(restore restoreState) {
 		m.mu.Lock()
 		m.repeatMode = restore.repeatMode
 		m.mu.Unlock()
-		if err := sendRepeat(c, restore.repeatMode); err != nil {
+		if err := sendRepeat(c, m.loopMode()); err != nil {
 			slog.Warn("mpv: restore repeat mode after restart failed", "err", err)
 		}
 	}

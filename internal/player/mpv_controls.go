@@ -28,7 +28,7 @@ func (m *Manager) SetRepeat(mode string) error {
 	m.mu.Unlock()
 
 	return m.admit(func(c *IPCClient) error {
-		return sendRepeat(c, mode)
+		return sendRepeat(c, m.loopMode())
 	})
 }
 

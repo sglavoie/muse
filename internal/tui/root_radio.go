@@ -135,7 +135,7 @@ func (m Model) radioCanEnqueue() bool {
 	if m.radio.stoppedByUser {
 		return false
 	}
-	if m.playback.stopAfterCurrent {
+	if m.playback.stopAfterCurrent || m.sleepHoldsQueueEnd() {
 		return false
 	}
 	if m.playback.repeatMode == playback.RepeatAll {

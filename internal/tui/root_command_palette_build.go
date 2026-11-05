@@ -96,7 +96,7 @@ func (m Model) BuildPaletteCommands() []palette.PaletteCommand {
 
 	path, artist, title, found := m.focusedTrackForPalette()
 	trackFocused := func() bool { return found }
-	cmds = append(cmds, m.seekTimeCommand(), m.refreshSmartPlaylistCommand())
+	cmds = append(cmds, m.seekTimeCommand(), m.refreshSmartPlaylistCommand(), m.sleepTimerPaletteCommand())
 	cmds = append(cmds, m.copyNowPlayingCommand())
 	cmds = append(cmds, m.browseNowPlayingCommand())
 

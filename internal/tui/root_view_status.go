@@ -18,6 +18,7 @@ func (m Model) RenderStatusBar() string {
 	sb.RepeatMode = m.playback.repeatMode
 	sb.Shuffle = m.playback.shuffle
 	sb.StopAfterCurrent = m.playback.stopAfterCurrent
+	sb.SleepTimer = m.sleepTimerLabel()
 	sb.VisualMode = m.visual.active
 	sb.RadioMode = m.radio.enabled
 	sb.ConfigCreated = m.configCreated

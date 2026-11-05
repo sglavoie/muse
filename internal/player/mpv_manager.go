@@ -219,6 +219,13 @@ type Manager struct {
 	// playlistMu while holding mu.
 	playlistMu sync.Mutex
 
+	// cuePaused makes the queue-owned load of the transaction that set it
+	// leave mpv paused at the start of the file instead of playing it. Only
+	// CueNext sets it, and only for the length of its own transaction, so it is
+	// guarded by playlistMu rather than mu: no other transaction can observe
+	// it. See mpv_cue.go.
+	cuePaused bool
+
 	// playlistGen counts queue-owned playlist replacements. It is bumped
 	// under mu whenever mpv accepts a `loadfile ... replace` (and whenever a
 	// fresh mpv connection is activated, since that process starts with an

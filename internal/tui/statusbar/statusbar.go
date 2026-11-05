@@ -30,9 +30,11 @@ type StatusBar struct {
 	RepeatMode       playback.RepeatMode
 	Shuffle          bool
 	StopAfterCurrent bool
-	VisualMode       bool
-	QueueEmpty       bool
-	EmptyQueueHint   string
+	// SleepTimer is the sleep timer's marker ("☾ 23m"), or "" when it is off.
+	SleepTimer     string
+	VisualMode     bool
+	QueueEmpty     bool
+	EmptyQueueHint string
 
 	// Elapsed and total are pre-formatted MM:SS strings injected by
 	// renderStatusBar. Both must be non-empty to show the time display.

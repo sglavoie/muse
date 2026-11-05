@@ -218,6 +218,29 @@ The status bar names enabled modes: **Repeat all/one**, **Shuffle**,
 **Sequential**. Compact combinations use `Rpt:all/one`, `Shuf`, `Stop`, and
 `DJ`; enabled states remain distinguishable without color.
 
+**Stop after this song** (`ctrl+n`, or _Toggle stop after current_ in the
+command palette) lets the song playing now finish and then stops, without a
+fraction of the next one: muse withdraws the song mpv had preloaded for gapless
+playback the moment you arm it. The next song is then loaded and left paused
+at its start, so `space` (or a media key) carries on exactly where the queue
+was. It works with shuffle, Auto-DJ and repeat: under Repeat one the same song
+waits, and under Repeat all the last song waits on the first. At the very end
+of a queue with nothing to wrap to, playback simply stops. The flag is spent
+once it fires, and skipping to another song spends it too. Now Playing says
+**Stops after this song** while it is armed.
+
+**Sleep timer** (`:` → _Sleep timer…_) pauses playback later. Choose 15, 30,
+45, 60 or 90 minutes, **End of this song**, **End of queue**, or **Off**. A
+countdown shows in the status bar and in Now Playing (`☾ 23m`, then seconds
+for the last minute); it keeps running across views. When the time is up the
+volume fades out over about fifteen seconds, playback pauses, and the volume
+goes back to where it was, so the next play is at your normal level. Pressing
+play — `space`, a media key or the headphone button — during the fade
+cancels the timer and keeps the music on. **End of this song** uses stop after
+this song; **End of queue** stops when the queue runs out and holds Auto-DJ
+refills and the Repeat all wrap until then (under Repeat one it waits for the
+end of the song instead). The timer is not saved: quitting muse cancels it.
+
 
 - **Auto-DJ** (`A`) — muse keeps the queue fed by scoring
   candidate tracks against what you have been listening to, avoiding recent
@@ -571,6 +594,7 @@ just enough to get moving.
 | `enter` | Enqueue / open the focused row |
 | `x` / `X` / `v` | Toggle bulk selection / clear selection / visual line mode |
 | `r` / `z` | Cycle repeat mode / toggle shuffle |
+| `ctrl+n` | Stop after this song (the next one waits, paused) |
 | `A` | Toggle Auto-DJ |
 | `ctrl+a` | Tune Auto-DJ — presets, discovery, filters, plus its Preview and Recipes tabs |
 | `F` | Favorite the focused track, album, or artist |

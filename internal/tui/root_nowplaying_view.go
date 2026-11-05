@@ -274,9 +274,19 @@ func (m Model) coverTintWeight(now time.Time) float64 {
 
 // nowPlayingModes names the active playback modes, or "" when none are on.
 func (m Model) nowPlayingModes() string {
+	// When playback is about to stop comes first: it is the one thing on the
+	// line that changes what happens next, and a narrow line truncates the
+	// tail. The sleep timer's own marker says it when the timer armed the stop.
 	var labels []string
-	for _, indicator := range playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled) {
-		if indicator.Active {
+	sleep := m.sleepTimerView()
+	if m.playback.stopAfterCurrent && sleep.mode != sleepEndOfSong {
+		labels = append(labels, "Stops after this song")
+	}
+	if label := sleep.label(m.sleepNow()); label != "" {
+		labels = append(labels, label)
+	}
+	for i, indicator := range playback.ModeIndicators(m.playback.repeatMode, m.playback.shuffle, m.playback.stopAfterCurrent, m.radio.enabled) {
+		if indicator.Active && i != playback.ModeIndexStopAfter {
 			labels = append(labels, indicator.Label())
 		}
 	}
