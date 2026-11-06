@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -98,13 +99,27 @@ func TestFirstRunEnterAdoptsFolderAndScans(t *testing.T) {
 	if !m.scanning || !m.firstRun.scanning || cmd == nil {
 		t.Fatal("adopting the folder did not start the first scan")
 	}
+	// The temp dir's length varies by platform, so only its end, which a
+	// truncated path keeps, is certain to show.
 	screen := ansi.Strip(viewContent(m))
-	if !strings.Contains(screen, "Scanning your music…") || !strings.Contains(screen, "Looking in …") {
+	if !strings.Contains(screen, "Scanning your music…") || !strings.Contains(screen, "Looking in ") || !strings.Contains(screen, filepath.Base(dir)) {
 		t.Fatalf("progress screen missing:\n%s", screen)
 	}
 	m, _ = updateModel(m, library.ScanDoneMsg{})
 	if m.firstRun.scanning || m.scanning {
 		t.Fatal("first scan state outlived the scan")
+	}
+}
+
+// A music folder too long for the line loses its beginning, keeping the
+// deepest folders in view.
+func TestFirstScanTruncatesLongFolderFromTheLeft(t *testing.T) {
+	m := firstScanModel(t, 80, 24)
+	long := "/" + strings.Repeat("very-long-parent/", 8) + "Music"
+	m.libraryRoots = []string{long}
+	screen := ansi.Strip(viewContent(m))
+	if !strings.Contains(screen, "Looking in …") || !strings.Contains(screen, "very-long-parent/Music") || strings.Contains(screen, long) {
+		t.Fatalf("long folder not truncated from the left:\n%s", screen)
 	}
 }
 

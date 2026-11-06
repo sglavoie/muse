@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- 0.7.0 was tagged but never published: its release build stopped on a test
+  that failed only on Linux. 0.7.1 ships everything listed under 0.7.0.
+
 ## [0.7.0] - 2026-11-05
 
 ### Added
