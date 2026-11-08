@@ -73,7 +73,7 @@ Covers come from image files next to the music (`cover.jpg`, `folder.png`, …)
 or from the picture embedded in each file, which muse reads with ExifTool.
 Without ExifTool, the `ffmpeg` binary from the same FFmpeg package as ffprobe
 extracts embedded pictures instead; with neither, only cover image files are
-used. See [Album art](user-guide.md) in the user guide.
+used. See [Album art](user-guide/playback.md#album-art) in the user guide.
 
 ### Notification backend — optional
 

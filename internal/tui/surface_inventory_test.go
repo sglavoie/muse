@@ -11,18 +11,21 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// The exported-surface inventory in docs/tui-package-surface.md is generated
-// from the type-checked module rather than written by hand, so the audit cannot
-// drift away from the code it describes. Regenerate it with:
+// The exported-surface inventory is generated from the type-checked module
+// rather than written by hand, so the audit cannot drift away from the code it
+// describes: docs/tui-package-surface.md holds the totals and an index, and
+// docs/tui-package-surface/ holds one per-identifier file per audited package.
+// Regenerate them with:
 //
 //	MUSE_UPDATE_SURFACE_INVENTORY=1 go test ./internal/tui -run TestExportedSurfaceInventoryCurrent
 const (
-	surfaceModulePath  = "github.com/sglavoie/muse"
-	surfaceDocPath     = "../../docs/tui-package-surface.md"
-	surfaceBeginMarker = "<!-- BEGIN GENERATED: per-identifier inventory -->"
-	surfaceEndMarker   = "<!-- END GENERATED: per-identifier inventory -->"
-	surfaceUpdateEnv   = "MUSE_UPDATE_SURFACE_INVENTORY"
-	surfaceSummaryHead = "## Per-package summary"
+	surfaceModulePath   = "github.com/sglavoie/muse"
+	surfaceDocPath      = "../../docs/tui-package-surface.md"
+	surfaceInventoryDir = "../../docs/tui-package-surface"
+	surfaceBeginMarker  = "<!-- BEGIN GENERATED: per-identifier inventory -->"
+	surfaceEndMarker    = "<!-- END GENERATED: per-identifier inventory -->"
+	surfaceUpdateEnv    = "MUSE_UPDATE_SURFACE_INVENTORY"
+	surfaceSummaryHead  = "## Per-package summary"
 )
 
 // surfaceAuditedPackages are the packages the TUI decomposition plan extracted
@@ -136,29 +139,7 @@ func TestExportedSurfaceInventoryCurrent(t *testing.T) {
 	}
 	checkSurfaceSummaryTable(t, string(doc), decls)
 
-	want := renderSurfaceInventory(rows)
-	got, err := surfaceGeneratedBlock(string(doc))
-	if err != nil {
-		t.Fatalf("%s: %v", surfaceDocPath, err)
-	}
-	if got == want {
-		return
-	}
-	if os.Getenv(surfaceUpdateEnv) == "1" {
-		updated, err := replaceSurfaceBlock(string(doc), want)
-		if err != nil {
-			t.Fatalf("%s: %v", surfaceDocPath, err)
-		}
-		//nolint:gosec // surfaceDocPath is a constant path to a doc in this repository.
-		if err := os.WriteFile(surfaceDocPath, []byte(updated), 0o644); err != nil {
-			t.Fatalf("write %s: %v", surfaceDocPath, err)
-		}
-		t.Fatalf("%s regenerated; rerun without %s=1", surfaceDocPath, surfaceUpdateEnv)
-	}
-	t.Errorf("%s is stale: the committed inventory no longer matches the exported\n"+
-		"declarations and uses in the module.\n%s\nRegenerate with:\n"+
-		"\t%s=1 go test ./internal/tui -run TestExportedSurfaceInventoryCurrent",
-		surfaceDocPath, surfaceLineDiff(got, want), surfaceUpdateEnv)
+	syncSurfaceDocs(t, string(doc), rows)
 }
 
 // analyzeExportedSurface type-checks the whole module (test files included) and

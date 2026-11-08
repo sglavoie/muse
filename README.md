@@ -134,7 +134,7 @@ with the current view. Normal layout supports terminals of **60×15 or larger**.
 | `ctrl+,` | Settings |
 | `ctrl+c` | Quit |
 
-The [full keybinding reference](docs/user-guide.md#core-keybindings) covers
+The [full keybinding reference](docs/user-guide/usage.md#core-keybindings) covers
 selection, sorting, tags, metadata, and playback controls. You can also control
 a running instance with `muse toggle-play`, `muse next`, `muse previous`,
 `muse volume-up`, and `muse volume-down`.

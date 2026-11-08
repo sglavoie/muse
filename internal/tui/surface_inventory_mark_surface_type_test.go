@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"go/types"
 	"regexp"
 	"sort"
@@ -208,115 +207,6 @@ func surfaceDisposition(d *surfaceDecl, inAPI map[surfaceKey]bool) (string, bool
 		return "keep: " + why, true
 	}
 	return "unjustified", false
-}
-
-func renderSurfaceInventory(rows []surfaceRow) string {
-	var b strings.Builder
-	b.WriteString(surfaceTotals(rows) + "\n\n")
-	b.WriteString("| Package | Identifier | Kind | Importers | Disposition |\n")
-	b.WriteString("|---|---|---|---|---|\n")
-	for _, r := range rows {
-		name := r.name
-		if r.member == 1 {
-			name = r.sortRecv + "." + r.name
-		}
-		fmt.Fprintf(&b, "| `%s` | `%s` | %s | %s | %s |\n",
-			surfaceShortPkg(r.pkg), name, r.kind, surfaceMarkupPkgs(r.importers), r.disposition)
-	}
-	return strings.TrimRight(b.String(), "\n")
-}
-
-// surfaceTotals is the one-line roll-up that opens the generated block, so the
-// shape of the surface is readable without counting 800 rows by hand.
-func surfaceTotals(rows []surfaceRow) string {
-	var multi, single, testsOnly int
-	zero := map[string]int{}
-	for _, r := range rows {
-		base, isTestsOnly := strings.CutSuffix(r.disposition, " (tests only)")
-		if isTestsOnly {
-			testsOnly++
-		}
-		switch {
-		case base == "multi":
-			multi++
-		case base == "api", base == "json", strings.HasPrefix(base, "iface: "), strings.HasPrefix(base, "keep: "):
-			zero[strings.SplitN(base, ":", 2)[0]]++
-		default:
-			single++
-		}
-	}
-	kinds := make([]string, 0, len(zero))
-	for _, kind := range []string{"api", "iface", "json", "keep"} {
-		if n := zero[kind]; n > 0 {
-			kinds = append(kinds, fmt.Sprintf("%d `%s`", n, kind))
-		}
-	}
-	total := multi + single
-	for _, n := range zero {
-		total += n
-	}
-	return fmt.Sprintf("**%d exported identifiers across %d packages**: %d reached from two or more "+
-		"packages, %d from exactly one, %d from none (%s). %d of the reached identifiers are named "+
-		"only by `_test.go` files outside their own package.",
-		total, len(surfaceAuditedPackages), multi, single, total-multi-single, strings.Join(kinds, ", "), testsOnly)
-}
-
-// surfaceMarkupPkgs code-quotes each package name in a comma-separated list.
-func surfaceMarkupPkgs(list string) string {
-	if list == "—" {
-		return list
-	}
-	parts := strings.Split(list, ", ")
-	for i, p := range parts {
-		parts[i] = "`" + p + "`"
-	}
-	return strings.Join(parts, ", ")
-}
-
-func surfaceGeneratedBlock(doc string) (string, error) {
-	start := strings.Index(doc, surfaceBeginMarker)
-	end := strings.Index(doc, surfaceEndMarker)
-	if start < 0 || end < 0 || end < start {
-		return "", fmt.Errorf("missing %s / %s markers around the generated inventory", surfaceBeginMarker, surfaceEndMarker)
-	}
-	return strings.TrimSpace(doc[start+len(surfaceBeginMarker) : end]), nil
-}
-
-func replaceSurfaceBlock(doc, block string) (string, error) {
-	start := strings.Index(doc, surfaceBeginMarker)
-	end := strings.Index(doc, surfaceEndMarker)
-	if start < 0 || end < 0 || end < start {
-		return "", fmt.Errorf("missing %s / %s markers around the generated inventory", surfaceBeginMarker, surfaceEndMarker)
-	}
-	return doc[:start+len(surfaceBeginMarker)] + "\n\n" + block + "\n\n" + doc[end:], nil
-}
-
-// surfaceLineDiff reports the first differing lines plus the size change, which
-// is enough to see what moved without dumping an 800-row table into the log.
-func surfaceLineDiff(got, want string) string {
-	gotLines, wantLines := strings.Split(got, "\n"), strings.Split(want, "\n")
-	var b strings.Builder
-	fmt.Fprintf(&b, "committed rows: %d, current rows: %d\n", len(gotLines), len(wantLines))
-	shown := 0
-	for i := 0; i < len(gotLines) || i < len(wantLines); i++ {
-		var g, w string
-		if i < len(gotLines) {
-			g = gotLines[i]
-		}
-		if i < len(wantLines) {
-			w = wantLines[i]
-		}
-		if g == w {
-			continue
-		}
-		if shown == 10 {
-			b.WriteString("  ... (further differences omitted)\n")
-			break
-		}
-		fmt.Fprintf(&b, "  line %d:\n    committed: %s\n    current:   %s\n", i+1, g, w)
-		shown++
-	}
-	return strings.TrimRight(b.String(), "\n")
 }
 
 var surfaceSummaryRow = regexp.MustCompile(`^\| ` + "`" + `([^` + "`" + `]+)` + "`" + ` \| (\d+) \| (\d+) \| (\d+) \| (\d+) \|`)
