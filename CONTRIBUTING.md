@@ -239,8 +239,9 @@ just ship minor --summary "One paragraph for the tag message."
 It refuses to run off `main`, with uncommitted changes, behind `origin/main`, or
 with an empty `Unreleased` section in `CHANGELOG.md`, so write those entries
 first. It then lists the commits since the last tag, moves the `Unreleased`
-entries under a dated heading, updates the compare links, commits
-`chore: release vX.Y.Z`, and creates the annotated tag. It asks once before
+entries under a dated heading, updates the compare links, regenerates the
+README tour with `just readme-demo` (Go, Python 3 and `uv`; pass `--no-demo` to
+skip), commits both as `chore: release vX.Y.Z`, and creates the annotated tag. It asks once before
 changing anything and again before `git push --atomic origin main vX.Y.Z`.
 Use `gh run watch` to follow the release run.
 

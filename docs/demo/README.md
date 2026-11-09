@@ -15,6 +15,9 @@ Regenerate it with Go, Python 3, and `uv` installed:
 just readme-demo
 ```
 
+`just ship` runs this before each release commit, so the tour tracks the
+released interface.
+
 [`capture_readme_demo.py`](../../scripts/capture_readme_demo.py) drives the
 `playback` fixture at 100×26, checks every action for layout issues and each
 scene for expected content, and writes ANSI frames into ignored build output.

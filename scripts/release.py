@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Cut a release: date the changelog, commit, tag, and push the tag to GitHub.
 
-Pushing a v* tag runs .github/workflows/release.yml, which re-runs CI and then
+It also regenerates the README's animated tour (just readme-demo) so the
+release commit ships a current demo. Pushing a v* tag runs .github/workflows/release.yml, which re-runs CI and then
 GoReleaser (binaries, GitHub release), then writes the Homebrew cask. See CONTRIBUTING.md.
 """
 
@@ -14,6 +15,7 @@ import sys
 
 
 CHANGELOG = Path("CHANGELOG.md")
+DEMO = Path("docs/demo/muse-tour.svg")
 REPO_URL = "https://github.com/sglavoie/muse"
 REMOTE = "origin"
 SEMVER = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
@@ -78,6 +80,17 @@ def check_repo():
         raise SystemExit(f"main is behind {REMOTE}/main; pull first")
 
 
+def refresh_demo():
+    """Regenerate the README tour; restore the checked-in one if that fails."""
+    try:
+        subprocess.run(["just", "readme-demo"], check=True)
+    except (OSError, subprocess.CalledProcessError) as err:
+        git("checkout", "--", str(DEMO))
+        raise SystemExit(f"just readme-demo failed ({err}); nothing changed. "
+                         "Fix it, or pass --no-demo to keep the current tour.")
+    return bool(git("status", "--porcelain", "--", str(DEMO)))
+
+
 def confirm(prompt):
     return input(f"{prompt} [y/N] ").strip().lower() in ("y", "yes")
 
@@ -87,6 +100,8 @@ def main(argv=None):
     parser.add_argument("version", help="1.2.3, or patch, minor or major to bump the latest tag")
     parser.add_argument("--summary", default="",
                         help="a paragraph for the tag message under 'muse vX.Y.Z'")
+    parser.add_argument("--no-demo", action="store_true",
+                        help="keep the current README tour instead of regenerating it")
     parser.add_argument("--yes", action="store_true", help="push without asking")
     args = parser.parse_args(argv)
 
@@ -111,8 +126,15 @@ def main(argv=None):
     if not (args.yes or confirm(f"Date the changelog, commit and tag {tag}?")):
         raise SystemExit("aborted; nothing changed")
 
+    paths = [str(CHANGELOG)]
+    if not args.no_demo:
+        if refresh_demo():
+            paths.append(str(DEMO))
+            print(f"Updated {DEMO}.")
+        else:
+            print(f"{DEMO} is already current.")
     CHANGELOG.write_text(updated)
-    git("commit", "--quiet", "-m", f"chore: release {tag}", "--", str(CHANGELOG))
+    git("commit", "--quiet", "-m", f"chore: release {tag}", "--", *paths)
     message = f"muse {tag}\n\n"
     if args.summary:
         message += args.summary.strip() + " "
