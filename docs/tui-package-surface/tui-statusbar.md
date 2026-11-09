@@ -17,6 +17,8 @@ the regeneration command are in
 | `tui/statusbar` | `Message.At` | field | `internal/tui` | root |
 | `tui/statusbar` | `Message.Severity` | field | `internal/tui` | root |
 | `tui/statusbar` | `Message.Text` | field | `internal/tui` | root |
+| `tui/statusbar` | `Meter` | type | `internal/tui` | root |
+| `tui/statusbar` | `Meter.Bands` | field | `internal/tui` | root |
 | `tui/statusbar` | `NotifInfo` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifNormal` | const | `internal/tui` | root |
 | `tui/statusbar` | `NotifPriority` | type | — | api |

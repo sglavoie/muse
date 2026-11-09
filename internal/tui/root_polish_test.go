@@ -12,6 +12,7 @@ import (
 	"github.com/sglavoie/muse/internal/artwork"
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/library"
+	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
@@ -174,14 +175,14 @@ func TestMotionFrameLoopRunsOnlyWhenNeeded(t *testing.T) {
 	}
 }
 
-func TestEqBarsAnimate(t *testing.T) {
+func TestSyntheticMeterAnimates(t *testing.T) {
 	seen := map[string]bool{}
 	for f := range 12 {
-		bars := eqBars(f)
-		if ansi.StringWidth(bars) != 3 {
-			t.Fatalf("frame %d: %q is not 3 cells", f, bars)
+		meter := syntheticMeter(f)
+		if len(meter.Bands) != player.LevelBandCount {
+			t.Fatalf("frame %d: %d bars, want one per band", f, len(meter.Bands))
 		}
-		seen[bars] = true
+		seen[meterRow(meter)] = true
 	}
 	if len(seen) < 4 {
 		t.Fatalf("level meter barely moves: %v", seen)
@@ -196,7 +197,8 @@ func TestStatusBarShowsLevelMeterWithMotion(t *testing.T) {
 	}
 	m.motion.enabled = true
 	plain := ansi.Strip(m.RenderStatusBar())
-	if strings.Contains(plain, "▶") || !strings.ContainsAny(plain, "▁▂▃▄▅▆▇") {
+	// The fixture's levels are at rest: an empty track takes ▶'s place.
+	if strings.Contains(plain, "▶") || m.statusLevelMeter() == nil {
 		t.Fatalf("with motion the level meter replaces ▶: %q", plain)
 	}
 }

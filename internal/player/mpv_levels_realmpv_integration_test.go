@@ -15,9 +15,13 @@ import (
 // (beside normalization, which the meter must not displace) still advances
 // through the queue gaplessly.
 //
-// The clips are sine tones at 8000/32768 of full scale, a peak of about
-// -12.2 dBFS and an RMS of about -15.3 dBFS; normalization changes the level,
-// so the reading is only required to be a plausible tone, not that exact one.
+// It also checks that the bands separate frequencies: the tone lands in its
+// own octave band.
+//
+// The clips are sine tones at 8000/32768 of full scale, an RMS of about
+// -15.3 dBFS; normalization changes the level, and the meter's spectral
+// estimate reads a lone tone low, so the reading is only required to be
+// plausible, not that exact level.
 // The first clip is long because loudnorm holds back its three-second
 // look-ahead window before it releases audio: a shorter first clip never
 // reports a position at all.
@@ -58,10 +62,24 @@ func TestRealMPVLevelMeterReadsLevelsAndKeepsGapless(t *testing.T) {
 	if reading.Channels() < 1 {
 		t.Fatalf("reading has no channels: %+v", reading)
 	}
-	peak, rms := reading.Peak[0], reading.RMS[0]
-	t.Logf("level reading: %d channel(s), peak %.1f dBFS, RMS %.1f dBFS", reading.Channels(), peak, rms)
-	if math.IsInf(peak, 0) || peak > 0.5 || peak < -60 || rms > peak+0.01 {
-		t.Fatalf("implausible reading for a tone: peak %.2f, RMS %.2f", peak, rms)
+	rms := reading.RMS[0]
+	t.Logf("level reading: %d channel(s), RMS %.1f dBFS", reading.Channels(), rms)
+	if math.IsInf(rms, 0) || rms > 3 || rms < -60 {
+		t.Fatalf("implausible reading for a tone: RMS %.2f", rms)
+	}
+	// The first clip is a 220 Hz tone, inside the 250 Hz octave band.
+	if len(reading.Bands) != LevelBandCount {
+		t.Fatalf("reading has %d bands, want %d: %+v", len(reading.Bands), LevelBandCount, reading)
+	}
+	loudest := 0
+	for i, v := range reading.Bands {
+		if v > reading.Bands[loudest] {
+			loudest = i
+		}
+	}
+	t.Logf("bands: %.1f", reading.Bands)
+	if hz := LevelBandHz()[loudest]; hz != 250 {
+		t.Fatalf("a 220 Hz tone should peak in the 250 Hz band, not %d Hz: %.1f", hz, reading.Bands)
 	}
 
 	m := f.mgr

@@ -101,16 +101,22 @@ from the right. Track lists show titles brightest, artists tinted
 toward the accent color, and albums in a quieter tone. `reduce_motion = true` (or **Animations**
 in Settings → Display) turns these off and restores the static `▶`.
 
-**Level meter.** The status bar's three bars follow the music itself: the
-left one is the left channel's level, the middle one the loudest peak, and
-the right one the right channel (a mono song moves both sides together).
+**Level meter.** The status bar's meter is a small spectrum analyzer that
+follows the music itself: ten bars, one per octave band, from the deep bass
+on the left (around 31 Hz) through the mids to the treble on the right
+(above 10 kHz). A kick drum lifts the left bars, cymbals the right ones. In a
+window narrower than 70 columns, neighbouring bands share a bar, leaving
+five.
 Levels come from a light analysis filter added to mpv's audio filters after
 normalization, the equalizer and stereo widening, so the meter shows what you
-hear before the volume control; it leaves the audio untouched, and costs well
-under one percent of a core. muse reads it about twelve times a second, only
+hear before the volume control. It leaves the audio untouched, with one
+exception: playback through the meter is stereo, so audio with more than two
+channels is downmixed, as a stereo output device would. It costs about one
+percent of a core for CD-quality audio, a few percent for high-resolution
+files. muse reads it about twelve times a second, only
 while music plays and the meter or the strip is on screen; paused, stopped or
-with animations off it reads nothing. Silence leaves the bars flat, and pausing
-brings them to rest.
+with animations off it reads nothing. Silence leaves the bars flat, and
+pausing brings them to rest.
 
 Full-screen Now Playing adds a loudness strip directly above the progress
 bar: one column per quarter second, newest on the right, in the accent color

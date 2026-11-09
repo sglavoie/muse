@@ -24,12 +24,14 @@ func (uitestPlayer) Pause() error            { return nil }
 func (uitestPlayer) PlayFromIndex(int) error { return nil }
 
 // SetLevelMeter and Levels make the fixture player a deterministic level
-// source: a steady stereo reading, so the meter shows measured bars and the
-// Now Playing loudness strip draws the fixture's synthetic history.
+// source: a steady stereo reading with a music-like spectrum, so the meter
+// shows measured bars and the Now Playing loudness strip draws the fixture's
+// synthetic history.
 func (uitestPlayer) SetLevelMeter(bool) error { return nil }
 
 func (uitestPlayer) Levels() (player.Levels, bool, error) {
-	return player.Levels{Peak: []float64{-4, -5}, RMS: []float64{-14, -16}}, true, nil
+	return player.Levels{RMS: []float64{-14, -16},
+		Bands: []float64{-72, -68, -70, -73, -76, -75, -74, -77, -80, -86}}, true, nil
 }
 
 // uitestQueueStore is an in-memory queue writer/dequeuer/reorderer. It records

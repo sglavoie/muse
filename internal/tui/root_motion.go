@@ -9,7 +9,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sglavoie/muse/internal/artwork"
+	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -269,18 +271,17 @@ func easeInOutCubic(t float64) float64 {
 	return 1 - u*u*u/2
 }
 
-// eqBars returns the animated three-bar level meter shown while playing when
-// the music's own levels cannot be measured.
-func eqBars(frame int) string {
-	levels := []rune("▁▂▃▄▅▆▇")
-	out := make([]rune, 3)
-	for i := range out {
-		f := float64(frame)
-		v := 0.5 + 0.3*math.Sin(f*0.9+float64(i)*2.1) + 0.2*math.Sin(f*1.7+float64(i)*0.7)
-		idx := int(math.Round(v * float64(len(levels)-1)))
-		out[i] = levels[max(0, min(len(levels)-1, idx))]
+// syntheticMeter returns the animated spectrum shown while playing when the
+// music's own levels cannot be measured: bars that sway out of step, a little
+// fuller in the bass, the way music tends to look.
+func syntheticMeter(frame int) statusbar.Meter {
+	f := float64(frame)
+	bands := make([]float64, player.LevelBandCount)
+	for i := range bands {
+		b := float64(i)
+		bands[i] = 0.6 - 0.025*b + 0.22*math.Sin(f*0.9+b*1.3) + 0.12*math.Sin(f*1.7+b*0.6)
 	}
-	return string(out)
+	return statusbar.Meter{Bands: bands}
 }
 
 // refreshArtworkAccent points the interface accent at the playing track's

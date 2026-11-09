@@ -11,6 +11,7 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
 	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
@@ -39,13 +40,20 @@ const (
 	levelHistoryLen  = 96
 )
 
-// The meter maps dBFS linearly onto its height, which is already a
+// The loudness strip maps dBFS linearly onto its height, which is already a
 // perceptual scale: levelFloorDB and below rest flat, 0 dBFS fills it. RMS
 // sits well under the peaks in real music, so it is lifted by levelRMSLift to
 // use the same range.
 const (
 	levelFloorDB = -48.0
 	levelRMSLift = 3.0
+	// The spectrum bars map each band's level (player.Levels.Bands, a
+	// relative dB scale) between bandFloorDB, which rests flat, and
+	// bandCeilingDB, which fills a bar. Set from real music across genres: a
+	// dense mix sits a little over halfway up, with room to bounce either way,
+	// while quiet passages and thin arrangements stay low.
+	bandFloorDB   = -96.0
+	bandCeilingDB = -62.0
 	// A rising level is followed most of the way at once; a falling one
 	// sinks at levelDecayPerSec of the meter's height per second, so the
 	// bars bounce with the music instead of flickering with every frame.
@@ -66,9 +74,9 @@ const (
 	levelsSynthetic
 )
 
-// levelState is the level meter: where its readings come from, the three
-// smoothed bars the status bar draws, and the history behind the Now Playing
-// loudness strip.
+// levelState is the level meter: where its readings come from, the smoothed
+// spectrum bars the status bar draws, the smoothed loudness, and the history
+// behind the Now Playing loudness strip.
 type levelState struct {
 	mode    levelMode
 	meterOn bool // the player has added its analysis filter
@@ -77,7 +85,10 @@ type levelState struct {
 	lastPoll time.Time // when the newest reading was scheduled
 	lastAt   time.Time // when the newest applied reading was taken
 
-	bars [3]float64 // left RMS, peak, right RMS; 0 rests, 1 is full scale
+	// bands are the spectrum bars, lowest frequency first; loudness is the
+	// average of the channels' levels. 0 rests, 1 is full scale.
+	bands    [player.LevelBandCount]float64
+	loudness float64
 
 	// history holds one loudness value per levelHistoryStep, oldest first;
 	// bucket collects the loudest value of the step in progress.
@@ -169,7 +180,7 @@ func (m Model) applyLevelReading(r levelReading) Model {
 				return m.fallBackToSyntheticLevels(r.err)
 			}
 		}
-		return m.stepLevels(r.at, [3]float64{})
+		return m.stepLevels(r.at, levelFrame{})
 	}
 	m.levels.mode = levelsLive
 	m.levels.misses = 0
@@ -214,15 +225,22 @@ func (m Model) syncLevels() (Model, tea.Cmd) {
 // rest drops the bars to the floor and closes the history step in
 // progress, so playback resumes from a still meter.
 func (l levelState) rest() levelState {
-	l.bars = [3]float64{}
+	l.bands, l.loudness = [player.LevelBandCount]float64{}, 0
 	l.lastAt = time.Time{}
 	l.bucket, l.bucketStart = 0, time.Time{}
 	return l
 }
 
-// stepLevels smooths the bars toward targets and records the loudness
-// history.
-func (m Model) stepLevels(at time.Time, targets [3]float64) Model {
+// levelFrame is what one reading asks of the meter: a height for each
+// spectrum bar and the loudness, all 0..1.
+type levelFrame struct {
+	bands    [player.LevelBandCount]float64
+	loudness float64
+}
+
+// stepLevels smooths the bars and loudness toward a reading's targets and
+// records the loudness history.
+func (m Model) stepLevels(at time.Time, targets levelFrame) Model {
 	dt := levelPollInterval.Seconds()
 	if !m.levels.lastAt.IsZero() {
 		if d := at.Sub(m.levels.lastAt).Seconds(); d > 0 && d < 0.5 {
@@ -230,11 +248,11 @@ func (m Model) stepLevels(at time.Time, targets [3]float64) Model {
 		}
 	}
 	m.levels.lastAt = at
-	for i, target := range targets {
-		m.levels.bars[i] = smoothLevel(m.levels.bars[i], target, dt)
+	for i, target := range targets.bands {
+		m.levels.bands[i] = smoothLevel(m.levels.bands[i], target, dt)
 	}
-	loudness := (m.levels.bars[0] + m.levels.bars[2]) / 2
-	m.levels = m.levels.record(at, loudness)
+	m.levels.loudness = smoothLevel(m.levels.loudness, targets.loudness, dt)
+	m.levels = m.levels.record(at, m.levels.loudness)
 	return m
 }
 
@@ -270,44 +288,43 @@ func (l levelState) record(at time.Time, loudness float64) levelState {
 	return l
 }
 
-// levelTargets maps a reading onto the three bars: the left channel's RMS,
-// the loudest peak, and the right channel's RMS. Mono feeds both sides.
-func levelTargets(l player.Levels) [3]float64 {
-	n := l.Channels()
+// levelTargets maps a reading onto the meter: each band's level sets its
+// bar, and the channels' average RMS sets the loudness. Mono counts once.
+func levelTargets(l player.Levels) levelFrame {
+	var f levelFrame
+	n := len(l.RMS)
 	if n == 0 {
-		return [3]float64{}
+		return f
 	}
-	right := min(1, n-1)
-	peak := math.Inf(-1)
-	for _, p := range l.Peak[:n] {
-		peak = math.Max(peak, p)
+	var sum float64
+	for _, rms := range l.RMS {
+		sum += dbToLevel(rms + levelRMSLift)
 	}
-	return [3]float64{
-		dbToLevel(l.RMS[0] + levelRMSLift),
-		dbToLevel(peak),
-		dbToLevel(l.RMS[right] + levelRMSLift),
+	f.loudness = sum / float64(n)
+	for i := range min(len(l.Bands), len(f.bands)) {
+		f.bands[i] = dbRangeToLevel(l.Bands[i], bandFloorDB, bandCeilingDB)
 	}
+	return f
 }
 
 // dbToLevel maps dBFS onto 0..1 between levelFloorDB and full scale.
 // Silence (negative infinity) and anything below the floor rest at 0.
 func dbToLevel(db float64) float64 {
-	if math.IsNaN(db) || db <= levelFloorDB {
-		return 0
-	}
-	return math.Min(1, (db-levelFloorDB)/-levelFloorDB)
+	return dbRangeToLevel(db, levelFloorDB, 0)
 }
 
-// meterGlyphs are the status bar meter's bar heights; the lowest is rest.
-var meterGlyphs = []rune("▁▂▃▄▅▆▇")
-
-// levelMeterBars draws the three smoothed bars.
-func levelMeterBars(bars [3]float64) string {
-	out := make([]rune, len(bars))
-	for i, v := range bars {
-		out[i] = levelGlyph(meterGlyphs, v)
+// dbRangeToLevel maps dB onto 0..1 between floor and ceiling. Silence
+// (negative infinity), NaN and anything below the floor rest at 0.
+func dbRangeToLevel(db, floor, ceiling float64) float64 {
+	if math.IsNaN(db) || db <= floor {
+		return 0
 	}
-	return string(out)
+	return math.Min(1, (db-floor)/(ceiling-floor))
+}
+
+// levelMeterFrame turns the smoothed bands into the status bar meter.
+func levelMeterFrame(bands [player.LevelBandCount]float64) statusbar.Meter {
+	return statusbar.Meter{Bands: bands[:]}
 }
 
 func levelGlyph(glyphs []rune, v float64) rune {
@@ -316,16 +333,17 @@ func levelGlyph(glyphs []rune, v float64) rune {
 }
 
 // statusLevelMeter is what the status bar shows in place of ▶ while playing:
-// the measured bars, or the animation when levels cannot be measured. It is
-// empty with animations off, which keeps the static ▶.
-func (m Model) statusLevelMeter() string {
+// the measured levels, or the animation when levels cannot be measured. It
+// is nil with animations off, which keeps the static ▶.
+func (m Model) statusLevelMeter() *statusbar.Meter {
 	if !m.motion.enabled {
-		return ""
+		return nil
 	}
+	meter := syntheticMeter(m.motion.frame)
 	if m.realLevelsAllowed() {
-		return levelMeterBars(m.levels.bars)
+		meter = levelMeterFrame(m.levels.bands)
 	}
-	return eqBars(m.motion.frame)
+	return &meter
 }
 
 // stripGlyphs are the loudness strip's column heights.

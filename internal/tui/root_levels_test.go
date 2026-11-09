@@ -12,6 +12,8 @@ import (
 	"github.com/sglavoie/muse/internal/config"
 	"github.com/sglavoie/muse/internal/player"
 	"github.com/sglavoie/muse/internal/tui/playback"
+	"github.com/sglavoie/muse/internal/tui/statusbar"
+	"github.com/sglavoie/muse/internal/tui/styles"
 )
 
 // stubLevelPlayer is a player whose level meter returns reading (or no
@@ -36,7 +38,8 @@ func (s *stubLevelPlayer) Levels() (player.Levels, bool, error) {
 }
 
 func loudReading() player.Levels {
-	return player.Levels{Peak: []float64{-2, -3}, RMS: []float64{-9, -12}}
+	return player.Levels{RMS: []float64{-9, -12},
+		Bands: []float64{-66, -64, -66, -68, -70, -70, -71, -72, -74, -78}}
 }
 
 // levelModel is the playback fixture playing through src with animations on.
@@ -94,25 +97,47 @@ func TestDbToLevelIsLinearInDecibels(t *testing.T) {
 	}
 }
 
-func TestLevelTargetsMapChannels(t *testing.T) {
-	stereo := levelTargets(player.Levels{Peak: []float64{-6, -1}, RMS: []float64{-20, -30}})
-	if stereo[1] != dbToLevel(-1) {
-		t.Errorf("the middle bar should follow the loudest peak: %v", stereo)
+func TestLevelTargetsMapBandsAndLoudness(t *testing.T) {
+	reading := player.Levels{RMS: []float64{-20, -30},
+		Bands: []float64{-120, -90, -85, -80, -75, -70, -79, -79, -79, -40}}
+	got := levelTargets(reading)
+	if got.bands[0] != 0 {
+		t.Errorf("a band under the floor should rest: %v", got.bands)
 	}
-	if stereo[0] <= stereo[2] {
-		t.Errorf("the louder left channel should stand taller than the right: %v", stereo)
+	if got.bands[9] != 1 {
+		t.Errorf("a band over the ceiling should fill its bar: %v", got.bands)
 	}
-	mono := levelTargets(player.Levels{Peak: []float64{-6}, RMS: []float64{-18}})
-	if mono[0] != mono[2] || mono[0] == 0 {
-		t.Errorf("mono should feed both sides: %v", mono)
+	for i := 2; i < 6; i++ {
+		if got.bands[i] <= got.bands[i-1] {
+			t.Errorf("louder bands should stand taller: %v", got.bands)
+			break
+		}
 	}
-	silent := levelTargets(player.Levels{Peak: []float64{math.Inf(-1)}, RMS: []float64{math.Inf(-1)}})
-	if silent != [3]float64{} || levelMeterBars(silent) != "▁▁▁" {
-		t.Errorf("silence should rest flat: %v %q", silent, levelMeterBars(silent))
+	if got.bands[6] != got.bands[8] {
+		t.Errorf("equal levels should stand level: %v", got.bands)
 	}
-	if levelTargets(player.Levels{}) != [3]float64{} {
+	if want := (dbToLevel(-20+levelRMSLift) + dbToLevel(-30+levelRMSLift)) / 2; got.loudness != want {
+		t.Errorf("loudness = %v, want the channels' average %v", got.loudness, want)
+	}
+	mono := levelTargets(player.Levels{RMS: []float64{-18}})
+	if mono.loudness != dbToLevel(-18+levelRMSLift) {
+		t.Errorf("mono counts once: %v", mono.loudness)
+	}
+	silent := levelTargets(player.Levels{RMS: []float64{math.Inf(-1)}, Bands: []float64{math.Inf(-1), math.NaN()}})
+	if silent != (levelFrame{}) || meterRow(levelMeterFrame(silent.bands)) != "▁▁▁▁▁▁▁▁▁▁" {
+		t.Errorf("silence should rest flat: %+v", silent)
+	}
+	if levelTargets(player.Levels{}) != (levelFrame{}) {
 		t.Error("an empty reading has no level")
 	}
+}
+
+// meterRow renders a meter alone, as plain text.
+func meterRow(meter statusbar.Meter) string {
+	sb := statusbar.StatusBar{PlaybackState: playback.StatePlaying, LevelMeter: &meter}
+	line := ansi.Strip(sb.Render(0, styles.Styles{}))
+	meterText, _, _ := strings.Cut(line, " ")
+	return meterText
 }
 
 func TestSmoothLevelRisesFastAndFallsSteadily(t *testing.T) {
@@ -162,8 +187,8 @@ func TestLevelHistoryRecordsOneColumnPerStep(t *testing.T) {
 func TestLevelReadingsDriveTheStatusBarMeter(t *testing.T) {
 	src := &stubLevelPlayer{reading: loudReading(), ok: true}
 	m := levelModel(t, src, 100, 30)
-	if got := ansi.Strip(m.RenderStatusBar()); !strings.Contains(got, "▁▁▁") {
-		t.Fatalf("before any reading the meter rests: %q", got)
+	if got := m.statusLevelMeter(); got == nil || meterRow(*got) != "▁▁▁▁▁▁▁▁▁▁" {
+		t.Fatalf("before any reading the meter rests: %+v", got)
 	}
 	m, msg := runFrame(t, m)
 	if msg.levels == nil || !msg.levels.enabled {
@@ -180,7 +205,7 @@ func TestLevelReadingsDriveTheStatusBarMeter(t *testing.T) {
 		t.Fatalf("the filter is added once, not per frame: %v", src.enables)
 	}
 	plain := ansi.Strip(m.RenderStatusBar())
-	if strings.Contains(plain, "▁▁▁") || strings.Contains(plain, "▶") {
+	if strings.Contains(plain, "▁▁▁▁▁▁▁▁▁▁") || strings.Contains(plain, "▶") {
 		t.Fatalf("a loud reading should raise the bars: %q", plain)
 	}
 }
@@ -264,7 +289,7 @@ func TestPauseBringsTheMeterToRest(t *testing.T) {
 	src := &stubLevelPlayer{reading: loudReading(), ok: true}
 	m := levelModel(t, src, 100, 30)
 	m, _ = runFrame(t, m)
-	if m.levels.bars == ([3]float64{}) {
+	if m.levels.bands == ([player.LevelBandCount]float64{}) {
 		t.Fatal("bars should be up while playing")
 	}
 	next, _ := m.Update(playback.PauseChangedMsg{Paused: true})
@@ -272,8 +297,8 @@ func TestPauseBringsTheMeterToRest(t *testing.T) {
 	if m.playback.state != playback.StatePaused {
 		t.Skip("pause message did not pause the fixture")
 	}
-	if m.levels.bars != ([3]float64{}) {
-		t.Fatalf("paused bars should rest: %v", m.levels.bars)
+	if m.levels.bands != ([player.LevelBandCount]float64{}) || m.levels.loudness != 0 {
+		t.Fatalf("paused bars should rest: %v", m.levels.bands)
 	}
 	if _, cmd := m.scheduleMotion(); cmd != nil {
 		t.Fatal("paused with nothing animating: no frames, so no reads")
@@ -294,8 +319,8 @@ func TestLevelMeterFallsBackWhenNoLevelsArrive(t *testing.T) {
 		t.Fatalf("no readings for about a second should fall back: %+v", m.levels)
 	}
 	m.motion.frame = 3
-	if got := ansi.Strip(m.RenderStatusBar()); !strings.Contains(got, eqBars(3)) {
-		t.Fatalf("the fallback should show the animated meter %q: %q", eqBars(3), got)
+	if got := m.statusLevelMeter(); got == nil || meterRow(*got) != meterRow(syntheticMeter(3)) {
+		t.Fatalf("the fallback should show the animated meter %+v: %+v", syntheticMeter(3), got)
 	}
 	if m.levelsWanted() {
 		t.Fatal("after falling back nothing reads levels")
@@ -347,7 +372,7 @@ func TestLevelMeterSettingOffRemovesTheFilter(t *testing.T) {
 	m := levelModel(t, src, 100, 30)
 	m, _ = runFrame(t, m)
 	m, _ = runFrame(t, m)
-	if !m.levels.meterOn || len(m.levels.history) == 0 && m.levels.bars == ([3]float64{}) {
+	if !m.levels.meterOn || len(m.levels.history) == 0 && m.levels.bands == ([player.LevelBandCount]float64{}) {
 		t.Fatalf("meter should be live: %+v", m.levels)
 	}
 	old := m.cfg
@@ -361,11 +386,11 @@ func TestLevelMeterSettingOffRemovesTheFilter(t *testing.T) {
 	if last := src.enables[len(src.enables)-1]; last {
 		t.Fatal("want SetLevelMeter(false)")
 	}
-	if m.levels.bars != ([3]float64{}) || m.levels.history != nil {
+	if m.levels.bands != ([player.LevelBandCount]float64{}) || m.levels.history != nil {
 		t.Fatalf("off clears what was measured: %+v", m.levels)
 	}
-	if got := ansi.Strip(m.RenderStatusBar()); !strings.Contains(got, eqBars(m.motion.frame)) {
-		t.Fatalf("off keeps the decorative meter: %q", got)
+	if got := m.statusLevelMeter(); got == nil || meterRow(*got) != meterRow(syntheticMeter(m.motion.frame)) {
+		t.Fatalf("off keeps the decorative meter: %+v", got)
 	}
 
 	// Back on: the meter starts over and asks for the filter again.
@@ -386,7 +411,7 @@ func TestReduceMotionHidesTheMeterAndStrip(t *testing.T) {
 	old := m.cfg
 	m.cfg.ReduceMotion = true
 	m = m.applyPolishSettings(old)
-	if m.statusLevelMeter() != "" {
+	if m.statusLevelMeter() != nil {
 		t.Fatal("reduce motion keeps the static ▶")
 	}
 	if m.levels.history != nil {

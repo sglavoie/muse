@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The status bar's level meter is now a ten-band spectrum analyzer, bass on
+  the left and treble on the right, in place of three tiny bars (left
+  channel, peak, right channel) that blurred into one block. Narrow windows
+  show five bars. With the meter on, audio with more than two channels plays
+  downmixed to stereo.
+
 ## [0.7.1] - 2026-11-06
 
 ### Fixed

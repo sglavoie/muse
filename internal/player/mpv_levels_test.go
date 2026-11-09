@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -123,9 +126,8 @@ func TestSetLevelMeterRevertsOnFailureAndNeverQueues(t *testing.T) {
 	}
 }
 
-func TestLevelsReadsAstatsMetadata(t *testing.T) {
-	meta := `{"lavfi.astats.1.Peak_level":"-3.5","lavfi.astats.1.RMS_level":"-12.25",` +
-		`"lavfi.astats.2.Peak_level":"-inf","lavfi.astats.2.RMS_level":"-inf"}`
+func TestLevelsReadsSpectralMetadata(t *testing.T) {
+	meta := `{"lavfi.aspectralstats.1.mean":"0.001","lavfi.aspectralstats.2.mean":"0"}`
 	m, received := levelTestManager(t, "lvl-read", func(req ipcTestRequest) ipcTestResponse {
 		if ipcTestCommand(req.Command).stringIs(1, propLevelMeter) {
 			resp := successHandler(req)
@@ -144,7 +146,7 @@ func TestLevelsReadsAstatsMetadata(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("Levels: ok=%v err=%v", ok, err)
 	}
-	if levels.Channels() != 2 || levels.Peak[0] != -3.5 || levels.RMS[0] != -12.25 || !math.IsInf(levels.RMS[1], -1) {
+	if levels.Channels() != 2 || math.Abs(levels.RMS[0]-(-60+spectralToRMSDB)) > 1e-9 || !math.IsInf(levels.RMS[1], -1) {
 		t.Fatalf("levels = %+v", levels)
 	}
 	reads := 0
@@ -184,11 +186,11 @@ func TestParseLevelMetadata(t *testing.T) {
 		ok       bool
 		channels int
 	}{
-		{"mono", `{"lavfi.astats.1.Peak_level":"-6","lavfi.astats.1.RMS_level":"-9"}`, true, 1},
-		{"ignores other keys", `{"lavfi.r128.M":"-20","lavfi.astats.1.Peak_level":"-6","lavfi.astats.1.RMS_level":"-9","lavfi.astats.Overall.RMS_level":"-9"}`, true, 1},
-		{"peak only", `{"lavfi.astats.1.Peak_level":"-6"}`, false, 0},
+		{"mono", `{"lavfi.aspectralstats.1.mean":"0.0002"}`, true, 1},
+		{"ignores other keys", `{"lavfi.r128.M":"-20","lavfi.aspectralstats.1.mean":"0.0002","lavfi.aspectralstats.1.flux":"3","lavfi.astats.1.RMS_level":"-9"}`, true, 1},
+		{"other measures only", `{"lavfi.aspectralstats.1.flux":"3"}`, false, 0},
 		{"empty", `{}`, false, 0},
-		{"absurd channel", `{"lavfi.astats.100000.Peak_level":"-6","lavfi.astats.100000.RMS_level":"-6"}`, false, 0},
+		{"absurd channel", `{"lavfi.aspectralstats.100000.mean":"0.1"}`, false, 0},
 	}
 	for _, c := range cases {
 		levels, ok, err := parseLevelMetadata(json.RawMessage(c.data))
@@ -196,11 +198,48 @@ func TestParseLevelMetadata(t *testing.T) {
 			t.Errorf("%s: ok=%v channels=%d err=%v", c.name, ok, levels.Channels(), err)
 		}
 	}
-	levels, _, _ := parseLevelMetadata(json.RawMessage(`{"lavfi.astats.1.Peak_level":"nan","lavfi.astats.1.RMS_level":"garbage"}`))
-	if !math.IsInf(levels.Peak[0], -1) || !math.IsInf(levels.RMS[0], -1) {
-		t.Fatalf("unreadable values should read as silence: %+v", levels)
+	levels, _, _ := parseLevelMetadata(json.RawMessage(`{"lavfi.aspectralstats.1.mean":"nan","lavfi.aspectralstats.2.mean":"-1","lavfi.aspectralstats.3.mean":"garbage"}`))
+	for i, v := range append(levels.RMS, levels.Bands...) {
+		if !math.IsInf(v, -1) {
+			t.Fatalf("value %d: unreadable or non-positive values should read as silence: %+v", i, levels)
+		}
 	}
 	if _, _, err := parseLevelMetadata(json.RawMessage(`"not an object"`)); err == nil {
 		t.Fatal("non-object metadata should be an error")
+	}
+}
+
+func TestParseLevelMetadataSplitsOffTheBands(t *testing.T) {
+	fields := map[string]string{}
+	for ch := 1; ch <= 2+LevelBandCount; ch++ {
+		// Channel ch reads -20*ch dB.
+		fields[fmt.Sprintf("lavfi.aspectralstats.%d.mean", ch)] = strconv.FormatFloat(math.Pow(10, -float64(ch)), 'g', -1, 64)
+	}
+	data, _ := json.Marshal(fields)
+	levels, ok, err := parseLevelMetadata(data)
+	if err != nil || !ok {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+	near := func(got, want float64) bool { return math.Abs(got-want) < 1e-9 }
+	if levels.Channels() != 2 || !near(levels.RMS[1], -40+spectralToRMSDB) {
+		t.Fatalf("channels 1-2 are left and right, as RMS: %+v", levels)
+	}
+	if len(levels.Bands) != LevelBandCount || !near(levels.Bands[0], -60) || !near(levels.Bands[LevelBandCount-1], -20*(2+LevelBandCount)) {
+		t.Fatalf("channels 3 onward are the bands, lowest first: %v", levels.Bands)
+	}
+}
+
+func TestLevelMeterFilterGivesEachBandItsChannel(t *testing.T) {
+	for i, band := range levelBands {
+		want := band.filter + ":c=" + levelBandChannels[i]
+		if !strings.Contains(levelMeterFilter, want) {
+			t.Errorf("band %d Hz: filter lacks %q", band.hz, want)
+		}
+	}
+	if strings.Count(levelMeterFilter, "=0.5*c0+0.5*c1") != LevelBandCount {
+		t.Errorf("each band channel should carry the mono mix: %s", levelMeterFilter)
+	}
+	if !strings.HasSuffix(levelMeterFilter, ",aspectralstats=win_size=1024:overlap=0:measure=mean,pan=stereo|c0=c0|c1=c1]") {
+		t.Errorf("the band channels must be dropped after they are measured: %s", levelMeterFilter)
 	}
 }

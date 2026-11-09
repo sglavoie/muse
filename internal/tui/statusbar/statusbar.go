@@ -52,8 +52,8 @@ type StatusBar struct {
 	SeekPreview string
 
 	// LevelMeter, when set, replaces the playing icon with an animated level
-	// meter (one frame of it). Empty keeps the static ▶.
-	LevelMeter string
+	// meter (one frame of it). Nil keeps the static ▶.
+	LevelMeter *Meter
 
 	// RadioMode is true when Auto-DJ / radio mode is active.
 	RadioMode bool
