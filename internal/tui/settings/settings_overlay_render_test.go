@@ -224,7 +224,7 @@ func TestSettingsHintsShareWordingAndOrder(t *testing.T) {
 	primary := base
 	primary.Tab = TabDisplay
 	primary.cursor = displayPrimary
-	cases["Display primary color"] = primary
+	cases["Display accent"] = primary
 
 	for name, o := range cases {
 		hint := o.keyHint()

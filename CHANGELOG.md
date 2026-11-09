@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Settings › Display has an **Accent** picker. Enter opens a grid showing
+  every accent at once — Blue, Teal, Green, Olive, Yellow, Sand, Orange,
+  Brown, Red, Pink, Purple, Grey and White — and the interface repaints live
+  as you move through it; Enter keeps the choice and Esc restores the
+  previous one. Each accent has its own shade for the Dark and Light themes
+  (White is near-black ink on Light). The grid's Custom cell takes a hex
+  color, and `primary_color` in `config.toml` accepts the same names.
+
 ### Changed
 
 - The status bar's level meter is now a ten-band spectrum analyzer, bass on

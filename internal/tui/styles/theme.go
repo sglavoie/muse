@@ -9,6 +9,28 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// accentPalette holds the shades behind each named accent (see
+// config.AccentPresets). Dark shades are soft pastels that sit calmly on the
+// dark canvas; light shades are deeper so text accents stay readable on the
+// pale canvas. Each is tuned to be about as prominent as the default blue.
+// The neutrals keep their character per preset: white is near-white on Dark
+// and near-black ink on Light, since white on a pale canvas would vanish.
+var accentPalette = map[string]struct{ light, dark string }{
+	"blue":   {colorAccentPrimaryLight, colorAccentPrimaryDark},
+	"teal":   {"#16766f", "#7fd1c7"},
+	"green":  {"#3b7a35", "#a3d48c"},
+	"olive":  {"#5c6a26", "#c5cc8c"},
+	"yellow": {"#856600", "#e9cb7d"},
+	"sand":   {"#7a6640", "#dcc8a2"},
+	"orange": {"#ad5418", "#f2ae84"},
+	"brown":  {"#875632", "#d2a77e"},
+	"red":    {"#b3383e", "#f0918b"},
+	"pink":   {"#a83a75", "#f2a7c8"},
+	"purple": {"#6a4cbc", "#c3aaf2"},
+	"grey":   {"#5b626d", "#aab0bb"},
+	"white":  {"#1d222b", "#eceef2"},
+}
+
 type themeColors struct {
 	background color.Color
 	primary    color.Color
@@ -23,7 +45,10 @@ func newThemeColors(hasDark bool, primary string) themeColors {
 	ld := lipgloss.LightDark(hasDark)
 	bg := ld(lipgloss.Color("#f8f9fc"), lipgloss.Color("#191e28"))
 	base := ld(lipgloss.Color(colorAccentPrimaryLight), lipgloss.Color(colorAccentPrimaryDark))
-	if primary = strings.TrimSpace(primary); isHexColor(primary) {
+	primary = strings.ToLower(strings.TrimSpace(primary))
+	if shades, ok := accentPalette[primary]; ok {
+		base = ld(lipgloss.Color(shades.light), lipgloss.Color(shades.dark))
+	} else if isHexColor(primary) {
 		base = lipgloss.Color(primary)
 	}
 	// Navigation surfaces are neutral, lifted toward the text color, so the

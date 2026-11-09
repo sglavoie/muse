@@ -64,7 +64,9 @@ log_level = %q
 # Theme preset: auto (follow terminal), dark, or light.
 # theme = "auto"
 
-# Primary color override (#RGB or #RRGGBB); empty uses the preset default.
+# Accent color: a name (blue, teal, green, olive, yellow, sand, orange, brown,
+# red, pink, purple, grey, white), each tuned for both presets, or a custom
+# #RGB / #RRGGBB. Empty uses blue.
 # primary_color = ""
 
 # Show the context-aware footer hint strip above the status bar (true/false).

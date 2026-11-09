@@ -39,7 +39,7 @@ func (o *SettingsOverlay) initDisplay(cfg config.Config) {
 		{label: "Vol feedback", Value: cfg.VolumeFeedbackDurationSecs, defaultValue: 2, min: 1, max: 10, step: 1, unit: "s"},
 		{label: "Track notify", Value: boolToInt(cfg.NotifyOnTrackChange), defaultValue: 0, min: 0, max: 1, step: 1},
 		{label: "Theme", Value: idx, min: 0, max: len(themeNames) - 1, step: 1, unit: "theme"},
-		{label: "Primary color", unit: "color"},
+		{label: "Accent", unit: "color"},
 		{label: "Cover art", Value: max(0, slices.Index(config.ArtworkModes, cfg.Artwork)), min: 0, max: len(config.ArtworkModes) - 1, step: 1, unit: "artwork"},
 		{label: "Cover tint", Value: boolToInt(cfg.ArtworkAccent), defaultValue: 1, min: 0, max: 1, step: 1},
 		{label: "Pause fade", Value: boolToInt(cfg.FadeOnPause), defaultValue: 1, min: 0, max: 1, step: 1},
@@ -67,6 +67,40 @@ func (o SettingsOverlay) beginPrimaryEdit() (SettingsOverlay, Action, tea.Cmd) {
 	return o, actionNone, nil
 }
 
+// accentLabel names the draft accent: a preset name, or Custom with its hex.
+func accentLabel(primary string) string {
+	switch {
+	case primary == "":
+		return capitalize(config.AccentPresets[0])
+	case slices.Contains(config.AccentPresets, primary):
+		return capitalize(primary)
+	}
+	return "Custom " + primary
+}
+
+func capitalize(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
+
+// cycleAccent steps through the named accents, wrapping at either end. A
+// custom hex color steps to the first or last name.
+func (o SettingsOverlay) cycleAccent(sign int) (SettingsOverlay, Action, tea.Cmd) {
+	n := len(config.AccentPresets)
+	idx := 0
+	if o.primaryColor != "" {
+		idx = slices.Index(config.AccentPresets, o.primaryColor)
+	}
+	switch {
+	case idx < 0 && sign > 0:
+		idx = 0
+	case idx < 0:
+		idx = n - 1
+	default:
+		idx = (idx + sign + n) % n
+	}
+	o.primaryColor, _ = config.NormalizePrimaryColor(config.AccentPresets[idx])
+	o.dirty = true
+	return o, ActionThemeLive, nil
+}
+
 func (o SettingsOverlay) resetPrimary() (SettingsOverlay, Action, tea.Cmd) {
 	if o.Tab != TabDisplay || o.cursor != displayPrimary {
 		return o, actionNone, nil
@@ -81,7 +115,7 @@ func (o SettingsOverlay) handlePrimaryInput(msg tea.KeyPressMsg) (SettingsOverla
 	case "enter":
 		value, ok := config.NormalizePrimaryColor(o.PrimaryInput.Value())
 		if !ok {
-			o.primaryError = "Use #RGB or #RRGGBB, or leave blank for default."
+			o.primaryError = "Use #RGB, #RRGGBB or a name; blank for default."
 			return o, actionNone, nil
 		}
 		o.primaryColor = value
@@ -146,8 +180,11 @@ func (o SettingsOverlay) displayHint() string {
 	if o.PrimaryInput != nil {
 		return "#RGB or #RRGGBB · blank for default · enter apply · esc back"
 	}
+	if o.accentPicker != nil {
+		return "h/j/k/l pick · enter keep · ctrl+s save · esc back"
+	}
 	if o.cursor == displayPrimary {
-		return "enter edit · r reset · tab/shift+tab tabs · j/k navigate · ctrl+s save · esc cancel"
+		return "enter choose · r reset · tab/shift+tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 	}
 	return "tab/shift+tab tabs · j/k navigate · h/l adjust · ctrl+s save · esc cancel"
 }

@@ -18,6 +18,9 @@ func (o SettingsOverlay) focusedDescription() string {
 	if o.editingText() || o.confirmingDelete() {
 		return ""
 	}
+	if o.accentPicker != nil {
+		return "Moving previews each accent across the interface. Enter keeps it, esc restores the previous one; Custom takes a hex color."
+	}
 	if o.Tab == tabLibrary {
 		if o.libSubView == libSubViewExcluded {
 			return "Excluded paths are skipped when scanning. Save to apply."
@@ -46,7 +49,7 @@ func (o SettingsOverlay) focusedDescription() string {
 		"Vol feedback":   "Seconds the volume indicator stays visible. Applies after saving.",
 		"Track notify":   "Desktop notifications when the song changes. Applies after saving.",
 		"Theme":          "Auto follows the terminal background. Previews live; save to keep.",
-		"Primary color":  "Accent color in #RGB or #RRGGBB; blank uses the theme default. Previews live; save to keep.",
+		"Accent":         "Color for what is active, tuned for Dark and Light. Enter shows every accent, or a custom #RGB or #RRGGBB; h/l cycles. Cover tint overrides it while art applies. Previews live; save to keep.",
 		"Cover art":      "Album art: Auto uses Kitty graphics in Ghostty and kitty, colored blocks elsewhere. Applies after restarting.",
 		"Cover tint":     "Tint the interface with a color from the playing song's cover. Applies after saving.",
 		"Pause fade":     "Fade audio briefly in and out on pause and resume. Applies after saving.",

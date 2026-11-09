@@ -68,9 +68,12 @@ func (o SettingsOverlay) Render(termWidth, termHeight int, s styles.Styles) stri
 	lines = append(lines, overlay.CrossL+strings.Repeat(overlay.BorderH, boxInner)+overlay.CrossR)
 
 	// Content rows.
-	if o.Tab == tabLibrary {
+	switch {
+	case o.accentPicker != nil:
+		lines = o.renderAccentPicker(lines, contentWidth, bodyHeight, s)
+	case o.Tab == tabLibrary:
 		lines = o.renderLibraryTab(lines, contentWidth, bodyHeight, s)
-	} else {
+	default:
 		lines = o.renderFieldsTab(lines, contentWidth, bodyHeight, s)
 	}
 
@@ -243,10 +246,7 @@ func (o SettingsOverlay) fieldSpinner(f Field) string {
 	case "artwork":
 		return fmt.Sprintf("< %s >", artworkLabels[f.Value])
 	case "color":
-		if o.primaryColor == "" {
-			return "Preset default [enter]"
-		}
-		return o.primaryColor + " [enter]"
+		return "< " + accentLabel(o.primaryColor) + " >"
 	case "preset":
 		return o.presetSpinner(f.Value)
 	case "tenth":

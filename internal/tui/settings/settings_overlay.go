@@ -82,6 +82,7 @@ type SettingsOverlay struct {
 	primaryColor  string
 	PrimaryInput  *textinput.Model
 	primaryError  string
+	accentPicker  *accentPicker // non-nil while the accent swatch grid is open
 
 	// Library tab state.
 	libSubView     librarySubView

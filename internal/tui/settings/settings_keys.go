@@ -56,7 +56,7 @@ var settingsNavKeys = map[string]settingsKeyFunc{
 	"left":      func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(-1) },
 	"l":         func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(1) },
 	"right":     func(o SettingsOverlay) (SettingsOverlay, Action, tea.Cmd) { return o.adjustField(1) },
-	"enter":     SettingsOverlay.beginPrimaryEdit,
+	"enter":     SettingsOverlay.openAccentPicker,
 	"r":         SettingsOverlay.resetPrimary,
 	"a":         SettingsOverlay.beginAdd,
 	"s":         SettingsOverlay.beginSavePreset,
@@ -79,6 +79,9 @@ func (o SettingsOverlay) HandleKey(msg tea.KeyPressMsg) (SettingsOverlay, Action
 	}
 	if o.PrimaryInput != nil {
 		return o.handlePrimaryInput(msg)
+	}
+	if o.accentPicker != nil {
+		return o.handleAccentPicker(msg)
 	}
 	if modal, ok := o.modalKeyHandler(); ok {
 		return modal(msg)
@@ -372,7 +375,7 @@ func (o SettingsOverlay) adjustField(sign int) (SettingsOverlay, Action, tea.Cmd
 		return o, actionNone, nil
 	}
 	if o.Tab == TabDisplay && o.cursor == displayPrimary {
-		return o.beginPrimaryEdit()
+		return o.cycleAccent(sign)
 	}
 	f := &o.Fields[o.Tab][o.cursor]
 	prev := f.Value

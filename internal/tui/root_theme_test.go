@@ -83,7 +83,7 @@ func TestThemePreviewCancelAndAutoDetection(t *testing.T) {
 func TestThemeSavePersistsAndReopens(t *testing.T) {
 	dir := t.TempDir()
 	m := New(context.Background(), WithConfigPath(config.ConfigPath(dir), false))
-	for _, key := range []string{"ctrl+,", "[", "j", "j", "j", "l", "l", "j", "enter"} {
+	for _, key := range []string{"ctrl+,", "[", "j", "j", "j", "l", "l", "j", "enter", "G", "enter"} {
 		m = themeKey(m, key)
 	}
 	next, _ := m.Update(tea.PasteMsg{Content: "#C4A"})

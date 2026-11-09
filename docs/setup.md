@@ -202,7 +202,7 @@ Everything else has a working default. See [`config.example.toml`](../config.exa
 for the full annotated set of options — excluded scan paths, default volume,
 log level, mpv socket path and extra flags, seek and volume increments,
 status-message and volume-feedback durations, gapless audio, EQ presets and
-bands, stereo widening, volume normalization, theme and primary color, footer
+bands, stereo widening, volume normalization, theme and accent color, footer
 hints, track-change notifications, following the now-playing track in the
 Queue panel, and the recommendation-mix thresholds.
 
@@ -212,22 +212,28 @@ change the theme. Use `h`/`l` or the arrow keys on **Theme** to select **Auto**,
 Both presets paint the full application canvas and provide contrasting text,
 row highlights, and status colors.
 
-On **Primary color**, press `Enter` to enter a `#RGB` or `#RRGGBB` color.
-Headings, active tabs, focus highlights, and progress use this color; text
-accents adjust for readable contrast. The override applies to either preset.
-Press `r` on that row, or submit an empty value, to restore the preset default
-(blue: `#8ab4ff` for Dark, `#315fbe` for Light). Changes preview immediately;
-`ctrl+s` saves and `Esc` cancels. While editing a color, `Esc` discards that
-text edit first. For a quick switch, open the command palette (`:`), search for
-**Toggle theme**, and press `Enter`. It switches between Dark and Light, saves
-the choice, and keeps your primary color. From Auto, it switches to the opposite
-of the currently displayed theme.
+On **Accent**, press `Enter` to open a grid of every accent: Blue (the
+default), Teal, Green, Olive, Yellow, Sand, Orange, Brown, Red, Pink, Purple,
+Grey and White, each dot drawn in its color. Move with `h`/`j`/`k`/`l` (or
+`g`/`G` for the first and last cell) and the whole interface repaints with
+the focused accent; `Enter` keeps it and `Esc` restores the one you started
+with. On the Accent row itself, `h`/`l` also cycles accents without opening
+the grid. Each accent has its own shade for Dark and Light, so it stays soft
+on the dark canvas and readable on the light one; White becomes near-black ink
+on Light. For a color of your own, choose **Custom** in the grid and type a
+`#RGB` or `#RRGGBB` value; text accents adjust for readable contrast. Press
+`r` on the Accent row, or submit an empty value, to restore Blue. With **Cover tint** on, a vivid cover's color takes over while
+that track plays. `ctrl+s` saves and `Esc` cancels. While editing a color,
+`Esc` discards that text edit first. For a quick switch, open the command
+palette (`:`), search for **Toggle theme**, and press `Enter`. It switches
+between Dark and Light, saves the choice, and keeps your accent. From Auto, it
+switches to the opposite of the currently displayed theme.
 
 The same options are available in `config.toml`:
 
 ```toml
 theme = "light" # auto, dark, or light
-primary_color = "#7c3aed" # empty uses the preset default
+primary_color = "teal"  # an accent name, or "#7c3aed"; empty uses blue
 ```
 
 Until `music_directories` points at something readable, muse still starts — it

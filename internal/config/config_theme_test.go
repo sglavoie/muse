@@ -14,6 +14,8 @@ func TestLoadTheme(t *testing.T) {
 		{"light", "theme = 'light'\nprimary_color = '#C0F'", "light", "#cc00ff", 0},
 		{"dark", "theme = ' DARK '\nprimary_color = ' #23AB76 '", "dark", "#23ab76", 0},
 		{"auto", "theme = 'auto'\nprimary_color = ''", "auto", "", 0},
+		{"named", "theme = 'dark'\nprimary_color = ' Teal '", "dark", "teal", 0},
+		{"named default", "primary_color = 'blue'", "auto", "", 0},
 		{"invalid", "theme = 'sepia'\nprimary_color = '#nope'", "auto", "", 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -40,7 +42,7 @@ func TestLoadTheme(t *testing.T) {
 }
 
 func TestNormalizePrimaryColorRejectsMalformedValues(t *testing.T) {
-	for _, value := range []string{"red", "123456", "#12", "#12345", "#12345678", "#gggggg", "#12 456", "#１２３", "#123\n456"} {
+	for _, value := range []string{"crimson", "123456", "#12", "#12345", "#12345678", "#gggggg", "#12 456", "#１２３", "#123\n456"} {
 		if _, ok := NormalizePrimaryColor(value); ok {
 			t.Errorf("accepted %q", value)
 		}
