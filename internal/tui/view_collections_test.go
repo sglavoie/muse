@@ -42,7 +42,9 @@ func TestFavoritesViewPerCellArtistFavoriteStyle(t *testing.T) {
 	if !strings.Contains(out, artistPrefix) {
 		t.Errorf("favorites view artist-only fav: artist cell must use FavArtistAccent style; got:\n%s", ansi.Strip(out))
 	}
-	if strings.Contains(out, titlePrefix) {
+	// Every favorite shares one hue, so look for the style opening the title
+	// cell itself rather than anywhere in the view.
+	if strings.Contains(out, titlePrefix+"Song") {
 		t.Errorf("favorites view artist-only fav: title cell must NOT use FavoriteAccent style; got:\n%s", ansi.Strip(out))
 	}
 }

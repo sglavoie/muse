@@ -20,17 +20,22 @@ func TestCustomPrimaryColors(t *testing.T) {
 			if ratio := contrastRatio(colorRGBA(t, s.ActiveTab.GetForeground()), colorRGBA(t, s.Primary)); ratio < 4.5 {
 				t.Errorf("dark=%v %s active tab contrast %.2f", dark, primary, ratio)
 			}
-			for _, fg := range []color.Color{s.Heading.GetForeground(), s.HelpKey.GetForeground(), s.ProgressFilled.GetForeground(), s.AccentMark.GetForeground()} {
-				for _, bg := range []color.Color{s.Background, s.Accent.GetBackground(), s.ZebraBg} {
+			for _, fg := range []color.Color{s.Heading.GetForeground(), s.HelpKey.GetForeground(), s.ProgressFilled.GetForeground(), s.AccentMark.GetForeground(), s.NowPlaying.GetForeground()} {
+				for _, bg := range []color.Color{s.Background, s.Accent.GetBackground(), s.ZebraBg, s.NowPlayingBg} {
 					if ratio := contrastRatio(colorRGBA(t, fg), colorRGBA(t, bg)); ratio < 4.5 {
 						t.Errorf("dark=%v %s accent text contrast %.2f", dark, primary, ratio)
 					}
 				}
 			}
 			def := styles.NewStyles(dark)
-			if colorRGBA(t, s.Accent.GetBackground()) == colorRGBA(t, def.Accent.GetBackground()) ||
-				colorRGBA(t, s.SelectionBg) == colorRGBA(t, def.SelectionBg) {
-				t.Error("custom primary did not tint focus and selection")
+			// The accent belongs to what is active: it tints the now-playing
+			// row, while focus and selection stay neutral navigation surfaces.
+			if colorRGBA(t, s.NowPlayingBg) == colorRGBA(t, def.NowPlayingBg) {
+				t.Error("custom primary did not tint the now-playing row")
+			}
+			if colorRGBA(t, s.Accent.GetBackground()) != colorRGBA(t, def.Accent.GetBackground()) ||
+				colorRGBA(t, s.SelectionBg) != colorRGBA(t, def.SelectionBg) {
+				t.Error("custom primary tinted the neutral focus or selection surface")
 			}
 			if colorRGBA(t, s.Error.GetForeground()) != colorRGBA(t, def.Error.GetForeground()) {
 				t.Error("primary changed semantic error color")

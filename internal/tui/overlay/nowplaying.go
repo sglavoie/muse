@@ -390,16 +390,16 @@ func (n NowPlayingOverlay) progressLine(width int, s styles.Styles) string {
 
 func (n NowPlayingOverlay) stateLine(width int, s styles.Styles) string {
 	var icon, label string
-	style := s.Success
+	style := s.NowPlaying
 	switch n.State {
 	case playback.StatePaused:
-		icon, label, style = "⏸", "Paused", s.Warning
+		icon, label, style = "⏸", "Paused", s.TextSecondary
 	case playback.StatePlaying:
 		icon, label = "▶", "Playing"
 	default:
 		// Idle or any unrecognised state: avoid implying playback is in
 		// progress.
-		icon, label, style = "■", "Stopped", s.Error
+		icon, label, style = "■", "Stopped", s.TextTertiary
 	}
 	line := style.Bold(true).Render(icon + " " + label)
 	if n.Modes != "" {

@@ -15,9 +15,9 @@ type statusBarRenderContext struct {
 	base   lipgloss.Style
 
 	barText          lipgloss.Style
-	barSuccess       lipgloss.Style
-	barWarning       lipgloss.Style
-	barError         lipgloss.Style
+	barPlaying       lipgloss.Style
+	barPaused        lipgloss.Style
+	barStopped       lipgloss.Style
 	barBold          lipgloss.Style
 	barDim           lipgloss.Style
 	barModeRepeat    lipgloss.Style
@@ -42,9 +42,9 @@ func newStatusBarRenderContext(width int, st styles.Styles, playbackState playba
 		styles:           st,
 		base:             base,
 		barText:          barText,
-		barSuccess:       st.Success.Background(bg),
-		barWarning:       st.Warning.Background(bg),
-		barError:         st.Error.Background(bg),
+		barPlaying:       st.NowPlaying.Background(bg),
+		barPaused:        st.TextSecondary.Background(bg),
+		barStopped:       st.TextTertiary.Background(bg),
 		barBold:          barText.Bold(true),
 		barDim:           barText.Faint(true),
 		barModeRepeat:    st.ModeRepeat.Background(bg),

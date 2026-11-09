@@ -28,7 +28,7 @@ func (s StatusBar) renderLevelMeter(ctx statusBarRenderContext, m Meter) (string
 	for i, v := range bands {
 		out[i] = meterGlyph(v)
 	}
-	return ctx.barSuccess.Render(string(out)), len(out)
+	return ctx.barPlaying.Render(string(out)), len(out)
 }
 
 // pairwiseMax halves bands, keeping the louder of each neighbouring pair.

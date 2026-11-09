@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   channel, peak, right channel) that blurred into one block. Narrow windows
   show five bars. With the meter on, audio with more than two channels plays
   downmixed to stereo.
+- The color palette gives every color one job. The primary color marks
+  what is active: the playing track's row, ▶ marker, progress bar and
+  spectrum, the active view, key hints and active playback modes. Focus and
+  selection are neutral highlights. Favorites share one rose hue for tracks,
+  artists and albums. Green, amber and red appear only for outcomes and
+  notices. Title-bar view numbers no longer each have their own color.
 
 ## [0.7.1] - 2026-11-06
 

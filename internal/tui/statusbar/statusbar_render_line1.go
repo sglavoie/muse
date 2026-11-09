@@ -102,11 +102,11 @@ func (s StatusBar) playbackStateIcon(ctx statusBarRenderContext) (string, int) {
 		if s.LevelMeter != nil {
 			return s.renderLevelMeter(ctx, *s.LevelMeter)
 		}
-		return ctx.barSuccess.Bold(true).Render("▶"), 1
+		return ctx.barPlaying.Bold(true).Render("▶"), 1
 	case playback.StatePaused:
-		return ctx.barWarning.Bold(true).Render("⏸"), 1
+		return ctx.barPaused.Bold(true).Render("⏸"), 1
 	case playback.StateStopped:
-		return ctx.barError.Bold(true).Render("■"), 1
+		return ctx.barStopped.Bold(true).Render("■"), 1
 	default:
 		return "", 0
 	}

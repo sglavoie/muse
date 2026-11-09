@@ -118,7 +118,9 @@ func TestQueueRenderArtistOnlyFavoriteStyle(t *testing.T) {
 	if !strings.Contains(rawLine, artistPrefix) {
 		t.Errorf("artist-only fav: artist cell must use FavArtist style; got: %q", rawLine)
 	}
-	if strings.Contains(rawLine, titlePrefix) {
+	// Every favorite shares one hue, so look for the style opening the title
+	// cell itself rather than anywhere on the line.
+	if strings.Contains(rawLine, titlePrefix+"Song") {
 		t.Errorf("artist-only fav: title cell must NOT use Favorite style; got: %q", rawLine)
 	}
 }

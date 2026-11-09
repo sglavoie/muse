@@ -84,26 +84,26 @@ func queueStripLabel(field sorting.SortField, timelineActive bool) string {
 func NowPlayingIndicator(s styles.Styles, state playback.State) (icon string, style lipgloss.Style) {
 	switch state {
 	case playback.StatePaused:
-		return "⏸", s.Warning
+		return "⏸", s.TextSecondary
 	case playback.StateStopped:
-		return "■", s.Error
+		return "■", s.TextTertiary
 	default:
-		return "▶", s.Success
+		return "▶", s.NowPlaying
 	}
 }
 
 // nowPlayingTextStyles returns the text styles for the now-playing row based
 // on playback state. Returns (base, favorite, favArtist, favAlbum) styles.
-// When playing, these are the standard NowPlaying* styles (green). When
-// paused or stopped, the base style shifts to Warning (gold) or Error (red)
-// while favorite styles are preserved since they already carry distinct colors.
+// When playing, these are the standard NowPlaying* styles (accent). When
+// paused or stopped, the base style quiets to secondary or tertiary text
+// while favorite styles are preserved since they already carry their own hue.
 func nowPlayingTextStyles(s styles.Styles, state playback.State) (base, fav, favArtist, favAlbum lipgloss.Style) {
 	switch state {
 	case playback.StatePaused:
-		base = s.Warning.Bold(true)
+		base = s.TextSecondary.Bold(true)
 		return base, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
 	case playback.StateStopped:
-		base = s.Error.Bold(true)
+		base = s.TextTertiary.Bold(true)
 		return base, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum
 	default:
 		return s.NowPlaying, s.NowPlayingFavorite, s.NowPlayingFavArtist, s.NowPlayingFavAlbum

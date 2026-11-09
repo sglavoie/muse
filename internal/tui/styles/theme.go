@@ -16,6 +16,7 @@ type themeColors struct {
 	accentText color.Color
 	focus      color.Color
 	selection  color.Color
+	nowPlaying color.Color
 }
 
 func newThemeColors(hasDark bool, primary string) themeColors {
@@ -25,8 +26,13 @@ func newThemeColors(hasDark bool, primary string) themeColors {
 	if primary = strings.TrimSpace(primary); isHexColor(primary) {
 		base = lipgloss.Color(primary)
 	}
-	focus := mixColors(bg, base, 0.12)
-	selection := mixColors(bg, base, 0.06)
+	// Navigation surfaces are neutral, lifted toward the text color, so the
+	// accent stays reserved for what is active: the playing track, the active
+	// view, key hints. The now-playing row carries the accent tint instead.
+	ink := ld(lipgloss.Color(colorTextPrimaryLight), lipgloss.Color(colorTextPrimaryDark))
+	focus := mixColors(bg, ink, 0.12)
+	selection := mixColors(bg, ink, 0.06)
+	nowPlaying := mixColors(bg, base, 0.14)
 	zebra := ld(lipgloss.Color(colorSurfaceL2Light), lipgloss.Color(colorSurfaceL2Dark))
 	text := base
 	target := lipgloss.Color("#000000")
@@ -35,7 +41,7 @@ func newThemeColors(hasDark bool, primary string) themeColors {
 	}
 	// Preserve the chosen fill color; tune its text variant for legibility on
 	// both the canvas and the stronger focus surface, even for extreme overrides.
-	for i := 1; i <= 100 && (colorContrast(text, bg) < 4.5 || colorContrast(text, focus) < 4.5 || colorContrast(text, zebra) < 4.5); i++ {
+	for i := 1; i <= 100 && (colorContrast(text, bg) < 4.5 || colorContrast(text, focus) < 4.5 || colorContrast(text, zebra) < 4.5 || colorContrast(text, nowPlaying) < 4.5); i++ {
 		text = mixColors(base, target, float64(i)/100)
 	}
 	onPrimary := lipgloss.Color("#000000")
@@ -44,7 +50,48 @@ func newThemeColors(hasDark bool, primary string) themeColors {
 		onPrimary = white
 	}
 	return themeColors{background: bg, primary: base, onPrimary: onPrimary,
-		accentText: text, focus: focus, selection: selection}
+		accentText: text, focus: focus, selection: selection, nowPlaying: nowPlaying}
+}
+
+// favoriteColor returns rose, or gold when the accent's hue is close enough
+// to rose that favorites would read as playing.
+func favoriteColor(accent, rose, gold color.Color) color.Color {
+	h, sat := hueSat(accent)
+	rh, _ := hueSat(rose)
+	d := math.Abs(h - rh)
+	if d > 180 {
+		d = 360 - d
+	}
+	if sat >= 0.25 && d < 45 {
+		return gold
+	}
+	return rose
+}
+
+// hueSat returns c's HSL hue in degrees and its saturation, 0..1.
+func hueSat(c color.Color) (hue, sat float64) {
+	r, g, b, _ := c.RGBA()
+	rf, gf, bf := float64(r)/65535, float64(g)/65535, float64(b)/65535
+	hi, lo := max(rf, gf, bf), min(rf, gf, bf)
+	delta := hi - lo
+	if delta == 0 {
+		return 0, 0
+	}
+	l := (hi + lo) / 2
+	sat = delta / (1 - math.Abs(2*l-1))
+	switch hi {
+	case rf:
+		hue = math.Mod((gf-bf)/delta, 6)
+	case gf:
+		hue = (bf-rf)/delta + 2
+	default:
+		hue = (rf-gf)/delta + 4
+	}
+	hue *= 60
+	if hue < 0 {
+		hue += 360
+	}
+	return hue, sat
 }
 
 func mixColors(a, b color.Color, amount float64) color.Color {
@@ -131,31 +178,9 @@ func Hex(c color.Color) string {
 	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
 }
 
-// viewHuesDark and viewHuesLight give each primary view its own quiet color,
-// used for its number in the title bar so destinations are easy to find.
-var (
-	viewHuesDark  = []string{"#8ab4ff", "#c678dd", "#98c379", "#56b6c2", "#e0af68", "#e06c75", "#d19a66", "#61afef"}
-	viewHuesLight = []string{"#315fbe", "#a626a4", "#287348", "#096e88", "#986801", "#b52f42", "#9a5a12", "#1f6fb2"}
-)
-
-// ViewHue returns the foreground style for the i-th primary view's marker.
-func (s Styles) ViewHue(i int) lipgloss.Style {
-	hues := viewHuesLight
-	if s.HasDark {
-		hues = viewHuesDark
-	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(hues[((i%len(hues))+len(hues))%len(hues)]))
-}
-
-// columnTint nudges a text color toward the theme's accent text, enough to
-// tell the artist column apart from titles at a glance while staying legible
-// on the canvas, zebra and focus surfaces.
-func columnTint(base color.Color, p themeColors) color.Color {
-	for amount := 0.25; amount > 0; amount -= 0.05 {
-		tinted := mixColors(base, p.accentText, amount)
-		if colorContrast(tinted, p.background) >= 4.5 && colorContrast(tinted, p.focus) >= 4.5 {
-			return tinted
-		}
-	}
-	return base
+// ViewHue returns the style for the i-th primary view's number in the title
+// bar. Every view shares one quiet tone: the active view is marked by the
+// accent-filled tab, so the numbers need no colors of their own.
+func (s Styles) ViewHue(int) lipgloss.Style {
+	return s.TextSecondary
 }
