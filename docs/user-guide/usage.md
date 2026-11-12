@@ -145,7 +145,7 @@ just enough to get moving.
 | `A` | Toggle Auto-DJ |
 | `ctrl+a` | Tune Auto-DJ — presets, discovery, filters, plus its Preview and Recipes tabs |
 | `F` | Favorite the focused track, album, or artist |
-| `t` / `ctrl+t` | Manage tags / filter views by tag |
+| `t` / `ctrl+t` | Manage tags (on a Browse artist, album or genre row, for all of its tracks) / filter views by tag |
 | `M` / `i` | Edit metadata / show track info |
 | `ctrl+r` | Rescan library |
 | `ctrl+s` | Cycle sort field (`shift+up` / `shift+down` for direction) |

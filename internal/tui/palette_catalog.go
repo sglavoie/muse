@@ -136,7 +136,7 @@ var paletteCatalog = []paletteEntry{
 	// explains the mode toggles, it never changes one.
 	{act: keys.ActionModesLegend, id: "help.modes_legend", name: "Show playback mode legend", category: "play", ctx: keys.ContextGlobal},
 	{act: keys.ActionQueueSummary, id: "queue.summary", name: "Show queue summary", category: "queue", ctx: keys.ContextGlobal},
-	{act: keys.ActionTagPicker, id: "tag.picker.open", name: "Manage tags for track…", category: "tag", ctx: keys.ContextGlobal},
+	{act: keys.ActionTagPicker, id: "tag.picker.open", name: "Manage tags…", category: "tag", ctx: keys.ContextGlobal},
 
 	{act: keys.ActionPreview, id: "track.preview", name: "Preview focused track", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},
 	{act: keys.ActionTrackInfo, id: "track.info", name: "Show track info", category: "trk", ctx: keys.ContextGlobal, disabledReason: "Focus a track first", enabled: hasFocusedTrack},

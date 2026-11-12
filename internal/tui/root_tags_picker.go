@@ -26,10 +26,11 @@ func (m Model) handleTagPickerKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd, boo
 }
 
 // openTagPicker opens the tag picker overlay for the focused track (single
-// mode) or for the current bulk selection. Returns without opening when there
-// is no focused track and no bulk selection.
+// mode), for the current bulk selection, or, on a Browse artist, album or genre
+// row, for every track that row contains. Returns without opening when none of
+// those resolve to a track.
 func (m Model) openTagPicker() (Model, tea.Cmd) {
-	hashes, isBulk := m.tagPickerHashes()
+	hashes, isBulk, scope := m.tagPickerTarget()
 	if len(hashes) == 0 {
 		m.statusBar.Notify("No track focused")
 		return m, nil
@@ -48,6 +49,7 @@ func (m Model) openTagPicker() (Model, tea.Cmd) {
 		tp, cmd = tagtui.NewTagPicker(m.tags, hashes[0], trackTagIDs)
 	}
 
+	tp = tp.WithScope(scope)
 	m.overlay.tagPicker = &tp
 	return m, cmd
 }
@@ -61,6 +63,16 @@ func (m Model) handleTagPickerToggle(msg tagtui.TagPickerToggleMsg) (Model, tea.
 	}
 
 	tagID, hashes, add := msg.TagID, msg.Hashes, msg.Add
+	// Undo must revert only what this toggle changed: adding a partially
+	// applied tag (common on an artist or album) leaves the tracks that
+	// already carried it alone, so undo must not strip it from them.
+	undoHashes := hashes
+	if add {
+		undoHashes = m.hashesWithoutTag(hashes, tagID)
+		if len(undoHashes) == 0 {
+			undoHashes = hashes
+		}
+	}
 	m = m.applyTagToggle(tagID, hashes, add)
 
 	// Update cross-view tag filter when the toggled tag is the active filter.
@@ -108,7 +120,7 @@ func (m Model) handleTagPickerToggle(msg tagtui.TagPickerToggleMsg) (Model, tea.
 			break
 		}
 	}
-	m.setUndoSlot(undoTagToggleAction{tagID: tagID, hashes: hashes, wasAdd: add, tag: tag}, nil)
+	m.setUndoSlot(undoTagToggleAction{tagID: tagID, hashes: undoHashes, wasAdd: add, tag: tag}, nil)
 
 	return m, func() tea.Msg {
 		var err error
@@ -267,4 +279,15 @@ func (m Model) handleTagsRefreshed(msg tagsRefreshedMsg) Model {
 		m.djInvalidate()
 	}
 	return m
+}
+
+// hashesWithoutTag returns the hashes whose cached tags do not include tagID.
+func (m Model) hashesWithoutTag(hashes []string, tagID int64) []string {
+	var out []string
+	for _, h := range hashes {
+		if _, has := m.trackTags[h][tagID]; !has {
+			out = append(out, h)
+		}
+	}
+	return out
 }

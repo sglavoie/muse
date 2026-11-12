@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the forward jumps, as in Vim. `ctrl+i` needs a terminal that reports it
   separately from `tab` (kitty, Ghostty, WezTerm, foot); elsewhere `tab`
   still switches to the next view.
+- `t` now works on Browse collection rows: on an artist, an album, a genre or
+  a genre's artist, the tag picker edits every track that row contains, and
+  names the scope under its title (for example `Artist: Alice · 12 tracks`).
+  A tag some of those tracks already carry shows as partial; Enter adds it to
+  all of them, and Enter on a fully applied tag removes it from all of them.
+  Undo restores the previous state in one step.
 
 ## [0.8.0] - 2026-11-09
 

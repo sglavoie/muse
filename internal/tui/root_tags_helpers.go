@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
@@ -19,16 +20,121 @@ import (
 )
 
 // tagPickerHashes returns the hashes the tag picker should operate on.
-// isBulk is true when the returned hashes came from a multi-track selection.
+// isBulk is true when the returned hashes came from a multi-track selection
+// or a multi-track collection row.
 func (m Model) tagPickerHashes() (hashes []string, isBulk bool) {
+	hashes, isBulk, _ = m.tagPickerTarget()
+	return hashes, isBulk
+}
+
+// tagPickerTarget resolves what the tag picker edits, in priority order: a
+// multi-track selection, the focused track, then the focused Browse collection
+// row. scope is non-empty only for a collection row and names it.
+func (m Model) tagPickerTarget() (hashes []string, isBulk bool, scope string) {
 	selected := m.selectedTrackHashes()
 	if len(selected) > 1 {
-		return selected, true
+		return selected, true, ""
 	}
 	if hash := m.focusedTrackHash(); hash != "" {
-		return []string{hash}, false
+		return []string{hash}, false, ""
 	}
-	return nil, false
+	if hashes, scope := m.focusedCollectionTagTarget(); len(hashes) > 0 {
+		return hashes, len(hashes) > 1, scope
+	}
+	return nil, false, ""
+}
+
+// focusedCollectionTagTarget resolves a focused Browse collection row (an
+// artist, an artist's album, an album, a genre, or a genre's artist) to the
+// hashes of every track it contains, plus a short label naming the scope for
+// the tag picker. It returns nil outside those collection levels, so track
+// levels keep their per-track behavior.
+func (m Model) focusedCollectionTagTarget() (hashes []string, scope string) {
+	if m.ActiveView != viewBrowse {
+		return nil, ""
+	}
+	var tracks []musiclib.Track
+	switch m.browse.Mode {
+	case browse.BrowseModeArtists:
+		tracks, scope = m.artistCollectionTracks()
+	case browse.BrowseModeAlbums:
+		tracks, scope = m.albumCollectionTracks()
+	case browse.BrowseModeGenres:
+		tracks, scope = m.genreCollectionTracks()
+	}
+	hashes = uniqueTrackHashes(tracks)
+	if len(hashes) == 0 {
+		return nil, ""
+	}
+	return hashes, fmt.Sprintf("%s · %s", scope, pluralTracks(len(hashes)))
+}
+
+func (m Model) artistCollectionTracks() ([]musiclib.Track, string) {
+	allTracks := m.library.Index.Tracks()
+	switch m.browse.Artists.Level {
+	case arttui.ArtistLevel:
+		if artist, ok := m.browse.Artists.FocusedArtist(); ok {
+			return arttui.DeriveArtistTracks(allTracks, artist), "Artist: " + artist
+		}
+	case arttui.AlbumLevel:
+		if album, ok := m.browse.Artists.FocusedAlbum(); ok {
+			return arttui.DeriveTracks(allTracks, m.browse.Artists.SelectedArtist, album), "Album: " + collectionAlbumLabel(album)
+		}
+	}
+	return nil, ""
+}
+
+func (m Model) albumCollectionTracks() ([]musiclib.Track, string) {
+	if m.browse.Albums.Level != albtui.AlbumLevel {
+		return nil, ""
+	}
+	album, ok := m.browse.Albums.FocusedAlbum()
+	if !ok {
+		return nil, ""
+	}
+	return albtui.DeriveAlbumTracks(m.library.Index.Tracks(), album), "Album: " + collectionAlbumLabel(album)
+}
+
+func (m Model) genreCollectionTracks() ([]musiclib.Track, string) {
+	allTracks := m.library.Index.Tracks()
+	switch m.browse.Genres.Level {
+	case gentui.GenreLevel:
+		if genre, ok := m.browse.Genres.FocusedGenre(); ok {
+			return gentui.DeriveGenreTracks(allTracks, genre), "Genre: " + genre
+		}
+	case gentui.ArtistLevel:
+		if artist, ok := m.browse.Genres.FocusedArtist(); ok {
+			return gentui.DeriveGenreArtistTracks(allTracks, m.browse.Genres.SelectedGenre, artist), "Artist: " + artist
+		}
+	}
+	return nil, ""
+}
+
+// collectionAlbumLabel turns a release key into the title shown to the user.
+func collectionAlbumLabel(key string) string {
+	if title := musiclib.AlbumTitle(key); title != "" {
+		return title
+	}
+	return arttui.UnknownAlbum
+}
+
+// uniqueTrackHashes returns the distinct non-empty hashes of tracks, sorted so
+// the picker and undo see a stable order.
+func uniqueTrackHashes(tracks []musiclib.Track) []string {
+	set := make(map[string]struct{}, len(tracks))
+	for _, t := range tracks {
+		if t.Hash != "" {
+			set[t.Hash] = struct{}{}
+		}
+	}
+	return hashMapToSlice(set)
+}
+
+func pluralTracks(n int) string {
+	if n == 1 {
+		return "1 track"
+	}
+	return fmt.Sprintf("%d tracks", n)
 }
 
 // selectedTrackHashes returns hashes for all currently bulk-selected tracks

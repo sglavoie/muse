@@ -39,7 +39,18 @@ type TagPicker struct {
 	Filter     filter.State
 	trackHash  string   // single-track mode (empty when bulkHashes is set)
 	bulkHashes []string // bulk mode (nil in single-track mode)
+	scope      string   // optional label naming what the hashes cover (e.g. an artist)
 }
+
+// WithScope labels the picker with the collection its tracks come from, such
+// as "Artist: Alice · 12 tracks", shown under the title.
+func (tp TagPicker) WithScope(scope string) TagPicker {
+	tp.scope = scope
+	return tp
+}
+
+// Scope returns the picker's collection label, or "" for plain track targets.
+func (tp TagPicker) Scope() string { return tp.scope }
 
 // NewTagPicker creates a TagPicker for a single track. It populates the check
 // state of every item from trackTagIDs (the set of tag IDs the track already
@@ -156,6 +167,14 @@ func tagPickerPageSize(height int) int {
 	return max(1, height-8)
 }
 
+// pageSize is tagPickerPageSize less the optional scope row.
+func (tp TagPicker) pageSize(height int) int {
+	if tp.scope != "" {
+		return max(1, tagPickerPageSize(height)-1)
+	}
+	return tagPickerPageSize(height)
+}
+
 func (tp TagPicker) moveCursor(delta int) TagPicker {
 	tp.Cursor = max(0, min(tp.Cursor+delta, tp.rowCount()-1))
 	return tp
@@ -200,9 +219,9 @@ func (tp TagPicker) HandleKey(key string, msg tea.KeyPressMsg) (TagPicker, tea.C
 	case "down", "ctrl+j", "ctrl+n":
 		return tp.moveCursor(1), nil
 	case "pgup":
-		return tp.moveCursor(-tagPickerPageSize(tp.height)), nil
+		return tp.moveCursor(-tp.pageSize(tp.height)), nil
 	case "pgdown":
-		return tp.moveCursor(tagPickerPageSize(tp.height)), nil
+		return tp.moveCursor(tp.pageSize(tp.height)), nil
 	case "enter":
 		return tp.handleToggleOrCreate()
 
@@ -334,7 +353,11 @@ func (tp TagPicker) buildBoxLines(termWidth, termHeight int, s styles.Styles) []
 	}
 	const minInner = 32
 
-	innerWidth := tp.tagPickerInnerWidth(termWidth, max(minInner, ansi.StringWidth(modalTitle)+2))
+	minWidth := max(minInner, ansi.StringWidth(modalTitle)+2)
+	if tp.scope != "" {
+		minWidth = max(minWidth, ansi.StringWidth(tp.scope)+4)
+	}
+	innerWidth := tp.tagPickerInnerWidth(termWidth, minWidth)
 	contentWidth := max(innerWidth-2, 0)
 
 	var lines []string
@@ -347,6 +370,14 @@ func (tp TagPicker) buildBoxLines(termWidth, termHeight int, s styles.Styles) []
 	leftTP := titlePad / 2
 	rightTP := titlePad - leftTP
 	lines = append(lines, tpBorderV+strings.Repeat(" ", leftTP)+s.Heading.Render(modalTitle)+strings.Repeat(" ", rightTP)+tpBorderV)
+
+	// Scope row: names the artist/album/genre whose tracks the toggles affect.
+	if tp.scope != "" {
+		scope := ansi.Truncate(tp.scope, contentWidth, "…")
+		scopePad := max(0, innerWidth-ansi.StringWidth(scope))
+		leftSP := scopePad / 2
+		lines = append(lines, tpBorderV+strings.Repeat(" ", leftSP)+s.Dim.Render(scope)+strings.Repeat(" ", scopePad-leftSP)+tpBorderV)
+	}
 
 	// Separator.
 	lines = append(lines, tpCrossL+strings.Repeat(tpBorderH, innerWidth)+tpCrossR)
@@ -375,7 +406,7 @@ func (tp TagPicker) buildBoxLines(termWidth, termHeight int, s styles.Styles) []
 // visibleWindow keeps the focused row visible, including after a resize.
 func (tp TagPicker) visibleWindow(height int) (int, int) {
 	count := tp.rowCount()
-	size := tagPickerPageSize(height)
+	size := tp.pageSize(height)
 	start := max(0, min(tp.Cursor-size+1, count-size))
 	return start, min(count, start+size)
 }
