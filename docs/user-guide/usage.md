@@ -130,6 +130,7 @@ just enough to get moving.
 | `=` / `-` | Volume up / down |
 | `1`–`8` | Switch to Library / Playlists / Queue / Browse / Favorites / Tags / Mixes / Insights |
 | `tab` / `shift+tab` | Next / previous view |
+| `ctrl+o` / `ctrl+i` | Jump back / forward through the places you visited, like Vim's jump list (`ctrl+i` needs a terminal that tells it apart from `tab`, such as kitty, Ghostty, WezTerm or foot) |
 | `j` `k` / `down` `up` | Move cursor |
 | `ctrl+d` / `ctrl+u` | Half-page down / up |
 | `g` / `G` | Go to top / bottom |

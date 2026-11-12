@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Vim-style jump list: `ctrl+o` returns to the previous place you were —
+  another view, a Browse or Library mode, or an opened artist, album,
+  playlist, tag, mix or Insights drill-down, with the cursor where you left
+  it — and `ctrl+i` moves forward again. Switching views, opening or leaving
+  a collection, and the long motions `g`, `G` and `f` record a jump; plain
+  cursor moves do not. Navigating somewhere new after going back discards
+  the forward jumps, as in Vim. `ctrl+i` needs a terminal that reports it
+  separately from `tab` (kitty, Ghostty, WezTerm, foot); elsewhere `tab`
+  still switches to the next view.
+
 ## [0.8.0] - 2026-11-09
 
 ### Added

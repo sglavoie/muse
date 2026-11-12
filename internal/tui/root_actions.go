@@ -237,6 +237,14 @@ func hintForAction(a keys.Action, view viewID, _ browse.BrowseMode) string {
 
 // handleKeyAction dispatches a resolved KeyAction to the appropriate handler.
 func (m Model) handleKeyAction(action keys.Action) (tea.Model, tea.Cmd) {
+	switch {
+	case action == keys.ActionJumpBack:
+		return m.handleJump(true)
+	case action == keys.ActionJumpForward:
+		return m.handleJump(false)
+	case isJumpMotion(action):
+		m.jumps.markPending = true
+	}
 	if next, cmd, ok := m.handleSelectedEnqueueAction(action); ok {
 		return next, cmd
 	}

@@ -61,6 +61,8 @@ package keys
 //   h, backspace | —     | —          | —          | —          | —             | —          | tag-back   | —           | —
 //   ctrl+y/x/p | —       | —          | —          | yank/cut/paste | —         | —          | —          | —           | —
 //   ctrl+a | autodj-tune | =          | =          | =          | =             | =          | =          | =           | =
+//   ctrl+o | jump-back   | =          | =          | =          | =             | =          | =          | =           | =
+//   ctrl+i | jump-fwd    | =          | =          | =          | =             | =          | =          | =           | =
 //
 // Entries marked "*" are intentional shadows of a global binding with a
 // different action. Each must be registered via registerWithReason so the
@@ -262,4 +264,8 @@ const (
 	ActionCursorLeft        // h, left: move to the previous tile in the album cover grid
 	ActionCursorRight       // l, right: move to the next tile in the album cover grid
 	ActionAlbumLayoutToggle // 'c': switch Browse Albums between the cover grid and the list
+
+	// Jump list actions (Vim's ctrl+o / ctrl+i).
+	ActionJumpBack    // ctrl+o: return to the previous place in the jump list
+	ActionJumpForward // ctrl+i: move forward again in the jump list
 )

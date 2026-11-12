@@ -118,6 +118,8 @@ var paletteCatalog = []paletteEntry{
 	{act: keys.ActionNextView, id: "nav.view.next", name: "Go to next view", category: "nav", ctx: keys.ContextGlobal, preferKey: "tab"},
 	{act: keys.ActionPrevView, id: "nav.view.previous", name: "Go to previous view", category: "nav", ctx: keys.ContextGlobal, preferKey: "shift+tab"},
 	{act: keys.ActionFocusNowPlaying, id: "queue.jump.nowplaying", name: "Jump to now-playing in queue", category: "nav", ctx: keys.ContextGlobal, disabledReason: "Load a track first", enabled: playbackHasTrack},
+	{act: keys.ActionJumpBack, id: "nav.jump.back", name: "Jump back", category: "nav", ctx: keys.ContextGlobal},
+	{act: keys.ActionJumpForward, id: "nav.jump.forward", name: "Jump forward", category: "nav", ctx: keys.ContextGlobal},
 	{act: keys.ActionGoTo, id: "nav.goto", name: "Go to artist, album or genre…", category: "nav", ctx: keys.ContextGlobal},
 
 	{act: keys.ActionSortCycle, id: "sort.cycle", name: "Cycle sort field", category: "sort", ctx: keys.ContextGlobal},

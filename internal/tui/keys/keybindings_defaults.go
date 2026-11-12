@@ -90,6 +90,10 @@ func registerGlobalBindings(r *Registry) {
 	// panel that edits what the DJ is about to play instead of switching it on.
 	r.register(ContextGlobal, "ctrl+a", ActionAutoDJTune)
 	r.register(ContextGlobal, "f", ActionFocusNowPlaying)
+	// Vim's jump list. Terminals without key disambiguation send ctrl+i as tab,
+	// which stays "next view"; kitty-protocol terminals report ctrl+i itself.
+	r.register(ContextGlobal, "ctrl+o", ActionJumpBack)
+	r.register(ContextGlobal, "ctrl+i", ActionJumpForward)
 }
 
 func registerLibraryBindings(r *Registry) {

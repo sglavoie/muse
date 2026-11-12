@@ -361,6 +361,8 @@ type Model struct {
 	sortPreferences         map[string]sorting.SortState
 	navigationParents       map[string]navigationParent
 	browsingRestore         *browsingRestore
+	// jumps is the ctrl+o / ctrl+i jump list (see root_jumps.go).
+	jumps jumpList
 
 	// showFooterHints toggles the context-aware footer hint strip rendered
 	// above the status bar. Initialized from cfg.ShowFooterHints after

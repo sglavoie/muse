@@ -56,6 +56,8 @@ the regeneration command are in
 | `tui/keys` | `ActionInsightsSavePlaylist` | const | `internal/tui` | root |
 | `tui/keys` | `ActionInsightsWindowNext` | const | `internal/tui` | root |
 | `tui/keys` | `ActionInsightsWindowPrev` | const | `internal/tui` | root |
+| `tui/keys` | `ActionJumpBack` | const | `internal/tui` | root |
+| `tui/keys` | `ActionJumpForward` | const | `internal/tui` | root |
 | `tui/keys` | `ActionLibraryEnqueue` | const | `internal/tui` | root |
 | `tui/keys` | `ActionLibraryEnqueueReplace` | const | `internal/tui` | root |
 | `tui/keys` | `ActionLibraryFilterClear` | const | `internal/tui` | root |

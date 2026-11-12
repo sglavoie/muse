@@ -27,6 +27,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		updated = updated.restoreSortPreference()
 	}
 	updated = updated.restoreNavigationParents(m)
+	updated = updated.recordJump(m)
 	updated, flushCmd := updated.drainListenFlushes()
 	updated = updated.publishControlState()
 	updated, polishCmd := updated.syncPolish(m)

@@ -61,6 +61,7 @@ var helpSectionsTable = []HelpSection{
 			{"q", "Queue summary"},
 			{";", "Show playback mode legend"},
 			{"f", "Focus now-playing track in queue"},
+			{"ctrl+o / ctrl+i", "Jump back / forward through visited places (like Vim)"},
 		},
 	},
 	{
