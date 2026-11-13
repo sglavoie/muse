@@ -7,6 +7,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // levelMeterLabel names the level meter's entry in mpv's af chain; its
@@ -105,9 +106,25 @@ const propLevelMeter = "af-metadata/" + levelMeterLabel
 // first: a relative scale, on which wider (higher) bands read a little
 // louder, roughly offsetting music's natural fall toward the treble.
 // Silence reads as negative infinity.
+//
+// Lead is how far the reading runs ahead of what can be heard: the meter
+// measures audio as it enters mpv's output queue, so it describes the moment
+// that is about to play, not the one playing.
 type Levels struct {
 	RMS   []float64
 	Bands []float64
+	Lead  time.Duration
+}
+
+// levelDeviceLatency is the part of the meter's lead beyond mpv's audio
+// buffer: the audio device's own latency, measured at about 40 ms on macOS
+// for the 0.2 s and 1 s buffers alike.
+const levelDeviceLatency = 40 * time.Millisecond
+
+// levelLead is how far the level meter runs ahead of the audible output for
+// mpv started with these extra flags.
+func levelLead(extra []string) time.Duration {
+	return time.Duration(audioBufferSecs(extra)*float64(time.Second)) + levelDeviceLatency
 }
 
 // Channels is how many channels the reading describes.
@@ -147,7 +164,7 @@ func (m *Manager) SetLevelMeter(enabled bool) error {
 // the interface asks for them several times a second.
 func (m *Manager) Levels() (Levels, bool, error) {
 	m.mu.RLock()
-	c, on := m.client, m.levelMeter
+	c, on, lead := m.client, m.levelMeter, levelLead(m.extraFlags)
 	m.mu.RUnlock()
 	if c == nil {
 		return Levels{}, false, ErrNotConnected
@@ -166,7 +183,9 @@ func (m *Manager) Levels() (Levels, bool, error) {
 	if resp.isNullData() {
 		return Levels{}, false, nil
 	}
-	return parseLevelMetadata(resp.Data)
+	levels, ok, err := parseLevelMetadata(resp.Data)
+	levels.Lead = lead
+	return levels, ok, err
 }
 
 // parseLevelMetadata reads aspectralstats' frame metadata, which mpv

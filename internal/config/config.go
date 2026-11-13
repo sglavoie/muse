@@ -18,7 +18,9 @@ log_level = %q
 # Custom path for the mpv IPC socket (leave empty for default).
 # mpv_socket_path = ""
 
-# Extra flags passed to the mpv subprocess.
+# Extra flags passed to the mpv subprocess. They come after muse's own, so
+# they can override them: muse runs mpv with --audio-buffer=1 (seconds of
+# audio queued ahead) so playback rides out system stalls.
 # mpv_extra_flags = ["--audio-device=pulse"]
 
 # Volume step when pressing volume up/down (1-25%%).

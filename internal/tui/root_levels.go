@@ -85,6 +85,13 @@ type levelState struct {
 	lastPoll time.Time // when the newest reading was scheduled
 	lastAt   time.Time // when the newest applied reading was taken
 
+	// pending holds readings taken but not yet heard: each is drawn once
+	// lead (the player's buffering, from the newest real reading) has passed
+	// since it was taken, so the bars move with the music rather than ahead
+	// of it.
+	pending []levelReading
+	lead    time.Duration
+
 	// bands are the spectrum bars, lowest frequency first; loudness is the
 	// average of the channels' levels. 0 rests, 1 is full scale.
 	bands    [player.LevelBandCount]float64
@@ -166,25 +173,53 @@ func (m Model) levelRead(now time.Time, interval time.Duration) (Model, func() l
 	}
 }
 
-// applyLevelReading moves the meter toward a reading. An empty reading lets
-// the bars sink; enough of them before the first real one means this mpv
-// cannot measure, and the meter falls back to its animation.
+// levelPendingLimit bounds the readings held back for their lead: a few
+// seconds' worth at levelPollInterval, more than any sane audio buffer.
+const levelPendingLimit = 64
+
+// applyLevelReading takes in a reading and moves the meter toward every
+// reading whose lead has passed. An empty reading lets the bars sink; enough
+// of them before the first real one means this mpv cannot measure, and the
+// meter falls back to its animation.
 func (m Model) applyLevelReading(r levelReading) Model {
 	if r.enabled {
 		m.levels.meterOn = true
 	}
-	if !r.ok {
-		if m.levels.mode == levelsPending {
-			m.levels.misses++
-			if m.levels.misses >= levelFallbackMisses {
-				return m.fallBackToSyntheticLevels(r.err)
-			}
+	if r.ok {
+		m.levels.mode = levelsLive
+		m.levels.misses = 0
+		m.levels.lead = r.levels.Lead
+	} else if m.levels.mode == levelsPending {
+		m.levels.misses++
+		if m.levels.misses >= levelFallbackMisses {
+			return m.fallBackToSyntheticLevels(r.err)
 		}
-		return m.stepLevels(r.at, levelFrame{})
 	}
-	m.levels.mode = levelsLive
-	m.levels.misses = 0
-	return m.stepLevels(r.at, levelTargets(r.levels))
+	m.levels.pending = append(m.levels.pending, r)
+	if over := len(m.levels.pending) - levelPendingLimit; over > 0 {
+		m.levels.pending = m.levels.pending[over:]
+	}
+	return m.drainLevels(r.at)
+}
+
+// drainLevels steps the meter through the pending readings that are heard by
+// now, in order, each at the moment it is heard.
+func (m Model) drainLevels(now time.Time) Model {
+	heard := 0
+	for _, p := range m.levels.pending {
+		at := p.at.Add(m.levels.lead)
+		if at.After(now) {
+			break
+		}
+		heard++
+		target := levelFrame{}
+		if p.ok {
+			target = levelTargets(p.levels)
+		}
+		m = m.stepLevels(at, target)
+	}
+	m.levels.pending = append(m.levels.pending[:0:0], m.levels.pending[heard:]...)
+	return m
 }
 
 // fallBackToSyntheticLevels gives up on measured levels for this session.
@@ -227,6 +262,7 @@ func (m Model) syncLevels() (Model, tea.Cmd) {
 func (l levelState) rest() levelState {
 	l.bands, l.loudness = [player.LevelBandCount]float64{}, 0
 	l.lastAt = time.Time{}
+	l.pending = nil
 	l.bucket, l.bucketStart = 0, time.Time{}
 	return l
 }

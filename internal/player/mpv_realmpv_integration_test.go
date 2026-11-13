@@ -37,9 +37,12 @@ import (
 // Run with: go test -tags integration -run RealMPV ./internal/player/
 
 // realMPVClipSecs is the length of each generated clip. Long enough that an
-// advance is a real transition rather than a rounding artifact, short enough that
-// a five-clip queue plays out inside a test timeout.
-const realMPVClipSecs = 1.2
+// advance is a real transition rather than a rounding artifact, and that a clip
+// outlasts mpv's audio buffer (defaultAudioBufferSecs): with gapless on, mpv
+// moves its position to the next file once the current one is decoded, a
+// buffer ahead of what plays, so a shorter clip is never seen playing. Short
+// enough that a five-clip queue plays out inside a test timeout.
+const realMPVClipSecs = 1.8
 
 // requireMPV skips when the binary under test is not installed.
 func requireMPV(t *testing.T) {
@@ -282,12 +285,14 @@ func (f *realMPVFixture) waitForElapsed(secs float64, within time.Duration) floa
 // Elapsed time is measured from the play command rather than between consecutive
 // starts because a start-file is reported after the manager has resolved the new
 // row, which lags the actual start by a fraction of a second — enough to deflate a
-// single 1.2s interval, but not a sum anchored outside the event path.
+// single clip's interval, but not a sum anchored outside the event path.
 //
-// The bounds are wide on purpose. Measured on macOS, three 1.2s clips reach their
-// last start about 0.2s per transition early: with gapless on, mpv opens the next
-// file while the current one is still draining, which is the point of gapless and
-// which makes start-file a slightly early signal rather than an exact one.
+// The bounds are wide on purpose. With gapless on, mpv opens the next file once
+// the current one is decoded, while its last defaultAudioBufferSecs still drain
+// from the audio buffer: that is the point of gapless, and it makes start-file
+// an early signal by about the buffer's length. The lead does not add up across
+// transitions, since each file is decoded the same buffer ahead of its playback,
+// so the last start arrives about one buffer before the audio reaches it.
 func TestRealMPVGaplessAdvanceThroughTheQueue(t *testing.T) {
 	f := newRealMPVFixture(t, 3, realMPVClipSecs)
 	if err := f.mgr.SetGapless(true); err != nil {
@@ -313,7 +318,7 @@ func TestRealMPVGaplessAdvanceThroughTheQueue(t *testing.T) {
 	elapsed := starts[len(starts)-1].at.Sub(playAt).Seconds()
 	t.Logf("the last of %d tracks started %.2fs in, after %.2fs of audio",
 		len(f.tracks), elapsed, played)
-	if elapsed < 0.7*played {
+	if elapsed < played-defaultAudioBufferSecs-0.5 {
 		t.Errorf("the queue reached its last track in %.2fs but the clips before it run %.2fs: they were not played through",
 			elapsed, played)
 	}

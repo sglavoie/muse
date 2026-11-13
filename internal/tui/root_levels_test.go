@@ -482,3 +482,49 @@ func TestNowPlayingShowsTheLoudnessStripAboveTheProgressBar(t *testing.T) {
 		t.Fatal("level_meter off shows no strip")
 	}
 }
+
+// TestLevelReadingsWaitForTheirLead guards the meter's sync with the music:
+// mpv measures audio as it enters its output queue, a lead ahead of what is
+// heard, so a reading must not move the bars until that lead has passed.
+func TestLevelReadingsWaitForTheirLead(t *testing.T) {
+	src := &stubLevelPlayer{}
+	m := levelModel(t, src, 100, 30)
+	lead := 500 * time.Millisecond
+	loud := loudReading()
+	loud.Lead = lead
+	start := time.Now()
+
+	m = m.applyLevelReading(levelReading{at: start, ok: true, levels: loud, enabled: true})
+	if m.levels.bands != ([player.LevelBandCount]float64{}) || m.levels.loudness != 0 {
+		t.Fatalf("a reading must not show before its lead has passed: %+v", m.levels.bands)
+	}
+	if m.levels.mode != levelsLive {
+		t.Fatal("a held-back reading still proves the meter live")
+	}
+
+	m = m.applyLevelReading(levelReading{at: start.Add(lead - levelPollInterval), ok: true, levels: loud})
+	if m.levels.loudness != 0 {
+		t.Fatal("the meter moved before the first reading was heard")
+	}
+
+	m = m.applyLevelReading(levelReading{at: start.Add(lead), ok: true, levels: loud})
+	if m.levels.loudness == 0 {
+		t.Fatal("the first reading should show once its lead has passed")
+	}
+	if len(m.levels.pending) != 2 {
+		t.Fatalf("readings not yet heard should stay pending: %d", len(m.levels.pending))
+	}
+}
+
+func TestPausingDropsHeldBackReadings(t *testing.T) {
+	src := &stubLevelPlayer{}
+	m := levelModel(t, src, 100, 30)
+	loud := loudReading()
+	loud.Lead = time.Second
+	m = m.applyLevelReading(levelReading{at: time.Now(), ok: true, levels: loud, enabled: true})
+	m.playback.state = playback.StatePaused
+	m, _ = m.syncLevels()
+	if len(m.levels.pending) != 0 {
+		t.Fatalf("paused, the held-back readings will never be heard: %d pending", len(m.levels.pending))
+	}
+}

@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all of them, and Enter on a fully applied tag removes it from all of them.
   Undo restores the previous state in one step.
 
+### Fixed
+
+- Playback no longer stutters when the machine is busy. mpv kept only 0.2 s
+  of audio queued, so whenever the system stalled every process for longer
+  than that (half a second or more is common under heavy load), the audio
+  device ran dry and the music skipped. mpv now queues a second of audio.
+  At a gapless track change, the new title now shows about a second before
+  the new song is heard. An `--audio-buffer` in `mpv_extra_flags` overrides
+  the new default.
+- The level meter's bars and loudness strip now move with the music instead
+  of slightly ahead of it: readings wait for the audio they measured to be
+  heard.
+
 ## [0.8.0] - 2026-11-09
 
 ### Added
